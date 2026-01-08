@@ -1,25 +1,13 @@
 name: Build and Deploy Agent Web UI application
 
 on:
-  workflow_dispatch:
-  pull_request:
-    branches:
-      - feat/agent-web/initial-deploy-workflow
-      - fix/agent-web
-      - chore/agent-web
-      - refactor/agent-web
-      - test/agent-web
-      - docs/agent-web
-    paths:
-      - "Agent/agent-web/**"
-      - ".github/workflows/**"
   push:
     branches:
       - main
+      # to be removed
       - feat/agent-web/initial-deploy-workflow
     paths:
       - "Agent/agent-web/**"
-      - ".github/workflows/**"
 
 env:
   app-name: 5s-tes
