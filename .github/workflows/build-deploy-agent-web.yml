@@ -12,6 +12,7 @@ on:
       - docs/agent-web
     paths:
       - "Agent/agent-web/**"
+      - ".github/workflows/**"
   push:
     branches:
       - main
