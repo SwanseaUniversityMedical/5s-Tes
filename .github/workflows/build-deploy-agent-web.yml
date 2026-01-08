@@ -16,6 +16,10 @@ on:
   push:
     branches:
       - main
+      - feat/agent-web/initial-deploy-workflow
+    paths:
+      - "Agent/agent-web/**"
+      - ".github/workflows/**"
 
 env:
   app-name: 5s-tes
