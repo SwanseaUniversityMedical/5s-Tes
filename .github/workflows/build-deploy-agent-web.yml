@@ -6,7 +6,7 @@ on:
       - main
       # to be removed
       - feat/agent-web/initial-deploy-workflow
-      - "test-ci-cd"
+      - test-ci-cd
     paths:
       - "Agent/agent-web/**"
   pull_request:
@@ -14,7 +14,7 @@ on:
       - main
       # to be removed
       - feat/agent-web/initial-deploy-workflow
-      - "test-ci-cd"
+      - test-ci-cd
 
 env:
   app-name: 5s-tes
