@@ -1,11 +1,13 @@
-import { createAuthClient } from "better-auth/client";
 import { genericOAuthClient } from "better-auth/client/plugins";
 import { toast } from "sonner";
 import { extractErrorMessage } from "./helpers";
+import { createAuthClient } from "better-auth/react";
 
-export const { signIn, signOut, getAccessToken } = createAuthClient({
-  plugins: [genericOAuthClient()],
-});
+export const { signIn, signOut, getAccessToken, useSession } = createAuthClient(
+  {
+    plugins: [genericOAuthClient()],
+  }
+);
 
 export const handleLogin = async () => {
   try {
