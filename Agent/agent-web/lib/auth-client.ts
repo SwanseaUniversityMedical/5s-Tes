@@ -51,6 +51,7 @@ export const handleLogout = async () => {
   }
 };
 
+// TODO: use this function to get the access token for the user
 export const getAccessTokenFunc = async () => {
   const accessToken = await getAccessToken({
     providerId: "keycloak",
