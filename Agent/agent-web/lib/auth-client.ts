@@ -1,5 +1,7 @@
 import { createAuthClient } from "better-auth/client";
 import { genericOAuthClient } from "better-auth/client/plugins";
+import { toast } from "sonner";
+import { extractErrorMessage } from "./helpers";
 
 export const { signIn, signOut, getAccessToken } = createAuthClient({
   plugins: [genericOAuthClient()],
@@ -7,28 +9,44 @@ export const { signIn, signOut, getAccessToken } = createAuthClient({
 
 export const handleLogin = async () => {
   try {
-    await signIn.oauth2({
+    const result = await signIn.oauth2({
       providerId: "keycloak",
-      callbackURL: process.env.NEXT_PUBLIC_APP_URL + "/",
+      callbackURL: window.location.origin + "/",
     });
+
+    // Check if the result contains an error
+    if (result && result.error) {
+      const errorMessage = extractErrorMessage(result.error);
+      toast.error(errorMessage);
+      return;
+    }
   } catch (error) {
-    console.error("Sign in failed:", error);
-    alert(
-      `Sign in failed: ${
-        error instanceof Error ? error.message : String(error)
-      }`
-    );
+    const errorMessage = extractErrorMessage(error);
+    toast.error(errorMessage);
   }
 };
 
 export const handleLogout = async () => {
-  await signOut({
-    fetchOptions: {
-      onSuccess: () => {
-        window.location.href = "/";
+  try {
+    const result = await signOut({
+      fetchOptions: {
+        onSuccess: () => {
+          toast.success("Logged out successfully");
+          window.location.href = "/";
+        },
       },
-    },
-  });
+    });
+
+    // Check if the result contains an error
+    if (result && "error" in result && result.error) {
+      const errorMessage = extractErrorMessage(result.error);
+      toast.error(errorMessage);
+      return;
+    }
+  } catch (error) {
+    const errorMessage = extractErrorMessage(error);
+    toast.error(errorMessage);
+  }
 };
 
 export const getAccessTokenFunc = async () => {
