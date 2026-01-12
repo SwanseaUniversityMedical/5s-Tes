@@ -7,9 +7,8 @@ export async function proxy(request: NextRequest) {
     headers: await headers(),
   });
 
-  // THIS IS NOT SECURE!
-  // This is the recommended approach to optimistically redirect users
-  // We recommend handling auth checks in each page/route
+  // THIS IS NOT SECURE! (As the docs of better auth said)
+  // TODO: handling auth checks in each page/route as recommended by the docs
   if (!session) {
     // All routes without a session should be redirected to the sign-in page (which will then redirect to Keycloak login page)
     return NextResponse.redirect(new URL("/sign-in", request.url));
