@@ -21,15 +21,15 @@ export async function proxy(request: NextRequest) {
 export const config = {
   matcher: [
     /*
-     * Match all paths except for:
-     * 1. / index page
-     * 2. /api routes
-     * 3. /accounts/login
-     * 4. /_next (Next.js internals)
-     * 5. /sign-in (sign-in page)
+     * Match all paths (including / index page) except for:
+     * 1. /api routes
+     * 2. /accounts/login
+     * 3. /_next (Next.js internals)
+     * 4. /sign-in (sign-in page)
+     * 5. /logged-out (logged-out page)
      * 6. /_static (inside /public)
-     * 7. all root files inside /public (e.g. /favicon.ico)
-     * 8. folder containing logos inside "public"
+     * 7. /logos folder
+     * 8. all root files inside /public (e.g. /favicon.ico)
      */
     "/((?!api/|accounts/login|_next/|sign-in|logged-out|_static/|logos|[\\w-]+\\.\\w+).*)",
   ],
