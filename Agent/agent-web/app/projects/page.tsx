@@ -1,26 +1,10 @@
 import { auth } from "@/lib/auth";
 import { headers } from "next/headers";
+import { getProjects } from "../api/projects";
 
 export default async function Projects() {
-  const accessToken = await auth.api.getAccessToken({
-    body: {
-      providerId: "keycloak",
-    },
-    headers: await headers(),
-  });
-
-  const data = await fetch(
-    "http://localhost:8072/api/Approval/GetAllTreProjects",
-    {
-      headers: {
-        Authorization: `Bearer ${accessToken.accessToken}`,
-        "Content-Type": "application/json",
-      },
-      method: "GET",
-    }
-  );
-  const projects = await data.json();
-
+  const projects = await getProjects();
+  console.log(projects);
   return (
     <div>
       {projects.map((project: any) => (
