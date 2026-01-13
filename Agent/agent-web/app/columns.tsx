@@ -5,6 +5,7 @@ import { TreProject } from "@/types/TreProject";
 import { getDecisionInfo } from "@/types/Decision";
 import { format } from "date-fns/format";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 
 export const columns: ColumnDef<TreProject>[] = [
   {
@@ -12,6 +13,17 @@ export const columns: ColumnDef<TreProject>[] = [
     header: "Project Name",
     cell: ({ row }) => {
       return <div>{row.original.submissionProjectName}</div>;
+    },
+  },
+  {
+    accessorKey: "memberDecisions",
+    header: "Memberships",
+    cell: ({ row }) => {
+      return (
+        <Badge variant="secondary">
+          {row.original.memberDecisions?.length} Member(s)
+        </Badge>
+      );
     },
   },
   {
