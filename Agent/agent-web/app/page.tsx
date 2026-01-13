@@ -1,15 +1,19 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileScan } from "lucide-react";
-
 import { getProjects } from "./api/projects";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
 import { TreProject } from "@/types/TreProject";
+import { Metadata } from "next";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
 }
+export const metadata: Metadata = {
+  title: "TRE Admin Approval Dashboard",
+  description: "TRE Approval Dashboard",
+};
 
 export default async function ProjectsPage(props: ProjectsProps) {
   const searchParams = await props.searchParams;
