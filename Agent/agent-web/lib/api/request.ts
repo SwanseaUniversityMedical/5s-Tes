@@ -8,7 +8,6 @@ interface RequestOptions {
   download?: boolean;
   cache?: RequestCache;
   next?: { revalidate: number };
-  authMode?: "token" | "apiKey";
   baseUrl?: string;
 }
 

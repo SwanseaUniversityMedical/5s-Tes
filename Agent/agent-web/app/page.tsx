@@ -1,5 +1,4 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileScan } from "lucide-react";
 import { getProjects } from "./api/projects";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
