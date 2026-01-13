@@ -2,10 +2,16 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileScan } from "lucide-react";
 import { EmptyState } from "@/components/empty-state";
 import { getProjects } from "./api/projects";
+import { Metadata } from "next";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
 }
+
+export const metadata: Metadata = {
+  title: "Projects",
+  description: "Projects page",
+};
 
 export default async function Home(props: ProjectsProps) {
   const searchParams = await props.searchParams;
