@@ -11,7 +11,7 @@ interface ProjectsProps {
 export default async function ProjectsPage(props: ProjectsProps) {
   const searchParams = await props.searchParams;
   const defaultParams = {
-    showOnlyUnprocessed: false,
+    showOnlyUnprocessed: true,
   };
   const combinedParams = { ...defaultParams, ...searchParams };
   const projects = await getProjects(combinedParams);

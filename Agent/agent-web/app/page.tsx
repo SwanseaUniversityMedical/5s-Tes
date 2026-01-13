@@ -1,29 +1,73 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { AuthButton } from "@/components/auth-button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileScan } from "lucide-react";
+import { EmptyState } from "@/components/empty-state";
+import { getProjects } from "./api/projects";
 
-export default async function Home() {
-  const session = await auth.api.getSession({ headers: await headers() });
+interface ProjectsProps {
+  searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
+}
+
+export default async function Home(props: ProjectsProps) {
+  const searchParams = await props.searchParams;
+  const defaultParams = {
+    showOnlyUnprocessed: true,
+  };
+  const combinedParams = { ...defaultParams, ...searchParams };
+  const projects = await getProjects(combinedParams);
 
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <h1 className="text-2xl font-bold">Agent Web UI Application</h1>
-      <div className="flex flex-col items-center gap-4">
-        {session?.user && (
-          <div className="text-center">
-            <p className="text-lg">You are logged in!</p>
-            <p className="text-sm text-gray-600 my-3">
-              Welcome, {session.user.name || session.user.email}
-            </p>
-            <AuthButton mode="logout" />
-          </div>
-        )}
-        {!session?.user && (
-          <div className="text-center">
-            <p className="text-lg">Hello, Guest!</p>
-            <AuthButton mode="login" />
-          </div>
-        )}
+    <div className="space-y-2">
+      <div className="flex font-semibold text-xl items-center">
+        <FileScan className="mr-2 text-green-700" />
+        <h2>Projects</h2>
+      </div>
+
+      <div className="my-3">
+        <Tabs
+          defaultValue={
+            (searchParams as any)?.showOnlyUnprocessed
+              ? (searchParams as any)?.showOnlyUnprocessed === "true"
+                ? "unprocessed"
+                : "all"
+              : "unprocessed"
+          }
+        >
+          <TabsList className="mb-2">
+            <a href="?showOnlyUnprocessed=true" className="h-full">
+              <TabsTrigger value="unprocessed">
+                Unprocessed Projects
+              </TabsTrigger>
+            </a>
+            <a href="?showOnlyUnprocessed=false" className="h-full">
+              <TabsTrigger value="all">All Projects</TabsTrigger>
+            </a>
+          </TabsList>
+
+          <TabsContent value="unprocessed">
+            {projects.length > 0 ? (
+              projects.map((project: any) => (
+                <div key={project.id}>{project.submissionProjectName}</div>
+              ))
+            ) : (
+              <EmptyState
+                title="No unprocessed projects found"
+                description="All projects have been processed or there are no projects yet."
+              />
+            )}
+          </TabsContent>
+          <TabsContent value="all">
+            {projects.length > 0 ? (
+              projects.map((project: any) => (
+                <div key={project.id}>{project.submissionProjectName}</div>
+              ))
+            ) : (
+              <EmptyState
+                title="No projects found yet"
+                description="All project should appear here."
+              />
+            )}
+          </TabsContent>
+        </Tabs>
       </div>
     </div>
   );
