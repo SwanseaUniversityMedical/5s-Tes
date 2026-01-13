@@ -3,9 +3,12 @@
 import request from "@/lib/api/request";
 
 const fetchKeys = {
-  listProjects: () => "Approval/GetAllTreProjects",
+  listProjects: (params: { showOnlyUnprocessed: boolean }) =>
+    `Approval/GetAllTreProjects?showOnlyUnprocessed=${params.showOnlyUnprocessed}`,
 };
 
-export async function getProjects(): Promise<any> {
-  return await request(fetchKeys.listProjects());
+export async function getProjects(params: {
+  showOnlyUnprocessed: boolean;
+}): Promise<any> {
+  return await request(fetchKeys.listProjects(params));
 }
