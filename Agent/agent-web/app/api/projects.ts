@@ -1,6 +1,7 @@
 "use server";
 
 import request from "@/lib/api/request";
+import { TreProject } from "@/types/TreProject";
 
 const fetchKeys = {
   listProjects: (params: { showOnlyUnprocessed: boolean }) =>
@@ -9,6 +10,6 @@ const fetchKeys = {
 
 export async function getProjects(params: {
   showOnlyUnprocessed: boolean;
-}): Promise<any> {
-  return await request(fetchKeys.listProjects(params));
+}): Promise<TreProject[]> {
+  return await request<TreProject[]>(fetchKeys.listProjects(params));
 }

@@ -1,25 +1,29 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileScan } from "lucide-react";
-import { EmptyState } from "@/components/empty-state";
+
 import { getProjects } from "./api/projects";
-import { Metadata } from "next";
+import { EmptyState } from "@/components/empty-state";
+import { DataTable } from "@/components/data-table";
+import { columns } from "./columns";
+import { TreProject } from "@/types/TreProject";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
 }
 
-export const metadata: Metadata = {
-  title: "Projects",
-  description: "Projects page",
-};
-
-export default async function Home(props: ProjectsProps) {
+export default async function ProjectsPage(props: ProjectsProps) {
   const searchParams = await props.searchParams;
   const defaultParams = {
     showOnlyUnprocessed: true,
   };
   const combinedParams = { ...defaultParams, ...searchParams };
-  const projects = await getProjects(combinedParams);
+  let projects: TreProject[] = [];
+  // TODO: Add error handling
+  try {
+    projects = await getProjects(combinedParams);
+  } catch (error) {
+    console.error(error);
+  }
 
   return (
     <div className="space-y-2">
@@ -51,9 +55,7 @@ export default async function Home(props: ProjectsProps) {
 
           <TabsContent value="unprocessed">
             {projects.length > 0 ? (
-              projects.map((project: any) => (
-                <div key={project.id}>{project.submissionProjectName}</div>
-              ))
+              <DataTable columns={columns} data={projects} />
             ) : (
               <EmptyState
                 title="No unprocessed projects found"
@@ -63,9 +65,7 @@ export default async function Home(props: ProjectsProps) {
           </TabsContent>
           <TabsContent value="all">
             {projects.length > 0 ? (
-              projects.map((project: any) => (
-                <div key={project.id}>{project.submissionProjectName}</div>
-              ))
+              <DataTable columns={columns} data={projects} />
             ) : (
               <EmptyState
                 title="No projects found yet"
