@@ -1,5 +1,3 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
 import { getProjects } from "../api/projects";
 
 export default async function Projects() {
