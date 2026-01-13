@@ -18,7 +18,7 @@ export const metadata: Metadata = {
 export default async function ProjectsPage(props: ProjectsProps) {
   const searchParams = await props.searchParams;
   const defaultParams = {
-    showOnlyUnprocessed: true,
+    showOnlyUnprocessed: false,
   };
   const combinedParams = { ...defaultParams, ...searchParams };
   let projects: TreProject[] = [];
@@ -31,49 +31,51 @@ export default async function ProjectsPage(props: ProjectsProps) {
 
   return (
     <div className="space-y-2">
-      <div className="flex font-semibold text-xl items-center">
-        <FileScan className="mr-2 text-green-700" />
+      <div className="my-5 mx-auto max-w-7xl font-bold text-2xl items-center">
         <h2>Projects</h2>
       </div>
 
-      <div className="my-3">
+      <div className="my-5 mx-auto max-w-7xl">
         <Tabs
           defaultValue={
             (searchParams as any)?.showOnlyUnprocessed
               ? (searchParams as any)?.showOnlyUnprocessed === "true"
                 ? "unprocessed"
                 : "all"
-              : "unprocessed"
+              : "all"
           }
         >
           <TabsList className="mb-2">
-            <a href="?showOnlyUnprocessed=true" className="h-full">
+            <a href="?showOnlyUnprocessed=false">
+              <TabsTrigger value="all">All Projects</TabsTrigger>
+            </a>
+            <a href="?showOnlyUnprocessed=true">
               <TabsTrigger value="unprocessed">
                 Unprocessed Projects
               </TabsTrigger>
             </a>
-            <a href="?showOnlyUnprocessed=false" className="h-full">
-              <TabsTrigger value="all">All Projects</TabsTrigger>
-            </a>
           </TabsList>
-
-          <TabsContent value="unprocessed">
-            {projects.length > 0 ? (
-              <DataTable columns={columns} data={projects} />
-            ) : (
-              <EmptyState
-                title="No unprocessed projects found"
-                description="All projects have been processed or there are no projects yet."
-              />
-            )}
-          </TabsContent>
           <TabsContent value="all">
             {projects.length > 0 ? (
-              <DataTable columns={columns} data={projects} />
+              <div className="mx-auto max-w-7xl">
+                <DataTable columns={columns} data={projects} />
+              </div>
             ) : (
               <EmptyState
                 title="No projects found yet"
                 description="All project should appear here."
+              />
+            )}
+          </TabsContent>
+          <TabsContent value="unprocessed">
+            {projects.length > 0 ? (
+              <div className="mx-auto max-w-7xl">
+                <DataTable columns={columns} data={projects} />
+              </div>
+            ) : (
+              <EmptyState
+                title="No unprocessed projects found"
+                description="All projects have been processed or there are no projects yet."
               />
             )}
           </TabsContent>
