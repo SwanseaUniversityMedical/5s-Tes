@@ -13,8 +13,6 @@ interface RequestOptions {
 }
 
 const request = async <T>(url: string, options: RequestOptions = {}) => {
-  // Set Default to requiring auth for backward compatibility (Django)
-
   const baseUrl = options.baseUrl ?? `${process.env.AGENT_API_URL}/api`;
 
   let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
