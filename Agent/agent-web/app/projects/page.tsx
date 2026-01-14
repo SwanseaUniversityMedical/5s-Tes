@@ -5,6 +5,7 @@ import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
 import { TreProject } from "@/types/TreProject";
 import { Metadata } from "next";
+import { authcheck } from "@/lib/auth-helpers";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
@@ -15,6 +16,9 @@ export const metadata: Metadata = {
 };
 
 export default async function ProjectsPage(props: ProjectsProps) {
+  // check if user is authenticated and has the required role
+  await authcheck("dare-tre-admin");
+  // page logics
   const searchParams = await props.searchParams;
   const defaultParams = {
     showOnlyUnprocessed: false,
