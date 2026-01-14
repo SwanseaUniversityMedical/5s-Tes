@@ -12,28 +12,6 @@ export default async function Home() {
   }
 
   return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 pb-20 gap-16 sm:p-20">
-      Agent Web UI Application
-      <Button>Hello World</Button>
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
-      <h1 className="text-2xl font-bold">Agent Web UI Application</h1>
-      <div className="flex flex-col items-center gap-4">
-        {session?.user && (
-          <div className="text-center">
-            <p className="text-lg">You are logged in!</p>
-            <p className="text-sm text-gray-600 my-3">
-              Welcome, {session.user.name || session.user.email}
-            </p>
-            <AuthButton mode="logout" />
-          </div>
-        )}
-        {!session?.user && (
-          <div className="text-center">
-            <p className="text-lg">Hello, Guest!</p>
-            <AuthButton mode="login" />
-          </div>
-        )}
-      </div>
-    </div>
+    <div>Hello</div>
   );
 }

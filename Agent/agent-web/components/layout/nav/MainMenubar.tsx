@@ -5,7 +5,7 @@ import Link from "next/link";
 
 const MENU_NAV_ITEMS = [
   { label: "Projects", href: "/projects" },
-  { label: "Configure 5S-TES", href: "/update-credentials" },
+  { label: "Configure 5S-TES", href: "/configure-5s-tes" },
   { label: "Access Rules", href: "/access-rules" },
 ] as const;
 
