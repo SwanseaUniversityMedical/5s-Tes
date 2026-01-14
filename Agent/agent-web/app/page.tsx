@@ -2,7 +2,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { getProjects } from "./api/projects";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
-import { columns } from "./columns";
+import { columns } from "./projects/columns";
 import { TreProject } from "@/types/TreProject";
 import { Metadata } from "next";
 
