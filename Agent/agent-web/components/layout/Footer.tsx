@@ -43,7 +43,7 @@ export default function Footer() {
           {/* Copyright */}
 
           <p className="text-center text-sm text-gray-100">
-            ©DARE UK - 5S-TES TRE {currentYear} | All rights reserved
+            ©DARE UK - 5S-TES TRE Admin {currentYear} | All rights reserved
           </p>
 
         </div>
