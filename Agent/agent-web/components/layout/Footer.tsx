@@ -1,6 +1,15 @@
-import Image from "next/image";
 import Link from "next/link";
-import { FOOTER_LINKS } from "@/constants";
+
+// Footer navigation links
+
+const FOOTER_LINKS = [
+  { href: "https://docs.federated-analytics.ac.uk/five_safes_tes", label: "About Five Safes TES" },
+  { href: "https://dareuk.org.uk/", label: "About DARE UK" },
+  { href: "https://dareuk.org.uk/get-in-touch/", label: "Contact Us" },
+] as const;
+
+
+// Creates Footer Component for the Root TRE Layout
 
 export default function Footer() {
   const currentYear = new Date().getFullYear();

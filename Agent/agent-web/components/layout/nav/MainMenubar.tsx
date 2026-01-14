@@ -1,6 +1,13 @@
-import { MENU_NAV_ITEMS } from "@/constants";
 import {MenubarItems} from "@/types/tre-layout";
 import Link from "next/link";
+
+// Define the menu navigation items with labels and routes
+
+const MENU_NAV_ITEMS = [
+  { label: "Projects", href: "/projects" },
+  { label: "Configure 5S-TES", href: "/update-credentials" },
+  { label: "Access Rules", href: "/access-rules" },
+] as const;
 
 // Creates Main Navigation Menubar Component in the Navbar
 

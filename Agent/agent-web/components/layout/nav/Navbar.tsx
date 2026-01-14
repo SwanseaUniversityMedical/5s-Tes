@@ -9,16 +9,12 @@ MainMenubar, and UserMenu components. */
 
 export default function Navbar() {
   return (
-    <div className="bg-background">
-      <div className="flex h-14 items-center px-4">
+    <nav className="flex items-center justify-between gap-8 bg-background px-6 py-4">
+      <div className="flex items-center gap-14">
         <NavbarLogo />
-        <div className="ml-10 flex-1">
-          <MainMenubar />
-        </div>
-        <div className="ml-10">
-          <UserMenu username="Global AdminUser" />
-        </div>
+        <MainMenubar />
       </div>
-    </div>
+      <UserMenu username="Global AdminUser" />
+    </nav>
   );
 }

@@ -8,8 +8,16 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 import { Button } from "@/components/ui/button";
-import { UserMenuProps } from "@/types/tre-layout";
 import { ChevronDown, User } from "lucide-react";
+
+// User menu button types
+
+type UserMenuProps = {
+  username: string;
+  onAccount?: () => void;
+  onHelpdesk?: () => void;
+  onLogout?: () => void;
+};
 
 // Creates User Menu Dropdown button Component in the Navbar
 
