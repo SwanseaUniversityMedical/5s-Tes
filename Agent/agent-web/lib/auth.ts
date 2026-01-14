@@ -1,8 +1,6 @@
-import { betterAuth } from "better-auth";
+import { betterAuth, User } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
-import jwt from "jsonwebtoken";
 import { getKeycloakIssuer } from "./helpers";
-import { DecodedToken } from "@/types/core";
 
 const baseURL =
   process.env.BETTER_AUTH_URL ||
@@ -38,18 +36,10 @@ export const auth = betterAuth({
           tokenUrl: `${getKeycloakIssuer()}/protocol/openid-connect/token`,
           userInfoUrl: `${getKeycloakIssuer()}/protocol/openid-connect/userinfo`,
           scopes: ["openid"],
-          getUserInfo: async (tokens) => {
-            // Decode the access token to get user info
-            const decodedToken = jwt.decode(
-              tokens.accessToken!
-            ) as DecodedToken;
+          mapProfileToUser: async (profile) => {
             return {
-              id: decodedToken?.sub || "",
-              name: decodedToken?.name || "",
-              email: decodedToken?.email || "",
-              emailVerified: decodedToken?.email_verified || false,
-              roles: decodedToken?.realm_access?.roles || [],
-            };
+              roles: profile?.realm_access?.roles || [],
+            } as Partial<User>;
           },
         },
       ],
