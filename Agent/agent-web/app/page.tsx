@@ -1,18 +1,15 @@
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { getProjects } from "./api/projects";
-import { EmptyState } from "@/components/empty-state";
-import { DataTable } from "@/components/data-table";
-import { columns } from "./projects/columns";
-import { TreProject } from "@/types/TreProject";
-import { Metadata } from "next";
+import { auth } from "@/lib/auth";
+import { headers } from "next/headers";
+import { AuthButton } from "@/components/auth-button";
+import { redirect } from "next/navigation";
 
-interface ProjectsProps {
-  searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
-}
-export const metadata: Metadata = {
-  title: "TRE Admin Approval Dashboard",
-  description: "TRE Approval Dashboard",
-};
+export default async function Home() {
+  const session = await auth.api.getSession({ headers: await headers() });
+  if (!session?.user) {
+    return redirect("/sign-in");
+  } else if (session?.user && !session.user.roles.includes("dare-tre-admin")) {
+    return redirect("/forbidden?code=403");
+  }
 
 export default async function ProjectsPage(props: ProjectsProps) {
   const searchParams = await props.searchParams;
@@ -29,56 +26,24 @@ export default async function ProjectsPage(props: ProjectsProps) {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="my-5 mx-auto max-w-7xl font-bold text-2xl items-center">
-        <h2>Projects</h2>
-      </div>
-
-      <div className="my-5 mx-auto max-w-7xl">
-        <Tabs
-          defaultValue={
-            (searchParams as any)?.showOnlyUnprocessed
-              ? (searchParams as any)?.showOnlyUnprocessed === "true"
-                ? "unprocessed"
-                : "all"
-              : "all"
-          }
-        >
-          <TabsList className="mb-2">
-            <a href="?showOnlyUnprocessed=false">
-              <TabsTrigger value="all">All Projects</TabsTrigger>
-            </a>
-            <a href="?showOnlyUnprocessed=true">
-              <TabsTrigger value="unprocessed">
-                Unprocessed Projects
-              </TabsTrigger>
-            </a>
-          </TabsList>
-          <TabsContent value="all">
-            {projects.length > 0 ? (
-              <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
-              </div>
-            ) : (
-              <EmptyState
-                title="No projects found yet"
-                description="All project should appear here."
-              />
-            )}
-          </TabsContent>
-          <TabsContent value="unprocessed">
-            {projects.length > 0 ? (
-              <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
-              </div>
-            ) : (
-              <EmptyState
-                title="No unprocessed projects found"
-                description="All projects have been processed or there are no projects yet."
-              />
-            )}
-          </TabsContent>
-        </Tabs>
+    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20">
+      <h1 className="text-2xl font-bold">Agent Web UI Application</h1>
+      <div className="flex flex-col items-center gap-4">
+        {session?.user && (
+          <div className="text-center">
+            <p className="text-lg">You are logged in!</p>
+            <p className="text-sm text-gray-600 my-3">
+              Welcome, {session.user.name || session.user.email}
+            </p>
+            <AuthButton mode="logout" />
+          </div>
+        )}
+        {!session?.user && (
+          <div className="text-center">
+            <p className="text-lg">Hello, Guest!</p>
+            <AuthButton mode="login" />
+          </div>
+        )}
       </div>
     </div>
   );

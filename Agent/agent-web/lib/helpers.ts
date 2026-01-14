@@ -22,3 +22,10 @@ export function extractErrorMessage(error: unknown): string {
 
   return "An unexpected error occurred. Please try again.";
 }
+
+export function getKeycloakIssuer() {
+  if (process.env.KEYCLOAK_URL && process.env.KEYCLOAK_REALM) {
+    return `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}`;
+  }
+  return "";
+}
