@@ -1,7 +1,9 @@
+import CredentialsTabs from "@/components/credentials/CredentialsTab";
+
 export default function UpdateCredentials() {
     return (
-    <div className="font-sans grid grid-rows-[20px_1fr_20px] items-center justify-items-center p-8 pb-20 gap-16 sm:p-20">
-      Page for Updating Credentials
+    <div className="flex justify-start p-40 pt-10">
+      <CredentialsTabs />
     </div>
   );
 }
