@@ -1,17 +1,14 @@
-import { auth } from "@/lib/auth";
-import { headers } from "next/headers";
-import { AuthButton } from "@/components/auth-button";
+import { authcheck } from "@/lib/auth-helpers";
+import { Metadata } from "next";
 import { redirect } from "next/navigation";
 
-export default async function Home() {
-  const session = await auth.api.getSession({ headers: await headers() });
-  if (!session?.user) {
-    return redirect("/sign-in");
-  } else if (session?.user && !session.user.roles.includes("dare-tre-admin")) {
-    return redirect("/forbidden?code=403");
-  }
+export const metadata: Metadata = {
+  title: "Agent Web UI Application",
+  description: "Agent Web UI Application",
+};
 
-  return (
-    <div>Hello</div>
-  );
+export default async function Home() {
+  // check if user is authenticated and has the required role and then redirect to projects page
+  await authcheck("dare-tre-admin");
+  return redirect("/projects");
 }

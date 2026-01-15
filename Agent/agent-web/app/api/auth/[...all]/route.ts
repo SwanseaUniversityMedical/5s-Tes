@@ -4,6 +4,18 @@ import { NextRequest, NextResponse } from "next/server";
 
 const handlers = toNextJsHandler(auth);
 
+// Clear all auth-related cookies
+function clearAuthCookies(response: NextResponse) {
+  response.cookies.set("better-auth.session_token", "", {
+    expires: new Date(0),
+    path: "/",
+  });
+  response.cookies.set("better-auth.oauth_state", "", {
+    expires: new Date(0),
+    path: "/",
+  });
+}
+
 async function handleRequest(
   handler: (request: NextRequest) => Promise<Response>,
   request: NextRequest
@@ -12,18 +24,24 @@ async function handleRequest(
     const response = await handler(request);
     return response;
   } catch (error) {
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
     const status =
       error instanceof Error && "status" in error
         ? (error.status as number)
         : 500;
 
-    return NextResponse.json(
+    // Clear cookies and return error response
+    // This allows the client to retry with a clean state
+    const response = NextResponse.json(
       {
         error: "Authentication error",
-        message: error instanceof Error ? error.message : "Unknown error",
+        message: errorMessage,
       },
       { status }
     );
+    clearAuthCookies(response);
+    return response;
   }
 }
 
