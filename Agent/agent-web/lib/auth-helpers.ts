@@ -7,8 +7,12 @@ import { redirect } from "next/navigation";
  * @returns The session or null if not authenticated
  */
 export async function getSession() {
-  const headersList = await headers();
-  return await auth.api.getSession({ headers: headersList });
+  try {
+    const headersList = await headers();
+    return await auth.api.getSession({ headers: headersList });
+  } catch (error) {
+    return null;
+  }
 }
 
 /**
@@ -18,7 +22,13 @@ export async function getSession() {
  * @returns The session if user is authenticated and has the required role
  */
 export async function authcheck(requiredRole?: string) {
-  const session = await getSession();
+  let session;
+
+  try {
+    session = await getSession();
+  } catch (error) {
+    redirect("/sign-in");
+  }
 
   // Check if user is authenticated
   if (!session?.user) {

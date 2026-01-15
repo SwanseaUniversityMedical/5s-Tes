@@ -17,7 +17,9 @@ export const metadata: Metadata = {
 
 export default async function ProjectsPage(props: ProjectsProps) {
   // check if user is authenticated and has the required role
+  // This will redirect to /sign-in if not authenticated or if session is invalid
   await authcheck("dare-tre-admin");
+
   // page logics
   const searchParams = await props.searchParams;
   const defaultParams = {
@@ -25,11 +27,32 @@ export default async function ProjectsPage(props: ProjectsProps) {
   };
   const combinedParams = { ...defaultParams, ...searchParams };
   let projects: TreProject[] = [];
-  // TODO: Add error handling
+  let fetchError: string | null = null;
+
   try {
     projects = await getProjects(combinedParams);
   } catch (error) {
-    console.error(error);
+    fetchError =
+      error instanceof Error ? error.message : "Failed to load projects";
+  }
+
+  // Show error state if fetching failed
+  if (fetchError) {
+    return (
+      <div className="space-y-2">
+        <div className="my-5 mx-auto max-w-7xl">
+          <div className="flex flex-col items-center justify-center py-20">
+            <h2 className="text-xl font-semibold text-red-600">
+              Error loading projects
+            </h2>
+            <p className="text-sm text-gray-500 mt-2">{fetchError}</p>
+            <a href="/projects" className="mt-4 text-blue-600 hover:underline">
+              Try logging out and logging in again
+            </a>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (
