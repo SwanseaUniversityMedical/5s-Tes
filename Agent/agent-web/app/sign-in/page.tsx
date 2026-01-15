@@ -1,48 +1,91 @@
+"use client";
+
 import { Button } from "@/components/ui/button";
-import { auth } from "@/lib/auth";
-import { getSession } from "@/lib/auth-helpers";
+import { signIn, useSession } from "@/lib/auth-client";
 import { extractErrorMessage } from "@/lib/helpers";
-import Link from "next/link";
-import { redirect } from "next/navigation";
+import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 
-// A page purely to navigate a user to Keycloak log in page should Better Auth ask to log in.
-export default async function Signin() {
-  // Check session without redirecting
-  // TODO: handle error here
-  const session = await getSession();
-  if (session?.user) {
-    const userRoles = (session.user as any).roles || [];
-    if (userRoles.includes("dare-tre-admin")) {
-      // If user is already logged in with correct role, redirect to projects
-      redirect("/projects");
-    } else {
-      // User is logged in but doesn't have the required role
-      redirect("/forbidden?code=403");
-    }
-  }
+// A page to navigate a user to Keycloak login page
+export default function Signin() {
+  const router = useRouter();
+  const { data: session, isPending, error: sessionError } = useSession();
+  const hasInitiatedLogin = useRef(false);
+  const [error, setError] = useState<string | null>(null);
 
-  // User is not logged in, redirect to KC login page (get from the auth.api.signInWithOAuth2 call)
-  try {
-    const result = await auth.api.signInWithOAuth2({
-      body: {
+  const initiateLogin = async () => {
+    setError(null);
+    try {
+      const result = await signIn.oauth2({
         providerId: "keycloak",
-        callbackURL: process.env.BETTER_AUTH_URL + "/projects",
-      },
-    });
-    if (result) {
-      redirect(result.url);
+        callbackURL: window.location.origin + "/projects",
+      });
+
+      // Check if the result contains an error
+      if (result?.error) {
+        setError(extractErrorMessage(result.error));
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err));
     }
-  } catch (error) {
-    console.error(error);
-    const errorMessage = extractErrorMessage(error);
+  };
+
+  const handleRetry = () => {
+    hasInitiatedLogin.current = false;
+    setError(null);
+    initiateLogin();
+  };
+
+  useEffect(() => {
+    // Handle session check error
+    if (sessionError) {
+      setError(extractErrorMessage(sessionError));
+      return;
+    }
+
+    // Wait for session check to complete
+    if (isPending) return;
+
+    // If user is already logged in
+    if (session?.user) {
+      const userRoles = (session.user as any).roles || [];
+      if (userRoles.includes("dare-tre-admin")) {
+        // User has the required role, redirect to projects
+        router.replace("/projects");
+      } else {
+        // User doesn't have the required role
+        router.replace("/forbidden?code=403");
+      }
+      return;
+    }
+
+    // User is not logged in - initiate OAuth flow (only once)
+    if (!hasInitiatedLogin.current) {
+      hasInitiatedLogin.current = true;
+      initiateLogin();
+    }
+  }, [session, isPending, sessionError, router]);
+
+  // Show error state
+  if (error) {
     return (
       <div className="flex flex-col items-center justify-center h-screen">
-        <h1 className="text-2xl font-bold">Error signing in</h1>
-        <p className="text-sm my-3 text-gray-500">Details: {errorMessage}</p>
-        <Link href="/sign-in">
-          <Button>Try again</Button>
-        </Link>
+        <h1 className="text-xl font-semibold text-red-600">Sign in failed</h1>
+        <p className="text-sm text-gray-500 mt-2 max-w-md text-center">
+          {error}
+        </p>
+        <Button onClick={handleRetry} className="mt-4">
+          Try again
+        </Button>
       </div>
     );
   }
+
+  // Show loading state
+  return (
+    <div className="flex flex-col items-center justify-center h-screen">
+      <h1 className="text-xl font-semibold">Redirecting to login...</h1>
+      <p className="text-sm text-gray-500 mt-2">Please wait</p>
+    </div>
+  );
 }
