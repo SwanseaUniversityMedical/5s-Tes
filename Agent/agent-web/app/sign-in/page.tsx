@@ -85,7 +85,12 @@ export default function Signin() {
   return (
     <div className="flex flex-col items-center justify-center h-screen">
       <h1 className="text-xl font-semibold">Redirecting to login...</h1>
-      <p className="text-sm text-gray-500 mt-2">Please wait</p>
+      <p className="text-sm text-gray-500 mt-2">
+        If this page doesn't load, please try again.
+      </p>
+      <Button onClick={handleRetry} className="mt-4">
+        Try again
+      </Button>
     </div>
   );
 }
