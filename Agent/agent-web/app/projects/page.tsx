@@ -6,6 +6,7 @@ import { TreProject } from "@/types/TreProject";
 import { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
 import { getProjects } from "@/lib/api/projects";
+import { AuthButton } from "@/components/auth-button";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
@@ -49,6 +50,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
             <a href="/projects" className="mt-4 text-blue-600 hover:underline">
               Try logging out and logging in again
             </a>
+            <AuthButton mode="logout" />
           </div>
         </div>
       </div>
@@ -60,7 +62,6 @@ export default async function ProjectsPage(props: ProjectsProps) {
       <div className="my-5 mx-auto max-w-7xl font-bold text-2xl items-center">
         <h2>Projects</h2>
       </div>
-
       <div className="my-5 mx-auto max-w-7xl">
         <Tabs
           defaultValue={
