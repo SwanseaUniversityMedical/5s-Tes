@@ -35,7 +35,7 @@ export default function Signin() {
     setError(null);
     initiateLogin();
   };
-
+  // When page loads...
   useEffect(() => {
     // Handle session check error
     if (sessionError) {
