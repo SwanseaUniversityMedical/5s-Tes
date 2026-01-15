@@ -21,7 +21,7 @@ export default function CredentialsTabs() {
       onValueChange={(value) => setActiveTab(value as CredentialType)}
     >
       {/* Tabs List + Help Tooltip */}
-      <div className="flex items-center gap-2 border-b-2 border-black pb-2 -mx-4 px-4">
+      <div className="flex items-center gap-2 border-b border-black pb-2 -mx-4 px-4">
         <TabsList className="bg-transparent border border-gray-300">
           <TabsTrigger value="submission" className={TabsDefaultStyling}>
             Submission
