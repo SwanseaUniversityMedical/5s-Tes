@@ -12,6 +12,8 @@ export default async function Home() {
   }
 
   return (
-    <div>Hello</div>
+    <div className="font-sans grid items-center justify-items-center pt-24 p-8">
+      <h1 className="text-2xl font-bold">Agent Web UI Application</h1>
+    </div>
   );
 }
