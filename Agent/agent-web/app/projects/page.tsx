@@ -7,6 +7,7 @@ import { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
 import { getProjects } from "@/lib/api/projects";
 import { AuthButton } from "@/components/auth-button";
+import Link from "next/link";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
@@ -77,14 +78,15 @@ export default async function ProjectsPage(props: ProjectsProps) {
           }
         >
           <TabsList className="mb-2">
-            <a href="?showOnlyUnprocessed=false">
+            <Link href="?showOnlyUnprocessed=false" scroll={false}>
               <TabsTrigger value="all">All Projects</TabsTrigger>
-            </a>
-            <a href="?showOnlyUnprocessed=true">
+            </Link>
+
+            <Link href="?showOnlyUnprocessed=true" scroll={false}>
               <TabsTrigger value="unprocessed">
                 Unprocessed Projects
               </TabsTrigger>
-            </a>
+            </Link>
           </TabsList>
           <TabsContent value="all">
             {projects.length > 0 ? (
