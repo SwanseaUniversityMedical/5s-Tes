@@ -3,11 +3,9 @@ import { toast } from "sonner";
 import { extractErrorMessage } from "./helpers";
 import { createAuthClient } from "better-auth/react";
 
-export const { signIn, signOut, getAccessToken, useSession } = createAuthClient(
-  {
-    plugins: [genericOAuthClient()],
-  }
-);
+export const { signIn, signOut, useSession } = createAuthClient({
+  plugins: [genericOAuthClient()],
+});
 
 export const handleLogin = async () => {
   try {
@@ -49,12 +47,4 @@ export const handleLogout = async () => {
     const errorMessage = extractErrorMessage(error);
     toast.error(errorMessage);
   }
-};
-
-// TODO: use this function to get the access token for the user from the client side, if needed
-export const getAccessTokenFunc = async () => {
-  const accessToken = await getAccessToken({
-    providerId: "keycloak",
-  });
-  console.log(accessToken);
 };
