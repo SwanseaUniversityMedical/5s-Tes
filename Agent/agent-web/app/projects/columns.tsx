@@ -6,17 +6,24 @@ import { getDecisionInfo } from "@/types/Decision";
 import { format } from "date-fns/format";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import Link from "next/link";
 
 export const columns: ColumnDef<TreProject>[] = [
   {
-    accessorKey: "submissionProjectName",
+    id: "Project Name",
     header: "Project Name",
     cell: ({ row }) => {
-      return <div>{row.original.submissionProjectName}</div>;
+      return (
+        <Link href={`/projects/${row.original.id}`}>
+          <Button variant="link" className="p-0 font-semibold">
+            {row.original.submissionProjectName}
+          </Button>
+        </Link>
+      );
     },
   },
   {
-    accessorKey: "memberDecisions",
+    id: "Memberships",
     header: "Memberships",
     cell: ({ row }) => {
       return (
@@ -27,7 +34,7 @@ export const columns: ColumnDef<TreProject>[] = [
     },
   },
   {
-    accessorKey: "decision",
+    id: "Decision",
     header: "Decision",
     cell: ({ row }) => {
       const decision = row.original.decision;
@@ -36,7 +43,14 @@ export const columns: ColumnDef<TreProject>[] = [
     },
   },
   {
-    accessorKey: "lastDecisionDate",
+    id: "Reviewed By",
+    header: "Reviewed By",
+    cell: ({ row }) => {
+      return <div>{row.original.approvedBy}</div>;
+    },
+  },
+  {
+    id: "Last Decision Date",
     header: "Last Decision Date",
     cell: ({ row }) => {
       return (
@@ -47,26 +61,20 @@ export const columns: ColumnDef<TreProject>[] = [
     },
   },
   {
-    accessorKey: "approvedBy",
-    header: "Approved By",
-    cell: ({ row }) => {
-      return <div>{row.original.approvedBy}</div>;
-    },
-  },
-  {
-    header: "Actions",
+    header: "",
+    id: "actions",
     cell: ({ row }) => {
       // TODO: Add review logic
       return (
-        <div>
+        <Link href={`/projects/${row.original.id}`}>
           <Button
-            variant="secondary"
+            variant="default"
             className="hover:bg-secondary/80 cursor-pointer"
             size="sm"
           >
             Review
           </Button>
-        </div>
+        </Link>
       );
     },
   },
