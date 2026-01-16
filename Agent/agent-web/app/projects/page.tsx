@@ -6,8 +6,8 @@ import { TreProject } from "@/types/TreProject";
 import { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
 import { getProjects } from "@/lib/api/projects";
-import { AuthButton } from "@/components/auth-button";
 import Link from "next/link";
+import { FetchError } from "@/components/core/fetch-error";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
@@ -44,22 +44,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
 
   // Show error state if fetching failed
   if (fetchError) {
-    return (
-      <div className="space-y-2">
-        <div className="my-5 mx-auto max-w-7xl">
-          <div className="flex flex-col items-center justify-center py-20">
-            <h2 className="text-xl font-semibold text-red-600">
-              Error loading projects
-            </h2>
-            <p className="text-sm text-gray-500 mt-2">{fetchError}</p>
-            <a href="/projects" className="mt-4 text-blue-600 hover:underline">
-              Try logging out and logging in again
-            </a>
-            <AuthButton mode="logout" />
-          </div>
-        </div>
-      </div>
-    );
+    return <FetchError error={fetchError} />;
   }
 
   return (
