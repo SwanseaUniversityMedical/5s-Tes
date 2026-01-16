@@ -32,7 +32,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
 
   try {
     projects = await getProjects(combinedParams);
-  } catch (error) {
+  } catch (error: any) {
+    // for redirecting to work
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     fetchError =
       error instanceof Error ? error.message : "Failed to load projects";
   }
@@ -47,7 +51,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
               Error loading projects
             </h2>
             <p className="text-sm text-gray-500 mt-2">{fetchError}</p>
-            <a href="/projects" className="mt-4 text-blue-600 hover:underline">
+            <a href="/projects" className="my-3 text-blue-600 hover:underline">
               Try logging out and logging in again
             </a>
             <AuthButton mode="logout" />
