@@ -1,9 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import SaveCredentialsButton from "./SaveCredentialsButton";
+import CredentialsVisibilityToggle from "./CredentialsVisibilityToggle";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { CredentialType } from "@/types/update-credentials";
+import { Eye, EyeOff } from "lucide-react";
 
 // Props for CredentialsForm component
 
@@ -23,30 +26,45 @@ const TITLE: Record<CredentialType, string> = {
 const FIELDS = [
   {
     name: "username",
-    label: "Enter Keycloak username",
+    label: "Username",
     inputType: "text",
     placeholder: "Username",
     autoComplete: "Username",
+    isPassword: false,
   },
   {
     name: "password",
-    label: "Enter Keycloak password",
+    label: "Password",
     inputType: "password",
     placeholder: "Password",
     autoComplete: "current-password",
+    isPassword: true,
   },
   {
     name: "confirmPassword",
-    label: "Confirm Keycloak password",
+    label: "Confirm Password",
     inputType: "password",
     placeholder: "Confirm password",
     autoComplete: "new-password",
+    isPassword: true,
   },
 ] as const;
 
 // Creates Forms for Updating the Credentials based on Submission or Egress (Types)
 
 export default function CredentialsForm({ type }: CredentialsFormProps) {
+
+
+  {/* State to manage password visibility for each password field */}
+  const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
+
+  const togglePasswordVisibility = (fieldName: string) => {
+    setShowPassword((prev) => ({
+      ...prev,
+      [fieldName]: !prev[fieldName],
+    }));
+  };
+
   return (
     <form className="mt-2 max-w-md">
       <FieldSet>
@@ -57,17 +75,29 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
         <FieldGroup>
           {FIELDS.map((f) => {
             const id = `${type}-${f.name}`;
+            const isVisible = showPassword[f.name];
 
             return (
               <Field key={id}>
                 <FieldLabel htmlFor={id}>{f.label}</FieldLabel>
-                <Input
-                  id={id}
-                  name={f.name}
-                  type={f.inputType}
-                  placeholder={f.placeholder}
-                  autoComplete={f.autoComplete}
-                />
+                <div className="relative">
+                  <Input
+                    id={id}
+                    name={f.name}
+                    type={f.isPassword && isVisible ? "text" : f.inputType}
+                    placeholder={f.placeholder}
+                    autoComplete={f.autoComplete}
+                    required
+                  />
+
+                  {/* Password Visibility Toggle for Password Fields */}
+                  {f.isPassword && (
+                    <CredentialsVisibilityToggle
+                      isVisible={isVisible}
+                      onToggle={() => togglePasswordVisibility(f.name)}
+                    />
+                  )}
+                </div>
               </Field>
             );
           })}
