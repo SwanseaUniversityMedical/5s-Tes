@@ -23,7 +23,7 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
       },
       headers: await headers(),
     });
-    console.log(accessToken);
+
     if (accessToken.accessToken) {
       requestHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
     }
