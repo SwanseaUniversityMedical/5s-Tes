@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 
@@ -15,17 +16,21 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
   const baseUrl = options.baseUrl ?? `${process.env.AGENT_API_URL}/api`;
 
   let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
-
-  const accessToken = await auth.api.getAccessToken({
-    body: {
-      providerId: "keycloak",
-    },
-    headers: await headers(),
-  });
-  if (accessToken.accessToken) {
-    requestHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
+  try {
+    const accessToken = await auth.api.getAccessToken({
+      body: {
+        providerId: "keycloak",
+      },
+      headers: await headers(),
+    });
+    console.log(accessToken);
+    if (accessToken.accessToken) {
+      requestHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
+    }
+  } catch (error) {
+    // redirect to the token-expired page, cause the access token maybe not valid anymore.
+    redirect("/token-expired");
   }
-
   const response = await fetch(`${baseUrl}/${url}`, {
     method: options.method || "GET",
     headers: requestHeaders,
