@@ -6,6 +6,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
+import { Button } from "@/components/ui/button";
 import { HelpCircle, ExternalLink } from "lucide-react";
 import { CredentialType } from "@/types/update-credentials";
 
@@ -34,9 +35,14 @@ export default function CredentialsHelpTooltip({
       <Tooltip>
         {/* Tooltip Trigger (Help Icon) */}
         <TooltipTrigger asChild>
-          <button type="button" className="text-gray-500 hover:text-gray-700">
-            <HelpCircle className="h-4 w-4" />
-          </button>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Get help finding credentials"
+            className="h-8 w-8 text-gray-500 hover:text-gray-700"
+          >
+            <HelpCircle className="h-4 w-4" aria-hidden="true" />
+          </Button>
         </TooltipTrigger>
 
         {/* Tooltip Content */}

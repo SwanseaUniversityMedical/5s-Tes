@@ -6,7 +6,7 @@ import CredentialsVisibilityToggle from "./CredentialsVisibilityToggle";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { CredentialType } from "@/types/update-credentials";
-import { Eye, EyeOff } from "lucide-react";
+import CredentialsHelpTooltip from "./CredentialsHelpTooltip";
 
 // Props for CredentialsForm component
 
@@ -69,7 +69,10 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
     <form className="mt-2 max-w-md">
       <FieldSet>
         {/* Form Title */}
-        <h1 className="text-xl font-bold">{TITLE[type]}</h1>
+        <div className="flex items-center">
+          <h1 className="text-xl font-bold">{TITLE[type]}</h1>
+          <CredentialsHelpTooltip type={type} />
+        </div>
 
         {/* Form Fields */}
         <FieldGroup>
