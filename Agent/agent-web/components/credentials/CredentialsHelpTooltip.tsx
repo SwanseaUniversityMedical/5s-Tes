@@ -41,7 +41,7 @@ export default function CredentialsHelpTooltip({
 
         {/* Tooltip Content */}
         <TooltipContent side="right" className="max-w-xs py-1">
-          <p className="mb-1">Need help finding your credentials?</p>
+          <p className="mb-1">Need help finding credentials?</p>
           <a
             href={DOCS_LINK[type]}
             target="_blank"
