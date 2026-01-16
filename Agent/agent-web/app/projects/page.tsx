@@ -32,7 +32,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
 
   try {
     projects = await getProjects(combinedParams);
-  } catch (error) {
+  } catch (error: any) {
+    // for redirecting to work
+    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
+      throw error;
+    }
     fetchError =
       error instanceof Error ? error.message : "Failed to load projects";
   }
