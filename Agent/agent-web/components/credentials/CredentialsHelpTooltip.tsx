@@ -35,7 +35,7 @@ export default function CredentialsHelpTooltip({
         {/* Tooltip Trigger (Help Icon) */}
         <TooltipTrigger asChild>
           <button type="button" className="text-gray-500 hover:text-gray-700">
-            <HelpCircle className="h-5 w-5" />
+            <HelpCircle className="h-4 w-4" />
           </button>
         </TooltipTrigger>
 
