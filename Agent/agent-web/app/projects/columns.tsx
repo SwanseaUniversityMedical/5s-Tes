@@ -46,16 +46,22 @@ export const columns: ColumnDef<TreProject>[] = [
     id: "Reviewed By",
     header: "Reviewed By",
     cell: ({ row }) => {
-      return <div>{row.original.approvedBy}</div>;
+      const { approvedBy, decision } = row.original;
+      const decisionInfo = getDecisionInfo(decision);
+      return <div>{decisionInfo.label !== "Pending" ? approvedBy : "N/A"}</div>;
     },
   },
   {
     id: "Last Decision Date",
     header: "Last Decision Date",
     cell: ({ row }) => {
+      const { lastDecisionDate, decision } = row.original;
+      const decisionInfo = getDecisionInfo(decision);
       return (
         <div>
-          {format(new Date(row.original.lastDecisionDate), "d MMM yyyy HH:mm")}
+          {decisionInfo.label === "Pending"
+            ? format(new Date(lastDecisionDate), "d MMM yyyy HH:mm")
+            : "Waiting for review"}
         </div>
       );
     },
