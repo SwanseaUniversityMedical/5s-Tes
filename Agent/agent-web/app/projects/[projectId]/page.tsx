@@ -1,5 +1,4 @@
 import { FetchError } from "@/components/core/fetch-error";
-import { ProjectApprovalForm } from "@/components/projects/ProjectApprovalForm";
 import { getProject } from "@/lib/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import { TreProject } from "@/types/TreProject";
@@ -31,7 +30,7 @@ export default async function ApprovalPage(props: {
   return (
     <div className="space-y-2">
       <div className="my-5 mx-auto max-w-7xl">
-        <ProjectApprovalForm project={project} />
+        Project Approval Form - Project {project?.submissionProjectName ?? "N/A"}
       </div>
     </div>
   );
