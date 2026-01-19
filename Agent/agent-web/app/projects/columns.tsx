@@ -15,7 +15,7 @@ export const columns: ColumnDef<TreProject>[] = [
     cell: ({ row }) => {
       return (
         <Link href={`/projects/${row.original.id}`}>
-          <Button variant="link" className="p-0 font-semibold">
+          <Button variant="link" className="p-0 font-semibold cursor-pointer">
             {row.original.submissionProjectName}
           </Button>
         </Link>
