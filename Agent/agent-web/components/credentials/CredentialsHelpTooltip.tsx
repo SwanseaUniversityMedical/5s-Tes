@@ -3,7 +3,6 @@
 import {
   Tooltip,
   TooltipContent,
-  TooltipProvider,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { Button } from "@/components/ui/button";
@@ -31,7 +30,6 @@ export default function CredentialsHelpTooltip({
   type,
 }: CredentialsHelpTooltipProps) {
   return (
-    <TooltipProvider>
       <Tooltip>
         {/* Tooltip Trigger (Help Icon) */}
         <TooltipTrigger asChild>
@@ -59,6 +57,5 @@ export default function CredentialsHelpTooltip({
           </a>
         </TooltipContent>
       </Tooltip>
-    </TooltipProvider>
   );
 }
