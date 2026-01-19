@@ -1,0 +1,15 @@
+{
+  "folders": [
+    {
+      "name": "ROOT",
+      "path": "../"
+    },
+    {
+      "name": "Agent Web UI",
+      "path": "../Agent/agent-web"
+    },  
+  ],
+  "settings": {
+    "debug.internalConsoleOptions": "neverOpen"
+  }
+}
