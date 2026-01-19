@@ -59,7 +59,7 @@ export const columns: ColumnDef<TreProject>[] = [
       const decisionInfo = getDecisionInfo(decision);
       return (
         <div>
-          {decisionInfo.label === "Pending"
+          {decisionInfo.label !== "Pending"
             ? format(new Date(lastDecisionDate), "d MMM yyyy HH:mm")
             : "Waiting for review"}
         </div>
@@ -70,12 +70,11 @@ export const columns: ColumnDef<TreProject>[] = [
     header: "",
     id: "actions",
     cell: ({ row }) => {
-      // TODO: Add review logic
       return (
         <Link href={`/projects/${row.original.id}`}>
           <Button
             variant="default"
-            className="hover:bg-secondary/80 cursor-pointer"
+            className="cursor-pointer"
             size="sm"
           >
             Review
