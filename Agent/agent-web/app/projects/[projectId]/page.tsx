@@ -1,8 +1,10 @@
 import { FetchError } from "@/components/core/fetch-error";
-import ApprovalForm from "@/components/projects/ApprovalForm";
+import MembershipApprovalForm from "@/components/projects/MembershipForm";
+import { FieldSeparator } from "@/components/ui/field";
 import { getProject } from "@/lib/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import type { TreProject } from "@/types/TreProject";
+import ProjectApprovalForm from "@/components/projects/ProjectForm";
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
@@ -32,7 +34,13 @@ export default async function ApprovalPage(props: {
     <div className="space-y-2">
       <div className="my-5 mx-auto max-w-7xl">
         {project ? (
-          <ApprovalForm project={project} />
+          <div className="flex flex-col gap-4">
+            <ProjectApprovalForm project={project} />
+            <FieldSeparator />
+            <MembershipApprovalForm
+              membershipDecisions={project.memberDecisions ?? []}
+            />
+          </div>
         ) : (
           <div>No project found</div>
         )}
