@@ -58,7 +58,7 @@ export default function ProjectApprovalForm({
       <FieldGroup>
         <div className="flex flex-col gap-1">
           <h1 className="text-2xl font-bold">
-            Project: {project.submissionProjectName}
+            {project.submissionProjectName}
           </h1>
           <div className="text-sm mt-2 flex items-center gap-2">
             {/* TODO: add tooltip here */}
