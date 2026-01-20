@@ -1,20 +1,13 @@
 "use client";
 
-import {
-  FieldGroup,
-  FieldLabel,
-  FieldSeparator,
-  FieldSet,
-} from "@/components/ui/field";
-import { Input } from "@/components/ui/input";
+import { FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { getDecisionInfo } from "@/types/Decision";
 import type { Decision } from "@/types/Decision";
 import type { TreProject } from "@/types/TreProject";
 import { formatDate } from "date-fns/format";
-import { Badge } from "../ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
-import { Check, Clock, FolderKanban, Save, X } from "lucide-react";
+import { Check, Clock, FolderKanban, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -52,71 +45,10 @@ export default function ProjectApprovalForm({
       });
     }
   };
-  console.log(project.lastDecisionDate);
+
   return (
     <form>
       <FieldGroup>
-        <div className="flex flex-col gap-1">
-          <h1 className="text-2xl font-bold">
-            {project.submissionProjectName}
-          </h1>
-          <div className="text-sm mt-2 flex items-center gap-2">
-            {/* TODO: add tooltip here */}
-            <span className="text-gray-500 font-semibold">Local name:</span>{" "}
-            <span>
-              <Input
-                id="local-project-name"
-                placeholder={
-                  project.localProjectName
-                    ? project.localProjectName
-                    : "Local project name"
-                }
-                className="h-7"
-                disabled
-              />
-            </span>
-            <Button
-              type="button"
-              onClick={form.handleSubmit(handleProjectDecisionSubmit)}
-              className="flex gap-2 h-7"
-              variant="outline"
-            >
-              <Save className="w-4 h-4" /> Save
-            </Button>
-          </div>
-          <div className="text-sm mt-2">
-            <span className="text-gray-500 font-semibold">Description:</span>{" "}
-            <span>
-              {project.description
-                ? project.description
-                : "No description provided"}
-            </span>
-          </div>
-          <div className="text-sm mt-2 flex items-center gap-2">
-            <span className="text-gray-500 font-semibold">
-              Submission Minio Bucket:
-            </span>{" "}
-            <Badge variant="outline">
-              {project.submissionBucketTre
-                ? project.submissionBucketTre
-                : "No Submission Minio Bucket provided"}
-            </Badge>
-          </div>
-          <div className="text-sm mt-2 flex items-center gap-2">
-            <span className="font-semibold text-gray-500 ">Expiry Date:</span>{" "}
-            <Badge variant="outline">
-              {project.projectExpiryDate
-                ? formatDate(
-                    new Date(project.projectExpiryDate),
-                    "d MMM yyyy HH:mm",
-                  )
-                : "No Expiry Date provided"}
-            </Badge>
-          </div>
-        </div>
-
-        <FieldSeparator />
-
         <FieldSet>
           <FieldLabel className="text-lg font-bold">
             Project Decision
