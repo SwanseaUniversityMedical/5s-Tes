@@ -19,7 +19,7 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
       return (
         <Link href={`/projects/${row.original.id}`}>
           <Button variant="link" className="p-0 font-semibold cursor-pointer">
-            {row.original.user.username} - {row.original.user.email}
+            {row.original.user.username}
           </Button>
         </Link>
       );
@@ -30,11 +30,11 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
     header: "Status",
     cell: ({ row }) => {
       return (
-        <Badge variant="secondary">
-          {getDecisionInfo(row.original.decision).label.toLowerCase() ===
-          "pending"
-            ? "Waiting for review"
-            : getDecisionInfo(row.original.decision).label}
+        <Badge
+          variant="outline"
+          className={getDecisionInfo(row.original.decision).color}
+        >
+          {getDecisionInfo(row.original.decision).label}
         </Badge>
       );
     },
@@ -43,12 +43,20 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
     id: "Last Decision Date",
     header: "Last Decision Date",
     cell: ({ row }) => {
-      return (
-        <div>
-          {format(new Date(row.original.lastDecisionDate), "d MMM yyyy HH:mm")}{" "}
-          <span className="text-gray-500">by</span>
-          <span className="font-semibold">{row.original.approvedBy}</span>
+      const decision = row.original.decision;
+      return getDecisionInfo(decision).label !== "Pending" ? (
+        <div className="flex items-center gap-1 text-sm">
+          <span>
+            {format(
+              new Date(row.original.lastDecisionDate),
+              "d MMM yyyy HH:mm",
+            )}
+          </span>
+          <span>by</span>
+          <span>{row.original.approvedBy}</span>
         </div>
+      ) : (
+        <span>Waiting for review</span>
       );
     },
   },
