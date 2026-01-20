@@ -73,6 +73,11 @@ export default function MembershipApprovalForm({
           <FieldLabel className="text-lg font-bold">
             Membership Decisions
           </FieldLabel>
+
+          <DataTable
+            columns={membershipColumns}
+            data={membershipDecisions ?? []}
+          />
           <div className="flex justify-start">
             <Button
               type="button"
@@ -83,10 +88,6 @@ export default function MembershipApprovalForm({
               <Users className="w-4 h-4" /> Save Membership Decisions
             </Button>
           </div>
-          <DataTable
-            columns={membershipColumns}
-            data={membershipDecisions ?? []}
-          />
         </FieldSet>
       </FieldGroup>
     </form>
