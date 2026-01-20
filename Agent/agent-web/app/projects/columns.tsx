@@ -1,7 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { TreProject } from "@/types/TreProject";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { TreProject } from "@/types/TreProject";
 import { getDecisionInfo } from "@/types/Decision";
 import { format } from "date-fns/format";
 import { Button } from "@/components/ui/button";
@@ -72,11 +72,7 @@ export const columns: ColumnDef<TreProject>[] = [
     cell: ({ row }) => {
       return (
         <Link href={`/projects/${row.original.id}`}>
-          <Button
-            variant="default"
-            className="cursor-pointer"
-            size="sm"
-          >
+          <Button variant="default" className="cursor-pointer" size="sm">
             Review
           </Button>
         </Link>
