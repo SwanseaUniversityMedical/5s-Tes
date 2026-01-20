@@ -1,9 +1,6 @@
 import {
-  Field,
-  FieldDescription,
   FieldGroup,
   FieldLabel,
-  FieldLegend,
   FieldSeparator,
   FieldSet,
 } from "@/components/ui/field";
@@ -12,7 +9,6 @@ import { getDecisionInfo } from "@/types/Decision";
 import type { TreProject } from "@/types/TreProject";
 import { formatDate } from "date-fns/format";
 import { Badge } from "../ui/badge";
-import { Separator } from "../ui/separator";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
 import { Check, Clock, X } from "lucide-react";
@@ -25,7 +21,7 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
       <form>
         <FieldGroup>
           <FieldSet>
-            <div>
+            <div className="flex flex-col gap-1">
               <h1 className="text-2xl font-bold">
                 Project: {project.submissionProjectName}
               </h1>
@@ -40,7 +36,7 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
                         ? project.localProjectName
                         : "Local project name"
                     }
-                    disabled
+                    className="h-7"
                   />
                 </span>
               </div>
@@ -79,7 +75,7 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
               </div>
             </div>
 
-            <Separator />
+            <FieldSeparator />
 
             <FieldSet>
               <FieldLabel className="text-lg font-bold">
@@ -98,22 +94,17 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
                       : getDecisionInfo(project.decision).label}
                   </span>
                   <span className="text-gray-500"> by </span>
+
+                  <span>{project.approvedBy ? project.approvedBy : "N/A"}</span>
+                  <span className="text-gray-500"> on </span>
                   <span>
-                    <span className="font-semibold">
-                      {project.approvedBy ? project.approvedBy : "N/A"}
-                    </span>
-                  </span>
-                  <span>
-                    <span className="text-gray-500"> on </span>
-                    <span className="font-semibold">
-                      {getDecisionInfo(project.decision).label.toLowerCase() ===
-                      "pending"
-                        ? "N/A"
-                        : formatDate(
-                            new Date(project.lastDecisionDate),
-                            "d MMM yyyy HH:mm",
-                          )}
-                    </span>
+                    {getDecisionInfo(project.decision).label.toLowerCase() ===
+                    "pending"
+                      ? "N/A"
+                      : formatDate(
+                          new Date(project.lastDecisionDate),
+                          "d MMM yyyy HH:mm",
+                        )}
                   </span>
                 </div>
               </div>
@@ -162,10 +153,12 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
                 </RadioGroup>
               </div>
             </FieldSet>
-            <Separator />
+
+            <FieldSeparator />
+
             <FieldSet>
               <FieldLabel className="text-lg font-bold">
-                Membership Decisions
+                Membership Decision
               </FieldLabel>
 
               <DataTable
