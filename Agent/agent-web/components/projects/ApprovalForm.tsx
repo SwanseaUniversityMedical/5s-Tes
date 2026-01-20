@@ -27,7 +27,7 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
           <FieldSet>
             <div>
               <h1 className="text-2xl font-bold">
-                {project.submissionProjectName}
+                Project: {project.submissionProjectName}
               </h1>
               <div className="text-sm mt-2 flex items-center gap-2">
                 {/* TODO: add tooltip here */}
@@ -80,86 +80,94 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
             </div>
 
             <Separator />
-            <div className="flex items-center gap-2 text-sm">
-              <span className="text-gray-500">Current Status:</span>
-              <span
-                className={`${getDecisionInfo(project.decision).color} font-semibold`}
-              >
-                {getDecisionInfo(project.decision).label.toLowerCase() ===
-                "pending"
-                  ? "Waiting for review"
-                  : getDecisionInfo(project.decision).label}
-              </span>
-              <span className="text-gray-500"> Reviewed By: </span>
-              <span>
-                <span className="font-semibold">
-                  {project.approvedBy ? project.approvedBy : "N/A"}
-                </span>
-              </span>
-              <span>
-                <span className="text-gray-500"> Reviewed Date: </span>
-                <span className="font-semibold">
-                  {getDecisionInfo(project.decision).label.toLowerCase() ===
-                  "pending"
-                    ? "N/A"
-                    : formatDate(
-                        new Date(project.lastDecisionDate),
-                        "d MMM yyyy HH:mm",
-                      )}
-                </span>
-              </span>
-            </div>
 
             <FieldSet>
               <FieldLabel className="text-lg font-bold">
-                Update Project Decision
+                Project Decision
               </FieldLabel>
 
-              <RadioGroup
-                className="flex flex-row space-x-4"
-                defaultValue={project.decision.toString()}
-              >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="project-approve" value="1" />
-                  <Label
-                    htmlFor="project-approve"
-                    className="flex items-center gap-2"
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold">Current Status:</h1>
+                <div className="flex items-center gap-1 text-sm">
+                  <span
+                    className={`${getDecisionInfo(project.decision).color} font-semibold`}
                   >
-                    Approve{" "}
-                    <Check className={`${getDecisionInfo(1).color} w-4 h-4`} />
-                  </Label>
+                    {getDecisionInfo(project.decision).label.toLowerCase() ===
+                    "pending"
+                      ? "Waiting for review"
+                      : getDecisionInfo(project.decision).label}
+                  </span>
+                  <span className="text-gray-500"> by </span>
+                  <span>
+                    <span className="font-semibold">
+                      {project.approvedBy ? project.approvedBy : "N/A"}
+                    </span>
+                  </span>
+                  <span>
+                    <span className="text-gray-500"> on </span>
+                    <span className="font-semibold">
+                      {getDecisionInfo(project.decision).label.toLowerCase() ===
+                      "pending"
+                        ? "N/A"
+                        : formatDate(
+                            new Date(project.lastDecisionDate),
+                            "d MMM yyyy HH:mm",
+                          )}
+                    </span>
+                  </span>
                 </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="project-reject" value="2" />
-                  <Label
-                    htmlFor="project-reject"
-                    className="flex items-center gap-2"
-                  >
-                    Reject{" "}
-                    <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
-                  </Label>
-                </div>
-                {project.decision === 0 && (
+              </div>
+              <div className="flex items-center gap-2">
+                <h1 className="font-semibold">Update Decision:</h1>
+                <RadioGroup
+                  className="flex flex-row space-x-2"
+                  defaultValue={project.decision.toString()}
+                >
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id="project-pending" value="0" />
+                    <RadioGroupItem id="project-approve" value="1" />
                     <Label
-                      htmlFor="project-pending"
+                      htmlFor="project-approve"
                       className="flex items-center gap-2"
                     >
-                      Pending{" "}
-                      <Clock
-                        className={`${getDecisionInfo(0).color} w-4 h-4`}
+                      Approve{" "}
+                      <Check
+                        className={`${getDecisionInfo(1).color} w-4 h-4`}
                       />
                     </Label>
                   </div>
-                )}
-              </RadioGroup>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id="project-reject" value="2" />
+                    <Label
+                      htmlFor="project-reject"
+                      className="flex items-center gap-2"
+                    >
+                      Reject{" "}
+                      <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
+                    </Label>
+                  </div>
+                  {project.decision === 0 && (
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem id="project-pending" value="0" />
+                      <Label
+                        htmlFor="project-pending"
+                        className="flex items-center gap-2"
+                      >
+                        Pending{" "}
+                        <Clock
+                          className={`${getDecisionInfo(0).color} w-4 h-4`}
+                        />
+                      </Label>
+                    </div>
+                  )}
+                </RadioGroup>
+              </div>
             </FieldSet>
-
+            <Separator />
             <FieldSet>
               <FieldLabel className="text-lg font-bold">
-                Update Membership Decisions
+                Membership Decisions
               </FieldLabel>
+
               <DataTable
                 columns={columns}
                 data={project.memberDecisions ?? []}
