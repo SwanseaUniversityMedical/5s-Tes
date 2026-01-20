@@ -120,24 +120,30 @@ export default function ApprovalForm({ project }: { project: TreProject }) {
                 defaultValue={project.decision.toString()}
               >
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="approve" value="1" />
-                  <Label htmlFor="approve" className="flex items-center gap-2">
+                  <RadioGroupItem id="project-approve" value="1" />
+                  <Label
+                    htmlFor="project-approve"
+                    className="flex items-center gap-2"
+                  >
                     Approve{" "}
                     <Check className={`${getDecisionInfo(1).color} w-4 h-4`} />
                   </Label>
                 </div>
                 <div className="flex items-center space-x-2">
-                  <RadioGroupItem id="reject" value="2" />
-                  <Label htmlFor="reject" className="flex items-center gap-2">
+                  <RadioGroupItem id="project-reject" value="2" />
+                  <Label
+                    htmlFor="project-reject"
+                    className="flex items-center gap-2"
+                  >
                     Reject{" "}
                     <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
                   </Label>
                 </div>
                 {project.decision === 0 && (
                   <div className="flex items-center space-x-2">
-                    <RadioGroupItem id="pending" value="0" />
+                    <RadioGroupItem id="project-pending" value="0" />
                     <Label
-                      htmlFor="pending"
+                      htmlFor="project-pending"
                       className="flex items-center gap-2"
                     >
                       Pending{" "}

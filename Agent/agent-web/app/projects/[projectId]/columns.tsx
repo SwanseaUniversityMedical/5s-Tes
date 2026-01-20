@@ -65,6 +65,7 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
     header: "Update Decision",
     cell: ({ row }) => {
       const decision = row.original.decision;
+      const baseId = `membership-${row.original.id}`;
 
       return (
         <RadioGroup
@@ -72,22 +73,31 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
           defaultValue={decision.toString()}
         >
           <div className="flex items-center space-x-2">
-            <RadioGroupItem id="approve" value="1" />
-            <Label htmlFor="approve" className="flex items-center gap-2">
+            <RadioGroupItem id={`${baseId}-approve`} value="1" />
+            <Label
+              htmlFor={`${baseId}-approve`}
+              className="flex items-center gap-2"
+            >
               Approve{" "}
               <Check className={`${getDecisionInfo(1).color} w-4 h-4`} />
             </Label>
           </div>
           <div className="flex items-center space-x-2">
-            <RadioGroupItem id="reject" value="2" />
-            <Label htmlFor="reject" className="flex items-center gap-2">
+            <RadioGroupItem id={`${baseId}-reject`} value="2" />
+            <Label
+              htmlFor={`${baseId}-reject`}
+              className="flex items-center gap-2"
+            >
               Reject <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
             </Label>
           </div>
           {decision === 0 && (
             <div className="flex items-center space-x-2">
-              <RadioGroupItem id="pending" value="0" />
-              <Label htmlFor="pending" className="flex items-center gap-2">
+              <RadioGroupItem id={`${baseId}-pending`} value="0" />
+              <Label
+                htmlFor={`${baseId}-pending`}
+                className="flex items-center gap-2"
+              >
                 Pending{" "}
                 <Clock className={`${getDecisionInfo(0).color} w-4 h-4`} />
               </Label>
