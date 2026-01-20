@@ -1,6 +1,5 @@
 "use client";
 
-import { useMemo } from "react";
 import {
   FieldGroup,
   FieldLabel,
@@ -15,8 +14,7 @@ import { formatDate } from "date-fns/format";
 import { Badge } from "../ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
-import { Check, Clock, X } from "lucide-react";
-
+import { Check, Clock, FolderKanban, Pencil, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -36,6 +34,8 @@ export default function ProjectApprovalForm({
     },
   });
 
+  const { isDirty } = form.formState;
+
   const handleProjectDecisionSubmit = async (data: ProjectApprovalFormData) => {
     try {
       const projectDecision = Number(data.projectDecision) as Decision;
@@ -52,12 +52,6 @@ export default function ProjectApprovalForm({
       });
     }
   };
-
-  const projectDecisionValue = form.watch("projectDecision");
-
-  const hasProjectDecisionChanged = useMemo(() => {
-    return projectDecisionValue !== project.decision.toString();
-  }, [projectDecisionValue, project.decision]);
 
   return (
     <form>
@@ -81,6 +75,14 @@ export default function ProjectApprovalForm({
                 disabled
               />
             </span>
+            <Button
+              type="button"
+              onClick={form.handleSubmit(handleProjectDecisionSubmit)}
+              className="flex gap-2 h-7"
+              variant="outline"
+            >
+              Save <Pencil className="w-4 h-4" />
+            </Button>
           </div>
           <div className="text-sm mt-2">
             <span className="text-gray-500 font-semibold">Description:</span>{" "}
@@ -199,10 +201,10 @@ export default function ProjectApprovalForm({
             <Button
               type="button"
               onClick={form.handleSubmit(handleProjectDecisionSubmit)}
-              disabled={!hasProjectDecisionChanged}
-              className="ml-4"
+              disabled={!isDirty}
+              className="ml-4 flex gap-2"
             >
-              Save Project Decision
+              Save Project Decision <FolderKanban className="w-4 h-4" />
             </Button>
           </div>
         </FieldSet>

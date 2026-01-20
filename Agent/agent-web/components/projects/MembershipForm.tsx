@@ -7,10 +7,11 @@ import { DataTable } from "../data-table";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import { columns } from "@/app/projects/[projectId]/columns";
 import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
+import { createMembershipColumns } from "@/app/projects/[projectId]/columns";
+import { Users } from "lucide-react";
 
-type ApprovalMembershipFormData = {
+export type ApprovalMembershipFormData = {
   membershipDecisions: Record<string, string>;
 };
 
@@ -33,6 +34,13 @@ export default function MembershipApprovalForm({
     },
   });
 
+  const { isDirty } = form.formState;
+
+  const membershipColumns = useMemo(
+    () => createMembershipColumns(form),
+    [form],
+  );
+
   const handleMembershipDecisionSubmit = async (
     data: ApprovalMembershipFormData,
   ) => {
@@ -48,7 +56,7 @@ export default function MembershipApprovalForm({
       // await updateMembershipDecisions(membershipDecisions);
 
       toast.success("Membership decisions updated successfully", {
-        description: `Updated ${membershipDecisions.length} membership decision(s)`,
+        description: `Updated ${membershipDecisions.length} membership decision(s) ${membershipDecisions.map((md) => md.decision).join(", ")}`,
       });
     } catch (error) {
       toast.error("Failed to update membership decisions", {
@@ -58,18 +66,6 @@ export default function MembershipApprovalForm({
     }
   };
 
-  const membershipDecisionsValue = form.watch("membershipDecisions");
-
-  const hasMembershipDecisionsChanged = useMemo(() => {
-    for (const md of membershipDecisions ?? []) {
-      const currentValue = membershipDecisionsValue[md.id.toString()];
-      if (currentValue !== md.decision.toString()) {
-        return true;
-      }
-    }
-    return false;
-  }, [membershipDecisionsValue, membershipDecisions]);
-
   return (
     <form>
       <FieldGroup>
@@ -77,17 +73,20 @@ export default function MembershipApprovalForm({
           <FieldLabel className="text-lg font-bold">
             Membership Decisions
           </FieldLabel>
-
-          <DataTable columns={columns} data={membershipDecisions ?? []} />
-          <div className="flex justify-end mt-4">
+          <div className="flex justify-start">
             <Button
               type="button"
               onClick={form.handleSubmit(handleMembershipDecisionSubmit)}
-              disabled={!hasMembershipDecisionsChanged}
+              disabled={!isDirty}
+              className="flex gap-2"
             >
-              Save Membership Decisions
+              Save Membership Decisions <Users className="w-4 h-4" />
             </Button>
           </div>
+          <DataTable
+            columns={membershipColumns}
+            data={membershipDecisions ?? []}
+          />
         </FieldSet>
       </FieldGroup>
     </form>

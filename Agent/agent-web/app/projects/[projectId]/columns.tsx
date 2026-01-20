@@ -10,8 +10,12 @@ import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
 import { Check, Clock, X } from "lucide-react";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
+import { type UseFormReturn, Controller } from "react-hook-form";
+import type { ApprovalMembershipFormData } from "@/components/projects/MembershipForm";
 
-export const columns: ColumnDef<TreMembershipDecision>[] = [
+export const createMembershipColumns = (
+  form: UseFormReturn<ApprovalMembershipFormData>,
+): ColumnDef<TreMembershipDecision>[] => [
   {
     id: "Username",
     header: "Username",
@@ -29,12 +33,15 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
     id: "Status",
     header: "Status",
     cell: ({ row }) => {
+      const membershipId = row.original.id.toString();
+      const currentValue =
+        form.getValues(`membershipDecisions.${membershipId}`) ??
+        row.original.decision.toString();
+      const decision = Number(currentValue);
+
       return (
-        <Badge
-          variant="outline"
-          className={getDecisionInfo(row.original.decision).color}
-        >
-          {getDecisionInfo(row.original.decision).label}
+        <Badge variant="outline" className={getDecisionInfo(decision).color}>
+          {getDecisionInfo(decision).label}
         </Badge>
       );
     },
@@ -64,46 +71,60 @@ export const columns: ColumnDef<TreMembershipDecision>[] = [
     id: "Update Decision",
     header: "Update Decision",
     cell: ({ row }) => {
-      const decision = row.original.decision;
+      const membershipId = row.original.id.toString();
       const baseId = `membership-${row.original.id}`;
 
       return (
-        <RadioGroup
-          className="flex flex-row space-x-4"
-          defaultValue={decision.toString()}
-        >
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem id={`${baseId}-approve`} value="1" />
-            <Label
-              htmlFor={`${baseId}-approve`}
-              className="flex items-center gap-2"
-            >
-              Approve{" "}
-              <Check className={`${getDecisionInfo(1).color} w-4 h-4`} />
-            </Label>
-          </div>
-          <div className="flex items-center space-x-2">
-            <RadioGroupItem id={`${baseId}-reject`} value="2" />
-            <Label
-              htmlFor={`${baseId}-reject`}
-              className="flex items-center gap-2"
-            >
-              Reject <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
-            </Label>
-          </div>
-          {decision === 0 && (
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem id={`${baseId}-pending`} value="0" />
-              <Label
-                htmlFor={`${baseId}-pending`}
-                className="flex items-center gap-2"
+        <Controller
+          name={`membershipDecisions.${membershipId}` as const}
+          control={form.control}
+          render={({ field }) => {
+            const currentValue =
+              field.value ?? row.original.decision.toString();
+            return (
+              <RadioGroup
+                className="flex flex-row space-x-4"
+                value={currentValue}
+                onValueChange={field.onChange}
               >
-                Pending{" "}
-                <Clock className={`${getDecisionInfo(0).color} w-4 h-4`} />
-              </Label>
-            </div>
-          )}
-        </RadioGroup>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem id={`${baseId}-approve`} value="1" />
+                  <Label
+                    htmlFor={`${baseId}-approve`}
+                    className="flex items-center gap-2"
+                  >
+                    Approve{" "}
+                    <Check className={`${getDecisionInfo(1).color} w-4 h-4`} />
+                  </Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem id={`${baseId}-reject`} value="2" />
+                  <Label
+                    htmlFor={`${baseId}-reject`}
+                    className="flex items-center gap-2"
+                  >
+                    Reject{" "}
+                    <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
+                  </Label>
+                </div>
+                {Number(currentValue) === 0 && (
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem id={`${baseId}-pending`} value="0" />
+                    <Label
+                      htmlFor={`${baseId}-pending`}
+                      className="flex items-center gap-2"
+                    >
+                      Pending{" "}
+                      <Clock
+                        className={`${getDecisionInfo(0).color} w-4 h-4`}
+                      />
+                    </Label>
+                  </div>
+                )}
+              </RadioGroup>
+            );
+          }}
+        />
       );
     },
   },
