@@ -76,7 +76,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
           <TabsContent value="all">
             {projects.length > 0 ? (
               <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
+                <DataTable
+                  columns={columns}
+                  data={projects}
+                  projectListingPage={true}
+                />
               </div>
             ) : (
               <EmptyState
@@ -88,7 +92,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
           <TabsContent value="unprocessed">
             {projects.length > 0 ? (
               <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
+                <DataTable
+                  columns={columns}
+                  data={projects}
+                  projectListingPage={true}
+                />
               </div>
             ) : (
               <EmptyState
