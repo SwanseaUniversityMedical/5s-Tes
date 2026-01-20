@@ -1,7 +1,8 @@
 import { FetchError } from "@/components/core/fetch-error";
+import ApprovalForm from "@/components/projects/ApprovalForm";
 import { getProject } from "@/lib/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
-import { TreProject } from "@/types/TreProject";
+import type { TreProject } from "@/types/TreProject";
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
@@ -30,7 +31,11 @@ export default async function ApprovalPage(props: {
   return (
     <div className="space-y-2">
       <div className="my-5 mx-auto max-w-7xl">
-        Project Approval Form - Project {project?.submissionProjectName ?? "N/A"}
+        {project ? (
+          <ApprovalForm project={project} />
+        ) : (
+          <div>No project found</div>
+        )}
       </div>
     </div>
   );
