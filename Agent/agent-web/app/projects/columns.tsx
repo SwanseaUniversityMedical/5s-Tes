@@ -56,6 +56,7 @@ export const columns: ColumnDef<TreProject>[] = [
     header: "Last Decision Date",
     cell: ({ row }) => {
       const { lastDecisionDate, decision } = row.original;
+      if (!lastDecisionDate) return "N/A";
       const decisionInfo = getDecisionInfo(decision);
       return (
         <div>

@@ -71,12 +71,11 @@ export const createMembershipColumns = (
     id: "Update Decision",
     header: "Update Decision",
     cell: ({ row }) => {
-      const membershipId = row.original.id.toString();
-      const baseId = `membership-${row.original.id}`;
-
+      const { id, decision } = row.original;
+      const baseId = `membership-${id}`;
       return (
         <Controller
-          name={`membershipDecisions.${membershipId}` as const}
+          name={`membershipDecisions.${id}` as const}
           control={form.control}
           render={({ field }) => {
             const currentValue =
@@ -107,7 +106,7 @@ export const createMembershipColumns = (
                     <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
                   </Label>
                 </div>
-                {Number(currentValue) === 0 && (
+                {getDecisionInfo(decision).label === "Pending" && (
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem id={`${baseId}-pending`} value="0" />
                     <Label

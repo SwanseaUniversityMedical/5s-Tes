@@ -14,7 +14,7 @@ import { formatDate } from "date-fns/format";
 import { Badge } from "../ui/badge";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
-import { Check, Clock, FolderKanban, Pencil, X } from "lucide-react";
+import { Check, Clock, FolderKanban, Save, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -52,7 +52,7 @@ export default function ProjectApprovalForm({
       });
     }
   };
-
+  console.log(project.lastDecisionDate);
   return (
     <form>
       <FieldGroup>
@@ -81,7 +81,7 @@ export default function ProjectApprovalForm({
               className="flex gap-2 h-7"
               variant="outline"
             >
-              Save <Pencil className="w-4 h-4" />
+              <Save className="w-4 h-4" /> Save
             </Button>
           </div>
           <div className="text-sm mt-2">
@@ -133,18 +133,24 @@ export default function ProjectApprovalForm({
                   ? "Waiting for review"
                   : getDecisionInfo(project.decision).label}
               </span>
-              <span className="text-gray-500"> by </span>
-              <span>{project.approvedBy ? project.approvedBy : "N/A"}</span>
-              <span className="text-gray-500"> on </span>
-              <span>
-                {getDecisionInfo(project.decision).label.toLowerCase() ===
-                "pending"
-                  ? "N/A"
-                  : formatDate(
+              {project.approvedBy ? (
+                <>
+                  <span className="text-gray-500"> by </span>
+                  <span>{project.approvedBy ? project.approvedBy : "N/A"}</span>
+                </>
+              ) : null}
+
+              {project.lastDecisionDate !== "0001-01-01T00:00:00" ? (
+                <>
+                  <span className="text-gray-500"> on </span>
+                  <span>
+                    {formatDate(
                       new Date(project.lastDecisionDate),
                       "d MMM yyyy HH:mm",
                     )}
-              </span>
+                  </span>
+                </>
+              ) : null}
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -180,7 +186,7 @@ export default function ProjectApprovalForm({
                       <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
                     </Label>
                   </div>
-                  {Number(field.value) === 0 && (
+                  {getDecisionInfo(project.decision).label === "Pending" && (
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem id="project-pending" value="0" />
                       <Label
@@ -204,7 +210,7 @@ export default function ProjectApprovalForm({
               disabled={!isDirty}
               className="ml-4 flex gap-2"
             >
-              Save Project Decision <FolderKanban className="w-4 h-4" />
+              <FolderKanban className="w-4 h-4" /> Save Project Decision
             </Button>
           </div>
         </FieldSet>

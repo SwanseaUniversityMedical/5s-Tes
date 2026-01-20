@@ -80,7 +80,7 @@ export default function MembershipApprovalForm({
               disabled={!isDirty}
               className="flex gap-2"
             >
-              Save Membership Decisions <Users className="w-4 h-4" />
+              <Users className="w-4 h-4" /> Save Membership Decisions
             </Button>
           </div>
           <DataTable
