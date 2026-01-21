@@ -42,7 +42,7 @@ jobs:
       job-name: ui-container
       comment-pr: "true"
       comment-release: "true"
-      registry: ${{ vars.HARBOR_REGISTRY }}
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
       release-info: ${{ needs.containers.outputs.release-info }}
