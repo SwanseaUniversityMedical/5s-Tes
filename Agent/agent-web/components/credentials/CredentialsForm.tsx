@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
 import { credentialsSchema, CredentialsFormData } from "@/lib/schema/update-credentials";
+import { updateCredentialsAction } from "@/lib/actions/update-credentials-actions";
 
 import SaveCredentialsButton from "./SaveCredentialsButton";
 import CredentialsVisibilityToggle from "./CredentialsVisibilityToggle";
@@ -20,6 +22,7 @@ import CredentialsHelpTooltip from "./CredentialsHelpTooltip";
 
 type CredentialsFormProps = {
   type: CredentialType;
+  onSuccess?: () => void;
 };
 const TITLE: Record<CredentialType, string> = {
   submission: "Update Credentials for Submission",
@@ -52,9 +55,7 @@ const FIELDS = [
   },
 ] as const;
 
-export default function CredentialsForm({ type }: CredentialsFormProps) {
-
-
+export default function CredentialsForm({ type, onSuccess }: CredentialsFormProps) {
   {/* Constants for the following:
     - State to manage password visibility for each password field
     - State for loading
@@ -83,32 +84,24 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
     }));
   };
 
-
-
-  {/* ---------------------------- */}
-  {/* onSubmit function & Form Handler and Rendering */}
-
-  // Form submission handler
   const onSubmit = async (data: CredentialsFormData) => {
     setIsLoading(true);
 
     try {
-      console.log("Credentials Submission:", {
-      type,
-      username: data.username,
-      password: data.password,
-      confirmPassword: data.confirmPassword,
-    });
+      const result = await updateCredentialsAction(type, data);
 
-      // TODO: Add API call here
-      // TODO: Add error sonner
-      // TODO: Add success sonner
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
 
-      await new Promise((resolve) => setTimeout(resolve, 1000));
       reset();
+      toast.success("Credentials updated successfully!");
+
+      onSuccess?.();
 
     } catch (error) {
-      console.error("Failed to update credentials:", error);
+      toast.error("An unexpected error occurred");
 
     } finally {
       setIsLoading(false);
@@ -158,7 +151,7 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
           })}
 
           {/* Save Button */}
-          <div className="flex justify-end">
+          <div className="flex justify-end pb-4">
             <SaveCredentialsButton isLoading={isLoading} />
           </div>
         </FieldGroup>
