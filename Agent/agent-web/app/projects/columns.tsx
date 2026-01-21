@@ -39,7 +39,9 @@ export const columns: ColumnDef<TreProject>[] = [
     cell: ({ row }) => {
       const decision = row.original.decision;
       const decisionInfo = getDecisionInfo(decision);
-      return <div className={decisionInfo.color}>{decisionInfo.label}</div>;
+      return (
+        <Badge variant={decisionInfo.badgeVariant}>{decisionInfo.label}</Badge>
+      );
     },
   },
   {

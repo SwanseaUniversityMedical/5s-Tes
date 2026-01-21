@@ -40,7 +40,7 @@ export const createMembershipColumns = (
       const decision = Number(currentValue);
 
       return (
-        <Badge variant="outline" className={getDecisionInfo(decision).color}>
+        <Badge variant={getDecisionInfo(decision).badgeVariant}>
           {getDecisionInfo(decision).label}
         </Badge>
       );
