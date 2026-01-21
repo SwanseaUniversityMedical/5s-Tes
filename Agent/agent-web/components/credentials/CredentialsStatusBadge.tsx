@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { CheckCircle, AlertCircle, Loader2 } from "lucide-react";
-import { checkCredentialsValidAction } from "@/lib/actions/update-credentials-actions";
+import { checkCredentialsValid } from "@/api/credentials";
 import { CredentialType } from "@/types/update-credentials";
 
 // Props for CredentialsStatusBadge component
@@ -29,7 +29,7 @@ export default function CredentialsStatusBadge({ type, refreshKey }: Credentials
 
       // Run API call and 2 second delay in parallel
       const [result] = await Promise.all([
-        checkCredentialsValidAction(type),
+        checkCredentialsValid(type),
         new Promise((resolve) => setTimeout(resolve, 1000)),
       ]);
 

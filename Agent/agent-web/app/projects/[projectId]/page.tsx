@@ -1,5 +1,5 @@
 import { FetchError } from "@/components/core/fetch-error";
-import { getProject } from "@/lib/api/projects";
+import { getProject } from "@/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import { TreProject } from "@/types/TreProject";
 

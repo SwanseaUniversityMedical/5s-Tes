@@ -4,14 +4,13 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { credentialsSchema, CredentialsFormData } from "@/lib/schema/update-credentials";
-import { updateCredentialsAction } from "@/lib/actions/update-credentials-actions";
+import { updateCredentials } from "@/api/credentials";
 
 import SaveCredentialsButton from "./SaveCredentialsButton";
 import CredentialsVisibilityToggle from "./CredentialsVisibilityToggle";
 import { Input } from "@/components/ui/input";
 import { Field, FieldGroup, FieldLabel, FieldSet, FieldError } from "@/components/ui/field";
-import { CredentialType } from "@/types/update-credentials";
+import { CredentialType, credentialsSchema, CredentialsFormData  } from "@/types/update-credentials";
 import CredentialsHelpTooltip from "./CredentialsHelpTooltip";
 
 {/* Const and Types for the following:
@@ -88,7 +87,7 @@ export default function CredentialsForm({ type, onSuccess }: CredentialsFormProp
     setIsLoading(true);
 
     try {
-      const result = await updateCredentialsAction(type, data);
+      const result = await updateCredentials(type, data);
 
       if (!result.success) {
         toast.error(result.error);
@@ -125,7 +124,7 @@ export default function CredentialsForm({ type, onSuccess }: CredentialsFormProp
             const error = errors[f.name];
 
             return (
-              <Field key={id} data-invalid={error ? true : undefined}>
+              <Field key={id} data-invalid={error || undefined}>
                 <FieldLabel htmlFor={id}>{f.label}</FieldLabel>
                 <div className="relative">
                   <Input

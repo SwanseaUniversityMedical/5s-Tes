@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import {useRefreshKey} from "@/lib/hooks/use-refresh-key";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CredentialType } from "@/types/update-credentials";
 
@@ -11,12 +12,7 @@ import CredentialsStatusBadge from "./CredentialsStatusBadge";
 
 export default function CredentialsTabs() {
   const [activeTab, setActiveTab] = useState<CredentialType>("submission");
-  const [refreshKey, setRefreshKey] = useState(0);
-
-  // Called when credentials are successfully updated
-  const handleCredentialsUpdated = () => {
-    setRefreshKey((prev) => prev + 1);
-  };
+  const { refreshKey, bump } = useRefreshKey();
 
   return (
     <Tabs
@@ -35,10 +31,10 @@ export default function CredentialsTabs() {
 
       {/* Tab Contents */}
       <TabsContent value="submission">
-        <CredentialsForm type="submission" onSuccess={handleCredentialsUpdated} />
+        <CredentialsForm type="submission" onSuccess={bump} />
       </TabsContent>
       <TabsContent value="egress">
-        <CredentialsForm type="egress" onSuccess={handleCredentialsUpdated} />
+        <CredentialsForm type="egress" onSuccess={bump} />
       </TabsContent>
     </Tabs>
   );

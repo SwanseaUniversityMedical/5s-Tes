@@ -1,6 +1,6 @@
 "use server";
 
-import request from "@/lib/api/request";
+import request from "./request";
 import type { CredentialType, CredentialsFormData, UpdateCredentialsResponse } from "@/types/update-credentials";
 
 // Helper to check if error is a Next.js redirect
@@ -30,7 +30,7 @@ const UPDATE_ENDPOINTS: Record<CredentialType, string> = {
 
 
 /* Server action to check if credentials are valid */
-export async function checkCredentialsValidAction(
+export async function checkCredentialsValid(
   type: CredentialType
 ): Promise<ActionResult<boolean>> {
 
@@ -57,7 +57,7 @@ export async function checkCredentialsValidAction(
 
 
 /* Server action for updating credentials */
-export async function updateCredentialsAction(
+export async function updateCredentials(
   type: CredentialType,
   formData: CredentialsFormData
 ): Promise<ActionResult<UpdateCredentialsResponse>> {
