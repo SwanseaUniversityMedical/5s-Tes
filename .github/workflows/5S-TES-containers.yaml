@@ -39,10 +39,10 @@ jobs:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
     with:
-      job-name: ui-container
+      job-name: agent-web-container
       comment-pr: "true"
       comment-release: "true"
-      registry: ${{ vars.HARBOR_REGISTRY }}
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
       release-info: ${{ needs.containers.outputs.release-info }}
