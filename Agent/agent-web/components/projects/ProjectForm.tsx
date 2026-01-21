@@ -7,13 +7,15 @@ import type { TreProject } from "@/types/TreProject";
 import { formatDate } from "date-fns/format";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
-import { Check, Clock, FolderKanban, X } from "lucide-react";
+import { Check, Clock, FolderKanban, Loader2, Save, X } from "lucide-react";
 import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
+import { Input } from "../ui/input";
 
 type ProjectApprovalFormData = {
   projectDecision: string;
+  localProjectName: string;
 };
 
 export default function ProjectApprovalForm({
@@ -24,19 +26,21 @@ export default function ProjectApprovalForm({
   const form = useForm<ProjectApprovalFormData>({
     defaultValues: {
       projectDecision: project.decision.toString(),
+      localProjectName: project.localProjectName ?? "",
     },
   });
 
-  const { isDirty } = form.formState;
+  const { isDirty, isSubmitting } = form.formState;
+  console.log(isDirty, isSubmitting);
 
-  const handleProjectDecisionSubmit = async (data: ProjectApprovalFormData) => {
+  const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
     try {
       const projectDecision = Number(data.projectDecision) as Decision;
       // TODO: Implement API call to update project decision
       // await updateProjectDecision(project.id, projectDecision);
 
       toast.success("Project decision updated successfully", {
-        description: `Decision changed to: ${getDecisionInfo(projectDecision).label}`,
+        description: `Decision changed to: ${getDecisionInfo(projectDecision).label} and local name changed to: ${data.localProjectName}`,
       });
     } catch (error) {
       toast.error("Failed to update project decision", {
@@ -51,42 +55,29 @@ export default function ProjectApprovalForm({
       <FieldGroup>
         <FieldSet>
           <FieldLabel className="text-lg font-bold">
-            Project Decision
+            Update Project Details
           </FieldLabel>
-
           <div className="flex items-center gap-2">
-            <h1 className="font-semibold">Current Status:</h1>
-            <div className="flex items-center gap-1 text-sm">
-              <span
-                className={`${getDecisionInfo(project.decision).color} font-semibold`}
-              >
-                {getDecisionInfo(project.decision).label.toLowerCase() ===
-                "pending"
-                  ? "Waiting for review"
-                  : getDecisionInfo(project.decision).label}
-              </span>
-              {project.approvedBy ? (
-                <>
-                  <span className="text-gray-500"> by </span>
-                  <span>{project.approvedBy ? project.approvedBy : "N/A"}</span>
-                </>
-              ) : null}
-
-              {project.lastDecisionDate !== "0001-01-01T00:00:00" ? (
-                <>
-                  <span className="text-gray-500"> on </span>
-                  <span>
-                    {formatDate(
-                      new Date(project.lastDecisionDate),
-                      "d MMM yyyy HH:mm",
-                    )}
-                  </span>
-                </>
-              ) : null}
-            </div>
+            {/* TODO: add tooltip here */}
+            <span className="text-sm font-semibold">Local name:</span>{" "}
+            <span>
+              <Controller
+                name="localProjectName"
+                control={form.control}
+                render={({ field }) => (
+                  <Input
+                    id="local-project-name"
+                    className="h-7"
+                    value={field.value}
+                    onChange={field.onChange}
+                  />
+                )}
+              />
+            </span>
           </div>
+
           <div className="flex items-center gap-2">
-            <h1 className="font-semibold">Update Decision:</h1>
+            <h1 className="text-sm font-semibold"> Decision:</h1>
             <Controller
               name="projectDecision"
               control={form.control}
@@ -135,15 +126,36 @@ export default function ProjectApprovalForm({
                 </RadioGroup>
               )}
             />
+          </div>
 
+          <div className="flex gap-2 justify-start">
             <Button
               type="button"
-              onClick={form.handleSubmit(handleProjectDecisionSubmit)}
-              disabled={!isDirty}
-              className="ml-4 flex gap-2"
+              onClick={form.handleSubmit(handleProjectDetailsSubmit)}
+              disabled={!isDirty || isSubmitting}
+              className="flex gap-2"
             >
-              <FolderKanban className="w-4 h-4" /> Save Project Decision
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" /> Update
+                </>
+              )}
             </Button>
+            {isDirty && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => form.reset()}
+                className="flex gap-2"
+              >
+                <X className="w-4 h-4" /> Reset
+              </Button>
+            )}
           </div>
         </FieldSet>
       </FieldGroup>

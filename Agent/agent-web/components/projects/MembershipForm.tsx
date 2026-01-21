@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
 import { createMembershipColumns } from "@/app/projects/[projectId]/columns";
-import { Users } from "lucide-react";
+import { Check, Loader2, X } from "lucide-react";
 
 export type ApprovalMembershipFormData = {
   membershipDecisions: Record<string, string>;
@@ -34,7 +34,7 @@ export default function MembershipApprovalForm({
     },
   });
 
-  const { isDirty } = form.formState;
+  const { isDirty, isSubmitting } = form.formState;
 
   const membershipColumns = useMemo(
     () => createMembershipColumns(form),
@@ -78,15 +78,35 @@ export default function MembershipApprovalForm({
             columns={membershipColumns}
             data={membershipDecisions ?? []}
           />
-          <div className="flex justify-start">
+
+          <div className="flex justify-start gap-2">
             <Button
               type="button"
               onClick={form.handleSubmit(handleMembershipDecisionSubmit)}
-              disabled={!isDirty}
+              disabled={!isDirty || isSubmitting}
               className="flex gap-2"
             >
-              <Users className="w-4 h-4" /> Save Membership Decisions
+              {isSubmitting ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Updating...
+                </>
+              ) : (
+                <>
+                  <Check className="w-4 h-4" /> Update
+                </>
+              )}
             </Button>
+            {isDirty && (
+              <Button
+                type="button"
+                variant="secondary"
+                onClick={() => form.reset()}
+                className="flex gap-2"
+              >
+                <X className="w-4 h-4" /> Reset
+              </Button>
+            )}
           </div>
         </FieldSet>
       </FieldGroup>

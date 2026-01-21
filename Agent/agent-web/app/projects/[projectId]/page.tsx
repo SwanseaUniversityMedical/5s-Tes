@@ -5,7 +5,7 @@ import { getProject } from "@/lib/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import type { TreProject } from "@/types/TreProject";
 import ProjectApprovalForm from "@/components/projects/ProjectForm";
-import ProjectDetailsForm from "@/components/projects/ProjectDetailsForm";
+import ProjectDetails from "@/components/projects/ProjectDetails";
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
@@ -36,7 +36,7 @@ export default async function ApprovalPage(props: {
       <div className="my-5 mx-auto max-w-7xl">
         {project ? (
           <div className="flex flex-col gap-4">
-            <ProjectDetailsForm project={project} />
+            <ProjectDetails project={project} />
             <FieldSeparator />
             <ProjectApprovalForm project={project} />
             <FieldSeparator />
