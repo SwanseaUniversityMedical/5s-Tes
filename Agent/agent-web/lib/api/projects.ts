@@ -1,5 +1,5 @@
 import request from "./request";
-import { TreProject } from "@/types/TreProject";
+import type { TreProject } from "@/types/TreProject";
 
 const fetchKeys = {
   listProjects: (params: { showOnlyUnprocessed: boolean }) =>
