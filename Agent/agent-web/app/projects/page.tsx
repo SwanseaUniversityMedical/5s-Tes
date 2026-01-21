@@ -5,7 +5,7 @@ import { columns } from "./columns";
 import type { TreProject } from "@/types/TreProject";
 import type { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
-import { getProjects } from "@/lib/api/projects";
+import { getProjects } from "@/api/projects";
 import Link from "next/link";
 import { FetchError } from "@/components/core/fetch-error";
 

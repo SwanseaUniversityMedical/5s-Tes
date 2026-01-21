@@ -1,7 +1,7 @@
 import { FetchError } from "@/components/core/fetch-error";
 import MembershipApprovalForm from "@/components/projects/MembershipForm";
 import { FieldSeparator } from "@/components/ui/field";
-import { getProject } from "@/lib/api/projects";
+import { getProject } from "@/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import type { TreProject } from "@/types/TreProject";
 import ProjectApprovalForm from "@/components/projects/ProjectForm";
