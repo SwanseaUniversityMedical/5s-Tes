@@ -1,4 +1,4 @@
-import request from "../lib/api/request";
+import request from "@/lib/api/request";
 import type { TreProject } from "@/types/TreProject";
 
 const fetchKeys = {
