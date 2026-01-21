@@ -9,3 +9,16 @@ export type CredentialsFormData = {
   password: string;
   confirmPassword: string;
 };
+
+// Define Response Type from Update Credentials API
+
+export type UpdateCredentialsResponse = {
+  error?: boolean;
+  errorMessage?: string | null;
+  id?: number;
+  userName: string;
+  passwordEnc: string;
+  confirmPassword?: string | null;
+  credentialType?: number;
+  valid?: boolean;
+};
