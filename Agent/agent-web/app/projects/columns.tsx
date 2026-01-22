@@ -37,10 +37,15 @@ export const columns: ColumnDef<TreProject>[] = [
     id: "Decision",
     header: "Decision",
     cell: ({ row }) => {
-      const decision = row.original.decision;
+      const { decision, archived } = row.original;
       const decisionInfo = getDecisionInfo(decision);
       return (
-        <Badge variant={decisionInfo.badgeVariant}>{decisionInfo.label}</Badge>
+        <div className="flex items-center gap-2">
+          <Badge variant={decisionInfo.badgeVariant}>
+            {decisionInfo.label}
+          </Badge>
+          {archived && <Badge variant="destructive">Archived</Badge>}
+        </div>
       );
     },
   },
