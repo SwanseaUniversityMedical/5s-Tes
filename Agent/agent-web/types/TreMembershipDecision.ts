@@ -3,10 +3,10 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Decision } from "./Decision";
+import type{ Decision } from "./Decision";
 import type { TreAuditLog } from "./TreAuditLog";
 import type { TreProject } from "./TreProject";
-import { TreUser } from "./TreUser";
+import type { TreUser } from "./TreUser";
 
 export type TreMembershipDecision = {
   error: boolean;
