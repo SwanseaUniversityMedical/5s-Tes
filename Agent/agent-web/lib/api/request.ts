@@ -39,9 +39,12 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
     cache: options.cache,
     next: options.next,
   });
+
   const contentType = response.headers.get("Content-Type");
   // TODO: add error handling for the response
   if (!response.ok) {
+    const errorResponse = await response.json();
+    console.log("errorResponse", errorResponse);
     let errorMessage = "An error occurred";
     if (contentType && (contentType.includes("application/json") || contentType?.includes("application/problem+json"))) {
       try {
@@ -64,6 +67,7 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
 
   if (contentType && contentType.includes("application/json")) {
     const data = await response.json();
+    console.log("data", data);
     return resolveJsonReferences(data);
   }
   return response.text();
