@@ -3,14 +3,14 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import { Decision } from "./Decision";
+import type { Decision } from "./Decision";
 import type { TreAuditLog } from "./TreAuditLog";
 import type { TreMembershipDecision } from "./TreMembershipDecision";
 export type TreProject = {
   error: boolean;
   errorMessage: string | null;
   id: number;
-  submissionProjectId?: number;
+  submissionProjectId: number;
   userName: string | null;
   password: string | null;
   submissionProjectName: string | null;
