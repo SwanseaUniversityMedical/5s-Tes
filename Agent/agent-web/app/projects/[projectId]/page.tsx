@@ -32,22 +32,20 @@ export default async function ApprovalPage(props: {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="my-5 mx-auto max-w-7xl">
-        {project ? (
-          <div className="flex flex-col gap-4">
-            <ProjectDetails project={project} />
-            <FieldSeparator />
-            <ProjectApprovalForm project={project} />
-            <FieldSeparator />
-            <MembershipApprovalForm
-              membershipDecisions={project.memberDecisions ?? []}
-            />
-          </div>
-        ) : (
-          <div>No project found</div>
-        )}
-      </div>
+    <div className="space-y-2 my-5 mx-auto max-w-7xl">
+      {project ? (
+        <div className="flex flex-col gap-4">
+          <ProjectDetails project={project} />
+          <FieldSeparator />
+          <ProjectApprovalForm project={project} />
+          <FieldSeparator />
+          <MembershipApprovalForm
+            membershipDecisions={project.memberDecisions ?? []}
+          />
+        </div>
+      ) : (
+        <div>No project found</div>
+      )}
     </div>
   );
 }
