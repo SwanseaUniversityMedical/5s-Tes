@@ -58,7 +58,7 @@ export default function CredentialsStatusBadge({ type, refreshKey }: Credentials
     return (
       <span className="inline-flex items-center text-sm text-green-600">
         <CheckCircle className="mr-1 h-4 w-4" />
-        Valid
+        Valid Credentials
       </span>
     );
   }
