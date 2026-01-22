@@ -1,15 +1,8 @@
 "use server";
 
+import { isNextRedirectError } from "@/lib/api/helpers";
 import request  from "@/lib/api/request";
 import type { CredentialType, CredentialsFormData, UpdateCredentialsResponse } from "@/types/update-credentials";
-
-// Helper to check if error is a Next.js redirect
-// Checks for the NEXT_REDIRECT digest property
-
-function isNextRedirectError(error: unknown): boolean {
-  return (error as any)?.digest?.startsWith?.("NEXT_REDIRECT") ?? false;
-}
-
 
 // Action result type
 export type ActionResult<T> =
