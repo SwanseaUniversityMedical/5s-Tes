@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import {useRefreshKey} from "@/lib/hooks/use-refresh-key";
+import { useRefreshKey } from "@/lib/hooks/use-refresh-key";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { CredentialType } from "@/types/update-credentials";
 
@@ -21,7 +21,7 @@ export default function CredentialsTabs() {
       className="w-90"
     >
       {/* Tabs List with Status Badge */}
-      <div className="flex items-center gap-4 border-b border-black pb-2 -mx-4 px-4">
+      <div className="flex items-center gap-4 border-b border-black pb-2 -mx-4 px-2">
         <TabsList>
           <TabsTrigger value="submission">Submission</TabsTrigger>
           <TabsTrigger value="egress">Egress</TabsTrigger>

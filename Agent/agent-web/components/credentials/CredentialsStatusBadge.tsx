@@ -14,7 +14,10 @@ type CredentialsStatusBadgeProps = {
 
 // Component to display the status badge for credentials
 
-export default function CredentialsStatusBadge({ type, refreshKey }: CredentialsStatusBadgeProps) {
+export default function CredentialsStatusBadge({
+  type,
+  refreshKey,
+}: CredentialsStatusBadgeProps) {
   const [status, setStatus] = useState<{
     loading: boolean;
     valid: boolean | null;
@@ -42,8 +45,9 @@ export default function CredentialsStatusBadge({ type, refreshKey }: Credentials
     checkStatus();
   }, [type, refreshKey]);
 
-
-  {/* Render Valid Component based on status */}
+  {
+    /* Render Valid Component based on status */
+  }
 
   if (status.loading) {
     return (
@@ -58,7 +62,7 @@ export default function CredentialsStatusBadge({ type, refreshKey }: Credentials
     return (
       <span className="inline-flex items-center text-sm text-green-600">
         <CheckCircle className="mr-1 h-4 w-4" />
-        Saved credentials valid
+        Saved credentials are valid
       </span>
     );
   }
