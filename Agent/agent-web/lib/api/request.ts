@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
+import { resolveJsonReferences } from "./helpers";
 
 interface RequestOptions {
   method?: string;
@@ -62,7 +63,8 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
   }
 
   if (contentType && contentType.includes("application/json")) {
-    return response.json();
+    const data = await response.json();
+    return resolveJsonReferences(data);
   }
   return response.text();
 };
