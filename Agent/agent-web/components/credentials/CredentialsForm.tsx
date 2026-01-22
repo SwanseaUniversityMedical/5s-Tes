@@ -1,47 +1,51 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+import { updateCredentials } from "@/api/credentials";
+
 import SaveCredentialsButton from "./SaveCredentialsButton";
 import CredentialsVisibilityToggle from "./CredentialsVisibilityToggle";
 import { Input } from "@/components/ui/input";
-import { Field, FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
-import { CredentialType } from "@/types/update-credentials";
+import { Field, FieldGroup, FieldLabel, FieldSet, FieldError } from "@/components/ui/field";
+import { CredentialType, credentialsSchema, CredentialsFormData  } from "@/types/update-credentials";
 import CredentialsHelpTooltip from "./CredentialsHelpTooltip";
 
-// Props for CredentialsForm component
+{/* Const and Types for the following:
+  - Props for CredentialsForm component
+  - Types for CredentialsFormProps
+  - Constants for the Form Fields
+  - Types for updating credentials based on Submission or Egress */}
 
 type CredentialsFormProps = {
   type: CredentialType;
+  onSuccess?: () => void;
 };
-
-// Titles for each Credential Type
-
 const TITLE: Record<CredentialType, string> = {
   submission: "Update Credentials for Submission",
   egress: "Update Credentials for Egress",
 };
-
-// Constants for Form Fields
-
 const FIELDS = [
   {
-    name: "username",
+    name: "username" as const,
     label: "Username",
     inputType: "text",
     placeholder: "Username",
-    autoComplete: "Username",
+    autoComplete: "username",
     isPassword: false,
   },
   {
-    name: "password",
+    name: "password" as const,
     label: "Password",
     inputType: "password",
     placeholder: "Password",
-    autoComplete: "current-password",
+    autoComplete: "new-password",
     isPassword: true,
   },
   {
-    name: "confirmPassword",
+    name: "confirmPassword" as const,
     label: "Confirm Password",
     inputType: "password",
     placeholder: "Confirm password",
@@ -50,14 +54,28 @@ const FIELDS = [
   },
 ] as const;
 
-// Creates Forms for Updating the Credentials based on Submission or Egress (Types)
+export default function CredentialsForm({ type, onSuccess }: CredentialsFormProps) {
+  {/* Constants for the following:
+    - State to manage password visibility for each password field
+    - State for loading
+    - Initialize react-hook-form with zod resolver
+    - Toggle visibility */}
 
-export default function CredentialsForm({ type }: CredentialsFormProps) {
-
-
-  {/* State to manage password visibility for each password field */}
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
-
+  const [isLoading, setIsLoading] = useState(false);
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+    reset,
+  } = useForm<CredentialsFormData>({
+    resolver: zodResolver(credentialsSchema),
+    defaultValues: {
+      username: "",
+      password: "",
+      confirmPassword: "",
+    },
+  });
   const togglePasswordVisibility = (fieldName: string) => {
     setShowPassword((prev) => ({
       ...prev,
@@ -65,12 +83,36 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
     }));
   };
 
+  const onSubmit = async (data: CredentialsFormData) => {
+    setIsLoading(true);
+
+    try {
+      const result = await updateCredentials(type, data);
+
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
+
+      reset();
+      toast.success("Credentials updated successfully!");
+
+      onSuccess?.();
+
+    } catch (error) {
+      toast.error("An unexpected error occurred");
+
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   return (
-    <form className="mt-2 max-w-md">
+    <form onSubmit={handleSubmit(onSubmit)} className="mt-2 max-w-md">
       <FieldSet>
         {/* Form Title */}
         <div className="flex items-center">
-          <h1 className="text-xl font-bold">{TITLE[type]}</h1>
+          <h2 className="text-xl font-bold">{TITLE[type]}</h2>
           <CredentialsHelpTooltip type={type} />
         </div>
 
@@ -79,18 +121,19 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
           {FIELDS.map((f) => {
             const id = `${type}-${f.name}`;
             const isVisible = showPassword[f.name];
+            const error = errors[f.name];
 
             return (
-              <Field key={id}>
+              <Field key={id} data-invalid={error || undefined}>
                 <FieldLabel htmlFor={id}>{f.label}</FieldLabel>
                 <div className="relative">
                   <Input
                     id={id}
-                    name={f.name}
                     type={f.isPassword && isVisible ? "text" : f.inputType}
                     placeholder={f.placeholder}
                     autoComplete={f.autoComplete}
-                    required
+                    aria-invalid={error ? true : undefined}
+                    {...register(f.name)}
                   />
 
                   {/* Password Visibility Toggle for Password Fields */}
@@ -101,13 +144,14 @@ export default function CredentialsForm({ type }: CredentialsFormProps) {
                     />
                   )}
                 </div>
+                {error && <FieldError>{error.message}</FieldError>}
               </Field>
             );
           })}
 
           {/* Save Button */}
-          <div className="flex justify-end">
-            <SaveCredentialsButton />
+          <div className="flex justify-end pb-4">
+            <SaveCredentialsButton isLoading={isLoading} />
           </div>
         </FieldGroup>
       </FieldSet>

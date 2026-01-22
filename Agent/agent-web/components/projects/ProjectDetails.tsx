@@ -5,6 +5,7 @@ import { formatDate } from "date-fns/format";
 import { Badge } from "../ui/badge";
 import { getDecisionInfo } from "@/types/Decision";
 import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
+
 export default function ProjectDetails({ project }: { project: TreProject }) {
   return (
     <div className="flex flex-col gap-2">
