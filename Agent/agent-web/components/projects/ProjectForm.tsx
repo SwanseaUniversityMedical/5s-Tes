@@ -11,6 +11,7 @@ import { Controller, useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
+import { RADIO_OPTIONS } from "@/lib/constants/radio-options";
 
 type ProjectApprovalFormData = {
   projectDecision: string;
@@ -30,7 +31,6 @@ export default function ProjectApprovalForm({
   });
 
   const { isDirty, isSubmitting } = form.formState;
-  console.log(isDirty, isSubmitting);
 
   const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
     try {
@@ -48,6 +48,15 @@ export default function ProjectApprovalForm({
       });
     }
   };
+  //  radio options for project decision including Pending if project decision is Pending
+  const options = [...RADIO_OPTIONS];
+  if (getDecisionInfo(project.decision).label === "Pending") {
+    options.push({
+      label: "Pending",
+      value: "0",
+      icon: <Clock className={`${getDecisionInfo(0).color} w-4 h-4`} />,
+    });
+  }
 
   return (
     <form>
@@ -86,42 +95,25 @@ export default function ProjectApprovalForm({
                   value={field.value}
                   onValueChange={field.onChange}
                 >
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem id="project-approve" value="1" />
-                    <Label
-                      htmlFor="project-approve"
-                      className="flex items-center gap-2"
-                    >
-                      Approve{" "}
-                      <Check
-                        className={`${getDecisionInfo(1).color} w-4 h-4`}
-                      />
-                    </Label>
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <RadioGroupItem id="project-reject" value="2" />
-                    <Label
-                      htmlFor="project-reject"
-                      className="flex items-center gap-2"
-                    >
-                      Reject{" "}
-                      <X className={`${getDecisionInfo(2).color} w-4 h-4`} />
-                    </Label>
-                  </div>
-                  {getDecisionInfo(project.decision).label === "Pending" && (
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem id="project-pending" value="0" />
-                      <Label
-                        htmlFor="project-pending"
-                        className="flex items-center gap-2"
+                  {options.map((option) => {
+                    return (
+                      <div
+                        className="flex items-center space-x-2"
+                        key={option.value}
                       >
-                        Pending{" "}
-                        <Clock
-                          className={`${getDecisionInfo(0).color} w-4 h-4`}
+                        <RadioGroupItem
+                          id={`project-${option.value}`}
+                          value={option.value}
                         />
-                      </Label>
-                    </div>
-                  )}
+                        <Label
+                          htmlFor={`project-${option.value}`}
+                          className="flex items-center gap-2"
+                        >
+                          {option.label} {option.icon}
+                        </Label>
+                      </div>
+                    );
+                  })}
                 </RadioGroup>
               )}
             />
