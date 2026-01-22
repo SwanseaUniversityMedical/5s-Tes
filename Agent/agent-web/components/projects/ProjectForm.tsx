@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { RADIO_OPTIONS } from "@/lib/constants/radio-options";
+import { updateProject } from "@/api/projects";
 
 type ProjectApprovalFormData = {
   projectDecision: string;
@@ -34,15 +35,15 @@ export default function ProjectApprovalForm({
 
   const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
     try {
-      const projectDecision = Number(data.projectDecision) as Decision;
-      // TODO: Implement API call to update project decision
-      // await updateProjectDecision(project.id, projectDecision);
-
-      toast.success("Project decision updated successfully", {
-        description: `Decision changed to: ${getDecisionInfo(projectDecision).label} and local name changed to: ${data.localProjectName}`,
-      });
+      const updatedProject: TreProject = {
+        ...project,
+        decision: Number(data.projectDecision) as Decision,
+        localProjectName: data.localProjectName,
+      };
+      await updateProject(updatedProject);
+      toast.success("Project details updated successfully");
     } catch (error) {
-      toast.error("Failed to update project decision", {
+      toast.error("Failed to update project details", {
         description:
           error instanceof Error ? error.message : "An error occurred",
       });
