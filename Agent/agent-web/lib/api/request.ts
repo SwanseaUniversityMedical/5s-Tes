@@ -43,7 +43,7 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
   // TODO: add error handling for the response
   if (!response.ok) {
     let errorMessage = "An error occurred";
-    if (contentType && contentType.includes("application/json")) {
+    if (contentType && (contentType.includes("application/json") || contentType?.includes("application/problem+json"))) {
       try {
         const errorResponse = await response.json();
         if (Array.isArray(errorResponse)) {
