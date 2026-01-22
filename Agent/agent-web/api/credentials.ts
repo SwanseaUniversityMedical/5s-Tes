@@ -1,6 +1,6 @@
 "use server";
 
-import request from "./request";
+import request  from "@/lib/api/request";
 import type { CredentialType, CredentialsFormData, UpdateCredentialsResponse } from "@/types/update-credentials";
 
 // Helper to check if error is a Next.js redirect
