@@ -2,7 +2,7 @@
 
 import { isNextRedirectError } from "@/lib/api/helpers";
 import request from "@/lib/api/request";
-import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
+import type { TreMembershipDecision, UpdateMembershipDecisionDto } from "@/types/TreMembershipDecision";
 import type { TreProject } from "@/types/TreProject";
 
 const fetchKeys = {
@@ -10,6 +10,8 @@ const fetchKeys = {
     `Approval/GetAllTreProjects?showOnlyUnprocessed=${params.showOnlyUnprocessed}`,
   getProject: (projectId: string) =>
     `Approval/GetTreProject?projectId=${projectId}`,
+  getMemberships: (projectId: string) =>
+    `Approval/GetMemberships?projectId=${projectId}`,
   updateProject: () =>
     `Approval/UpdateProjects`,
   updateMembershipDecisions: () =>
@@ -24,6 +26,10 @@ export async function getProjects(params: {
 
 export async function getProject(projectId: string): Promise<TreProject> {
   return await request<TreProject>(fetchKeys.getProject(projectId));
+}
+
+export async function getMemberships(projectId: string): Promise<TreMembershipDecision[]> {
+  return await request<TreMembershipDecision[]>(fetchKeys.getMemberships(projectId));
 }
 
 export async function updateProject(project: TreProject): Promise<TreProject> {
@@ -46,9 +52,8 @@ export async function updateProject(project: TreProject): Promise<TreProject> {
   }
 }
 
-export async function updateMembershipDecisions(membershipDecisions: TreMembershipDecision[]): Promise<TreMembershipDecision[]> {
+export async function updateMembershipDecisions(membershipDecisions: UpdateMembershipDecisionDto[]): Promise<TreMembershipDecision[]> {
   try {
-    console.log("membershipDecisions", membershipDecisions);
     const response = await request<TreMembershipDecision[]>(fetchKeys.updateMembershipDecisions(), {
       method: "POST",
       body: JSON.stringify(membershipDecisions),
