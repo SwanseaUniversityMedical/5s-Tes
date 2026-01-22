@@ -3,7 +3,7 @@
 /* tslint:disable */
 /* eslint-disable */
 
-import type{ Decision } from "./Decision";
+import type { Decision } from "./Decision";
 import type { TreAuditLog } from "./TreAuditLog";
 import type { TreProject } from "./TreProject";
 import type { TreUser } from "./TreUser";
@@ -20,4 +20,9 @@ export type TreMembershipDecision = {
   approvedBy: string | null;
   lastDecisionDate: string;
   auditLogs: Array<TreAuditLog> | null;
+};
+
+export type UpdateMembershipDecisionDto = {
+  id: number;
+  decision: Decision;
 };

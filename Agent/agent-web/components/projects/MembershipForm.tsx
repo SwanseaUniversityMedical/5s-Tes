@@ -7,7 +7,10 @@ import { DataTable } from "../data-table";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
+import type {
+  TreMembershipDecision,
+  UpdateMembershipDecisionDto,
+} from "@/types/TreMembershipDecision";
 import { createMembershipColumns } from "@/app/projects/[projectId]/columns";
 import { Check, Loader2, X } from "lucide-react";
 import { updateMembershipDecisions } from "@/api/projects";
@@ -47,7 +50,7 @@ export default function MembershipApprovalForm({
   ) => {
     try {
       // Find membership decisions that have changed and create updated objects
-      const updatedMembershipDecisions: TreMembershipDecision[] = [];
+      const updatedMembershipDecisions: UpdateMembershipDecisionDto[] = [];
 
       for (const [membershipId, newDecision] of Object.entries(
         data.membershipDecisions,
@@ -65,7 +68,7 @@ export default function MembershipApprovalForm({
         // Only include if the decision has actually changed
         if (originalDecision.decision !== newDecisionValue) {
           updatedMembershipDecisions.push({
-            ...originalDecision,
+            id: originalDecision.id,
             decision: newDecisionValue,
           });
         }
@@ -76,7 +79,6 @@ export default function MembershipApprovalForm({
         toast.info("No changes to save");
         return;
       }
-      console.log("updatedMembershipDecisions", updatedMembershipDecisions);
       await updateMembershipDecisions(updatedMembershipDecisions);
 
       toast.success("Membership decisions updated successfully", {
