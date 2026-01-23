@@ -20,14 +20,12 @@ const fetchKeys = {
   updateMembershipDecisions: () => `Approval/UpdateMembershipDecisions`,
 };
 
-export async function getProjects(params: {
-  showOnlyUnprocessed: boolean;
-}): Promise<ActionResult<TreProject[]>> {
+async function handleRequest<T>(
+  requestPromise: Promise<T>,
+): Promise<ActionResult<T>> {
   try {
-    const response = await request<TreProject[]>(
-      fetchKeys.listProjects(params),
-    );
-    return { success: true, data: response };
+    const data = await requestPromise;
+    return { success: true, data };
   } catch (error) {
     if (isNextRedirectError(error)) {
       throw error;
@@ -38,96 +36,53 @@ export async function getProjects(params: {
         error instanceof Error ? error.message : "An unexpected error occurred",
     };
   }
+}
+
+export async function getProjects(params: {
+  showOnlyUnprocessed: boolean;
+}): Promise<ActionResult<TreProject[]>> {
+  return handleRequest(request<TreProject[]>(fetchKeys.listProjects(params)));
 }
 
 export async function getProject(
   projectId: string,
 ): Promise<ActionResult<TreProject>> {
-  try {
-    const response = await request<TreProject>(fetchKeys.getProject(projectId));
-    return { success: true, data: response };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
+  return handleRequest(request<TreProject>(fetchKeys.getProject(projectId)));
 }
 
 export async function getMemberships(
   projectId: string,
 ): Promise<ActionResult<TreMembershipDecision[]>> {
-  try {
-    const response = await request<TreMembershipDecision[]>(
-      fetchKeys.getMemberships(projectId),
-    );
-    return { success: true, data: response };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
+  return handleRequest(
+    request<TreMembershipDecision[]>(fetchKeys.getMemberships(projectId)),
+  );
 }
 
 export async function updateProject(
   project: TreProject,
 ): Promise<ActionResult<TreProject[]>> {
-  try {
-    const response = await request<TreProject[]>(fetchKeys.updateProject(), {
+  return handleRequest(
+    request<TreProject[]>(fetchKeys.updateProject(), {
       method: "POST",
-      // send project as an array becasue the backend expects an array of projects
+      // send project as an array because the backend expects an array of projects
       body: JSON.stringify([project]),
       headers: {
         "Content-Type": "application/json",
       },
-    });
-
-    return { success: true, data: response as TreProject[] };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
+    }),
+  );
 }
 
 export async function updateMembershipDecisions(
   membershipDecisions: UpdateMembershipDecisionDto[],
 ): Promise<ActionResult<TreMembershipDecision[]>> {
-  try {
-    const response = await request<TreMembershipDecision[]>(
-      fetchKeys.updateMembershipDecisions(),
-      {
-        method: "POST",
-        body: JSON.stringify(membershipDecisions),
-        headers: {
-          "Content-Type": "application/json",
-        },
+  return handleRequest(
+    request<TreMembershipDecision[]>(fetchKeys.updateMembershipDecisions(), {
+      method: "POST",
+      body: JSON.stringify(membershipDecisions),
+      headers: {
+        "Content-Type": "application/json",
       },
-    );
-
-    return { success: true, data: response };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
+    }),
+  );
 }
