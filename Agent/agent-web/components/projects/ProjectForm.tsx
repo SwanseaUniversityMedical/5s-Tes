@@ -46,7 +46,10 @@ export default function ProjectApprovalForm({
       return;
     }
     toast.success("Project details updated successfully");
-    window.location.reload();
+    // reload the page after 1 second, may have a better way to do this?
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
   //  radio options for project decision including Pending if project decision is Pending
   const options = [...RADIO_OPTIONS];

@@ -88,7 +88,10 @@ export default function MembershipApprovalForm({
       }
 
       toast.success("Membership decisions updated successfully");
-      window.location.reload();
+      // reload the page after 1 second, may have a better way to do this?
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       toast.error("Failed to update membership decisions", {
         description:
