@@ -42,9 +42,15 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
 
   const contentType = response.headers.get("Content-Type");
   // TODO: add error handling for the response
+  // Maybe we have to get the json response, extract the error message and return it as a string
   if (!response.ok) {
+    // TODO: const errorResponse = await response.json();
     let errorMessage = "An error occurred";
-    if (contentType && (contentType.includes("application/json") || contentType?.includes("application/problem+json"))) {
+    if (
+      contentType &&
+      (contentType.includes("application/json") ||
+        contentType?.includes("application/problem+json"))
+    ) {
       try {
         const errorResponse = await response.json();
         if (Array.isArray(errorResponse)) {
