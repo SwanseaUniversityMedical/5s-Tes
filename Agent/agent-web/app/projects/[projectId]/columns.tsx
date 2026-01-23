@@ -34,12 +34,7 @@ export const createMembershipColumns = (
     id: "Status",
     header: "Status",
     cell: ({ row }) => {
-      const membershipId = row.original.id.toString();
-      const currentValue =
-        form.getValues(`membershipDecisions.${membershipId}`) ??
-        row.original.decision.toString();
-      const decision = Number(currentValue);
-
+      const decision = row.original.decision;
       return (
         <Badge variant={getDecisionInfo(decision).badgeVariant}>
           {getDecisionInfo(decision).label}
