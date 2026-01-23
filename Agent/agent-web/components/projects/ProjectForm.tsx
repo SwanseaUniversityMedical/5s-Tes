@@ -34,20 +34,18 @@ export default function ProjectApprovalForm({
   const { isDirty, isSubmitting } = form.formState;
 
   const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
-    try {
-      const updatedProject: TreProject = {
-        ...project,
-        decision: Number(data.projectDecision) as Decision,
-        localProjectName: data.localProjectName,
-      };
-      await updateProject(updatedProject);
-      toast.success("Project details updated successfully");
-    } catch (error) {
-      toast.error("Failed to update project details", {
-        description:
-          error instanceof Error ? error.message : "An error occurred",
-      });
+    const updatedProject: TreProject = {
+      ...project,
+      decision: Number(data.projectDecision) as Decision,
+      localProjectName: data.localProjectName,
+    };
+    const result = await updateProject(updatedProject);
+
+    if (!result.success) {
+      toast.error(result.error);
+      return;
     }
+    toast.success("Project details updated successfully");
   };
   //  radio options for project decision including Pending if project decision is Pending
   const options = [...RADIO_OPTIONS];

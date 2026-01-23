@@ -79,11 +79,15 @@ export default function MembershipApprovalForm({
         toast.info("No changes to save");
         return;
       }
-      await updateMembershipDecisions(updatedMembershipDecisions);
+      const result = await updateMembershipDecisions(
+        updatedMembershipDecisions,
+      );
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
 
-      toast.success("Membership decisions updated successfully", {
-        description: `Updated ${updatedMembershipDecisions.length} membership decision(s)`,
-      });
+      toast.success("Membership decisions updated successfully");
     } catch (error) {
       toast.error("Failed to update membership decisions", {
         description:
