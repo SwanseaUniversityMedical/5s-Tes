@@ -7,9 +7,13 @@ import { DataTable } from "../data-table";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
-import type { TreMembershipDecision } from "@/types/TreMembershipDecision";
+import type {
+  TreMembershipDecision,
+  UpdateMembershipDecisionDto,
+} from "@/types/TreMembershipDecision";
 import { createMembershipColumns } from "@/app/projects/[projectId]/columns";
 import { Check, Loader2, X } from "lucide-react";
+import { updateMembershipDecisions } from "@/api/projects";
 
 export type ApprovalMembershipFormData = {
   membershipDecisions: Record<string, string>;
@@ -45,23 +49,55 @@ export default function MembershipApprovalForm({
     data: ApprovalMembershipFormData,
   ) => {
     try {
-      const membershipDecisions = Object.entries(data.membershipDecisions).map(
-        ([membershipId, decision]) => ({
-          membershipId: Number(membershipId),
-          decision: Number(decision) as Decision,
-        }),
+      // Find membership decisions that have changed and create updated objects
+      const updatedMembershipDecisions: UpdateMembershipDecisionDto[] = [];
+
+      for (const [membershipId, newDecision] of Object.entries(
+        data.membershipDecisions,
+      )) {
+        const originalDecision = membershipDecisions.find(
+          (md) => md.id.toString() === membershipId,
+        );
+
+        if (!originalDecision) {
+          continue; // Skip if original not found
+        }
+
+        const newDecisionValue = Number(newDecision) as Decision;
+
+        // Only include if the decision has actually changed
+        if (originalDecision.decision !== newDecisionValue) {
+          updatedMembershipDecisions.push({
+            id: originalDecision.id,
+            decision: newDecisionValue,
+          });
+        }
+      }
+
+      // Only call API if there are actual changes
+      if (updatedMembershipDecisions.length === 0) {
+        toast.info("No changes to save");
+        return;
+      }
+      const result = await updateMembershipDecisions(
+        updatedMembershipDecisions,
       );
+      if (!result.success) {
+        toast.error(result.error);
+        return;
+      }
 
-      // TODO: Implement API call to update membership decisions
-      // await updateMembershipDecisions(membershipDecisions);
-
-      toast.success("Membership decisions updated successfully", {
-        description: `Updated ${membershipDecisions.length} membership decision(s) ${membershipDecisions.map((md) => md.decision).join(", ")}`,
-      });
+      toast.success("Membership decisions updated successfully");
+      // reload the page after 1 second, may have a better way to do this?
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
     } catch (error) {
       toast.error("Failed to update membership decisions", {
         description:
-          error instanceof Error ? error.message : "An error occurred",
+          error instanceof Error
+            ? error.message
+            : "An unexpected error occurred",
       });
     }
   };

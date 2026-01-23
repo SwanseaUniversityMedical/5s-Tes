@@ -51,6 +51,8 @@ export default function ProjectDetails({ project }: { project: TreProject }) {
             )}
           </TooltipContent>
         </Tooltip>
+        {/* show archived badge if project is archived */}
+        {project.archived && <Badge variant="destructive">Archived</Badge>}
 
         <Badge variant="info">
           Expries{" "}
