@@ -7,7 +7,7 @@ import type {
   TreMembershipDecision,
   UpdateMembershipDecisionDto,
 } from "@/types/TreMembershipDecision";
-import type { TreProject } from "@/types/TreProject";
+import type { TreProject, UpdateProjectDto } from "@/types/TreProject";
 
 const fetchKeys = {
   listProjects: (params: { showOnlyUnprocessed: boolean }) =>
@@ -59,7 +59,7 @@ export async function getMemberships(
 }
 
 export async function updateProject(
-  project: TreProject,
+  project: UpdateProjectDto,
 ): Promise<ActionResult<TreProject[]>> {
   return handleRequest(
     request<TreProject[]>(fetchKeys.updateProject(), {

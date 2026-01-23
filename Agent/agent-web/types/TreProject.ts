@@ -27,3 +27,9 @@ export type TreProject = {
   auditLogs: Array<TreAuditLog> | null;
   outputBucketSub: string | null;
 };
+
+export type UpdateProjectDto = {
+  id: number;
+  decision: Decision;
+  localProjectName: string;
+};

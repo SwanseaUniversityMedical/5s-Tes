@@ -3,7 +3,7 @@
 import { FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { getDecisionInfo } from "@/types/Decision";
 import type { Decision } from "@/types/Decision";
-import type { TreProject } from "@/types/TreProject";
+import type { TreProject, UpdateProjectDto } from "@/types/TreProject";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
 import { Check, Clock, Loader2, X } from "lucide-react";
@@ -34,8 +34,8 @@ export default function ProjectApprovalForm({
   const { isDirty, isSubmitting } = form.formState;
 
   const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
-    const updatedProject: TreProject = {
-      ...project,
+    const updatedProject: UpdateProjectDto = {
+      id: project.id,
       decision: Number(data.projectDecision) as Decision,
       localProjectName: data.localProjectName,
     };
