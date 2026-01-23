@@ -2,10 +2,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
-import { TreProject } from "@/types/TreProject";
-import { Metadata } from "next";
+import type { TreProject } from "@/types/TreProject";
+import type { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
-import { getProjects } from "@/lib/api/projects";
+import { getProjects } from "@/api/projects";
 import Link from "next/link";
 import { FetchError } from "@/components/core/fetch-error";
 
@@ -76,7 +76,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
           <TabsContent value="all">
             {projects.length > 0 ? (
               <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
+                <DataTable
+                  columns={columns}
+                  data={projects}
+                  projectListingPage={true}
+                />
               </div>
             ) : (
               <EmptyState
@@ -88,7 +92,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
           <TabsContent value="unprocessed">
             {projects.length > 0 ? (
               <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
+                <DataTable
+                  columns={columns}
+                  data={projects}
+                  projectListingPage={true}
+                />
               </div>
             ) : (
               <EmptyState

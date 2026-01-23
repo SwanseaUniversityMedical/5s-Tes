@@ -1,7 +1,11 @@
 import { FetchError } from "@/components/core/fetch-error";
-import { getProject } from "@/lib/api/projects";
+import MembershipApprovalForm from "@/components/projects/MembershipForm";
+import { FieldSeparator } from "@/components/ui/field";
+import { getProject } from "@/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
-import { TreProject } from "@/types/TreProject";
+import type { TreProject } from "@/types/TreProject";
+import ProjectApprovalForm from "@/components/projects/ProjectForm";
+import ProjectDetails from "@/components/projects/ProjectDetails";
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
@@ -28,10 +32,20 @@ export default async function ApprovalPage(props: {
   }
 
   return (
-    <div className="space-y-2">
-      <div className="my-5 mx-auto max-w-7xl">
-        Project Approval Form - Project {project?.submissionProjectName ?? "N/A"}
-      </div>
+    <div className="space-y-2 my-5 mx-auto max-w-7xl">
+      {project ? (
+        <div className="flex flex-col gap-4">
+          <ProjectDetails project={project} />
+          <FieldSeparator />
+          <ProjectApprovalForm project={project} />
+          <FieldSeparator />
+          <MembershipApprovalForm
+            membershipDecisions={project.memberDecisions ?? []}
+          />
+        </div>
+      ) : (
+        <div>No project found</div>
+      )}
     </div>
   );
 }
