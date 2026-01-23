@@ -13,12 +13,20 @@ export const columns: ColumnDef<TreProject>[] = [
     id: "Project Name",
     header: "Project Name",
     cell: ({ row }) => {
+      const { submissionProjectName, localProjectName } = row.original;
       return (
-        <Link href={`/projects/${row.original.id}`}>
-          <Button variant="link" className="p-0 font-semibold cursor-pointer">
-            {row.original.submissionProjectName}
-          </Button>
-        </Link>
+        <div className="flex flex-col">
+          <Link href={`/projects/${row.original.id}`}>
+            <Button variant="link" className="p-0 font-semibold cursor-pointer">
+              {submissionProjectName}
+            </Button>
+          </Link>
+          {localProjectName && (
+            <span className="text-sm text-gray-500">
+              Local Name: {localProjectName}
+            </span>
+          )}
+        </div>
       );
     },
   },
