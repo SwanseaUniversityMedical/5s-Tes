@@ -46,6 +46,7 @@ export default function ProjectApprovalForm({
       return;
     }
     toast.success("Project details updated successfully");
+    window.location.reload();
   };
   //  radio options for project decision including Pending if project decision is Pending
   const options = [...RADIO_OPTIONS];

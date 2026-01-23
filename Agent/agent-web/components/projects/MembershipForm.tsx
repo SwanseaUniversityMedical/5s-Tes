@@ -88,6 +88,7 @@ export default function MembershipApprovalForm({
       }
 
       toast.success("Membership decisions updated successfully");
+      window.location.reload();
     } catch (error) {
       toast.error("Failed to update membership decisions", {
         description:
