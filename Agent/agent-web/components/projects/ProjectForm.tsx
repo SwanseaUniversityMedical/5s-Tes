@@ -38,6 +38,7 @@ export default function ProjectApprovalForm({
       id: project.id,
       decision: Number(data.projectDecision) as Decision,
       localProjectName: data.localProjectName,
+      projectExpiryDate: project.projectExpiryDate,
     };
     const result = await updateProject(updatedProject);
 

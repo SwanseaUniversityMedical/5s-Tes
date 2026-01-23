@@ -32,4 +32,5 @@ export type UpdateProjectDto = {
   id: number;
   decision: Decision;
   localProjectName: string;
+  projectExpiryDate: string;
 };
