@@ -83,3 +83,12 @@ export function resolveJsonReferences(data: any): any {
   return resolved;
 }
 
+
+
+// Helper to check if error is a Next.js redirect
+// Checks for the NEXT_REDIRECT digest property
+export function isNextRedirectError(error: unknown): boolean {
+    return (error as any)?.digest?.startsWith?.("NEXT_REDIRECT") ?? false;
+  }
+  
+  

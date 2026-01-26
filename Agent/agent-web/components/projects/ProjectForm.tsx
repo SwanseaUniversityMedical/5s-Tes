@@ -3,7 +3,7 @@
 import { FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import { getDecisionInfo } from "@/types/Decision";
 import type { Decision } from "@/types/Decision";
-import type { TreProject } from "@/types/TreProject";
+import type { TreProject, UpdateProjectDto } from "@/types/TreProject";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "../ui/label";
 import { Check, Clock, Loader2, X } from "lucide-react";
@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { Button } from "../ui/button";
 import { Input } from "../ui/input";
 import { RADIO_OPTIONS } from "@/lib/constants/radio-options";
+import { updateProject } from "@/api/projects";
 
 type ProjectApprovalFormData = {
   projectDecision: string;
@@ -33,20 +34,23 @@ export default function ProjectApprovalForm({
   const { isDirty, isSubmitting } = form.formState;
 
   const handleProjectDetailsSubmit = async (data: ProjectApprovalFormData) => {
-    try {
-      const projectDecision = Number(data.projectDecision) as Decision;
-      // TODO: Implement API call to update project decision
-      // await updateProjectDecision(project.id, projectDecision);
+    const updatedProject: UpdateProjectDto = {
+      id: project.id,
+      decision: Number(data.projectDecision) as Decision,
+      localProjectName: data.localProjectName,
+      projectExpiryDate: project.projectExpiryDate,
+    };
+    const result = await updateProject(updatedProject);
 
-      toast.success("Project decision updated successfully", {
-        description: `Decision changed to: ${getDecisionInfo(projectDecision).label} and local name changed to: ${data.localProjectName}`,
-      });
-    } catch (error) {
-      toast.error("Failed to update project decision", {
-        description:
-          error instanceof Error ? error.message : "An error occurred",
-      });
+    if (!result.success) {
+      toast.error(result.error);
+      return;
     }
+    toast.success("Project details updated successfully");
+    // reload the page after 1 second, may have a better way to do this?
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
   //  radio options for project decision including Pending if project decision is Pending
   const options = [...RADIO_OPTIONS];

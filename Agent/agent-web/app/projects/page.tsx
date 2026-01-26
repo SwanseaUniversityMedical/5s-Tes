@@ -2,7 +2,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
-import type { TreProject } from "@/types/TreProject";
 import type { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
 import { getProjects } from "@/api/projects";
@@ -28,24 +27,12 @@ export default async function ProjectsPage(props: ProjectsProps) {
     showOnlyUnprocessed: false,
   };
   const combinedParams = { ...defaultParams, ...searchParams };
-  let projects: TreProject[] = [];
-  let fetchError: string | null = null;
 
-  try {
-    projects = await getProjects(combinedParams);
-  } catch (error: any) {
-    // for redirecting to work
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
-    fetchError =
-      error instanceof Error ? error.message : "Failed to load projects";
+  const result = await getProjects(combinedParams);
+  if (!result.success) {
+    return <FetchError error={result.error} />;
   }
-
-  // Show error state if fetching failed
-  if (fetchError) {
-    return <FetchError error={fetchError} />;
-  }
+  const projects = result.data;
 
   return (
     <div className="space-y-2">
