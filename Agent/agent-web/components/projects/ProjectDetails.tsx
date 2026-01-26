@@ -9,7 +9,6 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../ui/tooltip";
 export default function ProjectDetails({ project }: { project: TreProject }) {
   return (
     <div className="flex flex-col gap-2">
-      <h1 className="text-2xl font-bold">{project.submissionProjectName}</h1>
       <div className="flex items-center gap-2">
         <Tooltip>
           <TooltipTrigger>
