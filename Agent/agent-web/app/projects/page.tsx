@@ -40,7 +40,16 @@ export default async function ProjectsPage(props: ProjectsProps) {
       <div className="mb-6">
         <h1 className="text-2xl font-bold">Projects</h1>
         <p className="mt-2 text-gray-600 dark:text-gray-400">
-          List of projects on the connected Submission Layer
+          List of projects on the connected{" "}
+          <a
+            href="https://docs.federated-analytics.ac.uk/submission"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold underline underline-offset-2"
+          >
+            Submission layer
+          </a>
+          .
         </p>
       </div>
 
