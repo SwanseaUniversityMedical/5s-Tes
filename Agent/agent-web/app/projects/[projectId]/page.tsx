@@ -5,6 +5,13 @@ import { getMemberships, getProject } from "@/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
 import ProjectApprovalForm from "@/components/projects/ProjectForm";
 import ProjectDetails from "@/components/projects/ProjectDetails";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Agent Web UI - Project and Memberships Approval",
+  description:
+    "Review project details and approve/reject the project and its memberships.",
+};
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
@@ -25,7 +32,14 @@ export default async function ApprovalPage(props: {
   const memberships = membershipsResult.data;
 
   return (
-    <div className="space-y-2 my-5 mx-auto max-w-7xl">
+    <>
+      <div className="mb-3">
+        <h1 className="text-2xl font-bold">{project.submissionProjectName}</h1>
+        <p className="mt-2 text-gray-600">
+          Review project details and approve/reject the project and its
+          memberships.
+        </p>
+      </div>
       {project ? (
         <div className="flex flex-col gap-4">
           <ProjectDetails project={project} />
@@ -37,6 +51,6 @@ export default async function ApprovalPage(props: {
       ) : (
         <div>No project found</div>
       )}
-    </div>
+    </>
   );
 }
