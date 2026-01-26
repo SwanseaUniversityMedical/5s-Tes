@@ -51,7 +51,7 @@ export default function CredentialsStatusBadge({
 
   if (status.loading) {
     return (
-      <span className="inline-flex items-center text-sm text-gray-500 dark:text-gray-700">
+      <span className="inline-flex items-center text-sm text-gray-500 dark:text-gray-400">
         <Loader2 className="mr-1 h-4 w-4 animate-spin" />
         Checking...
       </span>
@@ -60,7 +60,7 @@ export default function CredentialsStatusBadge({
 
   if (status.valid === true) {
     return (
-      <span className="inline-flex items-center text-sm text-green-600 dark:text-green-700">
+      <span className="inline-flex items-center text-sm text-green-600 dark:text-green-600">
         <CheckCircle className="mr-1 h-4 w-4" />
         Saved credentials are valid
       </span>
@@ -69,7 +69,7 @@ export default function CredentialsStatusBadge({
 
   if (status.valid === false) {
     return (
-      <span className="inline-flex items-center text-sm text-amber-600 dark:text-amber-700">
+      <span className="inline-flex items-center text-sm text-amber-600 dark:text-amber-600">
         <AlertCircle className="mr-1 h-4 w-4" />
         Not configured
       </span>
