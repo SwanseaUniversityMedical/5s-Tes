@@ -16,15 +16,14 @@ export default async function RootLayout({
   children: React.ReactNode;
 }>) {
   const currentSession = await getSession();
-
-  console.log(currentSession?.user)
+  
   return (
     <html lang="en">
       <body
         className={`antialiased`}
       >
         <div className="flex min-h-screen flex-col">
-          <Header user={currentSession?.user}/>
+          <Header user={currentSession!.user}/>
           <main className="flex-1">{children}</main>
           <Footer />
         </div>
