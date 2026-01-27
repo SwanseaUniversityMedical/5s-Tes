@@ -1,3 +1,4 @@
+import { KeyCloakUser } from "@/types/KeyCloakUser";
 import { ModeToggle } from "@/components/core/mode-toggle";
 import MainMenubar from "./MainMenubar";
 import NavbarLogo from "./NavbarLogo";
@@ -8,7 +9,13 @@ import UserMenu from "./UserMenu";
 MainMenubar, and UserMenu components. */
 }
 
-export default function Navbar() {
+type HeaderProps = {
+  user: KeyCloakUser;
+};
+
+export default function Navbar({
+  user
+}: HeaderProps) {
   return (
     <nav className="flex items-center justify-between gap-8 bg-background px-6 py-4">
       <div className="flex items-center gap-14">
@@ -17,7 +24,7 @@ export default function Navbar() {
       </div>
       <div className="flex items-center gap-4">
         <ModeToggle />
-        <UserMenu username="Global AdminUser" />
+        <UserMenu username={user?.name} />
       </div>
     </nav>
   );

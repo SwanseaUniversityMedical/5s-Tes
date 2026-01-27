@@ -3,6 +3,7 @@ import "./globals.css";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Toaster } from "sonner";
+import { getSession } from "@/lib/auth-helpers";
 import { ThemeProvider } from "@/components/theme-provider";
 
 export const metadata: Metadata = {
@@ -50,11 +51,13 @@ export const metadata: Metadata = {
   description: "Agent Web UI Application",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const currentSession = await getSession();
+  
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="antialiased">
@@ -65,7 +68,7 @@ export default function RootLayout({
           disableTransitionOnChange
         >
           <div className="flex min-h-screen flex-col">
-            <Header />
+            <Header user={currentSession!.user}/>
             <main className="container mx-auto max-w-7xl space-y-2 my-5 flex-1">
               {children}
             </main>
