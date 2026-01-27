@@ -115,7 +115,7 @@ export function HoverAddRow({
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (newRule: Omit<RuleColumns, "id">) => {
+  const handleSubmit = (newRule: RuleColumns) => {
     onAdd(newRule);
   };
 
