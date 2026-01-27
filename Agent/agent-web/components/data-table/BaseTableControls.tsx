@@ -39,22 +39,22 @@ export function BaseTableControls({
       {/* Left side: Search and pagination */}
       <div className="flex items-center gap-3">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-black" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
             placeholder={searchPlaceholder}
             value={searchValue}
             onChange={(e) => onSearchChange(e.target.value)}
-            className="h-9 w-64 pl-10 border-b border-black text-black placeholder:text-black/60"
+            className="h-9 w-64 pl-10 border-b border-border text-foreground placeholder:text-muted-foreground"
           />
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-black">
+        <div className="flex items-center gap-2 text-sm text-foreground">
           <span>Show</span>
           <Select
             value={String(pageSize)}
             onValueChange={(value) => onPageSizeChange(Number(value))}
           >
-            <SelectTrigger className="h-9 w-16 border-b border-black px-2 shadow-none">
+            <SelectTrigger className="h-9 w-16 border-b border-border px-2 shadow-none">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
