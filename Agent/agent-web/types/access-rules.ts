@@ -5,7 +5,7 @@ export type RuleColumns = {
   outputTag: string;
   outputValue: string;
   outputEnv: string;
-}
+};
 
 export type RuleAction = "edit" | "delete" | "save";
 
