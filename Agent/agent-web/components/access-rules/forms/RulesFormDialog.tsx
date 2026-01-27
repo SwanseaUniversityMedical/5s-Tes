@@ -181,22 +181,19 @@ export default function RuleFormDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-125">
+
+        {/* Dialog Header */}
         <DialogHeader>
           <DialogTitle>{config.title}</DialogTitle>
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
 
+        {/* Form Content */}
         <div className="space-y-4 py-4">
-          {/* General Fields (Description) */}
           {GENERAL_FIELDS.map(renderField)}
-
-          {/* Categorized Fields */}
           {FIELD_CATEGORIES.map((category) => (
             <div key={category.title} className="space-y-3">
-              {/* Category Header with Lines */}
               {renderCategoryHeader(category.title)}
-
-              {/* Category Fields with Background */}
               <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                 {category.fields.map(renderField)}
               </div>
@@ -204,6 +201,7 @@ export default function RuleFormDialog({
           ))}
         </div>
 
+        {/* Dialog Footer */}
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel}>
             Cancel
