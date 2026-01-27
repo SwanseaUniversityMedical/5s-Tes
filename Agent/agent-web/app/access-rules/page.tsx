@@ -14,9 +14,9 @@ export default async function AccessRules() {
   await authcheck("dare-tre-admin");
 
   return (
-    <div className="pt-6 pb-8">
+    <div className="pb-8">
 
-      <h1 className="text-2xl pb-3 font-bold pl-5">Access Rules</h1>
+      <h1 className="text-2xl pb-3 font-bold">Access Rules</h1>
       <AccessRulesTable />
     </div>
   );
