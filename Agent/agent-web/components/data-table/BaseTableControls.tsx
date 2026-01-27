@@ -34,7 +34,7 @@ export function BaseTableControls({
   renderToolbar,
 }: BaseTableControlsProps) {
   return (
-    <div className="flex items-center justify-between gap-3 p-2">
+    <div className="flex items-center justify-between gap-3 py-2">
 
       {/* Left side: Search and pagination */}
       <div className="flex items-center gap-3">
