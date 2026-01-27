@@ -1,5 +1,6 @@
 import CredentialsTabs from "@/components/credentials/CredentialsTab";
 import { Button } from "@/components/ui/button";
+import { authcheck } from "@/lib/auth-helpers";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -8,7 +9,9 @@ export const metadata: Metadata = {
     "Configure 5S-TES TRE Admin with credentials to access Submission/Egress apps.",
 };
 
-export default function UpdateCredentials() {
+export default async function UpdateCredentials() {
+  await authcheck("dare-tre-admin");
+
   return (
     <>
       {/* Page Header */}
