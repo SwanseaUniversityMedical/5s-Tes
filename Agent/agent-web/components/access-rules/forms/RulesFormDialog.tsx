@@ -172,9 +172,9 @@ export default function RuleFormDialog({
   // Render category header with lines
   const renderCategoryHeader = (title: string) => (
     <div className="flex items-center gap-3 ">
-      <div className="flex-1 h-px bg-gray-300" />
-      <span className="text-sm font-medium text-gray-500">({title})</span>
-      <div className="flex-1 h-px bg-gray-300" />
+      <div className="flex-1 h-px bg-border" />
+      <span className="text-sm font-medium text-muted-foreground">({title})</span>
+      <div className="flex-1 h-px bg-border" />
     </div>
   );
 
@@ -196,8 +196,8 @@ export default function RuleFormDialog({
               {/* Category Header with Lines */}
               {renderCategoryHeader(category.title)}
 
-              {/* Category Fields with Grey Background */}
-              <div className="space-y-4 p-4 bg-gray-50 rounded-lg">
+              {/* Category Fields with Background */}
+              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
                 {category.fields.map(renderField)}
               </div>
             </div>
