@@ -19,7 +19,10 @@ export default function MainMenubar() {
         {MENU_NAV_ITEMS.map((item: MenubarItems) => (
           <li key={item.href}>
             <Link href={item.href}>
-              <Button variant="link" className="p-0 cursor-pointer text-sm">
+              <Button
+                variant="link"
+                className="p-0 font-semibold cursor-pointer text-sm"
+              >
                 {item.label}
               </Button>
             </Link>
