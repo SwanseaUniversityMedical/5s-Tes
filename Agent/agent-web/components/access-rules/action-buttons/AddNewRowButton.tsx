@@ -35,7 +35,7 @@ const CONTAINER_STYLES = {
 const LINE_DEFAULT_STYLES = {
   width: "w-12",
   height: "h-px",
-  color: "bg-gray-300",
+  color: "bg-muted-foreground/30",
 };
 
 // Line styles - AFTER hover
@@ -57,8 +57,8 @@ const BUTTON_DEFAULT_STYLES = {
   layout: "flex items-center gap-2",
   padding: "px-3 py-1 mx-2",
   shape: "rounded-full",
-  background: "bg-gray-200",
-  text: "text-black text-xs font-medium",
+  background: "bg-muted",
+  text: "text-foreground text-xs font-medium",
 };
 
 // Button styles - AFTER hover
