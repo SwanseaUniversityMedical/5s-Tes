@@ -32,8 +32,6 @@ export default function AccessRulesTable({
   const handleAddRule = (newRule: RuleColumns) => {
     if (onAddRule) {
       onAddRule(newRule);
-    } else {
-      console.log("New rule data:", newRule);
     }
   };
 
