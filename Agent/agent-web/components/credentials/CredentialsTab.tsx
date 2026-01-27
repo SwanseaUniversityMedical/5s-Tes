@@ -19,10 +19,10 @@ export default function CredentialsTabs() {
     <Tabs
       defaultValue="submission"
       onValueChange={(value) => setActiveTab(value as CredentialType)}
-      className="w-90"
+      className="w-96"
     >
       {/* Tabs List with Status Badge */}
-      <div className="flex items-center gap-4 -mx-4 px-2">
+      <div className="flex items-center gap-4">
         <TabsList>
           <TabsTrigger value="submission">Submission</TabsTrigger>
           <TabsTrigger value="egress">Egress</TabsTrigger>
