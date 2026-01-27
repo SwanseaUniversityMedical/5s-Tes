@@ -2,19 +2,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
 import { DataTable } from "@/components/data-table";
 import { columns } from "./columns";
-import { TreProject } from "@/types/TreProject";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
 import { getProjects } from "@/api/projects";
 import Link from "next/link";
 import { FetchError } from "@/components/core/fetch-error";
+import { Button } from "@/components/ui/button";
 
 interface ProjectsProps {
   searchParams?: Promise<{ showOnlyUnprocessed: boolean }>;
 }
+
 export const metadata: Metadata = {
-  title: "TRE Admin Approval Dashboard",
-  description: "TRE Approval Dashboard",
+  title: "Agent Web UI - Projects",
+  description: "List of projects on the connected Submission Layer",
 };
 
 export default async function ProjectsPage(props: ProjectsProps) {
@@ -28,77 +29,88 @@ export default async function ProjectsPage(props: ProjectsProps) {
     showOnlyUnprocessed: false,
   };
   const combinedParams = { ...defaultParams, ...searchParams };
-  let projects: TreProject[] = [];
-  let fetchError: string | null = null;
 
-  try {
-    projects = await getProjects(combinedParams);
-  } catch (error: any) {
-    // for redirecting to work
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
-    fetchError =
-      error instanceof Error ? error.message : "Failed to load projects";
+  const result = await getProjects(combinedParams);
+  if (!result.success) {
+    return <FetchError error={result.error} />;
   }
+  const projects = result.data;
 
-  // Show error state if fetching failed
-  if (fetchError) {
-    return <FetchError error={fetchError} />;
-  }
+  const sortedProjects = [...projects].sort((a, b) => a.id - b.id);
 
   return (
-    <div className="space-y-2">
-      <div className="my-5 mx-auto max-w-7xl font-bold text-2xl items-center">
-        <h2>Projects</h2>
+    <>
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold">Projects</h1>
+        <p className="text-gray-600 dark:text-gray-400">
+          List of projects on the connected{" "}
+          <a
+            href="https://docs.federated-analytics.ac.uk/submission"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button
+              variant="link"
+              className="p-0 font-semibold text-md cursor-pointer"
+            >
+              Submission layer
+            </Button>
+          </a>
+          .
+        </p>
       </div>
-      <div className="my-5 mx-auto max-w-7xl">
-        <Tabs
-          defaultValue={
-            (searchParams as any)?.showOnlyUnprocessed
-              ? (searchParams as any)?.showOnlyUnprocessed === "true"
-                ? "unprocessed"
-                : "all"
-              : "all"
-          }
-        >
-          <TabsList className="mb-2">
-            <Link href="?showOnlyUnprocessed=false" scroll={false}>
-              <TabsTrigger value="all">All Projects</TabsTrigger>
-            </Link>
 
-            <Link href="?showOnlyUnprocessed=true" scroll={false}>
-              <TabsTrigger value="unprocessed">
-                Unprocessed Projects
-              </TabsTrigger>
-            </Link>
-          </TabsList>
-          <TabsContent value="all">
-            {projects.length > 0 ? (
-              <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
-              </div>
-            ) : (
-              <EmptyState
-                title="No projects found yet"
-                description="All project should appear here."
+      <Tabs
+        defaultValue={
+          (searchParams as any)?.showOnlyUnprocessed
+            ? (searchParams as any)?.showOnlyUnprocessed === "true"
+              ? "unprocessed"
+              : "all"
+            : "all"
+        }
+      >
+        <TabsList className="mb-2">
+          <Link href="?showOnlyUnprocessed=false" scroll={false}>
+            <TabsTrigger value="all">All Projects</TabsTrigger>
+          </Link>
+
+          <Link href="?showOnlyUnprocessed=true" scroll={false}>
+            <TabsTrigger value="unprocessed">Unprocessed Projects</TabsTrigger>
+          </Link>
+        </TabsList>
+        <TabsContent value="all">
+          {projects.length > 0 ? (
+            <div className="mx-auto max-w-7xl">
+              <DataTable
+                columns={columns}
+                data={sortedProjects}
+                projectListingPage={true}
               />
-            )}
-          </TabsContent>
-          <TabsContent value="unprocessed">
-            {projects.length > 0 ? (
-              <div className="mx-auto max-w-7xl">
-                <DataTable columns={columns} data={projects} />
-              </div>
-            ) : (
-              <EmptyState
-                title="No unprocessed projects found"
-                description="All projects have been processed or there are no projects yet."
+            </div>
+          ) : (
+            <EmptyState
+              title="No projects found yet"
+              description="All project should appear here."
+            />
+          )}
+        </TabsContent>
+        <TabsContent value="unprocessed">
+          {projects.length > 0 ? (
+            <div className="mx-auto max-w-7xl">
+              <DataTable
+                columns={columns}
+                data={sortedProjects}
+                projectListingPage={true}
               />
-            )}
-          </TabsContent>
-        </Tabs>
-      </div>
-    </div>
+            </div>
+          ) : (
+            <EmptyState
+              title="No unprocessed projects found"
+              description="All projects have been processed or there are no projects yet."
+            />
+          )}
+        </TabsContent>
+      </Tabs>
+    </>
   );
 }

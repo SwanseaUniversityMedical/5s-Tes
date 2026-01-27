@@ -1,7 +1,7 @@
 "use client";
 
-import { ColumnDef } from "@tanstack/react-table";
-import { TreProject } from "@/types/TreProject";
+import type { ColumnDef } from "@tanstack/react-table";
+import type { TreProject } from "@/types/TreProject";
 import { getDecisionInfo } from "@/types/Decision";
 import { format } from "date-fns/format";
 import { Button } from "@/components/ui/button";
@@ -13,12 +13,20 @@ export const columns: ColumnDef<TreProject>[] = [
     id: "Project Name",
     header: "Project Name",
     cell: ({ row }) => {
+      const { submissionProjectName, localProjectName } = row.original;
       return (
-        <Link href={`/projects/${row.original.id}`}>
-          <Button variant="link" className="p-0 font-semibold">
-            {row.original.submissionProjectName}
-          </Button>
-        </Link>
+        <div className="flex flex-col">
+          <Link href={`/projects/${row.original.id}`}>
+            <Button variant="link" className="p-0 font-semibold cursor-pointer">
+              {submissionProjectName}
+            </Button>
+          </Link>
+          {localProjectName && (
+            <span className="text-sm text-gray-500">
+              Local Name: {localProjectName}
+            </span>
+          )}
+        </div>
       );
     },
   },
@@ -37,9 +45,16 @@ export const columns: ColumnDef<TreProject>[] = [
     id: "Decision",
     header: "Decision",
     cell: ({ row }) => {
-      const decision = row.original.decision;
+      const { decision, archived } = row.original;
       const decisionInfo = getDecisionInfo(decision);
-      return <div className={decisionInfo.color}>{decisionInfo.label}</div>;
+      return (
+        <div className="flex items-center gap-2">
+          <Badge variant={decisionInfo.badgeVariant}>
+            {decisionInfo.label}
+          </Badge>
+          {archived && <Badge variant="destructive">Archived</Badge>}
+        </div>
+      );
     },
   },
   {
@@ -56,6 +71,7 @@ export const columns: ColumnDef<TreProject>[] = [
     header: "Last Decision Date",
     cell: ({ row }) => {
       const { lastDecisionDate, decision } = row.original;
+      if (!lastDecisionDate) return "N/A";
       const decisionInfo = getDecisionInfo(decision);
       return (
         <div>
@@ -72,11 +88,7 @@ export const columns: ColumnDef<TreProject>[] = [
     cell: ({ row }) => {
       return (
         <Link href={`/projects/${row.original.id}`}>
-          <Button
-            variant="default"
-            className="cursor-pointer"
-            size="sm"
-          >
+          <Button variant="default" className="cursor-pointer" size="sm">
             Review
           </Button>
         </Link>

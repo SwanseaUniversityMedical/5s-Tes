@@ -1,37 +1,56 @@
 import { FetchError } from "@/components/core/fetch-error";
-import { getProject } from "@/api/projects";
+import MembershipApprovalForm from "@/components/projects/MembershipForm";
+import { FieldSeparator } from "@/components/ui/field";
+import { getMemberships, getProject } from "@/api/projects";
 import { authcheck } from "@/lib/auth-helpers";
-import { TreProject } from "@/types/TreProject";
+import ProjectApprovalForm from "@/components/projects/ProjectForm";
+import ProjectDetails from "@/components/projects/ProjectDetails";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Agent Web UI - Project and Memberships Approval",
+  description:
+    "Review project details and approve/reject the project and its memberships.",
+};
 
 export default async function ApprovalPage(props: {
   params: Promise<{ projectId: string }>;
 }) {
   await authcheck("dare-tre-admin");
   const params = await props.params;
-  let project: TreProject | null = null;
-  let fetchError: string | null = null;
-
-  try {
-    project = await getProject(params?.projectId);
-  } catch (error: any) {
-    // for redirecting to work
-    if (error?.digest?.startsWith("NEXT_REDIRECT")) {
-      throw error;
-    }
-    fetchError =
-      error instanceof Error ? error.message : "Failed to load projects";
+  //  fetch project
+  const projectResult = await getProject(params?.projectId);
+  if (!projectResult.success) {
+    return <FetchError error={projectResult.error} />;
   }
-
-  // Show error state if fetching failed
-  if (fetchError) {
-    return <FetchError error={fetchError} />;
+  const project = projectResult.data;
+  // fetch memberships
+  const membershipsResult = await getMemberships(params?.projectId);
+  if (!membershipsResult.success) {
+    return <FetchError error={membershipsResult.error} />;
   }
+  const memberships = membershipsResult.data;
 
   return (
-    <div className="space-y-2">
-      <div className="my-5 mx-auto max-w-7xl">
-        Project Approval Form - Project {project?.submissionProjectName ?? "N/A"}
+    <>
+      <div className="mb-3">
+        <h1 className="text-2xl font-bold">{project.submissionProjectName}</h1>
+        <p className="mt-2 text-gray-600 dark:text-gray-400">
+          Review project details and approve/reject the project and its
+          memberships.
+        </p>
       </div>
-    </div>
+      {project ? (
+        <div className="flex flex-col gap-4">
+          <ProjectDetails project={project} />
+          <FieldSeparator />
+          <ProjectApprovalForm project={project} />
+          <FieldSeparator />
+          <MembershipApprovalForm membershipDecisions={memberships ?? []} />
+        </div>
+      ) : (
+        <div>No project found</div>
+      )}
+    </>
   );
 }

@@ -1,0 +1,12 @@
+{
+  "profiles": {
+    "FiveSafesTes.Core": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "applicationUrl": "https://localhost:62697;http://localhost:62698"
+    }
+  }
+}
