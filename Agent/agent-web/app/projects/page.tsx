@@ -36,6 +36,8 @@ export default async function ProjectsPage(props: ProjectsProps) {
   }
   const projects = result.data;
 
+  const sortedProjects = [...projects].sort((a, b) => a.id - b.id);
+
   return (
     <>
       <div className="mb-6">
@@ -81,7 +83,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
             <div className="mx-auto max-w-7xl">
               <DataTable
                 columns={columns}
-                data={projects}
+                data={sortedProjects}
                 projectListingPage={true}
               />
             </div>
@@ -97,7 +99,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
             <div className="mx-auto max-w-7xl">
               <DataTable
                 columns={columns}
-                data={projects}
+                data={sortedProjects}
                 projectListingPage={true}
               />
             </div>
