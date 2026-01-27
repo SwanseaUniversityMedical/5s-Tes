@@ -110,7 +110,7 @@ export function BaseTable<TData>({
                   return (
                     <TableHead
                       key={header.id}
-                      className="text-sm font-semibold text-black py-3"
+                      className="text-sm font-semibold text-foreground py-3"
                     >
                       {header.isPlaceholder ? null : (
                         <SortableHeader
@@ -131,7 +131,7 @@ export function BaseTable<TData>({
             {table.getRowModel().rows.length ? (
               <>
                 {table.getRowModel().rows.map((row) => (
-                  <TableRow key={row.id} className="hover:bg-gray-100">
+                  <TableRow key={row.id} className="hover:bg-muted/50">
                     {row.getVisibleCells().map((cell) => (
                       <TableCell key={cell.id}>
                         {flexRender(
