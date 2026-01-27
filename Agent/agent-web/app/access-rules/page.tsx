@@ -1,7 +1,18 @@
 import AccessRulesTable from "@/components/access-rules/AccessRulesTable";
+import { authcheck } from "@/lib/auth-helpers";
+import type { Metadata } from "next";
 
 
-export default function AccessRules() {
+// Metadata for the Access Rules page
+export const metadata: Metadata = {
+  title: "Agent Web UI - Access Rules",
+  description: "Manage access rules for the TRE Admin",
+};
+
+// Access Rules Page Component
+export default async function AccessRules() {
+  await authcheck("dare-tre-admin");
+
   return (
     <div className="pt-6 pb-8">
 
