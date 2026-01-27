@@ -1,4 +1,5 @@
-import {MenubarItems} from "@/types/tre-layout";
+import { Button } from "@/components/ui/button";
+import { MenubarItems } from "@/types/tre-layout";
 import Link from "next/link";
 
 // Define the menu navigation items with labels and routes
@@ -14,25 +15,13 @@ const MENU_NAV_ITEMS = [
 export default function MainMenubar() {
   return (
     <nav aria-label="Primary navigation" className="hidden md:block">
-      <ul className="flex items-center gap-6 text-sm font-medium">
+      <ul className="flex items-center gap-6 font-medium">
         {MENU_NAV_ITEMS.map((item: MenubarItems) => (
           <li key={item.href}>
-            <Link
-              href={item.href}
-              className="
-                  relative
-                  whitespace-nowrap
-                  rounded-md
-                  py-1
-                  text-foreground
-                  transition-all duration-150
-                  hover:bg-blue-600/10
-                  hover:text-blue-700
-                  hover:underline
-                  underline-offset-8
-              "
-            >
-              {item.label}
+            <Link href={item.href}>
+              <Button variant="link" className="p-0 cursor-pointer text-sm">
+                {item.label}
+              </Button>
             </Link>
           </li>
         ))}
