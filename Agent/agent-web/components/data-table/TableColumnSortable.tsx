@@ -29,11 +29,11 @@ export function SortableHeader<T>({ column, title }: SortableHeaderProps<T>) {
       <span className="flex items-center gap-1">
         {title}
         {isSorted === "desc" ? (
-          <ArrowDown className="h-4 w-4 text-black" />
+          <ArrowDown className="h-4 w-4 text-foreground" />
         ) : (
           <ArrowUp
             className={`h-4 w-4 ${
-              isSorted === "asc" ? "text-black" : "text-gray-400"
+              isSorted === "asc" ? "text-foreground" : "text-muted-foreground"
             }`}
           />
         )}
