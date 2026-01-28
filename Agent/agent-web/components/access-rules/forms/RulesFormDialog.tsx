@@ -41,15 +41,6 @@ type FieldCategory = {
 
 /* ----- Constants ------ */
 
-// General fields (no category)
-const GENERAL_FIELDS: FormField[] = [
-  {
-    key: "description",
-    label: "Description",
-    placeholder: "Enter rule description",
-  },
-];
-
 // Categorized fields with original column names
 const FIELD_CATEGORIES: FieldCategory[] = [
   {
@@ -87,15 +78,25 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       },
     ],
   },
+  {
+    title: "Optional",
+    fields:[
+      {
+        key: "description",
+        label: "Description",
+        placeholder: "Enter rule description",
+      }
+    ]
+  }
 ];
 
 const INITIAL_FORM_STATE: RuleFormData = {
-  description: "",
   inputUser: "",
   inputProject: "",
   outputTag: "",
   outputValue: "",
   outputEnv: "",
+  description: "",
 };
 
 const DIALOG_CONFIG = {
@@ -173,7 +174,7 @@ export default function RuleFormDialog({
   const renderCategoryHeader = (title: string) => (
     <div className="flex items-center gap-3 ">
       <div className="flex-1 h-px bg-border" />
-      <span className="text-sm font-medium text-muted-foreground">({title})</span>
+      <span className="text-sm font-semibold text-muted-foreground">({title})</span>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
@@ -190,7 +191,6 @@ export default function RuleFormDialog({
 
         {/* Form Content */}
         <div className="space-y-4 py-4">
-          {GENERAL_FIELDS.map(renderField)}
           {FIELD_CATEGORIES.map((category) => (
             <div key={category.title} className="space-y-3">
               {renderCategoryHeader(category.title)}
