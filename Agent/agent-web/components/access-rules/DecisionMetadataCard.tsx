@@ -41,7 +41,7 @@ const MOCK_META: DecisionMeta = {
 
 /* ----- Decision Metadata Popover Component ------ */
 
-export default function DecisionMetaPopover({
+export default function DecisionMetadataHoverCard({
   data = MOCK_META,
 }: DecisionMetaPopoverProps) {
   return (

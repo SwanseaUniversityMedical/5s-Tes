@@ -9,7 +9,7 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
-import DecisionMetaPopover from "./DecisionMetadataPopover";
+import DecisionMetadataHoverCard from "./DecisionMetadataCard";
 import RuleFormDialog from "./forms/RulesFormDialog";
 import { RuleColumns } from "@/types/access-rules";
 
@@ -82,7 +82,7 @@ export default function ToolbarButtons({ onAction, onAddRule }: ToolbarProps) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <DecisionMetaPopover />
+      <DecisionMetadataHoverCard />
 
       {BASE_ACTIONS.map(({ id, label, Icon, tooltip, variant, className }) => (
         <Tooltip key={id}>
