@@ -49,7 +49,7 @@ export default function DecisionMetaPopover({
       <HoverCardTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Info className="h-4 w-4" />
-          Decision Info
+          Decision Model Info
         </Button>
       </HoverCardTrigger>
 
