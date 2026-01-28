@@ -18,6 +18,7 @@ export const createMembershipColumns = (
   form: UseFormReturn<ApprovalMembershipFormData>,
 ): ColumnDef<TreMembershipDecision>[] => [
   {
+    accessorKey: "user.username",
     id: "Username",
     header: "Username",
     cell: ({ row }) => {
@@ -33,6 +34,7 @@ export const createMembershipColumns = (
   {
     id: "Status",
     header: "Status",
+    accessorFn: (row) => getDecisionInfo(row.decision).label,
     cell: ({ row }) => {
       const decision = row.original.decision;
       return (
