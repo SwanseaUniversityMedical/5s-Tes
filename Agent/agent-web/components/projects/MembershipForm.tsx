@@ -113,6 +113,7 @@ export default function MembershipApprovalForm({
           <BaseTable
             columns={membershipColumns}
             data={membershipDecisions ?? []}
+            searchPlaceholder="Search by username"
           />
 
           <div className="flex justify-start gap-2">
