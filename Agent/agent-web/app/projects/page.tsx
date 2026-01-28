@@ -1,6 +1,6 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { EmptyState } from "@/components/empty-state";
-import { DataTable } from "@/components/data-table";
+import { BaseTable } from "@/components/data-table/BaseTable";
 import { columns } from "./columns";
 import type { Metadata } from "next";
 import { authcheck } from "@/lib/auth-helpers";
@@ -81,10 +81,11 @@ export default async function ProjectsPage(props: ProjectsProps) {
         <TabsContent value="all">
           {projects.length > 0 ? (
             <div className="mx-auto max-w-7xl">
-              <DataTable
+              <BaseTable
                 columns={columns}
                 data={sortedProjects}
                 projectListingPage={true}
+                searchPlaceholder="Search by project name"
               />
             </div>
           ) : (
@@ -97,7 +98,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
         <TabsContent value="unprocessed">
           {projects.length > 0 ? (
             <div className="mx-auto max-w-7xl">
-              <DataTable
+              <BaseTable
                 columns={columns}
                 data={sortedProjects}
                 projectListingPage={true}

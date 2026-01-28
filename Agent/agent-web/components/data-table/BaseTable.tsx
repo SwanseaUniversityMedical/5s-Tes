@@ -36,6 +36,7 @@ type BaseTableProps<TData> = {
   emptyMessage?: string;
   renderFooterRow?: (colSpan: number) => React.ReactNode;
   renderToolbar?: () => React.ReactNode;
+  projectListingPage?: boolean;
 };
 
 const DEFAULT_PAGE_SIZE = 20;
