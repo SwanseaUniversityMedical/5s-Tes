@@ -39,6 +39,11 @@ type BaseTableProps<TData> = {
   projectListingPage?: boolean;
 };
 
+type ColumnMeta = {
+  headerClassName?: string;
+  cellClassName?: string;
+};
+
 const DEFAULT_PAGE_SIZE = 20;
 
 /* ----- Base Table Component ------ */
@@ -108,10 +113,14 @@ export function BaseTable<TData>({
               <TableRow key={headerGroup.id}>
                 {headerGroup.headers.map((header) => {
                   const sortDirection = header.column.getIsSorted();
+                  const meta = header.column.columnDef.meta as ColumnMeta | undefined;
                   return (
                     <TableHead
                       key={header.id}
-                      className="text-sm font-semibold text-foreground py-3"
+                      className={[
+                        "text-sm font-semibold text-foreground py-3",
+                        meta?.headerClassName ?? "",
+                      ].join(" ")}
                     >
                       {header.isPlaceholder ? null : (
                         <SortableHeader
@@ -133,19 +142,25 @@ export function BaseTable<TData>({
               <>
                 {table.getRowModel().rows.map((row) => (
                   <TableRow key={row.id} className="hover:bg-muted/50">
-                    {row.getVisibleCells().map((cell) => (
-                      <TableCell key={cell.id}>
-                        {flexRender(
-                          cell.column.columnDef.cell,
-                          cell.getContext(),
-                        )}
-                      </TableCell>
-                    ))}
+                    {row.getVisibleCells().map((cell) => {
+
+                      // Get custom cell className from meta if available
+                      const meta = cell.column.columnDef.meta as ColumnMeta | undefined;
+                      return (
+                        <TableCell
+                          key={cell.id}
+                          className={meta?.cellClassName ?? ""}
+                        >
+                          {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                        </TableCell>
+                      );
+                    })}
                   </TableRow>
                 ))}
                 {/* Custom Footer Row (e.g., Add Button) */}
                 {renderFooterRow?.(columns.length)}
               </>
+
             ) : (
               <TableRow>
                 <TableCell

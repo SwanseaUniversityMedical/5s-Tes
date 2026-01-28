@@ -10,6 +10,11 @@ type ColumnOptions = {
   onAction?: (action: RuleAction, rule: RuleColumns) => void;
 };
 
+type ColumnMeta = {
+  headerClassName?: string;
+  cellClassName?: string;
+};
+
 /* ----- Create Columns for Access Rules Table ------ */
 
 export const createRulesColumns = ({
@@ -49,8 +54,14 @@ export const createRulesColumns = ({
     id: "actions",
     header: "Actions",
     enableSorting: false,
+    meta: {
+      headerClassName: "text-center",
+      cellClassName: "text-center",
+    } satisfies ColumnMeta,
     cell: ({ row }) => (
-      <TableActionButtons rule={row.original} onAction={onAction} />
+      <div className="flex justify-center">
+        <TableActionButtons rule={row.original} onAction={onAction} />
+      </div>
     ),
   },
 ];
