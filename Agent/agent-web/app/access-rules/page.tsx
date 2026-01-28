@@ -1,6 +1,8 @@
 import AccessRulesTable from "@/components/access-rules/AccessRulesTable";
 import { authcheck } from "@/lib/auth-helpers";
 import type { Metadata } from "next";
+import { Button } from "@/components/ui/button";
+import { PageHeader } from "@/components/core/page-header";
 
 
 // Metadata for the Access Rules page
@@ -15,8 +17,27 @@ export default async function AccessRules() {
 
   return (
     <div className="pb-8">
-
-      <h1 className="text-2xl pb-3 font-bold">Access Rules</h1>
+      <PageHeader
+        title="Access Rules"
+        description={
+          <>
+            Configure the{" "}
+            <a
+              href="https://docs.federated-analytics.ac.uk/submission/tasks/run_analysis#update-the-dmn-rules"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Button
+                variant="link"
+                className="p-0 font-semibold text-md cursor-pointer"
+              >
+                DMN Rules
+              </Button>
+            </a>{" "}
+            to access TRE Database.
+          </>
+        }
+      />
       <AccessRulesTable />
     </div>
   );
