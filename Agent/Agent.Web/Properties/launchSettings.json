@@ -1,0 +1,54 @@
+{
+  "profiles": {
+    "http": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development_Notts"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "http://localhost:8989",
+      "comment": "Use http://localhost:8989 for local Notts development"
+    },
+    "https": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7187;http://localhost:5233"
+    },
+    "IIS Express": {
+      "commandName": "IISExpress",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
+    },
+    "Docker": {
+      "commandName": "Docker",
+      "launchBrowser": true,
+      "launchUrl": "{Scheme}://{ServiceHost}:{ServicePort}",
+      "publishAllPorts": true,
+      "useSSL": true
+    },	
+	  "TRE-UI": {
+		"commandName": "Project",
+		"launchBrowser": true,
+		"environmentVariables": {
+		  "ASPNETCORE_ENVIRONMENT": "Development"
+		},
+		"dotnetRunMessages": true,
+		"applicationUrl": "https://localhost:7187;http://localhost:5233"
+	}
+  },
+  "iisSettings": {
+    "windowsAuthentication": false,
+    "anonymousAuthentication": true,
+    "iisExpress": {
+      "applicationUrl": "http://localhost:59890/",
+      "sslPort": 44353
+    }
+  }
+}
