@@ -1,9 +1,6 @@
-﻿using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using FiveSafesTes.Core.Models.Enums;
+﻿using FiveSafesTes.Core.Models.Enums;
 
-namespace FiveSafesTes.Core.Models
+namespace FiveSafesTes.Core.Models.ViewModels
 {
     public class DataFiles: BaseModel
     {

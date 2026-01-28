@@ -1,0 +1,133 @@
+﻿@using FiveSafesTes.Core.Models.Enums
+@model List<FiveSafesTes.Core.Models.TreMembershipDecision>
+@{
+    ViewData["Title"] = "Memberships";
+
+
+}
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            @foreach (var decision in Model)
+            {
+                if(decision.Project.Id == decision.Id)
+                {
+                <h1 class="fs-3 mb-0">@decision.Project.SubmissionProjectName</h1>
+                <p class="font-monospace text-muted small">#@decision.Project.SubmissionProjectId</p>
+                <p class="text-muted mb-0">
+                    @decision.Project.Decision
+                @*@if (Model.Decision == Decision.Undecided)
+                {
+                @:This project hasn't been processed yet
+                }
+                else
+                {
+                @:Last Updated: @Model.LastDecisionDate by @Model.ApprovedBy
+                }*@
+                </p>
+                <p class="text-muted mb-0">Last Updated: @decision.LastDecisionDate by @decision.ApprovedBy</p>
+            
+        
+        @*@if (Model.Archived)
+        {
+        <span class="badge py-2 px-3 badge-lg bg-warning text-dark rounded-pill">
+        Archived
+        </span>
+        }*@
+    
+    <ul class="nav nav-underline border-bottom mt-4 mb-5">
+        <li class="nav-item" role="presentation">
+            <a href="@Url.Action("EditProject", new { projectId = decision.Id})" class="nav-link text-dark">
+            Project Approval</a>
+        </li>
+        <li class="nav-item" role="presentation">
+            <a href="#" class="nav-link text-dark active">
+                Memberships
+            </a>
+        </li>
+    </ul>
+    }
+}
+    </div>
+
+    </div>
+    <div class="row">
+        <div>
+            <div class="table-responsive">
+
+                <table class="table">
+                    <caption>List of Memberships</caption>
+                    <thead>
+                    <tr>
+                        <th>Member</th>
+                        @*<th>Project</th>*@
+                        <th>Status</th>
+                        <th>Decision</th>
+                            <th>ProjectExpiryDate</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    @using (Html.BeginForm("EditMemberships", "Approval", FormMethod.Post, new { id = "frmMain" }))
+                    {
+                        @for (int i = 0; i < Model.Count; i++)
+                        {
+                            <tr>
+                                <td>
+                                    <strong>@Model[i].User.Username</strong>
+                                </td>
+                                @*<td>
+                            @Model[i].Project.SubmissionProjectName
+                            @if (Model[i].Archived)
+                            {
+                            <span class="badge py-2 px-3 badge-lg bg-warning text-dark rounded-pill">
+                            Archived
+                            </span>
+                            }
+                            </td>*@
+                                <td>
+                                    @if (Model[i].Decision == Decision.Undecided)
+                                    {
+                                        @:This membership hasn't been processed yet
+                                    }
+                                    else
+                                    {
+                                        @:Last Updated: @Model[i].LastDecisionDate by @Model[i].ApprovedBy
+                                    }
+                                </td>
+                                <td>
+                                    @Html.HiddenFor(x => x[i].Id)
+                                    <div class="form-check form-check-inline">
+                                        @Html.RadioButtonFor(x => x[i].Decision, Decision.Approved, new { @class = "form-check-input" })
+                                        @Html.Label(Decision.Approved.ToString())
+                                    </div>
+                                    <div class="form-check form-check-inline">
+                                        @Html.RadioButtonFor(x => x[i].Decision, Decision.Rejected, new { @class = "form-check-input" })
+                                        @Html.Label(Decision.Rejected.ToString())
+                                    </div>
+
+                                    @if (Model[i].Decision == Decision.Undecided)
+                                    {
+                                        <div class="form-check form-check-inline">
+                                            @Html.RadioButtonFor(x => x[i].Decision, Decision.Undecided, new { @class = "form-check-input" })
+                                            @Html.Label(Decision.Undecided.ToString())
+                                        </div>
+                                    }
+                                </td>
+                                    <td>
+                                        @Model[i].ProjectExpiryDate
+                                    </td>
+                            </tr>
+                               
+                        }
+                            <div class="hero-block-1">
+                                <button type="submit" class="btn btn-sm btn-primary mb-3"><i class="fa fa-save me-2"></i><span class="small">Save Changes</span></button>
+                            </div>
+                    }
+                    </tbody>
+                </table>
+              
+            </div>
+        </div>
+    </div>
+
+</div>
