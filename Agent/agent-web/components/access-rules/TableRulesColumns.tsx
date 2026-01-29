@@ -3,6 +3,7 @@
 import { ColumnDef } from "@tanstack/react-table";
 import { RuleColumns, RuleAction } from "@/types/access-rules";
 import TableActionButtons from "./TableActionButtons";
+import { CodeCell } from "./TableRowCodeCell";
 
 /* ----- Types ------ */
 
@@ -39,16 +40,25 @@ export const createRulesColumns = ({
     accessorKey: "outputTag",
     header: "Output: tag",
     enableSorting: true,
+    cell: ({ row }) => (
+      <CodeCell>{row.original.outputTag}</CodeCell>
+    ),
   },
   {
     accessorKey: "outputValue",
     header: "Output: value",
     enableSorting: true,
+    cell: ({ row }) => (
+      <CodeCell>{row.original.outputValue}</CodeCell>
+    ),
   },
   {
     accessorKey: "outputEnv",
     header: "Output: env",
     enableSorting: true,
+    cell: ({ row }) => (
+      <CodeCell>{row.original.outputEnv}</CodeCell>
+    ),
   },
   {
     id: "actions",
