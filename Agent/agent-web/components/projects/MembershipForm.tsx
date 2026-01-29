@@ -3,7 +3,7 @@
 import { useMemo } from "react";
 import { FieldGroup, FieldLabel, FieldSet } from "@/components/ui/field";
 import type { Decision } from "@/types/Decision";
-import { DataTable } from "../data-table";
+import { BaseTable } from "../data-table/BaseTable";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { Button } from "../ui/button";
@@ -110,9 +110,10 @@ export default function MembershipApprovalForm({
             Membership Decisions
           </FieldLabel>
 
-          <DataTable
+          <BaseTable
             columns={membershipColumns}
             data={membershipDecisions ?? []}
+            searchPlaceholder="Search by username"
           />
 
           <div className="flex justify-start gap-2">

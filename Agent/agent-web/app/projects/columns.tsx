@@ -12,6 +12,7 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     id: "Project Name",
     header: "Project Name",
+    accessorFn: (row) => row.submissionProjectName ?? "",
     cell: ({ row }) => {
       const { submissionProjectName, localProjectName } = row.original;
       return (
@@ -33,6 +34,7 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     id: "Memberships",
     header: "Memberships",
+    accessorFn: (row) => row.memberDecisions?.length ?? 0,
     cell: ({ row }) => {
       return (
         <Badge variant="secondary">
@@ -44,12 +46,13 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     id: "Decision",
     header: "Decision",
+    accessorFn: (row) => row.decision ?? "",
     cell: ({ row }) => {
       const { decision, archived } = row.original;
       const decisionInfo = getDecisionInfo(decision);
       return (
         <div className="flex items-center gap-2">
-          <Badge variant={decisionInfo.badgeVariant}>
+        <Badge variant={decisionInfo.badgeVariant}>
             {decisionInfo.label}
           </Badge>
           {archived && <Badge variant="destructive">Archived</Badge>}
@@ -60,6 +63,7 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     id: "Reviewed By",
     header: "Reviewed By",
+    accessorFn: (row) => row.approvedBy ?? "", // ✅ string sort
     cell: ({ row }) => {
       const { approvedBy, decision } = row.original;
       const decisionInfo = getDecisionInfo(decision);
@@ -69,6 +73,8 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     id: "Last Decision Date",
     header: "Last Decision Date",
+    accessorFn: (row) =>
+      row.lastDecisionDate ? new Date(row.lastDecisionDate).getTime() : -1,
     cell: ({ row }) => {
       const { lastDecisionDate, decision } = row.original;
       if (!lastDecisionDate) return "N/A";
@@ -85,6 +91,7 @@ export const columns: ColumnDef<TreProject>[] = [
   {
     header: "",
     id: "actions",
+    enableSorting: false,
     cell: ({ row }) => {
       return (
         <Link href={`/projects/${row.original.id}`}>
