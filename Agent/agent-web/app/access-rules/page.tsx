@@ -16,7 +16,7 @@ export default async function AccessRules() {
   await authcheck("dare-tre-admin");
 
   return (
-    <div className="pb-8">
+    <div>
       <PageHeader
         title="Access Rules"
         description={
