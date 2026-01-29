@@ -418,7 +418,6 @@ config.status
 aclocal.m4
 install-sh
 autom4te.cache/
-*.tar.gz
 tarballs/
 test-results/
 

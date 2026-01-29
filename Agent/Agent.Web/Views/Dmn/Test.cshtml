@@ -1,0 +1,128 @@
+@using Microsoft.Extensions.Configuration
+@inject IConfiguration Configuration
+@{
+    ViewData["Title"] = "Test DMN Evaluation";
+    var apiBaseUrl = Configuration.GetSection("TreAPISettings")["PublicApiBaseUrl"];
+}
+
+<div class="container-lg p-4">
+    <div class="d-flex align-items-center justify-content-between mb-4">
+        <h1 class="fs-3 mb-0">Test DMN Evaluation</h1>
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-arrow-left"></i> Back to Rules
+        </a>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="row">
+                <!-- Input Form -->
+                <div class="col-md-6">
+                    <div class="card border mb-3">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-dark">Input Variables</h5>
+                        </div>
+                        <div class="card-body">
+                            <form id="testForm">
+                                <div class="mb-3">
+                                    <label for="projectInput" class="form-label">Project</label>
+                                    <input type="text" class="form-control" id="projectInput"
+                                           placeholder="Enter project name">
+                                    <small class="form-text text-muted">Leave empty to test with empty value</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="userInput" class="form-label">User</label>
+                                    <input type="text" class="form-control" id="userInput" placeholder="Enter username">
+                                    <small class="form-text text-muted">Leave empty to test with empty value</small>
+                                </div>
+
+                                <div class="mb-3">
+                                    <label for="submissionIdInput" class="form-label">Submission ID</label>
+                                    <input type="text" class="form-control" id="submissionIdInput"
+                                           placeholder="Enter submission ID">
+                                    <small class="form-text text-muted">Leave empty to test with empty value</small>
+                                </div>
+
+                                <div class="d-grid gap-2">
+                                    <button type="button" class="btn btn-primary" id="evaluateBtn">
+                                        <i class="fas fa-play"></i> Evaluate DMN
+                                    </button>
+                                    <button type="button" class="btn btn-outline-secondary" id="clearBtn">
+                                        <i class="fas fa-eraser"></i> Clear
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Predefined Test Cases -->
+                    <div class="card border">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-dark">Quick Test Cases</h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="d-grid gap-2">
+                                <button type="button" class="btn btn-outline-primary btn-sm test-case"
+                                        data-project="test-project" data-user="testuser" data-submission="">
+                                    Test with Project & User
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm test-case"
+                                        data-project="" data-user="" data-submission="SUB-12345">
+                                    Test with Submission ID only
+                                </button>
+                                <button type="button" class="btn btn-outline-primary btn-sm test-case"
+                                        data-project="" data-user="" data-submission="">
+                                    Test with all empty
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results Panel -->
+                <div class="col-md-6">
+                    <div class="card border">
+                        <div class="card-header bg-light">
+                            <h5 class="mb-0 text-dark">Evaluation Results</h5>
+                        </div>
+                        <div class="card-body">
+                            <!-- Alert Messages -->
+                            <div id="resultAlert"></div>
+
+                            <!-- Loading Spinner -->
+                            <div id="evaluatingSpinner" class="text-center" style="display: none;">
+                                <div class="spinner-border text-primary" role="status">
+                                    <span class="visually-hidden">Evaluating...</span>
+                                </div>
+                                <p class="mt-2">Evaluating DMN...</p>
+                            </div>
+
+                            <!-- Results Container -->
+                            <div id="resultsContainer" style="display: none;">
+                                <h6 class="mb-3">Matched Rules Output:</h6>
+                                <div id="resultsContent">
+                                    <!-- Results will be displayed here -->
+                                </div>
+                            </div>
+
+                            <!-- No Results Message -->
+                            <div id="noResults" class="alert alert-info" style="display: none;">
+                                <i class="fas fa-info-circle"></i> Enter input values and click "Evaluate DMN" to see
+                                results.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Pass API URL from server configuration to JavaScript
+        const TRE_API_BASE_URL = '@apiBaseUrl';
+    </script>
+    <script src="~/js/dmn-test.js"></script>
+}

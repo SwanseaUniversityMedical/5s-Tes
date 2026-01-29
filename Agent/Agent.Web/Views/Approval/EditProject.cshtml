@@ -1,0 +1,104 @@
+﻿@using FiveSafesTes.Core.Models.Enums
+@model FiveSafesTes.Core.Models.TreProject
+@{
+    ViewData["Title"] = "Approve Project";
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    <div>
+        <div class="d-flex align-items-center justify-content-between">
+            <div>
+                <h1 class="fs-3 mb-0">@Model.SubmissionProjectName</h1>
+                <p class="font-monospace text-muted small">#@Model.SubmissionProjectId</p>
+                <p class="text-muted mb-0">@Model.Decision</p>
+                <p class="text-muted mb-0">
+                    @if (Model.Decision == Decision.Undecided)
+                    {
+                        @:This project hasn't been processed yet
+                    }
+                    else
+                    {
+                        @:Last Updated: @Model.LastDecisionDate by @Model.ApprovedBy
+                    }
+                </p>
+            </div>
+            @if (Model.Archived)
+            {
+                <span class="badge py-2 px-3 badge-lg bg-warning text-dark rounded-pill">
+                    Archived
+                </span>
+            }
+        </div>
+        <ul class="nav nav-underline border-bottom mt-4 mb-5">
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Action("EditProject", new { projectId = @Model.Id})" class="nav-link text-dark">
+                Project Approval</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="@Url.Action("EditMemberships", new { projectId = @Model.Id})" class="nav-link text-dark">
+                    Memberships
+                </a>
+            </li>
+        </ul>
+        <div class="form-group mb-4">
+            <h2 class="fs-5">About</h2>
+            @Model.Description
+
+
+            <h2 class="fs-5">Minio</h2>
+            TRE minio submission bucket <b>@Model.SubmissionBucketTre </b>
+
+            
+        </div>
+        <div class="row">
+            <div class="col-md-4">
+                @using (Html.BeginForm("EditProject", "Approval", FormMethod.Post, new { id = "frmMain" }))
+                {
+                    <h2 class="fs-5 mt-5">Local Name</h2>
+                    <p>The name of the project being used by your organisation.</p>
+                    <div class="form-group">
+                        @Html.TextBoxFor(x => x.LocalProjectName, new { @class = "form-control"})
+                    </div>
+                    <h2 class="fs-5 mt-5">Project Expiry Date</h2>
+                    <p>The date the project expires.</p>
+
+                                 
+                    <div id ="date" class="form-group">
+                        @Html.HiddenFor(x => x.ProjectExpiryDate)
+                        <input class="form-control" type="date" value="@Model.ProjectExpiryDate.ToString("yyyy-MM-dd")" disabled="disabled" />
+
+
+                    </div>
+                    <h2 class="fs-5 mt-5">Decision</h2>
+                    <div id="radio-decision" class="form-group">
+                        @Html.HiddenFor(x => x.Id)
+                        <div class="form-check form-check-inline">
+                            @Html.RadioButtonFor(x => x.Decision, Decision.Approved, new { @id = "Approved", @class = "radio-approved form-check-input", @checked = ""})
+                            @Html.Label(Decision.Approved.ToString())
+                        </div>
+                        <div class="form-check form-check-inline">
+                            @Html.RadioButtonFor(x => x.Decision, Decision.Rejected, new { @id = "Rejected", @class = "radio-rejected form-check-input", @checked = ""})
+                            @Html.Label(Decision.Rejected.ToString())
+                        </div>
+                        
+                        @if (Model.Decision == Decision.Undecided)
+                        {
+                            <div class="form-check form-check-inline">
+                                @Html.RadioButtonFor(x => x.Decision, Decision.Undecided, new { @id = "Undecided", @class = "radio-undecided form-check-input", @checked = ""})
+                                @Html.Label(Decision.Undecided.ToString())
+                            </div>
+                            
+                        }
+                    </div>                   
+                    <div class="form-group mb-5">
+                        @Html.ValidationSummary(false, "", new { @class = "text-danger" })
+                    </div>
+                    <div class="hero-block-1 mt-5">
+                        <button type="submit" class="btn btn-sm btn-primary">Update</button>
+                        <a class="btn btn-sm btn-link" href="@Url.Action("GetAllProjects","Approval", new {  showOnlyUnprocessed = false })">Cancel</a>
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
