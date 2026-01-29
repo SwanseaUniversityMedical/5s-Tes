@@ -19,7 +19,7 @@ RUN dotnet restore "Agent/Agent.Web/Agent.Web.csproj"
 RUN dotnet restore "Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj"
 
 COPY . .
-WORKDIR "/src/Agent.Web"
+WORKDIR "/src/Agent/Agent.Web"
 RUN dotnet build "Agent.Web.csproj" -c Release -o /app/build
 
 FROM build AS publish
