@@ -13,7 +13,7 @@ export function CodeCell({ children, className }: CodeCellProps) {
   return (
       <pre
       className={cn(
-        "px-1.5 py-0.5 rounded text-sm font-mono",
+        "inline px-1.5 py-0.5 rounded text-sm font-mono m-0",
         "bg-red-50 text-red-500",
         "dark:bg-red-950/50 dark:text-red-400",
         className
