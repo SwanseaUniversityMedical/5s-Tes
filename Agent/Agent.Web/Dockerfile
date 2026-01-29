@@ -13,13 +13,13 @@ EXPOSE 443
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 WORKDIR /src
-COPY ["Agent/Agent.Web/Agent.Web.csproj", "Agent.Web/"]
+COPY ["Agent/Agent.Web/Agent.Web.csproj", "Agent/Agent.Web/"]
 COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.Core/"]
 RUN dotnet restore "Agent/Agent.Web/Agent.Web.csproj"
 RUN dotnet restore "Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj"
 
 COPY . .
-WORKDIR "/src/Agent.Web/"
+WORKDIR "/src/Agent.Web"
 RUN dotnet build "Agent.Web.csproj" -c Release -o /app/build
 
 FROM build AS publish
