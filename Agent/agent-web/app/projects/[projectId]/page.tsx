@@ -6,6 +6,7 @@ import { authcheck } from "@/lib/auth-helpers";
 import ProjectApprovalForm from "@/components/projects/ProjectForm";
 import ProjectDetails from "@/components/projects/ProjectDetails";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/core/page-header";
 
 export const metadata: Metadata = {
   title: "Agent Web UI - Project and Memberships Approval",
@@ -33,13 +34,11 @@ export default async function ApprovalPage(props: {
 
   return (
     <>
-      <div className="mb-3">
-        <h1 className="text-2xl font-bold">{project.submissionProjectName}</h1>
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
-          Review project details and approve/reject the project and its
-          memberships.
-        </p>
-      </div>
+      <PageHeader
+        title={project.submissionProjectName ?? "Project"}
+        description="Review project details and approve/reject the project and its memberships."
+      />
+
       {project ? (
         <div className="flex flex-col gap-4">
           <ProjectDetails project={project} />
