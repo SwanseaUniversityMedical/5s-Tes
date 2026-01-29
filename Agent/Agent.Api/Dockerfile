@@ -9,10 +9,8 @@ EXPOSE 443
 FROM mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 WORKDIR /src
 COPY ["Agent/Agent.Api/Agent.Api.csproj", "Agent/Agent.Api/"]
-COPY ["Shared/Credentials.Models/Credentials.Models.csproj", "Shared/Credentials.Models/"]
 COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.Core/"]
 RUN dotnet restore "Agent/Agent.Api/Agent.Api.csproj"
-RUN dotnet restore "Shared/Credentials.Models/Credentials.Models.csproj"
 RUN dotnet restore "Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj"
 
 COPY . .
