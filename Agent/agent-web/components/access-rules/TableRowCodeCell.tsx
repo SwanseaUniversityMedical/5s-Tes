@@ -11,7 +11,7 @@ type CodeCellProps = {
 row contents in a code style) ------ */
 export function CodeCell({ children, className }: CodeCellProps) {
   return (
-      <code
+      <pre
       className={cn(
         "px-1.5 py-0.5 rounded text-sm font-mono",
         "bg-red-50 text-red-500",
@@ -20,6 +20,6 @@ export function CodeCell({ children, className }: CodeCellProps) {
       )}
     >
       {children}
-    </code>
+    </pre>
   );
 }
