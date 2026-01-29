@@ -1,3 +1,4 @@
+import { ModeToggle } from "@/components/core/mode-toggle";
 import MainMenubar from "./MainMenubar";
 import NavbarLogo from "./NavbarLogo";
 import UserMenu from "./UserMenu";
@@ -14,7 +15,10 @@ export default function Navbar() {
         <NavbarLogo />
         <MainMenubar />
       </div>
-      <UserMenu username="Global AdminUser" />
+      <div className="flex items-center gap-4">
+        <ModeToggle />
+        <UserMenu username="Global AdminUser" />
+      </div>
     </nav>
   );
 }
