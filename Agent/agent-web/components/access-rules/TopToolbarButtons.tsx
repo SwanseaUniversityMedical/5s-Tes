@@ -11,7 +11,7 @@ import {
 
 import DecisionMetadataHoverCard from "./DecisionMetadataCard";
 import RuleFormDialog from "./forms/RulesFormDialog";
-import { RuleColumns } from "@/types/access-rules";
+import { DecisionInfo, RuleColumns } from "@/types/access-rules";
 
 /* ----- Types ------ */
 
@@ -20,6 +20,7 @@ type TopToolbarAction = "refresh" | "deploy" | "add";
 type ToolbarProps = {
   onAction?: (action: TopToolbarAction) => void;
   onAddRule?: (data: RuleColumns) => void;
+  decisionInfo: DecisionInfo;
 };
 
 type ToolbarActionConfig = {
@@ -66,7 +67,7 @@ const BASE_ACTIONS: ToolbarActionConfig[] = [
 /* ----- Toolbar Buttons Component for Access Rules
 (Metadata, Refresh, Deploy, Add New Rule) ------ */
 
-export default function ToolbarButtons({ onAction, onAddRule }: ToolbarProps) {
+export default function ToolbarButtons({ onAction, onAddRule, decisionInfo }: ToolbarProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const handleActionClick = (id: TopToolbarAction) => {
     if (id === "add") {
@@ -82,7 +83,7 @@ export default function ToolbarButtons({ onAction, onAddRule }: ToolbarProps) {
 
   return (
     <div className="flex items-center gap-2.5">
-      <DecisionMetadataHoverCard />
+      <DecisionMetadataHoverCard data={decisionInfo} />
 
       {BASE_ACTIONS.map(({ id, label, Icon, tooltip, variant, className }) => (
         <Tooltip key={id}>

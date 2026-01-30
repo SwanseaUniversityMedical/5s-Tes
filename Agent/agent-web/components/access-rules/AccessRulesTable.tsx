@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BaseTable } from "@/components/data-table/BaseTable";
-import { RuleColumns, RuleAction, DUMMY_RULES } from "@/types/access-rules";
+import { DecisionInfo, RuleColumns, RuleAction} from "@/types/access-rules";
 import { createRulesColumns } from "./TableRulesColumns";
 import { HoverAddRow } from "./action-buttons/AddNewRowButton";
 import TopToolbarButtons from "./TopToolbarButtons";
@@ -10,7 +10,8 @@ import TopToolbarButtons from "./TopToolbarButtons";
 /* ----- Types ------ */
 
 type AccessRulesTableProps = {
-  data?: RuleColumns[];
+  data: RuleColumns[];
+  decisionInfo: DecisionInfo;
   onAction?: (action: RuleAction, rule: RuleColumns) => void;
   onAddRule?: (newRule: RuleColumns) => void;
   addNewRowButtonLabel?: string;
@@ -20,7 +21,8 @@ type AccessRulesTableProps = {
 /* ----- Access Rules Table Component ------ */
 
 export default function AccessRulesTable({
-  data = DUMMY_RULES,
+  data,
+  decisionInfo,
   onAction,
   onAddRule,
   addNewRowButtonLabel = "Add New Rule",
@@ -47,7 +49,12 @@ export default function AccessRulesTable({
           label={addNewRowButtonLabel}
         />
       )}
-      renderToolbar={() => <TopToolbarButtons onAction={onToolbarAction} />}
+      renderToolbar={() => (
+        <TopToolbarButtons
+          onAction={onToolbarAction}
+          decisionInfo={decisionInfo}
+        />
+      )}
     />
   );
 }
