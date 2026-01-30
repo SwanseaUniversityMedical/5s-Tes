@@ -24,7 +24,7 @@ const MENU_ITEMS = [
 
 export default function UserMenu() {
   const { data: session, error: sessionError } = useSession();
-  const username = session?.user?.name || null;
+  const username = session?.user?.name;
 
   return (
     <DropdownMenu>
@@ -36,7 +36,7 @@ export default function UserMenu() {
         >
           <User className="h-4 w-4 opacity-80" />
           <span className="max-w-35px truncate text-foreground">
-            {username}
+            {username ?? "Guest"}
           </span>
           <ChevronDown className="h-4 w-4 opacity-60" />
         </Button>
@@ -54,7 +54,7 @@ export default function UserMenu() {
             Logout
           </DropdownMenuItem>
         )}
-        {(sessionError || !session?.user || username === null) && (
+        {(sessionError || !session?.user) && (
           <DropdownMenuItem onClick={handleLogin}>Login</DropdownMenuItem>
         )}
       </DropdownMenuContent>
