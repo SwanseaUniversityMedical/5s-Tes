@@ -44,7 +44,7 @@ jobs:
       comment-release: "true"
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
+      registry-repo: ${{ vars.HARBOR_PROJECT }}/hd64571test
       release-info: ${{ needs.containers.outputs.release-info }}
       cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
       build-file: Agent/agent-web/Dockerfile
