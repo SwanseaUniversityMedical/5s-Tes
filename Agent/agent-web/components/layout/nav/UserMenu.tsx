@@ -9,25 +9,23 @@ import {
 
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User } from "lucide-react";
-import { handleLogout } from "@/lib/auth-client";
+import { handleLogin, handleLogout, useSession } from "@/lib/auth-client";
 
-// User menu button types
-
-type UserMenuProps = {
-  username: string;
-  onAccount?: () => void;
-  onHelpdesk?: () => void;
-  onLogout?: () => void;
-};
+// User menu items
+const MENU_ITEMS = [
+  {
+    label: "Account",
+    href: process.env.NEXT_PUBLIC_ACCOUNT_MANAGEMENT_URL || "#2",
+  },
+  { label: "Helpdesk", href: process.env.NEXT_PUBLIC_HELPDESK_URL || "#1" },
+];
 
 // Creates User Menu Dropdown button Component in the Navbar
 
-export default function UserMenu({
-  username,
-  onAccount,
-  onHelpdesk,
-  onLogout,
-}: UserMenuProps) {
+export default function UserMenu() {
+  const { data: session, error: sessionError } = useSession();
+  const username = session?.user?.name || null;
+
   return (
     <DropdownMenu>
       {/* ---- User Menu Button ---- */}
@@ -46,11 +44,19 @@ export default function UserMenu({
 
       {/* ---- Dropdown Menu Trigger ---- */}
       <DropdownMenuContent align="end" className="w-40">
-        <DropdownMenuItem onClick={onAccount}>Account</DropdownMenuItem>
-        <DropdownMenuItem onClick={onHelpdesk}>Helpdesk</DropdownMenuItem>
-        <DropdownMenuItem variant="destructive" onClick={handleLogout}>
-          Logout
-        </DropdownMenuItem>
+        {MENU_ITEMS.map((item) => (
+          <a key={item.href} href={item.href}>
+            <DropdownMenuItem>{item.label}</DropdownMenuItem>
+          </a>
+        ))}
+        {session?.user && (
+          <DropdownMenuItem variant="destructive" onClick={handleLogout}>
+            Logout
+          </DropdownMenuItem>
+        )}
+        {(sessionError || !session?.user || username === null) && (
+          <DropdownMenuItem onClick={handleLogin}>Login</DropdownMenuItem>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );
