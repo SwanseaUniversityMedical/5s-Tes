@@ -37,7 +37,7 @@ jobs:
 
   agent-web-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@test/HD-64571-harbor-sbom-cosign
     with:
       job-name: agent-web-container
       comment-pr: "true"
