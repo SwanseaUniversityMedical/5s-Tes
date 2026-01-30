@@ -4,6 +4,8 @@ import type { Metadata } from "next";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/core/page-header";
 
+import { getAccessRules } from "@/api/access-rules";
+import { FetchError } from "@/components/core/fetch-error";
 
 // Metadata for the Access Rules page
 export const metadata: Metadata = {
@@ -14,6 +16,15 @@ export const metadata: Metadata = {
 // Access Rules Page Component
 export default async function AccessRules() {
   await authcheck("dare-tre-admin");
+
+  const result = await getAccessRules();
+
+  if (!result.success) {
+    return <FetchError error={result.error} />;
+  }
+
+  // Destructure rules and info from single API call
+  const { rules, info } = result.data;
 
   return (
     <div>
@@ -38,7 +49,7 @@ export default async function AccessRules() {
           </>
         }
       />
-      <AccessRulesTable />
+      <AccessRulesTable data={rules} decisionInfo={info} />
     </div>
   );
 }
