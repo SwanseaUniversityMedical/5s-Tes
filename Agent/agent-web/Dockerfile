@@ -26,6 +26,10 @@ COPY --from=builder /app/.next ./.next
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/next.config.ts ./next.config.ts
 
+# Change ownership of all files to nextjs user
+# This allows Next.js to create directories like next-swc-fallback at runtime
+RUN chown -R nextjs:nodejs /app
+
 USER nextjs
 
 CMD ["npm", "start"]
