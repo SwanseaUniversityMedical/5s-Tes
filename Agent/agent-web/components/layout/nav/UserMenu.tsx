@@ -10,14 +10,15 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User } from "lucide-react";
 import { handleLogin, handleLogout, useSession } from "@/lib/auth-client";
+import { accountManagementUrl, helpdeskUrl } from "@/lib/constants";
 
 // User menu items
 const MENU_ITEMS = [
   {
     label: "Account",
-    href: process.env.NEXT_PUBLIC_ACCOUNT_MANAGEMENT_URL || "#2",
+    href: accountManagementUrl || "#2",
   },
-  { label: "Helpdesk", href: process.env.NEXT_PUBLIC_HELPDESK_URL || "#1" },
+  { label: "Helpdesk", href: helpdeskUrl || "#1" },
 ];
 
 // Creates User Menu Dropdown button Component in the Navbar

@@ -1,3 +1,5 @@
+import { publicKeycloakUrl } from "./constants";
+
 /**
  * Extracts a user-friendly error message from various error formats
  */
@@ -38,8 +40,7 @@ export function getKeycloakIssuer() {
  * Falls back to internal URL if public URL is not set
  */
 export function getKeycloakIssuerPublic() {
-  const publicUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || process.env.KEYCLOAK_URL;
-  console.log("publicUrl", publicUrl);
+  const publicUrl = publicKeycloakUrl || process.env.KEYCLOAK_URL;
   if (publicUrl && process.env.KEYCLOAK_REALM) {
     return `${publicUrl}/realms/${process.env.KEYCLOAK_REALM}`;
   }
