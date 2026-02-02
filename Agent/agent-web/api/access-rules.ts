@@ -1,6 +1,7 @@
-// api/access-rules.ts
+"use server";
+
 import request from "@/lib/api/request";
-import { DecisionInfo, AccessRulesData, RuleColumns } from "@/types/access-rules";
+import { DecisionInfo, AccessRulesData } from "@/types/access-rules";
 import { transformRulesToRuleColumns } from "@/lib/helpers/access-rules-api";
 
 /* ----- API Response Types ------ */
@@ -36,12 +37,18 @@ interface DmnDecisionTable {
   rules?: Array<DmnRule> | null;
 }
 
+interface DmnValidateResponse {
+  $id?: string;
+  success: boolean;
+  message: string | null;
+  data: string | null;
+}
+
 /* ----- API Result Type ------ */
 
 type ApiResult<T> =
   | { success: true; data: T }
   | { success: false; error: string };
-
 
 /* ----- API Functions ------ */
 
@@ -61,7 +68,40 @@ export async function getAccessRules(): Promise<ApiResult<AccessRulesData>> {
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "Failed to fetch table for access rules",
+        error instanceof Error
+          ? error.message
+          : "Failed to fetch table for access rules",
+    };
+  }
+}
+
+//  --- GET: Api/Dmn/validate
+export async function validateAccessRules(): Promise<
+  ApiResult<DmnValidateResponse>
+> {
+  try {
+    const data = await request<{
+      $id?: string;
+      success: boolean;
+      message: string | null;
+      data: string | null;
+    }>("Dmn/validate");
+
+    return {
+      success: true,
+      data: {
+        success: data.success,
+        message: data.message,
+        data: data.data,
+      },
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error:
+        error instanceof Error
+          ? error.message
+          : "Failed to validate access rules",
     };
   }
 }
