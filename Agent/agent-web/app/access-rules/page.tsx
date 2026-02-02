@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/core/page-header";
 
 import { getAccessRules } from "@/api/access-rules";
 import { FetchError } from "@/components/core/fetch-error";
+import RulesValidationBadge from "@/components/access-rules/status-badge/RulesValidationBadge";
 
 // Metadata for the Access Rules page
 export const metadata: Metadata = {
@@ -30,6 +31,7 @@ export default async function AccessRules() {
     <div>
       <PageHeader
         title="Access Rules"
+        action={<RulesValidationBadge className="mt-1" />}
         description={
           <>
             Configure the{" "}
