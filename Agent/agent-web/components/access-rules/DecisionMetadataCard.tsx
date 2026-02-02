@@ -53,15 +53,7 @@ export default function DecisionMetadataHoverCard({
         </Button>
       </HoverCardTrigger>
 
-      <HoverCardContent className="w-80" align="center" sideOffset={8}>
-        {/* Header */}
-        <div className="border-b pb-2 mb-3">
-          <h4 className="font-semibold text-sm">Decision Information</h4>
-          <p className="text-xs text-muted-foreground">
-            Details about the current decision table.
-          </p>
-        </div>
-
+      <HoverCardContent side="top" className="w-80" align="center" sideOffset={8}>
         {/* Content */}
         <div className="space-y-3">
           {META_FIELDS.map((field) => (
