@@ -30,6 +30,7 @@ concurrency:
 
 jobs:
   scan-code:
+    runs-on: [self-hosted, linux, x64]
     steps:
       - uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.0.0-generic-sonar
         with:
