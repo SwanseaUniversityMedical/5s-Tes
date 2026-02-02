@@ -1,10 +1,9 @@
 import { betterAuth, User } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
-import { getKeycloakIssuer } from "./helpers";
+import { getKeycloakIssuer, getKeycloakIssuerPublic } from "./helpers";
 
 const baseURL =
   process.env.BETTER_AUTH_URL ||
-  process.env.NEXT_PUBLIC_APP_URL ||
   "http://localhost:3000";
 
 export const auth = betterAuth({
@@ -32,7 +31,9 @@ export const auth = betterAuth({
           clientId: process.env.KEYCLOAK_CLIENT_ID || "",
           clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "",
           // Keycloak OAuth2 endpoints
-          authorizationUrl: `${getKeycloakIssuer()}/protocol/openid-connect/auth`,
+          // authorizationUrl must be publicly accessible (browser redirect)
+          authorizationUrl: `${getKeycloakIssuerPublic()}/protocol/openid-connect/auth`,
+          // tokenUrl and userInfoUrl are called server-side, can use internal URL
           tokenUrl: `${getKeycloakIssuer()}/protocol/openid-connect/token`,
           userInfoUrl: `${getKeycloakIssuer()}/protocol/openid-connect/userinfo`,
           scopes: ["openid"],

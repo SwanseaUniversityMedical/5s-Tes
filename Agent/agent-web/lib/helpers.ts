@@ -23,9 +23,24 @@ export function extractErrorMessage(error: unknown): string {
   return "An unexpected error occurred. Please try again.";
 }
 
+/**
+ * Get Keycloak issuer URL for server-side calls (internal Docker network)
+ */
 export function getKeycloakIssuer() {
   if (process.env.KEYCLOAK_URL && process.env.KEYCLOAK_REALM) {
     return `${process.env.KEYCLOAK_URL}/realms/${process.env.KEYCLOAK_REALM}`;
   }
   return "";
+}
+
+/**
+ * Get Keycloak issuer URL for client-side redirects (publicly accessible)
+ * Falls back to internal URL if public URL is not set
+ */
+export function getKeycloakIssuerPublic() {
+  const publicUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || process.env.KEYCLOAK_URL;
+  if (publicUrl && process.env.KEYCLOAK_REALM) {
+    return `${publicUrl}/realms/${process.env.KEYCLOAK_REALM}`;
+  }
+  return getKeycloakIssuer();
 }
