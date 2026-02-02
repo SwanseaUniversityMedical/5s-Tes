@@ -1,10 +1,8 @@
-import { betterAuth, User } from "better-auth";
+import { betterAuth, type User } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
 import { getKeycloakIssuer, getKeycloakIssuerPublic } from "./helpers";
 
-const baseURL =
-  process.env.BETTER_AUTH_URL ||
-  "http://localhost:3000";
+const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
 export const auth = betterAuth({
   baseURL,
