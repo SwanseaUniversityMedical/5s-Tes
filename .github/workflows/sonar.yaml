@@ -1,45 +1,38 @@
 name: Sonar
 
 on:
-  push:
-    branches:
-      - main
   pull_request:
-      types: [opened, synchronize, reopened]
+    # Only consider PRs that change files for this asset, including ci scripts
+    paths:
+      - ".github/workflows/sonar.yaml"
+      - "Agent/**"
+      - "Shared/**"
+  push:
+    # Only release off of release and maintenance branches for this asset
+    branches:
+      - "main"
+    # Only consider pushes that change files for this asset, including ci scripts
+    paths:
+      - ".github/workflows/sonar.yaml"
+      - "Agent/**"
+      - "Shared/**"
 
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel early on pull requests if new commits are added,
+  # Don't cancel on release pushes
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   scan-code:
-    name: Scan
-    runs-on: [self-hosted, linux, x64]
     steps:
-      - name: clone repo
-        uses: actions/checkout@v2
+      - uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.0.0-generic-sonar
         with:
-          fetch-depth: 0  # Shallow clones should be disabled for a better relevancy of analysis
-
-      - name: scan project
-        if: ${{ github.event_name != 'pull_request' }}
-        uses: sonarsource/sonarqube-scan-action@v7.0.0
-        env:
-          SONAR_TOKEN: ${{ secrets.FEDA_SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.projectKey=5s-Tes
-            -Dsonar.branch.name=${{ github.ref_name }}
-            
-
-      - name: scan project PR
-        if: ${{ github.event_name == 'pull_request' }}
-        uses: sonarsource/sonarqube-scan-action@v7.0.0
-        env:
-          SONAR_TOKEN: ${{ secrets.FEDA_SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
-        with:
-          args: >
-            -Dsonar.projectKey=5s-Tes
-            -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
-            -Dsonar.pullrequest.branch=${{ github.head_ref }}
-            -Dsonar.pullrequest.base=${{ github.base_ref }}
-            -Dsonar.scm.revision=${{ github.event.pull_request.head.sha }}
+          sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
+          sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}
+          project-key: 5s-Tes
