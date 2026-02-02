@@ -39,6 +39,7 @@ export function getKeycloakIssuer() {
  */
 export function getKeycloakIssuerPublic() {
   const publicUrl = process.env.NEXT_PUBLIC_KEYCLOAK_URL || process.env.KEYCLOAK_URL;
+  console.log("publicUrl", publicUrl);
   if (publicUrl && process.env.KEYCLOAK_REALM) {
     return `${publicUrl}/realms/${process.env.KEYCLOAK_REALM}`;
   }
