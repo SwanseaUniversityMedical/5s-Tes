@@ -36,4 +36,3 @@ jobs:
       project-key: 5s-Tes
       sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}
 
-
