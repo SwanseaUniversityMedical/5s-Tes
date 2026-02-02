@@ -23,7 +23,7 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.FEDA_SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.FEDA_SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.projectKey=5s-tes
@@ -34,7 +34,7 @@ jobs:
         uses: sonarsource/sonarqube-scan-action@v7.0.0
         env:
           SONAR_TOKEN: ${{ secrets.FEDA_SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.FEDA_SONAR_HOST_URL }}
+          SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
         with:
           args: >
             -Dsonar.projectKey=5s-tes
