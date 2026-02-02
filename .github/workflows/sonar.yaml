@@ -26,7 +26,7 @@ jobs:
           SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=5s-tes
+            -Dsonar.projectKey=5s-Tes
             -Dsonar.branch.name=${{ github.ref_name }}
             
 
@@ -38,7 +38,7 @@ jobs:
           SONAR_HOST_URL: ${{ vars.FEDA_SONAR_HOST_URL }}
         with:
           args: >
-            -Dsonar.projectKey=5s-tes
+            -Dsonar.projectKey=5s-Tes
             -Dsonar.pullrequest.key=${{ github.event.pull_request.number }}
             -Dsonar.pullrequest.branch=${{ github.head_ref }}
             -Dsonar.pullrequest.base=${{ github.base_ref }}
