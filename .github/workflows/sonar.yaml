@@ -30,10 +30,8 @@ concurrency:
 
 jobs:
   scan-code:
-    runs-on: [self-hosted, linux, x64]
-    steps:
-      - uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.0.0-generic-sonar
-        with:
-          sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
-          sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}
-          project-key: 5s-Tes
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.0.0-generic-sonar
+    with:
+      sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
+      sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}
+      project-key: 5s-Tes
