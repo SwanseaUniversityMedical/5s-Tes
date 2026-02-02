@@ -11,10 +11,10 @@ type PageHeaderProps = {
 /* ----- Page Header Component ------ */
 export function PageHeader({ title, description, className }: PageHeaderProps) {
   return (
-    <div className={cn("mb-6", className)}>
+    <div className={cn("mb-3", className)}>
       <h1 className="text-2xl font-bold">{title}</h1>
       {description && (
-        <p className="mt-2 text-gray-600 dark:text-gray-400">
+        <p className="text-gray-600 dark:text-gray-400">
           {description}
         </p>
       )}
