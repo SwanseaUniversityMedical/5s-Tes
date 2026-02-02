@@ -34,5 +34,6 @@ jobs:
     with:
       sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
       project-key: 5s-Tes
-    secrets:
       sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}
+
+
