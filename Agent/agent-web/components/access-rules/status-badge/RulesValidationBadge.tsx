@@ -27,7 +27,7 @@ export default function RulesValidationBadge({
       refreshKey={refreshKey}
       check={checkValidation}
       loadingText="Validating rules..."
-      validText="DMN Rules Validated Successfully"
+      validText="DMN Rules are valid"
       invalidText="Rules validation failed"
       unknownText="Unable to validate"
       delayMs={1000}
