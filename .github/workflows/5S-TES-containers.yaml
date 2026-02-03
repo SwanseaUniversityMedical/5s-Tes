@@ -5,9 +5,7 @@ on:
     # Only consider PRs that change files for this asset, including ci scripts
     paths:
       - ".github/workflows/5S-TES-containers.yaml"
-      - "Agent/Agent.Api/**"
-      - "Agent/Agent.Web/**"
-      - "Agent/agent-web/**"
+      - "Agent/**"
   push:
     # Only release off of release and maintenance branches for this asset
     branches:
@@ -15,9 +13,7 @@ on:
     # Only consider pushes that change files for this asset, including ci scripts
     paths:
       - ".github/workflows/5S-TES-containers.yaml"
-      - "Agent/Agent.Api/**"
-      - "Agent/Agent.Web/**"
-      - "Agent/agent-web/**"
+      - "Agent/**"
 
 permissions:
   contents: write
