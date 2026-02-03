@@ -67,18 +67,14 @@ function _formatInputValueForApi(text: string | null | undefined): string {
       - "Empty" (from "" in DMN)
 
     API expects for PUT/POST:
-      - "" (empty string) for both "any" and "empty" input values
-      - The DMN FEEL engine interprets empty as "match all"
+      - "-" for "any" (match all)
+      - "" (empty string) for empty/unset values
   */
-  if (
-    text === null ||
-    text === undefined ||
-    text === "Empty" ||
-    text === "" ||
-    text === "Any" ||
-    text === "-"
-  ) {
+  if (text === null || text === undefined || text === "Empty" || text === "") {
     return "";
+  }
+  if (text === "Any" || text === "-") {
+    return "-";
   }
   return text;
 }
