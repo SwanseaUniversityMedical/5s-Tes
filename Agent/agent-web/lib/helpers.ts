@@ -1,4 +1,4 @@
-import { keycloakRealm, publicKeycloakUrl } from "./constants";
+import { keycloakRealm, keycloakUrl } from "./constants";
 
 /**
  * Extracts a user-friendly error message from various error formats
@@ -26,21 +26,11 @@ export function extractErrorMessage(error: unknown): string {
 }
 
 /**
- * Get Keycloak issuer URL for server-side calls (internal Docker network)
+ * Get Keycloak issuer URL
  */
 export function getKeycloakIssuer() {
-  if (process.env.KEYCLOAK_URL && keycloakRealm) {
-    return `${process.env.KEYCLOAK_URL}/realms/${keycloakRealm}`;
+  if (keycloakUrl && keycloakRealm) {
+    return `${keycloakUrl}/realms/${keycloakRealm}`;
   }
   return "";
-}
-
-/**
- * Get Keycloak issuer URL for client-side redirects or client components (publicly accessible)
- */
-export function getKeycloakIssuerPublic() {
-  if (publicKeycloakUrl && keycloakRealm) {
-    return `${publicKeycloakUrl}/realms/${keycloakRealm}`;
-  }
-  return getKeycloakIssuer();
 }

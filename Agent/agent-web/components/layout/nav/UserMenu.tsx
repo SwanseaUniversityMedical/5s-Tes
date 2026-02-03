@@ -6,18 +6,17 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User } from "lucide-react";
 import { handleLogin, handleLogout, useSession } from "@/lib/auth-client";
 import { helpdeskUrl } from "@/lib/constants";
-import { getKeycloakIssuerPublic } from "@/lib/helpers";
+import { getKeycloakIssuer } from "@/lib/helpers";
 
 // User menu items
 const MENU_ITEMS = [
   {
     label: "Account",
-    href: `${getKeycloakIssuerPublic()}/account`,
+    href: `${getKeycloakIssuer()}/account`,
   },
   { label: "Helpdesk", href: helpdeskUrl || "#1" },
 ];
