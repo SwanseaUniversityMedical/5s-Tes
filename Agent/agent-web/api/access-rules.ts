@@ -59,6 +59,12 @@ interface UpdateDmnRuleRequest {
   outputValues: Array<string>;
 }
 
+interface CreateDmnRuleRequest {
+  description?: string | null;
+  inputValues: Array<string>;
+  outputValues: Array<string>;
+}
+
 /* ----- API Result Type ------ */
 
 type ApiResult<T> =
@@ -171,3 +177,48 @@ export async function updateAccessRule(
   }
 }
 
+// ----- POST: Api/Dmn/rules -----
+export async function createAccessRule(data: {
+  inputUser?: string;
+  inputProject?: string;
+  outputTag: string;
+  outputValue: string;
+  outputEnv: string;
+  description?: string;
+}): Promise<ApiResult<DmnOperationResult>> {
+  try {
+    const { inputValues, outputValues } = transformFormDataForApi({
+      ...data,
+      inputSubmissionId: "", // New rules don't have submissionId
+    });
+
+    const requestBody: CreateDmnRuleRequest = {
+      description: data.description ?? null,
+      inputValues,
+      outputValues,
+    };
+
+    const response = await request<DmnOperationResult>("Dmn/rules", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(requestBody),
+    });
+
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to create access rule",
+    };
+  }
+}
