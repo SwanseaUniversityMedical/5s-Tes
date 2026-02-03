@@ -1,6 +1,7 @@
 import { z } from "zod";
 
 export type RuleColumns = {
+  ruleId: string;
   description?: string;
   inputUser?: string;
   inputProject?: string;
@@ -40,6 +41,8 @@ export interface AccessRulesData {
 
 // Zod Schema for Validating Access Rules Form Data
 export const ruleFormSchema = z.object({
+  ruleId: z.string().optional(),
+
   inputUser: z
     .string()
     .max(30, "User input must be less than 30 characters")
