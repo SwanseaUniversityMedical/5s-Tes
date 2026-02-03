@@ -1,8 +1,13 @@
 import { betterAuth, type User } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
 import { getKeycloakIssuer } from "./helpers";
+import {
+  betterAuthUrl,
+  keycloakClientId,
+  keycloakClientSecret,
+} from "./constants";
 
-const baseURL = process.env.BETTER_AUTH_URL || "http://localhost:3000";
+const baseURL = betterAuthUrl;
 
 export const auth = betterAuth({
   baseURL,
@@ -26,8 +31,8 @@ export const auth = betterAuth({
       config: [
         {
           providerId: "keycloak",
-          clientId: process.env.KEYCLOAK_CLIENT_ID || "",
-          clientSecret: process.env.KEYCLOAK_CLIENT_SECRET || "",
+          clientId: keycloakClientId,
+          clientSecret: keycloakClientSecret,
           // URL to fetch the provider's OAuth 2.0/OIDC configuration and auto-discover the endpoints for auth
           discoveryUrl: `${getKeycloakIssuer()}/.well-known/openid-configuration`,
           scopes: ["openid"],
