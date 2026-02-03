@@ -10,15 +10,15 @@ import { Button } from "@/components/ui/button";
 import { ChevronDown, User } from "lucide-react";
 import { handleLogin, handleLogout, useSession } from "@/lib/auth-client";
 import { helpdeskUrl } from "@/lib/constants";
-import { getKeycloakIssuer } from "@/lib/helpers";
+import { getKeycloakIssuerPublic } from "@/lib/helpers";
 
 // User menu items
 const MENU_ITEMS = [
   {
     label: "Account",
-    href: `${getKeycloakIssuer()}/account`,
+    href: `${getKeycloakIssuerPublic()}/account`,
   },
-  { label: "Helpdesk", href: helpdeskUrl || "#1" },
+  { label: "Helpdesk", href: helpdeskUrl },
 ];
 
 // Creates User Menu Dropdown button Component in the Navbar
