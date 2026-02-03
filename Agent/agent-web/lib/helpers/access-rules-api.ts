@@ -1,12 +1,11 @@
 import { DmnRule, RuleColumns } from "@/types/access-rules";
 
-{/* ----- Helper Functions for Access-Rules API Client */}
-
-
+{
+  /* ----- Helper Functions for Access-Rules API Client */
+}
 
 // Helper: Convert input text to display value
 function _formatInputValueForDisplay(text: string | null | undefined): string {
-
   /* Helper to format input values for displaying
     in the table and mapping special cases.
 
@@ -32,7 +31,6 @@ function _formatInputValueForDisplay(text: string | null | undefined): string {
 
 // Transform Rules to Table Format
 export function transformRulesToRuleColumns(rules: DmnRule[]): RuleColumns[] {
-
   /* Fixed indices based on API structure and
     maps the formatted Input Value (project/user)
     to the Input:user and Input:project columns.
@@ -52,6 +50,7 @@ export function transformRulesToRuleColumns(rules: DmnRule[]): RuleColumns[] {
     description: rule.description ?? "-",
     inputUser: _formatInputValueForDisplay(rule.inputEntries?.[1]?.text),
     inputProject: _formatInputValueForDisplay(rule.inputEntries?.[0]?.text),
+    inputSubmissionId: rule.inputEntries?.[2]?.text ?? "", // Preserve original value for API updates
     outputTag: rule.outputEntries?.[0]?.text ?? "",
     outputValue: rule.outputEntries?.[1]?.text ?? "",
     outputEnv: rule.outputEntries?.[2]?.text ?? "",
@@ -64,18 +63,22 @@ function _formatInputValueForApi(text: string | null | undefined): string {
     Transforms display values back to API format.
 
     Display shows:
-      - "Any"
-      - "Empty"
+      - "Any" (from "-" in DMN)
+      - "Empty" (from "" in DMN)
 
-    API expects:
-      - "-" for "any"
-      - "" for empty
+    API expects for PUT/POST:
+      - "" (empty string) for both "any" and "empty" input values
+      - The DMN FEEL engine interprets empty as "match all"
   */
-  if (text === null || text === undefined || text === "Empty" || text === "") {
+  if (
+    text === null ||
+    text === undefined ||
+    text === "Empty" ||
+    text === "" ||
+    text === "Any" ||
+    text === "-"
+  ) {
     return "";
-  }
-  if (text === "Any" || text === "-") {
-    return "-";
   }
   return text;
 }
@@ -85,6 +88,7 @@ function _formatInputValueForApi(text: string | null | undefined): string {
 export function transformFormDataForApi(data: {
   inputUser?: string;
   inputProject?: string;
+  inputSubmissionId?: string; // Preserved from original rule
   outputTag: string;
   outputValue: string;
   outputEnv: string;
@@ -98,6 +102,7 @@ export function transformFormDataForApi(data: {
     Input array order (matches API structure):
       - [0] = project
       - [1] = user
+      - [2] = submissionId (preserved from original rule)
 
     Output array order:
       - [0] = tag
@@ -108,11 +113,8 @@ export function transformFormDataForApi(data: {
     inputValues: [
       _formatInputValueForApi(data.inputProject),
       _formatInputValueForApi(data.inputUser),
+      data.inputSubmissionId ?? "", // Preserve original submissionId value
     ],
-    outputValues: [
-      data.outputTag,
-      data.outputValue,
-      data.outputEnv,
-    ],
+    outputValues: [data.outputTag, data.outputValue, data.outputEnv],
   };
 }

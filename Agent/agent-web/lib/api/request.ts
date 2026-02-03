@@ -56,10 +56,21 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
         if (Array.isArray(errorResponse)) {
           errorMessage = errorResponse.join(" * ");
         } else {
-          errorMessage = errorResponse.detail || errorMessage;
+          errorMessage = errorResponse.detail || errorResponse.message || errorResponse.title || errorMessage;
         }
       } catch (error) {
         errorMessage = "Failed to parse error response";
+      }
+
+    // Try to get text body for non-JSON errors
+
+    } else {
+      try {
+        const textBody = await response.text();
+        if (textBody) {
+          errorMessage = textBody.substring(0, 200); // Limit length
+        }
+      } catch (e) {
       }
     }
     throw new Error(errorMessage);
