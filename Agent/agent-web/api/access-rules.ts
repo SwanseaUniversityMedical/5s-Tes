@@ -222,3 +222,29 @@ export async function createAccessRule(data: {
     };
   }
 }
+
+// ----- DELETE: Api/Dmn/rules/{ruleId} -----
+export async function deleteAccessRule(
+  ruleId: string
+): Promise<ApiResult<DmnOperationResult>> {
+  try {
+    const response = await request<DmnOperationResult>(`Dmn/rules/${ruleId}`, {
+      method: "DELETE",
+    });
+
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to delete access rule",
+    };
+  }
+}
