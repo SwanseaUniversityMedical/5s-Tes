@@ -5,6 +5,7 @@ export type RuleColumns = {
   description?: string;
   inputUser?: string;
   inputProject?: string;
+  inputSubmissionId?: string;
   outputTag: string;
   outputValue: string;
   outputEnv: string;
