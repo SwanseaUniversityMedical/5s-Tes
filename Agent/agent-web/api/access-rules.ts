@@ -121,52 +121,40 @@ export async function validateAccessRules(): Promise<
   }
 }
 
-// ----- PUT: - Api/Dmn/Rules -----
-
+// ----- PUT: Api/Dmn/rules -----
 export async function updateAccessRule(
   ruleId: string,
-  description: string | null,
-  inputUser: string | undefined,
-  inputProject: string | undefined,
-  outputTag: string,
-  outputValue: string,
-  outputEnv: string
+  data: {
+    inputUser?: string;
+    inputProject?: string;
+    inputSubmissionId?: string;
+    outputTag: string;
+    outputValue: string;
+    outputEnv: string;
+    description?: string;
+  }
 ): Promise<ApiResult<DmnOperationResult>> {
   try {
-
-    /* Transform form data to API format (See
-    `lib/helpers/access-rules-api.ts` for more information.) */
-
-    const { inputValues, outputValues } = transformFormDataForApi({
-      inputUser,
-      inputProject,
-      outputTag,
-      outputValue,
-      outputEnv,
-    });
+    const { inputValues, outputValues } = transformFormDataForApi(data);
 
     const requestBody: UpdateDmnRuleRequest = {
       ruleId,
-      description,
+      description: data.description ?? null,
       inputValues,
       outputValues,
     };
 
-    const data = await request<DmnOperationResult>("Dmn/rules", {
+    const response = await request<DmnOperationResult>("Dmn/rules", {
       method: "PUT",
       headers: {
-        "Content-Type": "application/json-patch+json",
+        "Content-Type": "application/json",
       },
       body: JSON.stringify(requestBody),
     });
 
     return {
       success: true,
-      data: {
-        success: data.success,
-        message: data.message,
-        data: data.data,
-      },
+      data: response,
     };
   } catch (error) {
     if (isNextRedirectError(error)) {
@@ -176,102 +164,10 @@ export async function updateAccessRule(
     return {
       success: false,
       error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
+        error instanceof Error
+          ? error.message
+          : "Failed to update access rule",
     };
   }
 }
 
-// ----- POST: - Api/Dmn/Rules -----
-
-interface CreateDmnRuleRequest {
-  description?: string | null;
-  inputValues: Array<string>;
-  outputValues: Array<string>;
-}
-
-export async function createAccessRule(
-  description: string | null,
-  inputUser: string | undefined,
-  inputProject: string | undefined,
-  outputTag: string,
-  outputValue: string,
-  outputEnv: string
-): Promise<ApiResult<DmnOperationResult>> {
-  try {
-
-    /* Transform form data to API format (See
-    `lib/helpers/access-rules-api.ts` for more information.) */
-
-    const { inputValues, outputValues } = transformFormDataForApi({
-      inputUser,
-      inputProject,
-      outputTag,
-      outputValue,
-      outputEnv,
-    });
-
-    const requestBody: CreateDmnRuleRequest = {
-      description,
-      inputValues,
-      outputValues,
-    };
-
-    const data = await request<DmnOperationResult>("Dmn/rules", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json-patch+json",
-      },
-      body: JSON.stringify(requestBody),
-    });
-
-    return {
-      success: true,
-      data: {
-        success: data.success,
-        message: data.message,
-        data: data.data,
-      },
-    };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
-}
-
-// ----- DELETE: - Api/Dmn/Rules/{ruleId} -----
-
-export async function deleteAccessRule(
-  ruleId: string
-): Promise<ApiResult<DmnOperationResult>> {
-  try {
-    const data = await request<DmnOperationResult>(`Dmn/rules/${ruleId}`, {
-      method: "DELETE",
-    });
-
-    return {
-      success: true,
-      data: {
-        success: data.success,
-        message: data.message,
-        data: data.data,
-      },
-    };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
-}
