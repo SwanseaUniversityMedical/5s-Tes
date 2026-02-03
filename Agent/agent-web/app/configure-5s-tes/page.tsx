@@ -2,6 +2,7 @@ import CredentialsTabs from "@/components/credentials/CredentialsTab";
 import { Button } from "@/components/ui/button";
 import { authcheck } from "@/lib/auth-helpers";
 import type { Metadata } from "next";
+import { PageHeader } from "@/components/core/page-header";
 
 export const metadata: Metadata = {
   title: "Agent Web UI - Configure 5S-TES",
@@ -15,10 +16,11 @@ export default async function UpdateCredentials() {
   return (
     <>
       {/* Page Header */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold">Configure 5S-TES</h1>
-        <p className="text-gray-600 dark:text-gray-400">
-          Configure 5S-TES TRE Admin with credentials to access{" "}
+      <PageHeader
+        title="Configure 5S-TES"
+        description={
+          <>
+            Configure 5S-TES TRE Admin with credentials to access{" "}
           <a
             href="https://docs.federated-analytics.ac.uk/submission"
             target="_blank"
@@ -45,10 +47,9 @@ export default async function UpdateCredentials() {
             </Button>
           </a>
           .
-        </p>
-      </div>
-
-      {/* Credentials Tabs */}
+        </>
+        }
+      />
       <CredentialsTabs />
     </>
   );

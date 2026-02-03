@@ -1,6 +1,6 @@
 # 1. Builder
 ARG BUILDPLATFORM
-FROM --platform=$BUILDPLATFORM node:24.12.0-alpine AS builder
+FROM --platform=$BUILDPLATFORM node:25.5.0-alpine AS builder
 WORKDIR /app
 
 # Install deps
@@ -12,7 +12,7 @@ COPY . .
 RUN npm run build
 
 # 2. Runner (multi-arch)
-FROM node:24.12.0-alpine AS runner
+FROM node:25.5.0-alpine AS runner
 WORKDIR /app
 
 # Create non-root user
