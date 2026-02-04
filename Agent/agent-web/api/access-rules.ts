@@ -248,3 +248,31 @@ export async function deleteAccessRule(
     };
   }
 }
+
+// ----- POST: Api/Dmn/deploy -----
+export async function deployAccessRules(): Promise<ApiResult<DmnOperationResult>> {
+  try {
+    const response = await request<DmnOperationResult>("Dmn/deploy", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: "",
+    });
+
+    return {
+      success: true,
+      data: response,
+    };
+  } catch (error) {
+    if (isNextRedirectError(error)) {
+      throw error;
+    }
+
+    return {
+      success: false,
+      error:
+        error instanceof Error ? error.message : "Failed to deploy access rules",
+    };
+  }
+}
