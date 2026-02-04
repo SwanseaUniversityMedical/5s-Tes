@@ -72,7 +72,7 @@ export default async function ProjectsPage(props: ProjectsProps) {
             : "all"
         }
       >
-        <TabsList className="mb-2">
+        <TabsList>
           <Link href="?showOnlyUnprocessed=false" scroll={false}>
             <TabsTrigger value="all">All Projects</TabsTrigger>
           </Link>

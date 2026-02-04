@@ -50,6 +50,7 @@ export default async function AccessRules() {
             to access TRE Database.
           </>
         }
+        className="mb-0"
       />
       <AccessRulesTable data={rules} decisionInfo={info} />
     </div>

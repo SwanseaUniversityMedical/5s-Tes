@@ -7,6 +7,7 @@ import ProjectApprovalForm from "@/components/projects/ProjectForm";
 import ProjectDetails from "@/components/projects/ProjectDetails";
 import type { Metadata } from "next";
 import { PageHeader } from "@/components/core/page-header";
+import { Button } from "@/components/ui/button";
 
 export const metadata: Metadata = {
   title: "Agent Web UI - Project and Memberships Approval",
@@ -36,7 +37,22 @@ export default async function ApprovalPage(props: {
     <>
       <PageHeader
         title={project.submissionProjectName ?? "Project"}
-        description="Review project details and approve/reject the project and its memberships."
+        description={<>
+          Review project details and { " "} 
+          <a
+            href="https://docs.federated-analytics.ac.uk/submission/tasks/run_analysis#update-the-dmn-rules"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <Button
+              variant="link"
+              className="p-0 font-semibold text-md cursor-pointer"
+            >
+              approve/reject the project 
+            </Button>
+          </a>{" "}
+          and its memberships.
+        </>}
       />
 
       {project ? (

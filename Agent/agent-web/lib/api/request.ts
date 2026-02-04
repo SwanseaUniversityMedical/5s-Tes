@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 import { resolveJsonReferences } from "./helpers";
+import { agentApiUrl } from "../constants";
 
 interface RequestOptions {
   method?: string;
@@ -14,7 +15,7 @@ interface RequestOptions {
 }
 
 const request = async <T>(url: string, options: RequestOptions = {}) => {
-  const baseUrl = options.baseUrl ?? `${process.env.AGENT_API_URL}/api`;
+  const baseUrl = options.baseUrl ?? `${agentApiUrl}/api`;
 
   let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
   try {
