@@ -100,7 +100,7 @@ jobs:
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
     with:
       job-name: credentials-camunda-container
-      registry: ${{ vars.HARBOR_REGISTRY }}
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
       release-info: ${{ needs.containers.outputs.release-info }}
