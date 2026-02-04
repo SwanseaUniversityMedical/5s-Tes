@@ -1,15 +1,11 @@
 "use client";
 
 import { ColumnDef } from "@tanstack/react-table";
-import { RuleColumns, RuleAction } from "@/types/access-rules";
+import { RuleColumns } from "@/types/access-rules";
 import TableActionButtons from "./TableActionButtons";
 import { CodeCell } from "./TableRowCodeCell";
 
 /* ----- Types ------ */
-
-type ColumnOptions = {
-  onAction?: (action: RuleAction, rule: RuleColumns) => void;
-};
 
 type ColumnMeta = {
   headerClassName?: string;
@@ -18,9 +14,7 @@ type ColumnMeta = {
 
 /* ----- Create Columns for Access Rules Table ------ */
 
-export const createRulesColumns = ({
-  onAction,
-}: ColumnOptions): ColumnDef<RuleColumns>[] => [
+export const createRulesColumns = (): ColumnDef<RuleColumns>[] => [
   {
     accessorKey: "description",
     header: "Description",
@@ -40,25 +34,19 @@ export const createRulesColumns = ({
     accessorKey: "outputTag",
     header: "Output: tag",
     enableSorting: true,
-    cell: ({ row }) => (
-      <CodeCell>{row.original.outputTag}</CodeCell>
-    ),
+    cell: ({ row }) => <CodeCell>{row.original.outputTag}</CodeCell>,
   },
   {
     accessorKey: "outputValue",
     header: "Output: value",
     enableSorting: true,
-    cell: ({ row }) => (
-      <CodeCell>{row.original.outputValue}</CodeCell>
-    ),
+    cell: ({ row }) => <CodeCell>{row.original.outputValue}</CodeCell>,
   },
   {
     accessorKey: "outputEnv",
     header: "Output: env",
     enableSorting: true,
-    cell: ({ row }) => (
-      <CodeCell>{row.original.outputEnv}</CodeCell>
-    ),
+    cell: ({ row }) => <CodeCell>{row.original.outputEnv}</CodeCell>,
   },
   {
     id: "actions",
@@ -70,7 +58,7 @@ export const createRulesColumns = ({
     } satisfies ColumnMeta,
     cell: ({ row }) => (
       <div className="flex justify-center">
-        <TableActionButtons rule={row.original} onAction={onAction} />
+        <TableActionButtons rule={row.original} />
       </div>
     ),
   },

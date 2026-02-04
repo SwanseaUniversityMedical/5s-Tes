@@ -7,22 +7,17 @@ import {
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
 import { Info } from "lucide-react";
+import { DecisionInfo } from "@/types/access-rules";
 
 /* ----- Types ------ */
 
-type DecisionMeta = {
-  decisionId: string;
-  decisionName: string;
-  hitPolicy: string;
-};
-
 type MetaFieldConfig = {
   label: string;
-  key: keyof DecisionMeta;
+  key: keyof DecisionInfo;
 };
 
 type DecisionMetaPopoverProps = {
-  data?: DecisionMeta;
+  data: DecisionInfo;
 };
 
 /* ----- Constants ------ */
@@ -33,16 +28,10 @@ const META_FIELDS: MetaFieldConfig[] = [
   { label: "Hit Policy", key: "hitPolicy" },
 ];
 
-const MOCK_META: DecisionMeta = {
-  decisionId: "CredentialsDMN",
-  decisionName: "Decide on credentials",
-  hitPolicy: "COLLECT",
-};
-
 /* ----- Decision Metadata Popover Component ------ */
 
 export default function DecisionMetadataHoverCard({
-  data = MOCK_META,
+  data,
 }: DecisionMetaPopoverProps) {
   return (
     <HoverCard openDelay={200} closeDelay={100}>
