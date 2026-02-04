@@ -4,13 +4,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Plus, RefreshCw, Rocket } from "lucide-react";
+import { Plus, Rocket } from "lucide-react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 
+import RefreshButton from "./action-buttons/RefreshButton";
 import DecisionMetadataHoverCard from "./DecisionMetadataCard";
 import RuleFormDialog from "./forms/RulesFormDialog";
 import { DecisionInfo, RuleFormData } from "@/types/access-rules";
@@ -18,7 +19,7 @@ import { createAccessRule } from "@/api/access-rules";
 
 /* ----- Types ------ */
 
-type TopToolbarAction = "refresh" | "deploy" | "add";
+type TopToolbarAction = "deploy" | "add";
 
 type ToolbarProps = {
   onAction?: (action: TopToolbarAction) => void;
@@ -37,15 +38,6 @@ type ToolbarActionConfig = {
 /* ----- Toolbar Buttons Component Constants ------ */
 
 const BASE_ACTIONS: ToolbarActionConfig[] = [
-  {
-    id: "refresh",
-    label: "Refresh",
-    tooltip: "Refresh the rules list",
-    Icon: RefreshCw,
-    variant: "outline",
-    className:
-      "border-foreground text-foreground/80 hover:bg-accent hover:text-foreground",
-  },
   {
     id: "deploy",
     label: "Deploy",
@@ -73,7 +65,7 @@ export default function ToolbarButtons({ onAction, decisionInfo }: ToolbarProps)
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const router = useRouter();
 
-  const handleActionClick = (id: TopToolbarAction) => {
+  const handleActionClick = (id: "deploy" | "add") => {
     if (id === "add") {
       setIsAddDialogOpen(true);
     }
@@ -101,7 +93,9 @@ export default function ToolbarButtons({ onAction, decisionInfo }: ToolbarProps)
 
   return (
     <div className="flex items-center gap-2.5">
+      {/* Metadata Hover Card and Refresh Button */}
       <DecisionMetadataHoverCard data={decisionInfo} />
+      <RefreshButton />
 
       {BASE_ACTIONS.map(({ id, label, Icon, tooltip, variant, className }) => (
         <Tooltip key={id}>
