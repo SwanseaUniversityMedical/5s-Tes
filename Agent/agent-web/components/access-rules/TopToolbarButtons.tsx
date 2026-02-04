@@ -17,6 +17,8 @@ import DecisionMetadataHoverCard from "./DecisionMetadataCard";
 import RuleFormDialog from "./forms/RulesFormDialog";
 import { DecisionInfo, RuleFormData } from "@/types/access-rules";
 import { createAccessRule } from "@/api/access-rules";
+import { useErrorToast } from "@/lib/hooks/use-error-toast";
+import { useValidation } from "./ValidationContext";
 
 /* ----- Types ------ */
 
@@ -30,8 +32,12 @@ type ToolbarProps = {
 export default function ToolbarButtons({ decisionInfo }: ToolbarProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const router = useRouter();
+  const { triggerValidation } = useValidation();
+  const { showError, dismissError, handleOpenChange } = useErrorToast();
 
-  const handleFormSubmit = async (data: RuleFormData) => {
+  const handleFormSubmit = async (data: RuleFormData): Promise<boolean> => {
+    dismissError();
+
     const result = await createAccessRule({
       inputUser: data.inputUser,
       inputProject: data.inputProject,
@@ -43,11 +49,13 @@ export default function ToolbarButtons({ decisionInfo }: ToolbarProps) {
 
     if (result.success) {
       toast.success("Rule created successfully");
-      setIsAddDialogOpen(false);
       router.refresh();
-    } else {
-      toast.error(`Failed to create rule: ${result.error}`);
+      triggerValidation();
+      return true;
     }
+
+    showError(`Failed to create rule: ${result.error}`);
+    return false;
   };
 
   return (
@@ -85,7 +93,7 @@ export default function ToolbarButtons({ decisionInfo }: ToolbarProps) {
       {/* Dialog for adding new rules */}
       <RuleFormDialog
         isOpen={isAddDialogOpen}
-        onOpenChange={setIsAddDialogOpen}
+        onOpenChange={handleOpenChange(setIsAddDialogOpen)}
         onSubmit={handleFormSubmit}
         mode="add"
       />

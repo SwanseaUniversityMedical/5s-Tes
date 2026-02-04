@@ -3,16 +3,17 @@
 import { useCallback } from "react";
 import StatusBadge from "@/components/status-badge";
 import { validateAccessRules } from "@/api/access-rules";
+import { useValidation } from "../ValidationContext";
 
 type RulesValidationBadgeProps = {
-  refreshKey?: number;
   className?: string;
 };
 
 export default function RulesValidationBadge({
-  refreshKey,
   className,
 }: RulesValidationBadgeProps) {
+  const { refreshKey } = useValidation();
+
   const checkValidation = useCallback(async () => {
     const result = await validateAccessRules();
 

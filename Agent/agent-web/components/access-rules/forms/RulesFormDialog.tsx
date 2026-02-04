@@ -24,7 +24,7 @@ type DialogMode = "add" | "edit";
 type RuleFormDialogProps = {
   isOpen: boolean;
   onOpenChange: (open: boolean) => void;
-  onSubmit: (data: RuleFormData) => void;
+  onSubmit: (data: RuleFormData) => Promise<boolean>; // Returns true if successful
   mode: DialogMode;
   initialData?: RuleFormData;
 };
@@ -143,10 +143,14 @@ export default function RuleFormDialog({
     reset(nextValues, { keepDirty: false, keepTouched: false });
   }, [isOpen, mode, initialData, reset]);
 
-  const submit = handleSubmit((data) => {
-    onSubmit(data);
-    reset(DEFAULT_VALUES);
-    onOpenChange(false);
+  const submit = handleSubmit(async (data) => {
+    const success = await onSubmit(data);
+    
+    // Only close dialog and reset form if the operation was successful
+    if (success) {
+      reset(DEFAULT_VALUES);
+      onOpenChange(false);
+    }
   });
 
   const handleCancel = () => {
