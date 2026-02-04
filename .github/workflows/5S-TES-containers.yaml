@@ -6,6 +6,7 @@ on:
     paths:
       - ".github/workflows/5S-TES-containers.yaml"
       - "Agent/**"
+      - "Credentials/**"
   push:
     # Only release off of release and maintenance branches for this asset
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - ".github/workflows/5S-TES-containers.yaml"
       - "Agent/**"
+      - "Credentials/**"
 
 permissions:
   contents: write
