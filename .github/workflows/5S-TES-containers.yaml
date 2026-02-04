@@ -94,6 +94,24 @@ jobs:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       cosign-password: ${{ secrets.COSIGN_PASSWORD }}
       registry-token: ${{ secrets.HARBOR_TOKEN }}
+      
+  credentials-camunda-container:
+    needs: containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    with:
+      job-name: credentials-camunda-container
+      registry: ${{ vars.HARBOR_REGISTRY }}
+      registry-user: ${{ vars.HARBOR_USER }}
+      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
+      release-info: ${{ needs.containers.outputs.release-info }}
+      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+      build-file: Credentials/Credentials.Camunda/Dockerfile
+      build-context: .
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+      registry-token: ${{ secrets.HARBOR_TOKEN }}
     
 
 
