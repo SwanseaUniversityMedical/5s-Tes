@@ -1,6 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useEffect } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -12,11 +15,9 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { RuleColumns } from "@/types/access-rules";
+import { ruleFormSchema, RuleFormData } from "@/types/access-rules";
 
 /* ----- Types ------ */
-
-type RuleFormData = RuleColumns;
 
 type DialogMode = "add" | "edit";
 
@@ -28,7 +29,7 @@ type RuleFormDialogProps = {
   initialData?: RuleFormData;
 };
 
-type FormField = {
+type FormFieldConfig = {
   key: keyof RuleFormData;
   label: string;
   placeholder: string;
@@ -36,7 +37,7 @@ type FormField = {
 
 type FieldCategory = {
   title: string;
-  fields: FormField[];
+  fields: FormFieldConfig[];
 };
 
 /* ----- Constants ------ */
@@ -80,23 +81,23 @@ const FIELD_CATEGORIES: FieldCategory[] = [
   },
   {
     title: "Optional",
-    fields:[
+    fields: [
       {
         key: "description",
         label: "Description",
         placeholder: "Enter rule description",
-      }
-    ]
-  }
+      },
+    ],
+  },
 ];
 
-const INITIAL_FORM_STATE: RuleFormData = {
+const DEFAULT_VALUES: RuleFormData = {
   inputUser: "",
   inputProject: "",
   outputTag: "",
   outputValue: "",
   outputEnv: "",
-  description: "",
+  description: "-",
 };
 
 const DIALOG_CONFIG = {
@@ -121,60 +122,82 @@ export default function RuleFormDialog({
   mode,
   initialData,
 }: RuleFormDialogProps) {
-  const [formData, setFormData] = useState<RuleFormData>(INITIAL_FORM_STATE);
+  const {
+    register,
+    reset,
+    handleSubmit,
+    formState: { errors, isDirty, isSubmitting, isSubmitted },
+  } = useForm<RuleFormData>({
+    resolver: zodResolver(ruleFormSchema),
+    defaultValues: DEFAULT_VALUES,
+    mode: "onSubmit",
+    reValidateMode: "onChange",
+  });
 
   // Reset form when dialog opens
   useEffect(() => {
-    if (isOpen) {
-      setFormData(initialData ?? INITIAL_FORM_STATE);
-    }
-  }, [isOpen, initialData]);
+    if (!isOpen) return;
 
-  const handleFieldChange = (key: keyof RuleFormData, value: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      [key]: value,
-    }));
-  };
+    const nextValues =
+      mode === "edit" ? (initialData ?? DEFAULT_VALUES) : DEFAULT_VALUES;
+    reset(nextValues, { keepDirty: false, keepTouched: false });
+  }, [isOpen, mode, initialData, reset]);
 
-  const handleSubmit = () => {
-    onSubmit(formData);
-    setFormData(INITIAL_FORM_STATE);
+  const submit = handleSubmit((data) => {
+    onSubmit(data);
+    reset(DEFAULT_VALUES);
     onOpenChange(false);
-  };
+  });
 
   const handleCancel = () => {
-    setFormData(INITIAL_FORM_STATE);
+    reset(DEFAULT_VALUES);
     onOpenChange(false);
   };
-
-  // Check if form has any data (for add mode validation)
-  const isFormEmpty = Object.values(formData).every((value) => value === "");
 
   // Get dialog config based on mode
   const config = DIALOG_CONFIG[mode];
 
   // Render a single form field
-  const renderField = ({ key, label, placeholder }: FormField) => (
-    <div key={key} className="grid grid-cols-4 items-center gap-4">
-      <Label htmlFor={key} className="text-right text-sm">
-        {label}
-      </Label>
-      <Input
-        id={key}
-        value={formData[key]}
-        onChange={(e) => handleFieldChange(key, e.target.value)}
-        placeholder={placeholder}
-        className="col-span-3"
-      />
-    </div>
-  );
+  const renderField = ({ key, label, placeholder }: FormFieldConfig) => {
+    const message = errors[key]?.message;
+
+    return (
+      <div key={key} className="grid grid-cols-4 items-start gap-4">
+        <Label htmlFor={key} className="text-right text-sm pt-2">
+          {label}
+        </Label>
+
+        <div className="col-span-3 space-y-1">
+          <Input
+            id={key}
+            placeholder={placeholder}
+            aria-invalid={!!message}
+            className={
+              message ? "border-destructive focus-visible:ring-destructive" : ""
+            }
+            {...register(key)}
+          />
+          {message ? (
+            <p className="text-xs text-destructive">{String(message)}</p>
+          ) : null}
+        </div>
+      </div>
+    );
+  };
+
+  // Check if there are any validation errors
+  const hasErrors = Object.keys(errors).length > 0;
+
+  // Disable submit if form is submitting or in edit mode without changes
+  const disableSubmit = isSubmitting || (mode === "edit" && !isDirty);
 
   // Render category header with lines
   const renderCategoryHeader = (title: string) => (
     <div className="flex items-center gap-3 ">
       <div className="flex-1 h-px bg-border" />
-      <span className="text-sm font-semibold text-muted-foreground">({title})</span>
+      <span className="text-sm font-semibold text-muted-foreground">
+        ({title})
+      </span>
       <div className="flex-1 h-px bg-border" />
     </div>
   );
@@ -182,47 +205,54 @@ export default function RuleFormDialog({
   return (
     <Dialog open={isOpen} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-125">
-
         {/* Dialog Header */}
         <DialogHeader>
           <DialogTitle>{config.title}</DialogTitle>
           <DialogDescription>{config.description}</DialogDescription>
         </DialogHeader>
-
-        {/* Form Content */}
-        <div className="space-y-4 py-4">
-          {FIELD_CATEGORIES.map((category) => (
-            <div key={category.title} className="space-y-3">
-              {renderCategoryHeader(category.title)}
-              <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
-                {category.fields.map(renderField)}
+        <form onSubmit={submit}>
+          {/* Form Content */}
+          <div className="space-y-4 py-4">
+            {isSubmitted && hasErrors ? (
+              <div className="rounded-md border border-destructive/40 bg-destructive/10 p-3">
+                <p className="text-sm text-destructive">
+                  Please fix the highlighted fields.
+                </p>
               </div>
-            </div>
-          ))}
-        </div>
+            ) : null}
+            {FIELD_CATEGORIES.map((category) => (
+              <div key={category.title} className="space-y-3">
+                {renderCategoryHeader(category.title)}
+                <div className="space-y-4 p-4 bg-muted/50 rounded-lg">
+                  {category.fields.map(renderField)}
+                </div>
+              </div>
+            ))}
+          </div>
 
-        {/* Dialog Footer */}
-        <DialogFooter>
-          <Button variant="outline" onClick={handleCancel}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleSubmit}
-            disabled={mode === "add" && isFormEmpty}
-            className="
-              border-2 border-blue-600
-              bg-blue-500
-              text-white
-              hover:bg-blue-600
-              hover:border-blue-700
-              transition-colors
-              disabled:opacity-50
-              disabled:cursor-not-allowed
-            "
-          >
-            {config.submitLabel}
-          </Button>
-        </DialogFooter>
+          {/* Dialog Footer */}
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={handleCancel}>
+              Cancel
+            </Button>
+            <Button
+              type="submit"
+              disabled={disableSubmit}
+              className="
+                border-2 border-blue-600
+                bg-blue-500
+                text-white
+                hover:bg-blue-600
+                hover:border-blue-700
+                transition-colors
+                disabled:opacity-50
+                disabled:cursor-not-allowed
+              "
+            >
+              {config.submitLabel}
+            </Button>
+          </DialogFooter>
+        </form>
       </DialogContent>
     </Dialog>
   );

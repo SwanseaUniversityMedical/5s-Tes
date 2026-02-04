@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 import { resolveJsonReferences } from "./helpers";
+import { agentApiUrl } from "../constants";
 
 interface RequestOptions {
   method?: string;
@@ -14,7 +15,7 @@ interface RequestOptions {
 }
 
 const request = async <T>(url: string, options: RequestOptions = {}) => {
-  const baseUrl = options.baseUrl ?? `${process.env.AGENT_API_URL}/api`;
+  const baseUrl = options.baseUrl ?? `${agentApiUrl}/api`;
 
   let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
   try {
@@ -56,10 +57,21 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
         if (Array.isArray(errorResponse)) {
           errorMessage = errorResponse.join(" * ");
         } else {
-          errorMessage = errorResponse.detail || errorMessage;
+          errorMessage = errorResponse.detail || errorResponse.message || errorResponse.title || errorMessage;
         }
       } catch (error) {
         errorMessage = "Failed to parse error response";
+      }
+
+    // Try to get text body for non-JSON errors
+
+    } else {
+      try {
+        const textBody = await response.text();
+        if (textBody) {
+          errorMessage = textBody.substring(0, 200); // Limit length
+        }
+      } catch (e) {
       }
     }
     throw new Error(errorMessage);

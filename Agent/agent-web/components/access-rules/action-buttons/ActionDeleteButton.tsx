@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import {
   AlertDialog,
@@ -14,32 +16,40 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Trash2 } from "lucide-react";
 import { RuleColumns } from "@/types/access-rules";
-
+import { deleteAccessRule } from "@/api/access-rules";
 
 /* ----- Types ------ */
 
 type ActionDeleteButtonProps = {
   rule: RuleColumns;
-  onDelete: (rule: RuleColumns) => void;
 };
-
 
 /* ----- Delete Button Component for Access Rules ------ */
 
-export default function ActionDeleteButton({
-  rule,
-  onDelete,
-}: ActionDeleteButtonProps) {
+export default function ActionDeleteButton({ rule }: ActionDeleteButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const router = useRouter();
 
-  const handleConfirmDelete = () => {
-    onDelete(rule);
-    setIsOpen(false);
+  const handleConfirmDelete = async () => {
+    if (!rule.ruleId) {
+      toast.error("Cannot delete rule: Missing rule ID");
+      return;
+    }
+
+    const result = await deleteAccessRule(rule.ruleId);
+
+    if (result.success) {
+      toast.success("Rule deleted successfully");
+      setIsOpen(false);
+      router.refresh();
+    } else {
+      toast.error(`Failed to delete rule: ${result.error}`);
+    }
   };
 
   return (
     <>
-    {/* Delete Button - Opens confirmation dialog when clicked */}
+      {/* Delete Button - Opens confirmation dialog when clicked */}
       <Button
         variant="ghost"
         size="icon"

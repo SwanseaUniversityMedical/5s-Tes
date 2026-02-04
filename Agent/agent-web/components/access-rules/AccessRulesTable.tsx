@@ -2,7 +2,7 @@
 
 import { useMemo } from "react";
 import { BaseTable } from "@/components/data-table/BaseTable";
-import { RuleColumns, RuleAction, DUMMY_RULES } from "@/types/access-rules";
+import { DecisionInfo, RuleColumns } from "@/types/access-rules";
 import { createRulesColumns } from "./TableRulesColumns";
 import { HoverAddRow } from "./action-buttons/AddNewRowButton";
 import TopToolbarButtons from "./TopToolbarButtons";
@@ -10,9 +10,8 @@ import TopToolbarButtons from "./TopToolbarButtons";
 /* ----- Types ------ */
 
 type AccessRulesTableProps = {
-  data?: RuleColumns[];
-  onAction?: (action: RuleAction, rule: RuleColumns) => void;
-  onAddRule?: (newRule: RuleColumns) => void;
+  data: RuleColumns[];
+  decisionInfo: DecisionInfo;
   addNewRowButtonLabel?: string;
   onToolbarAction?: (action: "refresh" | "deploy" | "add") => void;
 };
@@ -20,20 +19,12 @@ type AccessRulesTableProps = {
 /* ----- Access Rules Table Component ------ */
 
 export default function AccessRulesTable({
-  data = DUMMY_RULES,
-  onAction,
-  onAddRule,
+  data,
+  decisionInfo,
   addNewRowButtonLabel = "Add New Rule",
   onToolbarAction,
 }: AccessRulesTableProps) {
-  const columns = useMemo(() => createRulesColumns({ onAction }), [onAction]);
-
-  // Handle add rule - passes newRule data to parent
-  const handleAddRule = (newRule: RuleColumns) => {
-    if (onAddRule) {
-      onAddRule(newRule);
-    }
-  };
+  const columns = useMemo(() => createRulesColumns(), []);
 
   return (
     <BaseTable
@@ -41,13 +32,14 @@ export default function AccessRulesTable({
       columns={columns}
       searchPlaceholder="Search rules..."
       renderFooterRow={(colSpan) => (
-        <HoverAddRow
-          colSpan={colSpan}
-          onAdd={handleAddRule}
-          label={addNewRowButtonLabel}
+        <HoverAddRow colSpan={colSpan} label={addNewRowButtonLabel} />
+      )}
+      renderToolbar={() => (
+        <TopToolbarButtons
+          onAction={onToolbarAction}
+          decisionInfo={decisionInfo}
         />
       )}
-      renderToolbar={() => <TopToolbarButtons onAction={onToolbarAction} />}
     />
   );
 }

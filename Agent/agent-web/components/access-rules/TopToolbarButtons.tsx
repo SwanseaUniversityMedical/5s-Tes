@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Plus, RefreshCw, Rocket } from "lucide-react";
 import {
@@ -11,7 +13,8 @@ import {
 
 import DecisionMetadataHoverCard from "./DecisionMetadataCard";
 import RuleFormDialog from "./forms/RulesFormDialog";
-import { RuleColumns } from "@/types/access-rules";
+import { DecisionInfo, RuleFormData } from "@/types/access-rules";
+import { createAccessRule } from "@/api/access-rules";
 
 /* ----- Types ------ */
 
@@ -19,7 +22,7 @@ type TopToolbarAction = "refresh" | "deploy" | "add";
 
 type ToolbarProps = {
   onAction?: (action: TopToolbarAction) => void;
-  onAddRule?: (data: RuleColumns) => void;
+  decisionInfo: DecisionInfo;
 };
 
 type ToolbarActionConfig = {
@@ -66,8 +69,10 @@ const BASE_ACTIONS: ToolbarActionConfig[] = [
 /* ----- Toolbar Buttons Component for Access Rules
 (Metadata, Refresh, Deploy, Add New Rule) ------ */
 
-export default function ToolbarButtons({ onAction, onAddRule }: ToolbarProps) {
+export default function ToolbarButtons({ onAction, decisionInfo }: ToolbarProps) {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const router = useRouter();
+
   const handleActionClick = (id: TopToolbarAction) => {
     if (id === "add") {
       setIsAddDialogOpen(true);
@@ -75,14 +80,28 @@ export default function ToolbarButtons({ onAction, onAddRule }: ToolbarProps) {
     onAction?.(id);
   };
 
-  const handleFormSubmit = (data: RuleColumns) => {
-    onAddRule?.(data);
-    setIsAddDialogOpen(false);
+  const handleFormSubmit = async (data: RuleFormData) => {
+    const result = await createAccessRule({
+      inputUser: data.inputUser,
+      inputProject: data.inputProject,
+      outputTag: data.outputTag,
+      outputValue: data.outputValue,
+      outputEnv: data.outputEnv,
+      description: data.description,
+    });
+
+    if (result.success) {
+      toast.success("Rule created successfully");
+      setIsAddDialogOpen(false);
+      router.refresh();
+    } else {
+      toast.error(`Failed to create rule: ${result.error}`);
+    }
   };
 
   return (
     <div className="flex items-center gap-2.5">
-      <DecisionMetadataHoverCard />
+      <DecisionMetadataHoverCard data={decisionInfo} />
 
       {BASE_ACTIONS.map(({ id, label, Icon, tooltip, variant, className }) => (
         <Tooltip key={id}>

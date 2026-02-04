@@ -1,16 +1,18 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Plus } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { RuleColumns } from "@/types/access-rules";
+import { RuleFormData } from "@/types/access-rules";
+import { createAccessRule } from "@/api/access-rules";
 import RuleFormDialog from "../forms/RulesFormDialog";
 
 /* ----- Types & Constants ----- */
 
 type HoverAddRowProps = {
   colSpan: number;
-  onAdd: (newRule: RuleColumns) => void;
   label?: string;
 };
 
@@ -106,17 +108,32 @@ const buttonClasses = `
 
 export function HoverAddRow({
   colSpan,
-  onAdd,
   label = "Add new row",
 }: HoverAddRowProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const router = useRouter();
 
   const handleRowClick = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = (newRule: RuleColumns) => {
-    onAdd(newRule);
+  const handleSubmit = async (data: RuleFormData) => {
+    const result = await createAccessRule({
+      inputUser: data.inputUser,
+      inputProject: data.inputProject,
+      outputTag: data.outputTag,
+      outputValue: data.outputValue,
+      outputEnv: data.outputEnv,
+      description: data.description,
+    });
+
+    if (result.success) {
+      toast.success("Rule created successfully");
+      setIsDialogOpen(false);
+      router.refresh();
+    } else {
+      toast.error(`Failed to create rule: ${result.error}`);
+    }
   };
 
   return (
