@@ -1,0 +1,86 @@
+﻿@model List<FiveSafesTes.Core.Models.Tre>
+@{
+	ViewData["Title"] = "TREs";
+	var treCount = Model.Count;
+
+
+}
+<div class="container-lg p-4">
+	<div class="d-flex align-items-center justify-content-between">
+		<h1 class="fs-3 mb-0">Trusted Research Environments</h1>
+		@if (User.IsInRole("dare-control-admin"))
+		{
+			<a asp-controller="Tre" asp-action="SaveATre" class="btn btn-primary btn-sm d-flex align-items-center">
+				<i class="fa fa-plus align-middle me-2"></i>
+				<span>Create New TRE</span>
+			</a>
+		}
+	</div>
+	<hr class="d-flex my-4">
+	<div class="row">
+		<div class="col-xl-8 offset-xl-2 col-lg-10 offset-lg-1">
+			<div class="table-responsive">
+				<table id="projectList" class="table table-bordered table-striped no-head">
+					<caption>List of TREs</caption>
+					<thead><tr><th>TRE</th></tr></thead>
+					<tbody>
+						@foreach (var tre in Model)
+						{
+							<tr>
+								<td class="card mb-2 p-3 bg-white shadow-sm border-1">
+
+									<div class="d-flex align-items-center justify-content-between mb-3">
+										<div>
+											<a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })">
+												<h2 class="mb-0 fw-bold hover-underline fs-5">
+													@tre.Name
+												</h2>
+											</a>
+										</div>
+
+										@if (User.IsInRole("dare-control-admin"))
+										{
+											<a href="@Url.Action("SaveATre", "Tre", new { treId = tre.Id })" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
+										}
+
+									</div>
+									<div class="">
+										<a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })#projects" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+											Used By @tre.Projects.Count Projects
+										</a>
+										<a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+											Run @tre.Submissions.Count Submissions
+										</a>
+										@if (tre.IsOnline())
+										{
+											<span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+												<i class="fa-solid fa-check-circle me-1"></i> Online
+											</span>
+										}
+										else
+										{
+											<span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+												<i class="fa-solid fa-ban me-1"></i> Offline
+											</span>
+										}
+
+										<span class="badge  px-2 badge-sm text-dark rounded-pill m-0 ms-3">
+											<i class="fa-solid me-1"></i> last heartbeat was @tre.GetTotalDisplayTime() ago
+										</span>
+
+									</div>
+									<div class="desription-wrapper">
+										<p class="mt-4 mb-0 description">
+											@tre.About
+										</p>
+									</div>
+
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>

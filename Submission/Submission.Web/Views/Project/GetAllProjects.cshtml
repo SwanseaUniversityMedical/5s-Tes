@@ -1,0 +1,86 @@
+﻿@model List<FiveSafesTes.Core.Models.Project>
+@{
+	ViewData["Title"] = "Projects";
+	var projectsCount = Model.Count;
+}
+
+<div class="container-lg p-4">
+	<div class="d-flex align-items-center justify-content-between">
+		<h1 class="fs-3 mb-0">Projects</h1>
+		@if (User.IsInRole("dare-control-admin"))
+		{
+			<a asp-controller="Project" asp-action="SaveProjectForm" class="btn btn-primary btn-sm d-flex align-items-center">
+				<i class="fa fa-plus align-middle me-2"></i>
+				<span>Create Project</span>
+			</a>
+		}
+	</div>
+	<hr class="d-flex my-4">
+	<div class="row">
+		<div class="col-xl-8 offset-xl-2 col-lg-10 offset-lg-1">
+			<div class="table-responsive">
+				<table id="projectList" class="table table-bordered table-striped no-head">
+					<caption>List of Projects</caption>
+					<thead><tr><th>Project</th></tr></thead>
+					<tbody>
+						@foreach (var project in Model)
+						{
+							<tr>
+								<td class="card mb-2 p-3 bg-white shadow-sm border-1">
+
+									<div class="d-flex align-items-center justify-content-between mb-3">
+										<div>
+											<a href="@Url.Action("GetProject", "Project", new { id = project.Id })">
+												<h2 class="mb-0 fw-bold hover-underline fs-5">
+													@project.Name
+												</h2>
+											</a>
+											<p class="text-muted font-monospace small mb-0">#@project.Id</p>
+										</div>
+										<div>
+
+											@if (User.IsInRole("dare-control-admin"))
+											{
+												<a href="@Url.Action("SaveProjectForm", "Project", new { ProjectId = @project.Id })" class="btn btn-sm btn-outline-primary ms-2"><span class="small">Edit</span></a>
+											}
+										</div>
+									</div>
+									<div class="">
+										<a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+											@project.Submissions.Where(x => x.Parent == null).ToList().Count Submissions
+										</a>
+										<a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+											@project.Users.Count People
+										</a>
+										<a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+											@project.Tres.Count TREs
+										</a>
+									</div>
+									@*                            <p class="my-4">
+                                @Html.Raw(project.Display?.Replace("\n","<br/>"))
+                                </p>*@
+									<p class="text-muted fs-7 mt-4 mb-0">
+										Start Date: @project.StartDate.ToString("dd/MM/yyyy") <span class="mx-2"></span>End Date: @project.EndDate.ToString("dd/MM/yyyy")
+									</p>
+									@{
+										if (project.ProjectDescription == null || project.ProjectDescription == "")
+										{
+										}
+										else
+										{
+											<div class="description-wrapper mt-4">
+												<p class="description">
+													@project.ProjectDescription
+												</p>
+											</div>
+										}
+									}
+								</td>
+							</tr>
+						}
+					</tbody>
+				</table>
+			</div>
+		</div>
+	</div>
+</div>

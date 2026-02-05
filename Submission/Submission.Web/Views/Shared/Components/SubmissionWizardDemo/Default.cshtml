@@ -1,0 +1,68 @@
+@model FiveSafesTes.Core.Models.ViewModels.AddiSubmissionWizard
+@{
+    ViewData["Title"] = "Submission Wizard";
+}
+
+<partial name="../Shared/_ProjectNav"/>
+@using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmMainDemo" }))
+{
+    @Html.HiddenFor(x => x.ProjectId)
+    {
+        <h1 class="fs-4 mt-5">
+            Demo TES Wizard<br>
+        </h1>
+        <div class="col-md-4 mb-4">
+            <label class="fw-bold">Select TREs</label>
+            @for (var i = 0; i < Model.TreRadios.Count(); i++)
+            {
+                <div class="d-flex align-items-center mb-2">
+                    <div class="form-check">
+                        @Html.HiddenFor(x => x.TreRadios[i].Name)
+                        @Html.CheckBoxFor(x => x.TreRadios[i].IsSelected, new { @class = "form-check-input" })
+                        <label class="form-check-label" for="flexCheckDefault">
+                            @Model.TreRadios[i].Name
+                        </label>
+                    </div>
+                    @if (Model.TreRadios[i].IsOnline)
+                    {
+                        <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-check-circle me-1"></i> Online
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-ban me-1"></i> Offline
+                        </span>
+                    }
+                </div>
+            }
+            @if (Model.TreRadios.Count() < 1)
+            {
+                <p class="text-danger">No available TREs</p>
+            }
+        </div>
+        
+        <label class="fw-bold">TES JSON</label>
+
+        @Html.TextArea("JsonData", Model.JsonData, new
+        {
+            @class = "form-control",
+            rows = "15",
+            style = "font-family: monospace;",
+            @readonly = "readonly"
+        })
+
+        <div class="d-flex align-items-center mt-5">
+            <button type="submit" class="btn btn-sm btn-primary">Submit</button>
+            <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-sm btn-link">Cancel</a>
+        </div>
+    }
+}
+
+
+
+
+
+
+

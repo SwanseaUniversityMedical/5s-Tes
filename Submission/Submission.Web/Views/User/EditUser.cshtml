@@ -1,0 +1,51 @@
+﻿@using FiveSafesTes.Core.Models
+@model User
+@{
+    ViewData["Title"] = "Edit @Model.Name";
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="fs-3 mb-0">@Model.Name</h1>
+            <p class="text-muted small mb-0">#@Model.Id</p>
+        </div>
+        <a href="@Url.Action("GetUser", "User", new { id = Model.Id })" class="btn btn-link">
+            <span>Cancel</span>
+        </a>
+    </div>
+    <div class="mt-4">
+        <div class="row">
+            <div class="col-md-6">
+
+                <div id="errorMsg"
+                     style="color: #D63301; background-color: #FFCCBA; background-image: url('https://i.imgur.com/GnyDvKN.png'); border: 1px solid;margin: 10px 0px;padding: 15px 10px 15px 50px;background-repeat: no-repeat;background-position: 10px center;display: none;"></div>
+                <div id="FormId">
+                    <div class="my-4"><img src="~/images/loader.gif" width="30" height="30" alt="Loading..."/> <span
+                            class="ml-2 g-font-weight-600">Loading...</span></div>
+                </div>
+                <button id="ExternalSubmit" data-modal-target="#SubmitForReview" data-modal-effect="blur" type="button"
+                        class="btn btn-md btn-primary mr-2">
+                    <em class="hs-admin-export align-middle g-font-weight-600 mr-2"></em>
+                    Submit Form
+                </button>
+                <div id="SubmitForReview"
+                     class="text-left g-width-400 g-bg-white g-overflow-y-auto g-pa-20 g-overflow-y-auto"
+                     style="display: none;">
+                    <div class="text-right">
+                        <button type="button" class="btn btn-link mr-2 text-decoration-none"
+                                onclick="Custombox.modal.close();">
+                            <em class="hs-admin-close g-font-size-22"></em>
+                        </button>
+                    </div>
+                </div>
+                <script>
+                    window.onload = function () {
+                        renderForm(@Html.Raw(Json.Serialize(Model)), "https://bthbspqizezypsb.form.io/dareuser/dareuserregistration", @Html.Raw(Json.Serialize(Model?.FormData)) , '/User/UserEditFormSubmission');
+                    }
+                </script>
+            </div>
+        </div>
+    </div>
+</div>

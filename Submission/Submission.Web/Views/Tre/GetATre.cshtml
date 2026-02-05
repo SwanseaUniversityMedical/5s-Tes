@@ -1,0 +1,125 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@model FiveSafesTes.Core.Models.Tre
+@{
+    ViewData["Title"] = @Model.Name;
+
+
+}
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="fs-3 mb-0">@Model.Name</h1>
+        </div>
+        @if (User.IsInRole("dare-control-admin"))
+        {
+            <a href="@Url.Action("SaveATre", "Tre", new { treId = Model.Id })" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
+        }
+    </div>
+    <div class="mt-4">
+        <ul class="nav nav-underline border-bottom" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a href="#about" class="nav-link text-dark active" id="about" data-bs-toggle="tab" data-bs-target="#tre" role="tab" aria-controls="TRE" aria-selected="true">About</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#projects" class="nav-link text-dark" id="projects" data-bs-toggle="tab" data-bs-target="#projects-tab" role="tab" aria-controls="projects" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Projects</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Projects.Count</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#submissions" class="nav-link text-dark" id="submissions" data-bs-toggle="tab" data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Submissions</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count</span>
+                    </div>
+                </a>
+            </li>
+        </ul>
+
+
+        <div class="tab-content py-5" id="myTabContent">
+            <div class="tab-pane fade show active" id="tre" role="tabpanel" aria-labelledby="tre">
+                <div class="row">
+                    <div class="col-md-6">
+                        <p class="mb-0">
+                            @Model.About
+                            Last heartbeat Received: @Model.LastHeartBeatReceived
+                            @if (Model.IsOnline())
+                            {
+                                <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                                    <i class="fa-solid fa-check-circle me-1"></i> Online
+                                </span>
+                            }
+                            else
+                            {
+                                <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                                    <i class="fa-solid fa-ban me-1"></i> Offline
+                                </span>
+                            }
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
+                <div class="row">
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.Submissions.ToList(), UseParent = true})
+                </div>
+            </div>
+            <div class="tab-pane fade" id="projects-tab" role="tabpanel" aria-labelledby="projects">
+                <div class="row">
+                    <div class="col-xl-8 col-lg-10">
+                        <div class="table-responsive">
+                            <div class="table-responsive">
+                                <table id="projectList" class="table no-head">
+                                    <caption>List of Projects</caption>
+                                    <thead><tr><th>Project</th></tr></thead>
+                                    <tbody>
+                                        @foreach (var project in Model.Projects)
+                                        {
+                                            <tr>
+                                                <td class="card mb-2 p-3 bg-white shadow-sm border-1">
+
+                                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                                        <div>
+                                                            <a href="@Url.Action("GetProject", "Project", new { id = project.Id })">
+                                                                <h2 class="mb-0 fw-bold hover-underline fs-5">
+                                                                    @project.Name
+                                                                </h2>
+                                                            </a>
+                                                            <p class="text-muted small mb-0">#@project.Id</p>
+                                                        </div>
+                                                        <a href="@Url.Action("SaveProjectForm", "Project", new { Projectid = @project.Id })" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
+                                                    </div>
+                                                    <div class="">
+                                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                                            @project.Submissions.Count Submissions
+                                                        </a>
+                                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                                            @project.Users.Count People
+                                                        </a>
+                                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                                            @project.Tres.Count TREs
+                                                        </a>
+                                                    </div>
+                                                    <p class="my-4">
+                                                        Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
+                                                        Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in...
+                                                    </p>
+                                                    <p class="text-muted fs-7 mb-0">
+                                                        LastStatusUpdate Date: @project.StartDate <span class="mx-2"></span>End Date: @project.EndDate
+                                                    </p>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
