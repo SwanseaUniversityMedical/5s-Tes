@@ -68,7 +68,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\Shared\Credentials.Models\Credentials.Models.csproj" />
+    <ProjectReference Include="..\..\Credentials\Credentials.Models\Credentials.Models.csproj" />
     <ProjectReference Include="..\..\Shared\FiveSafesTes.Core\FiveSafesTes.Core.csproj" />
   </ItemGroup>
 

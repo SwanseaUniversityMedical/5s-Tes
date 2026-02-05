@@ -1,0 +1,38 @@
+name: Sonar
+
+on:
+  pull_request:
+    # Only consider PRs that change files for this asset, including ci scripts
+    paths:
+      - ".github/workflows/sonar.yaml"
+      - "Agent/**"
+      - "Shared/**"
+  push:
+    # Only release off of release and maintenance branches for this asset
+    branches:
+      - "main"
+    # Only consider pushes that change files for this asset, including ci scripts
+    paths:
+      - ".github/workflows/sonar.yaml"
+      - "Agent/**"
+      - "Shared/**"
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  # Cancel early on pull requests if new commits are added,
+  # Don't cancel on release pushes
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan-code:
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.1.1-generic-sonar
+    with:
+      sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
+      project-key: 5s-Tes
+    secrets:
+      sonar-token: ${{ secrets.FEDA_SONAR_TOKEN }}

@@ -54,7 +54,7 @@ namespace Agent.Api.Controllers
             else
             {
                 var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "Tre-Camunda", "ProcessModels", "credentials.dmn"));
+                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials","Credentials.Models","ProcessModels", "credentials.dmn"));
             }
 
             _logger.LogInformation($"DMN file path resolved to: {path}");
