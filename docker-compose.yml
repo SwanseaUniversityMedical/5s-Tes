@@ -1,0 +1,429 @@
+version: '3.5'
+
+services:
+  postgres:
+    image: postgres
+    mem_limit: 2G
+    mem_reservation: 1G
+    cpus: 0.5
+    #container_name: postgres
+    restart: always
+    ports:
+      - 32769:5432
+    volumes:
+      - postgres:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    environment:
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=password123
+      - POSTGRES_DB=DARE-Control
+      - POSTGRES_DB=myCoolDataDB
+    networks:
+      - communicating
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    mem_limit: 512M
+    mem_reservation: 256M
+    cpus: 0.5
+    restart: unless-stopped
+    container_name: 'rabbitmq'
+    ports:
+        - 5672:5672
+        - 15672:15672
+    volumes:
+#        - ~/.docker-conf/rabbitmq/data/:/var/lib/rabbitmq/
+#        - ~/.docker-conf/rabbitmq/log/:/var/log/rabbitmq
+        - rabbitmq:/var/lib/rabbitmq/
+  adminer:
+    image: adminer
+    mem_limit: 256M
+    mem_reservation: 128M
+    cpus: 0.1
+    restart: always
+    ports:
+      - 8087:8080
+    networks:
+      - communicating
+
+  zeebe: # https://docs.camunda.io/docs/self-managed/platform-deployment/docker/#zeebe
+    image: camunda/zeebe:${CAMUNDA_PLATFORM_VERSION}
+    container_name: zeebe
+    ports:
+      - "26500:26500"
+      - "9600:9600"
+    environment: # https://docs.camunda.io/docs/self-managed/zeebe-deployment/configuration/environment-variables/
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_CLASSNAME=io.camunda.zeebe.exporter.ElasticsearchExporter
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_URL=http://elasticsearch:9200
+      # default is 1000, see here: https://github.com/camunda/zeebe/blob/main/exporters/elasticsearch-exporter/src/main/java/io/camunda/zeebe/exporter/ElasticsearchExporterConfiguration.java#L259
+      - ZEEBE_BROKER_EXPORTERS_ELASTICSEARCH_ARGS_BULK_SIZE=1
+      # allow running with low disk space
+      - ZEEBE_BROKER_DATA_DISKUSAGECOMMANDWATERMARK=0.998
+      - ZEEBE_BROKER_DATA_DISKUSAGEREPLICATIONWATERMARK=0.999
+      - "JAVA_TOOL_OPTIONS=-Xms512m -Xmx512m"
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "timeout 10s bash -c ':> /dev/tcp/127.0.0.1/9600' && timeout 10s bash -c ':> /dev/tcp/127.0.0.1/26500' || exit 1" ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    volumes:
+      - zeebe:/usr/local/zeebe/data
+    networks:
+      - camunda-platform
+    depends_on:
+      - elasticsearch
+
+  operate: # https://docs.camunda.io/docs/self-managed/platform-deployment/docker/#operate
+    image: camunda/operate:${CAMUNDA_PLATFORM_VERSION}
+    container_name: operate
+    ports:
+      - "8081:8080"
+    environment: #http://localhost:8081/swagger-ui/index.html#/ProcessInstance/byKey_1
+      - CAMUNDA_OPERATE_ZEEBE_GATEWAYADDRESS=zeebe:26500
+      - CAMUNDA_OPERATE_ELASTICSEARCH_URL=http://elasticsearch:9200
+      - CAMUNDA_OPERATE_ZEEBEELASTICSEARCH_URL=http://elasticsearch:9200
+      - management.endpoints.web.exposure.include=health
+      - management.endpoint.health.probes.enabled=true     
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -O - -q 'http://localhost:8080/actuator/health/readiness'" ]
+      interval: 30s
+      timeout: 1s
+      retries: 5
+      start_period: 30s
+    networks:
+      - camunda-platform
+    depends_on:
+      - zeebe
+      - elasticsearch
+
+  connectors: # https://docs.camunda.io/docs/components/integration-framework/connectors/out-of-the-box-connectors/available-connectors-overview/
+    image: camunda/connectors-bundle:${CAMUNDA_CONNECTORS_VERSION}
+    container_name: connectors
+    ports:
+      - "8085:8080"
+    environment:
+      - ZEEBE_CLIENT_BROKER_GATEWAY-ADDRESS=zeebe:26500
+      - ZEEBE_CLIENT_SECURITY_PLAINTEXT=true
+      - CAMUNDA_OPERATE_CLIENT_URL=http://operate:8080
+      - CAMUNDA_OPERATE_CLIENT_USERNAME=demo
+      - CAMUNDA_OPERATE_CLIENT_PASSWORD=demo
+      - management.endpoints.web.exposure.include=health
+      - management.endpoint.health.probes.enabled=true
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:8080/actuator/health/readiness" ]
+      interval: 30s
+      timeout: 1s
+      retries: 5
+      start_period: 30s
+    env_file: connector-secrets.txt
+    networks:
+      - camunda-platform
+    depends_on:
+      - zeebe
+      - operate 
+  
+  elasticsearch: # https://hub.docker.com/_/elasticsearch
+    image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
+    container_name: elasticsearch
+    ports:
+      - "9200:9200"
+      - "9300:9300"
+    environment:
+      - bootstrap.memory_lock=true
+      - discovery.type=single-node
+      - xpack.security.enabled=false
+      # allow running with low disk space
+      - cluster.routing.allocation.disk.threshold_enabled=false
+      - "ES_JAVA_OPTS=-Xms512m -Xmx512m"
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    restart: always
+    healthcheck:
+      test: [ "CMD-SHELL", "curl -f http://localhost:9200/_cat/health | grep -q green" ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    volumes:
+      - elastic:/usr/share/elasticsearch/data
+    networks:
+      - camunda-platform
+  minio:
+    image: quay.io/minio/minio
+    mem_limit: 512M
+    mem_reservation: 256M
+    cpus: 0.1
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+      - MINIO_IDENTITY_OPENID_CONFIG_URL=https://auth2.ukserp.ac.uk/realms/Dare-Control/.well-known/openid-configuration
+      - MINIO_IDENTITY_OPENID_CLIENT_ID=Dare-Control-Minio
+      - MINIO_IDENTITY_OPENID_CLIENT_SECRET=MfjRrZJn6vL48MgCyoRn6H8Rr7sv02i0
+      - MINIO_IDENTITY_OPENID_DISPLAY_NAME=SSO_IDENTIFIER
+      - MINIO_IDENTITY_OPENID_SCOPES=openid
+      - MINIO_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC=on
+    volumes:
+      - minio_data:/data
+    ports:
+      - 9000:9000
+      - 9001:9001
+  minio2:
+    image: quay.io/minio/minio
+    mem_limit: 512M
+    mem_reservation: 256M
+    cpus: 0.1
+    container_name: minio2
+    restart: always
+    command: server /data --console-address ":9001"
+    environment:
+      - MINIO_ROOT_USER=minio
+      - MINIO_ROOT_PASSWORD=minio123
+      - MINIO_IDENTITY_OPENID_CONFIG_URL=https://auth2.ukserp.ac.uk/realms/Dare-TRE/.well-known/openid-configuration
+      - MINIO_IDENTITY_OPENID_CLIENT_ID=Dare-TRE-Minio
+      - MINIO_IDENTITY_OPENID_CLIENT_SECRET=dZx08fCXVjonxBqg54CFvFv9MteoaqAT
+      - MINIO_IDENTITY_OPENID_DISPLAY_NAME=SSO_IDENTIFIER
+      - MINIO_IDENTITY_OPENID_SCOPES=openid
+      - MINIO_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC=on
+    volumes:
+      - minio2_data:/data
+    ports:
+      - 9002:9000
+      - 9003:9001
+    networks:   
+      - minio-network
+  seq:
+    image: datalust/seq:2025.1.14095
+    mem_limit: 2G
+    mem_reservation: 1G
+    cpus: 0.5
+    container_name: seq
+    restart: always
+    ports:
+      - 5341:80
+    volumes:
+      - seq_data:/data
+    environment:
+      - ACCEPT_EULA=Y
+
+  opaservice:
+    image: openpolicyagent/opa:latest
+    restart: always
+    ports:
+      - 8181:8181 
+    command:
+      - "run"
+      - "--server" 
+      - "-c"
+      - "config.yaml"
+    networks:
+      - communicating
+    volumes:
+      - ./OPASettings/config.yaml:/config.yaml
+  vault:
+    image: hashicorp/vault:latest
+    container_name: vault
+    mem_limit: 512M
+    mem_reservation: 256M
+    cpus: 0.2
+    restart: always
+    ports:
+      - "8200:8200"
+    environment:
+      - VAULT_DEV_ROOT_TOKEN_ID=dev-only-token
+      - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
+      - VAULT_ADDR=http://127.0.0.1:8200
+    volumes:
+      - vault_data:/vault/data
+      - vault_logs:/vault/logs
+      - ./vault-config:/vault/config:ro
+    cap_add:
+      - IPC_LOCK
+    networks:
+      - communicating
+    healthcheck:
+      test: ["CMD-SHELL", "vault status || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    command: ["vault", "server", "-dev", "-dev-root-token-id=dev-only-token"]
+  
+
+  openldap:
+    image: osixia/openldap:1.5.0
+    container_name: openldap
+    environment:
+        LDAP_LOG_LEVEL: "256"
+        LDAP_ORGANISATION: "TRE Ephemeral Credentials"
+        LDAP_DOMAIN: "camundaephemeral.local"
+        LDAP_ADMIN_PASSWORD: "admin"
+        LDAP_CONFIG_PASSWORD: "config"
+        LDAP_TLS: "false"
+        LDAP_ADD_LDIF_URL: "file:///container/service/slapd/assets/init.ldif"
+    volumes:
+    - openldap_data:/var/lib/ldap
+    - openldap_config:/etc/ldap/slapd.d
+    - ./ldap-init/init.ldif:/container/service/slapd/assets/init.ldif
+    ports:
+     - "1389:389"
+     - "1636:636"
+    domainname: "camundaephemeral.local"
+    hostname: "ldap.camundaephemeral.local"
+    tty: true
+    stdin_open: true
+
+## Ldap initialisation to create Users OU ##
+  ldap-init:
+    image: osixia/openldap:1.5.0
+    depends_on:
+      - openldap
+    entrypoint: >
+      sh -c "
+        for i in $(seq 1 30); do
+          ldapsearch -x -H ldap://openldap -D 'cn=admin,dc=camundaephemeral,dc=local' -w admin -b 'dc=camundaephemeral,dc=local' && break
+          sleep 2
+        done
+        ldapadd -x -H ldap://openldap -D 'cn=admin,dc=camundaephemeral,dc=local' -w admin -f /container/service/slapd/assets/init.ldif || true
+      "
+    volumes:
+      - ./ldap-init/init.ldif:/container/service/slapd/assets/init.ldif
+ 
+ 
+  phpldapadmin:
+    image: osixia/phpldapadmin:latest
+    container_name: phpldapadmin
+    environment:
+      PHPLDAPADMIN_LDAP_HOSTS: "openldap"
+      PHPLDAPADMIN_HTTPS: "false"
+    ports:
+      - "8080:80"
+    depends_on:
+      - openldap
+
+  
+   # command:
+   #   - "run" 
+   #   - "stuff/bundle.tar.gz"
+      
+    #command:
+    #  - "build" 
+    #  - "-b" 
+    #  - "--debug"
+    #  - "stuff/"
+    #  - "-o"
+    #  - "stuff/bundle.tar.gz"
+    #networks:
+    #  - communicating
+    #volumes:
+    #  - ./OPASettings:/stuff:rw
+      
+  #postgresHasura:
+  #  image: postgres:15
+  #  restart: always
+  #  ports:
+  #    - 32770:5432
+  #  volumes:
+  #    - postgresHasura:/var/lib/postgresql/data
+  #  environment:
+  #    POSTGRES_PASSWORD: postgrespassword
+
+  #graphql-engine:
+  #  image: hasura/graphql-engine
+  #  ports:
+  #    - "8080:8080"
+  #  restart: always
+  #  environment:
+  #    ## postgres database to store Hasura metadata
+  #    HASURA_GRAPHQL_METADATA_DATABASE_URL: postgres://postgres:password123@postgres:5432/postgres
+  #    ## this env var can be used to add the above postgres database to Hasura as a data source. this can be removed/updated based on your needs
+  #    PG_DATABASE_URL: postgres://postgres:password123@postgres:5432/postgres
+  #    ## enable the console served by server
+  #    HASURA_GRAPHQL_ENABLE_CONSOLE: "true" # set to "false" to disable console
+  #    ## enable debugging mode. It is recommended to disable this in production
+  #    HASURA_GRAPHQL_DEV_MODE: "true"
+  #    HASURA_GRAPHQL_ENABLED_LOG_TYPES: startup, http-log, webhook-log, websocket-log, query-log
+  #    ## uncomment next line to run console offline (i.e load console assets from server instead of CDN)
+  #    # HASURA_GRAPHQL_CONSOLE_ASSETS_DIR: /srv/console-assets
+  #    ## uncomment next line to set an admin secret
+  #    # HASURA_GRAPHQL_ADMIN_SECRET: myadminsecretkey
+  #    HASURA_GRAPHQL_METADATA_DEFAULTS: '{"backend_configs":{"dataconnector":{"athena":{"uri":"http://data-connector-agent:8081/api/v1/athena"},"mariadb":{"uri":"http://data-connector-agent:8081/api/v1/mariadb"},"mysql8":{"uri":"http://data-connector-agent:8081/api/v1/mysql"},"oracle":{"uri":"http://data-connector-agent:8081/api/v1/oracle"},"snowflake":{"uri":"http://data-connector-agent:8081/api/v1/snowflake"}}}}'
+  #    POSTGRSS_LOGIN: 'postgres://postgres:password123@postgres:5432/myCoolDataDB'
+  #    HASURA_GRAPHQL_AUTH_HOOK: 'http://host.docker.internal:5269/api/HasuraAuthentication'
+  #    HASURA_GRAPHQL_ADMIN_SECRET: 'ohCOOl'
+  #  networks:
+  #    - communicating
+  #  depends_on:
+  #    data-connector-agent:
+  #      condition: service_healthy
+  #data-connector-agent:
+  #  image: hasura/graphql-data-connector
+  #  restart: always
+  #  ports:
+  #    - 8081:8081
+  #  environment:
+  #    QUARKUS_LOG_LEVEL: ERROR # FATAL, ERROR, WARN, INFO, DEBUG, TRACE
+  #    ## https://quarkus.io/guides/opentelemetry#configuration-reference
+  #    QUARKUS_OPENTELEMETRY_ENABLED: "false"
+  #    ## QUARKUS_OPENTELEMETRY_TRACER_EXPORTER_OTLP_ENDPOINT: http://jaeger:4317
+  #  healthcheck:
+  #    test: ["CMD", "curl", "-f", "http://localhost:8081/api/v1/athena/health"]
+  #    interval: 5s
+  #    timeout: 10s
+  #    retries: 5
+  #    start_period: 5s
+  #  networks:
+  #    - communicating
+    
+#  control:
+#    image: harbor.ukserp.ac.uk/dare/control:1.0.0
+#    restart: always
+#    ports:
+#      - 8088:80
+#    environment:
+#      CONNECTIONSTRINGS__DEFAULTCONNECTION: "Server=postgres;Port=32769;Database=DARE-Control;UserId=postgres;Password=password123;"
+######################################################
+# VOLUME
+######################################################
+volumes:
+    postgres:
+      driver: local
+    #postgresHasura:
+    #  driver: local
+    camunda-data:
+      driver: local
+    zeebe:
+      driver: local
+    elastic:
+      driver: local
+    minio_data:
+      driver: local
+    minio2_data:
+      driver: local
+    seq_data:
+      driver: local
+    rabbitmq:
+      driver: local
+    vault_data:
+      driver: local
+    vault_logs:
+      driver: local
+    openldap_data:
+     driver: local
+    openldap_config:
+     driver: local
+
+######################################################
+# networks
+######################################################      
+networks:
+  communicating:
+    driver: bridge
+  camunda-platform:
+    driver: bridge
+  minio-network:
+    driver: bridge

@@ -1,0 +1,76 @@
+﻿
+<div class="container mt-5">
+    @if (ViewBag.SearchResults != null && ViewBag.SearchResults.Count > 0)
+    {
+        <ul>
+            @foreach (var result in ViewBag.SearchResults)
+            {
+                <li>@result</li>
+            }
+        </ul>
+    }
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-md-5 g-4">
+
+        <div class="col">
+            <a class="card shadow-sm" href="@Url.Action("GetAllProjects","Approval", new {showOnlyUnprocessed = false })">
+            <img class="card-img-top" src="/img/shutterstock_1081970570-Reduced-740x481.jpg" alt="TREs image"/>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">All Projects</h4>
+                        <span class="badge bg-dark-blue rounded-pill">X</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a class="card shadow-sm" href="@Url.Action("GetAllProjects","Approval", new {showOnlyUnprocessed = true })">
+                
+                <img class="card-img-top" src="/img/shutterstock_376975414-740x481.jpg.webp" alt="People image" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">Undecided Projects</h4>
+                        <span class="badge bg-dark-blue rounded-pill">X</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a class="card shadow-sm" href="@Url.Action("EditMemberships","Approval", new { projectId = 0, showOnlyUnprocessed = false })">
+                <img class="card-img-top" src="/img/data-image.jpg" alt="People image"/>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">All Memberships</h4>
+                        <span class="badge bg-dark-blue rounded-pill">X</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a class="card shadow-sm" href="@Url.Action("EditMemberships","Approval", new { projectId = 0, showOnlyUnprocessed = true })">
+            
+                <img class="card-img-top" src="/img/about-banner.jpg" alt="TREs image"/>
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">Undecided Memberships</h4>
+                        <span class="badge bg-dark-blue rounded-pill">X</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        @*<div class="col">
+            <a asp-area="" asp-controller="Project" asp-action="GetAllDisabledMemberships" class="card shadow-sm">
+                <img class="card-img-top" src="/img/shutterstock_376975414-740x481.jpg.webp" alt="People image" />
+
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">Disabled Memberships</h4>
+                        <span class="badge bg-dark-blue rounded-pill">X</span>
+                    </div>
+                </div>
+            </a>
+        </div>*@
+
+
+
+    </div>
+</div>

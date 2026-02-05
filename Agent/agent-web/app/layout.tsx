@@ -4,6 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
+import { PublicEnvScript } from "next-runtime-env";
 
 export const metadata: Metadata = {
   title: "Agent Web UI",
@@ -57,6 +58,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <PublicEnvScript />
+      </head>
       <body className="antialiased">
         <ThemeProvider
           attribute="class"
