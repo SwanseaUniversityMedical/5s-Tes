@@ -4,6 +4,12 @@ import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { HelpCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +39,7 @@ type FormFieldConfig = {
   key: keyof RuleFormData;
   label: string;
   placeholder: string;
+  tooltip?: string;
 };
 
 type FieldCategory = {
@@ -51,11 +58,17 @@ const FIELD_CATEGORIES: FieldCategory[] = [
         key: "inputUser",
         label: "Input: user",
         placeholder: "Enter user input",
+        tooltip:
+          "Enter '-' for matching Input User Value as 'Any' \
+        or leave empty to use value as 'Empty'.",
       },
       {
         key: "inputProject",
         label: "Input: project",
         placeholder: "Enter project input",
+        tooltip:
+          "Enter '-' for matching Input Project Value as 'Any' \
+        or leave empty to use value as 'Empty'.",
       },
     ],
   },
@@ -65,17 +78,26 @@ const FIELD_CATEGORIES: FieldCategory[] = [
       {
         key: "outputTag",
         label: "Output: tag",
-        placeholder: "Enter output tag",
+        placeholder: "Enter output tag (eg: 'postgres')",
+        tooltip:
+          "Use quotes for fixed values (string literals) \
+        or use expressions for dynamic values.",
       },
       {
         key: "outputValue",
         label: "Output: value",
-        placeholder: "Enter output value",
+        placeholder: "Enter output value (eg: 'postgres')",
+        tooltip:
+          "Use quotes for fixed values (string literals) \
+        or use expressions for dynamic values.",
       },
       {
         key: "outputEnv",
         label: "Output: env",
-        placeholder: "Enter output environment",
+        placeholder: "Enter env value (eg: 'postgres')",
+        tooltip:
+          "Use quotes for fixed values (string literals) \
+        or use expressions for dynamic values.",
       },
     ],
   },
@@ -145,7 +167,7 @@ export default function RuleFormDialog({
 
   const submit = handleSubmit(async (data) => {
     const success = await onSubmit(data);
-    
+
     // Only close dialog and reset form if the operation was successful
     if (success) {
       reset(DEFAULT_VALUES);
@@ -162,16 +184,40 @@ export default function RuleFormDialog({
   const config = DIALOG_CONFIG[mode];
 
   // Render a single form field
-  const renderField = ({ key, label, placeholder }: FormFieldConfig) => {
+  const renderField = ({
+    key,
+    label,
+    placeholder,
+    tooltip,
+  }: FormFieldConfig) => {
     const message = errors[key]?.message;
 
     return (
-      <div key={key} className="grid grid-cols-4 items-start gap-4">
-        <Label htmlFor={key} className="text-right text-sm pt-2">
+      <div
+        key={key}
+        className="grid grid-cols-[100px_12px_1fr] items-start gap-0"
+      >
+        {/* Label */}
+        <Label htmlFor={key} className="text-left text-sm pt-2 min-w-0">
           {label}
         </Label>
-
-        <div className="col-span-3 space-y-1">
+        {/* Tooltip icon */}
+        <div className="flex items-center justify-center h-full">
+          {tooltip && (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <span className="cursor-pointer align-middle text-muted-foreground">
+                  <HelpCircle size={16} aria-label="Help" />
+                </span>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-52">
+                {tooltip}
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+        {/* Input field */}
+        <div className="space-y-1 ml-3">
           <Input
             id={key}
             placeholder={placeholder}
