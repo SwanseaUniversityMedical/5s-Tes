@@ -6,6 +6,7 @@ import { PageHeader } from "@/components/core/page-header";
 
 import { getAccessRules } from "@/api/access-rules";
 import { FetchError } from "@/components/core/fetch-error";
+import { ValidationProvider } from "@/components/access-rules/ValidationContext";
 import RulesValidationBadge from "@/components/access-rules/status-badge/RulesValidationBadge";
 
 // Metadata for the Access Rules page
@@ -28,31 +29,33 @@ export default async function AccessRules() {
   const { rules, info } = result.data;
 
   return (
-    <div>
-      <PageHeader
-        title="Access Rules"
-        action={<RulesValidationBadge className="mt-1" />}
-        description={
-          <>
-            Configure the{" "}
-            <a
-              href="https://docs.federated-analytics.ac.uk/submission/tasks/run_analysis#update-the-dmn-rules"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <Button
-                variant="link"
-                className="p-0 font-semibold text-md cursor-pointer"
+    <ValidationProvider>
+      <div>
+        <PageHeader
+          title="Access Rules"
+          action={<RulesValidationBadge className="mt-1" />}
+          description={
+            <>
+              Configure the{" "}
+              <a
+                href="https://docs.federated-analytics.ac.uk/submission/tasks/run_analysis#update-the-dmn-rules"
+                target="_blank"
+                rel="noopener noreferrer"
               >
-                DMN Rules
-              </Button>
-            </a>{" "}
-            to access TRE Database.
-          </>
-        }
-        className="mb-0"
-      />
-      <AccessRulesTable data={rules} decisionInfo={info} />
-    </div>
+                <Button
+                  variant="link"
+                  className="p-0 font-semibold text-md cursor-pointer"
+                >
+                  DMN Rules
+                </Button>
+              </a>{" "}
+              to access TRE Database.
+            </>
+          }
+          className="mb-0"
+        />
+        <AccessRulesTable data={rules} decisionInfo={info} />
+      </div>
+    </ValidationProvider>
   );
 }
