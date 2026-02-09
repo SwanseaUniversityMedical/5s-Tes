@@ -14,10 +14,7 @@ interface RequestOptions {
   baseUrl?: string;
 }
 
-const request = async <T>(url: string, options: RequestOptions = {}) => {
-  const baseUrl = options.baseUrl ?? `${agentApiUrl}/api`;
-
-  let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
+const getAccessTokenHeader = async (): Promise<string | null> => {
   try {
     const accessToken = await auth.api.getAccessToken({
       body: {
@@ -26,13 +23,64 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
       headers: await headers(),
     });
 
-    if (accessToken.accessToken) {
-      requestHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
-    }
-  } catch (error) {
+    return accessToken.accessToken ? `Bearer ${accessToken.accessToken}` : null;
+  } catch {
     // redirect to the token-expired page, cause the access token maybe not valid anymore.
     redirect("/token-expired");
   }
+};
+
+const parseJsonError = (errorResponse: unknown): string => {
+  if (Array.isArray(errorResponse)) {
+    return errorResponse.join(" * ");
+  }
+
+  if (typeof errorResponse === "object" && errorResponse !== null) {
+    const error = errorResponse as Record<string, unknown>;
+    return (error.detail ||
+      error.message ||
+      error.title ||
+      "An error occurred") as string;
+  }
+
+  return "An error occurred";
+};
+
+const extractErrorMessage = async (
+  response: Response,
+  contentType: string | null,
+): Promise<string> => {
+  const isJsonContent =
+    contentType &&
+    (contentType.includes("application/json") ||
+      contentType.includes("application/problem+json"));
+
+  if (isJsonContent) {
+    try {
+      const errorResponse = await response.json();
+      return parseJsonError(errorResponse);
+    } catch {
+      return "Failed to parse error response";
+    }
+  }
+
+  try {
+    const textBody = await response.text();
+    return textBody ? textBody.substring(0, 200) : "An error occurred";
+  } catch {
+    return "An error occurred";
+  }
+};
+
+const request = async <T>(url: string, options: RequestOptions = {}) => {
+  const baseUrl = options.baseUrl ?? `${agentApiUrl}/api`;
+
+  const requestHeaders: Record<string, string> = { ...(options.headers || {}) };
+  const authHeader = await getAccessTokenHeader();
+  if (authHeader) {
+    requestHeaders.Authorization = authHeader;
+  }
+
   const response = await fetch(`${baseUrl}/${url}`, {
     method: options.method || "GET",
     headers: requestHeaders,
@@ -42,38 +90,9 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
   });
 
   const contentType = response.headers.get("Content-Type");
-  // TODO: add error handling for the response
-  // Maybe we have to get the json response, extract the error message and return it as a string
+
   if (!response.ok) {
-    // TODO: const errorResponse = await response.json();
-    let errorMessage = "An error occurred";
-    if (
-      contentType &&
-      (contentType.includes("application/json") ||
-        contentType?.includes("application/problem+json"))
-    ) {
-      try {
-        const errorResponse = await response.json();
-        if (Array.isArray(errorResponse)) {
-          errorMessage = errorResponse.join(" * ");
-        } else {
-          errorMessage = errorResponse.detail || errorResponse.message || errorResponse.title || errorMessage;
-        }
-      } catch (error) {
-        errorMessage = "Failed to parse error response";
-      }
-
-    // Try to get text body for non-JSON errors
-
-    } else {
-      try {
-        const textBody = await response.text();
-        if (textBody) {
-          errorMessage = textBody.substring(0, 200); // Limit length
-        }
-      } catch (e) {
-      }
-    }
+    const errorMessage = await extractErrorMessage(response, contentType);
     throw new Error(errorMessage);
   }
 
@@ -81,10 +100,11 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
     return {} as T;
   }
 
-  if (contentType && contentType.includes("application/json")) {
+  if (contentType?.includes("application/json")) {
     const data = await response.json();
     return resolveJsonReferences(data);
   }
+
   return response.text();
 };
 
