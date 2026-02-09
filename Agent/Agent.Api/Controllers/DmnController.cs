@@ -4,6 +4,7 @@ using Credentials.Models.Services;
 using FiveSafesTes.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.Annotations;
 
 namespace Agent.Api.Controllers
@@ -19,42 +20,40 @@ namespace Agent.Api.Controllers
         private readonly IDmnService _dmnService;
         private readonly IServicedZeebeClient _zeebeClient;
         private readonly ILogger<DmnController> _logger;
-        private readonly DmnPath _DmnPath;
+        private readonly DmnPath _dmnPath;
         private readonly string path;
+
         public DmnController(
             IDmnService dmnService,
             IServicedZeebeClient zeebeClient,
             ILogger<DmnController> logger,
-            IConfiguration configuration,
-            DmnPath DmnPath)
+            IOptions<DmnPath> dmnPath)
         {
             _dmnService = dmnService;
             _zeebeClient = zeebeClient;
             _logger = logger;
+            _dmnPath = dmnPath.Value;
 
-            _DmnPath = DmnPath;
-
-            // Get DMN file path from configuration or use default
-            var configuredPath = _DmnPath.Path;
-
-
-            if (!string.IsNullOrEmpty(DmnPath.Path))
+            if (!string.IsNullOrEmpty(_dmnPath.Path))
             {
                 // Use configured path - make it absolute if relative
-                if (Path.IsPathRooted(DmnPath.Path))
+                if (Path.IsPathRooted(_dmnPath.Path))
                 {
-                    path = Path.Combine(DmnPath.Path, "credentials.dmn");
+                    path = Path.Combine(_dmnPath.Path, "credentials.dmn");
                 }
                 else
                 {
-                    var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                    path = Path.GetFullPath(Path.Combine(projectDirectory, DmnPath.Path, "credentials.dmn"));
+                    var projectDirectory =
+                        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+                    path = Path.GetFullPath(Path.Combine(projectDirectory, _dmnPath.Path, "credentials.dmn"));
                 }
             }
             else
             {
-                var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials","Credentials.Models","ProcessModels", "credentials.dmn"));
+                var projectDirectory =
+                    Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "Tre-Camunda", "ProcessModels",
+                    "credentials.dmn"));
             }
 
             _logger.LogInformation($"DMN file path resolved to: {path}");
@@ -65,7 +64,8 @@ namespace Agent.Api.Controllers
         /// </summary>
         /// <returns>DMN decision table with all rules</returns>
         [HttpGet("table")]
-        [SwaggerOperation(Summary = "Get DMN decision table", Description = "Retrieves the complete DMN decision table including all inputs, outputs, and rules")]
+        [SwaggerOperation(Summary = "Get DMN decision table",
+            Description = "Retrieves the complete DMN decision table including all inputs, outputs, and rules")]
         [ProducesResponseType(typeof(DmnDecisionTable), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> GetDmnTable()
@@ -87,7 +87,8 @@ namespace Agent.Api.Controllers
         /// </summary>
         /// <returns>List of all DMN rules</returns>
         [HttpGet("rules")]
-        [SwaggerOperation(Summary = "Get all DMN rules", Description = "Retrieves all rules from the DMN decision table")]
+        [SwaggerOperation(Summary = "Get all DMN rules",
+            Description = "Retrieves all rules from the DMN decision table")]
         [ProducesResponseType(typeof(List<DmnRule>), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> GetRules()
@@ -154,7 +155,8 @@ namespace Agent.Api.Controllers
         /// <param name="request">Rule update request with rule ID and new values</param>
         /// <returns>Success status</returns>
         [HttpPut("rules")]
-        [SwaggerOperation(Summary = "Update DMN rule", Description = "Updates an existing rule in the DMN decision table")]
+        [SwaggerOperation(Summary = "Update DMN rule",
+            Description = "Updates an existing rule in the DMN decision table")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> UpdateRule([FromBody] UpdateDmnRuleRequest request)
@@ -265,7 +267,8 @@ namespace Agent.Api.Controllers
         /// <param name="request">Test request with input variables</param>
         /// <returns>Test result with matched rules</returns>
         [HttpPost("test")]
-        [SwaggerOperation(Summary = "Test DMN evaluation", Description = "Tests the DMN with provided input variables and returns matching rules")]
+        [SwaggerOperation(Summary = "Test DMN evaluation",
+            Description = "Tests the DMN with provided input variables and returns matching rules")]
         [ProducesResponseType(typeof(DmnTestResponse), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> TestDmn([FromBody] DmnTestRequest request)
@@ -310,7 +313,8 @@ namespace Agent.Api.Controllers
         /// </summary>
         /// <returns>Deployment result</returns>
         [HttpPost("deploy")]
-        [SwaggerOperation(Summary = "Deploy DMN to Zeebe", Description = "Deploys the DMN file to the Zeebe workflow engine")]
+        [SwaggerOperation(Summary = "Deploy DMN to Zeebe",
+            Description = "Deploys the DMN file to the Zeebe workflow engine")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
         public async Task<IActionResult> DeployDmn()
