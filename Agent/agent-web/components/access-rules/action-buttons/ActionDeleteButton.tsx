@@ -17,6 +17,8 @@ import {
 import { Trash2 } from "lucide-react";
 import { RuleColumns } from "@/types/access-rules";
 import { deleteAccessRule } from "@/api/access-rules";
+import { useErrorToast } from "@/lib/hooks/use-error-toast";
+import { useValidation } from "../ValidationContext";
 
 /* ----- Types ------ */
 
@@ -29,10 +31,12 @@ type ActionDeleteButtonProps = {
 export default function ActionDeleteButton({ rule }: ActionDeleteButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const { triggerValidation } = useValidation();
+  const { showError, handleOpenChange } = useErrorToast();
 
   const handleConfirmDelete = async () => {
     if (!rule.ruleId) {
-      toast.error("Cannot delete rule: Missing rule ID");
+      showError("Cannot delete rule: Missing rule ID");
       return;
     }
 
@@ -42,8 +46,9 @@ export default function ActionDeleteButton({ rule }: ActionDeleteButtonProps) {
       toast.success("Rule deleted successfully");
       setIsOpen(false);
       router.refresh();
+      triggerValidation();
     } else {
-      toast.error(`Failed to delete rule: ${result.error}`);
+      showError(`Failed to delete rule: ${result.error}`);
     }
   };
 
@@ -60,7 +65,7 @@ export default function ActionDeleteButton({ rule }: ActionDeleteButtonProps) {
       </Button>
 
       {/* Confirmation Dialog - Prevents accidental deletions */}
-      <AlertDialog open={isOpen} onOpenChange={setIsOpen}>
+      <AlertDialog open={isOpen} onOpenChange={handleOpenChange(setIsOpen)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Rule</AlertDialogTitle>

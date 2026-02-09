@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { SquarePen } from "lucide-react";
 import { RuleColumns, RuleFormData } from "@/types/access-rules";
 import { updateAccessRule } from "@/api/access-rules";
+import { useErrorToast } from "@/lib/hooks/use-error-toast";
 import RuleFormDialog from "../forms/RulesFormDialog";
+import { useValidation } from "../ValidationContext";
 
 /* ----- Types ------ */
 
@@ -20,29 +22,40 @@ type ActionEditButtonProps = {
 export default function ActionEditButton({ rule }: ActionEditButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
   const router = useRouter();
+  const { triggerValidation } = useValidation();
+  const { showError, dismissError, handleOpenChange } = useErrorToast();
 
-  const handleSubmit = async (data: RuleFormData) => {
+  const handleSubmit = async (data: RuleFormData): Promise<boolean> => {
+    dismissError();
+
     if (!rule.ruleId) {
-      toast.error("Cannot edit rule: Missing rule ID");
-      return;
+      showError("Cannot edit rule: Missing rule ID");
+      return false;
     }
 
-    const result = await updateAccessRule(rule.ruleId, {
-      inputUser: data.inputUser,
-      inputProject: data.inputProject,
-      inputSubmissionId: rule.inputSubmissionId, // Preserve original submissionId
-      outputTag: data.outputTag,
-      outputValue: data.outputValue,
-      outputEnv: data.outputEnv,
-      description: data.description,
-    });
+    try {
+      const result = await updateAccessRule(rule.ruleId, {
+        inputUser: data.inputUser,
+        inputProject: data.inputProject,
+        inputSubmissionId: rule.inputSubmissionId, // Preserve original submissionId
+        outputTag: data.outputTag,
+        outputValue: data.outputValue,
+        outputEnv: data.outputEnv,
+        description: data.description,
+      });
 
-    if (result.success) {
+      if (!result.success) {
+        showError(`Failed to update rule: ${result.error}`);
+        return false;
+      }
+
       toast.success("Rule updated successfully");
-      setIsOpen(false);
-      router.refresh(); // Refresh server data
-    } else {
-      toast.error(`Failed to update rule: ${result.error}`);
+      router.refresh();
+      triggerValidation();
+      return true;
+    } catch (error) {
+      showError(`Unexpected error: ${error instanceof Error ? error.message : "Unknown error"}`);
+      return false;
     }
   };
 
@@ -69,7 +82,7 @@ export default function ActionEditButton({ rule }: ActionEditButtonProps) {
       {/* Edit Rule Dialog - Form for editing access rule details */}
       <RuleFormDialog
         isOpen={isOpen}
-        onOpenChange={setIsOpen}
+        onOpenChange={handleOpenChange(setIsOpen)}
         onSubmit={handleSubmit}
         mode="edit"
         initialData={rule}

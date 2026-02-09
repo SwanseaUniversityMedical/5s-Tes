@@ -13,7 +13,6 @@ type AccessRulesTableProps = {
   data: RuleColumns[];
   decisionInfo: DecisionInfo;
   addNewRowButtonLabel?: string;
-  onToolbarAction?: (action: "refresh" | "deploy" | "add") => void;
 };
 
 /* ----- Access Rules Table Component ------ */
@@ -22,7 +21,6 @@ export default function AccessRulesTable({
   data,
   decisionInfo,
   addNewRowButtonLabel = "Add New Rule",
-  onToolbarAction,
 }: AccessRulesTableProps) {
   const columns = useMemo(() => createRulesColumns(), []);
 
@@ -34,12 +32,7 @@ export default function AccessRulesTable({
       renderFooterRow={(colSpan) => (
         <HoverAddRow colSpan={colSpan} label={addNewRowButtonLabel} />
       )}
-      renderToolbar={() => (
-        <TopToolbarButtons
-          onAction={onToolbarAction}
-          decisionInfo={decisionInfo}
-        />
-      )}
+      renderToolbar={() => <TopToolbarButtons decisionInfo={decisionInfo} />}
     />
   );
 }
