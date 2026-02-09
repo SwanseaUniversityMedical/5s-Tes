@@ -75,7 +75,7 @@ const extractErrorMessage = async (
 const request = async <T>(url: string, options: RequestOptions = {}) => {
   const baseUrl = options.baseUrl ?? `${agentApiUrl}/api`;
 
-  const requestHeaders: Record<string, string> = { ...(options.headers || {}) };
+  const requestHeaders: Record<string, string> = { ...options.headers };
   const authHeader = await getAccessTokenHeader();
   if (authHeader) {
     requestHeaders.Authorization = authHeader;
