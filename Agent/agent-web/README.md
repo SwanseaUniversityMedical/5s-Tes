@@ -239,11 +239,11 @@ Each directory within `components/` corresponds to a specific feature or routes 
 
 - `app/components/projects/`: Contains components specific to project management features, such as project details, membership forms, and project forms for the `app/projects/` pages.
 
-    - `MembershipForm.tsx`: Provides a form for managing project membership, allowing users to add or remove members from a project.
+     - `MembershipForm.tsx`: Provides a form for managing membership approval decisions within a project, allowing reviewers to approve or reject memberships.
 
-    - `ProjectDetails.tsx`: Displays detailed information about a specific project, including metadata and configuration.
+     - `ProjectDetails.tsx`: Displays detailed information about a specific project, including metadata, decision status, tooltips, and badges.
 
-    - `ProjectForm.tsx`: Offers a form interface for creating or editing project details, supporting project setup and updates.
+     - `ProjectForm.tsx`: Offers a form interface for project approval, supporting project setup, updates, and approval workflows.
 
 
 ##### ui components
