@@ -261,7 +261,7 @@ Each directory within `components/` corresponds to a specific feature or routes 
 - `app/components/theme-provider.tsx`: Provides theme context and switching functionality (e.g., light/dark mode) across the application.
 
 
-#### Lib Directory
+##### lib directory
 
 The lib directory contains utility functions, API helpers, authentication logic, constants, and custom hooks that encapsulate reusable logic and data manipulation across the application.
 
@@ -311,8 +311,7 @@ The lib directory contains utility functions, API helpers, authentication logic,
 
 - `lib/constants/`: Contains constant values and options used throughout the application.
 
-
-##### types Directory
+##### types directory
 
 - `app/types/`: Contains TypeScript type definitions and interfaces for the application, including API response types, component props, and shared data structures.
 
