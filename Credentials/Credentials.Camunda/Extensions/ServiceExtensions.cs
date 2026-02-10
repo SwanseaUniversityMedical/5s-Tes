@@ -6,11 +6,6 @@ using Credentials.Camunda.Settings;
 using Credentials.Models.DbContexts;
 using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
-using Services_IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
-using Services_IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
-using Services_PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
-using Services_VaultCredentialsService = Credentials.Camunda.Services.VaultCredentialsService;
-
 
 namespace Credentials.Camunda.Extensions
 {
