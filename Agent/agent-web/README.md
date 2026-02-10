@@ -1,6 +1,6 @@
 ## TRE Agent UI
 
-The TRE Agent UI is a Frontend web application for managing projects, credentials, and access rules. This app is built with **Next.js and TypeScript** and more instructions on how to run the app and project structure are provided below.
+The **TRE Agent UI (TRE Admin) is a Frontend web application** for managing projects, credentials, and access rules. This app is built with **Next.js and TypeScript** and more instructions on how to run the app and project structure are provided below.
 
 ## Getting Started
 
@@ -246,11 +246,11 @@ Each directory within `components/` corresponds to a specific feature or routes 
     - `ProjectForm.tsx`: Offers a form interface for creating or editing project details, supporting project setup and updates.
 
 
-##### ui Components
+##### ui components
 
 - `app/components/ui/`: Contains generic UI components that can be reused across the application, such as buttons, dialogs, tables, and form controls. These components are built on top of a UI library (ShadCN UI) and provide consistent styling and behavior throughout the app.
 
-##### other Components
+##### other components
 
 - `app/components/auth-button.tsx`: Renders a button for authentication actions, such as sign-in or sign-out, integrating with the app’s auth logic.
 
@@ -312,7 +312,7 @@ The lib directory contains utility functions, API helpers, authentication logic,
 - `lib/constants/`: Contains constant values and options used throughout the application.
 
 
-#### types Directory
+##### types Directory
 
 - `app/types/`: Contains TypeScript type definitions and interfaces for the application, including API response types, component props, and shared data structures.
 
