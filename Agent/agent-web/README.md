@@ -9,7 +9,18 @@ Built with **Next.js and TypeScript**.
 
 - Create a `.env` file in the root of the `5s-Tes/Agent/agent-web/` directory.
 
+- Add these env variables within the `.env` file below:
 
+```bash
+BETTER_AUTH_SECRET=mU8w2913XafFbRODBy6rZlxSrFvEwesM
+BETTER_AUTH_URL=http://localhost:3000
+KEYCLOAK_CLIENT_ID=Dare-TRE-UI
+KEYCLOAK_CLIENT_SECRET=2de114bc-3599-45f1-9b61-5090c6859dfe
+KEYCLOAK_URL=http://localhost:8085
+NEXT_PUBLIC_KEYCLOAK_REALM=Dare-TRE
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+AGENT_API_URL=http://localhost:8072
+```
 
 #### Run the development server for TRE Admin UI:
 
