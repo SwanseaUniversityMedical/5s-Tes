@@ -1,0 +1,340 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@using Microsoft.Extensions.Configuration
+@model FiveSafesTes.Core.Models.ViewModels.ProjectUserTre
+@{
+    string pageName = Model.Name;
+
+    ViewData["Title"] = @pageName;
+    int pId = Model.Id;
+}
+@inject IConfiguration Configuration
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="fs-3 mb-0">@Model.Name</h1>
+            <p class="font-monospace text-muted small mb-0">#@Model.Id</p>
+        </div>
+        @if (User.IsInRole("dare-control-admin"))
+        {
+            <a href="@Url.Action("SaveProjectForm", "Project", new { Projectid = @Model.Id })"
+			   class="btn btn-sm btn-outline-primary mb-3"><span class="small">Edit</span></a>
+        }
+    </div>
+    <div class="mt-4">
+        <ul class="nav nav-underline border-bottom" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a href="#about" class="nav-link text-dark active" id="about" data-bs-toggle="tab"
+                   data-bs-target="#project" role="tab" aria-controls="Project" aria-selected="true">About</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#submissions" class="nav-link text-dark" id="submissions" data-bs-toggle="tab"
+                   data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Submissions</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#people" class="nav-link text-dark" id="people" data-bs-toggle="tab"
+                   data-bs-target="#userMembership" role="tab" aria-controls="User Membership" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>People</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Users.Count</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#tre" class="nav-link text-dark" id="treLink" data-bs-toggle="tab" data-bs-target="#tre"
+                   role="tab" aria-controls="Tre" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>TREs</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Tres.Count</span>
+                    </div>
+                </a>
+            </li>
+        </ul>
+
+
+        <div class="tab-content py-5" id="myTabContent">
+            <div class="tab-pane fade show active" id="project" role="tabpanel" aria-labelledby="home-tab">
+                <div class="row">
+                    <div class="col-md-12">
+                        @{
+                            var minio = @ViewBag.URLBucket;
+                        }
+
+                        <p>
+                            <a class="btn btn-sm btn-primary me-2" target="_blank"
+                               href="http://@minio/browser/@Model.SubmissionBucket" rel="noopener">Submission Bucket <i
+                                    class="fa fa-external-link ms-2"></i></a>
+                            <a class="btn btn-sm btn-outline-secondary" target="_blank"
+                               href="http://@minio/browser/@Model.OutputBucket" rel="noopener">Output Bucket<i
+                                    class="fa fa-external-link ms-2"></i></a>
+
+                        </p>
+                        <p class="text-muted fs-7 mt-4">
+                            Project Start Date: @Model.StartDate.ToString("dd/MM/yyyy") <br />
+                            Project End Date: @Model.EndDate.ToString("dd/MM/yyyy")
+                        </p>
+                        @{
+                            if (Model.ProjectOwner == null || Model.ProjectOwner == "")
+                            {
+                            }
+                            else
+                            {
+                                <p>
+                                    Project Lead: <strong>@Model.ProjectOwner</strong>
+                                </p>
+                            }
+                        }
+                        @{
+                            if (Model.ProjectContact == null || Model.ProjectContact == "")
+                            {
+                            }
+                            else
+                            {
+                                <p>Project Contact: <strong>@Model.ProjectContact</strong></p>
+                            }
+                        }
+
+                        @{
+                            if (Model.ProjectDescription == null || Model.ProjectDescription == "")
+                            {
+                            }
+                            else
+                            {
+                                <p>
+                                    @*Project Description: *@ @Model.ProjectDescription
+                                </p>
+                            }
+                        }
+
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
+                @if (ViewBag.UserCanDoSubmissions)
+                {
+                    <div class="d-flex align-items-center mb-3">
+                        <div class="dropdown">
+                            <button class="btn btn-primary btn-sm d-flex align-items-center mb-3  dropdown-toggle"
+                                    type="button" id="dropdownMenuButton1" data-bs-toggle="dropdown"
+                                    aria-expanded="false">
+                                <i class="fa fa-table-columns align-middle me-2"></i>
+                                <span>Create Submission </span>
+                            </button>
+                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                                @if (Configuration.GetValue<bool>("DemoMode"))
+                                {
+                                    <li><a class="dropdown-item"
+                                           href="@Url.Action("SubmissionProjectDemo", "Project", new { id = pId })">Demo
+                                            TES Wizard</a></li>
+                                }
+                                <li><a class="dropdown-item"
+                                       href="@Url.Action("SubmissionProjectSQL", "Project", new { id = pId })">SQL TES
+                                        Wizard</a></li>
+                                <li><a class="dropdown-item"
+                                       href="@Url.Action("SubmissionProjectGraphQL", "Project", new { id = pId })">GraphQL
+                                        TES Wizard</a></li>
+                            </ul>
+                        </div>
+                        <a asp-controller="Submission" asp-action="Instructions"
+                           class="btn btn-link btn-sm d-flex align-items-center mb-3 me-2 text-decoration-none">
+                            <i class="fa fa-info-circle align-middle me-2"></i>
+                            <span>Submit with API</span>
+                        </a>
+
+                    </div>
+                }
+				<div class="hideProjectNameColumn">
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList() { SubmissionsGetProjectModel = Model.Submissions.Where(x => x.HasParent == false).ToList(), UseParent = false })
+                </div>
+                
+            </div>
+            <div class="tab-pane fade" id="userMembership" role="tabpanel" aria-labelledby="people">
+                @if (User.IsInRole("dare-control-admin"))
+                {
+                    <button type="button" class="btn btn-sm btn-primary mb-3" id="addUser"><i
+                            class="fa fa-plus me-2"></i> Add User
+                    </button>
+                }
+
+                <div class="row">
+                    <div class="col-lg-5 col-md-6">
+                        <ul class="list-group">
+                            @foreach (var user in Model.Users)
+                            {
+                                if (user.FullName == "" || user.FullName == null)
+                                {
+                                    user.FullName = user.Name;
+                                }
+
+                                <li class="list-group-item justify-content-between d-flex">
+                                    <a href="@Url.Action("GetUser", "User", new { id = user.Id })">@user.FullName</a>
+                                    @if (User.IsInRole("dare-control-admin"))
+                                    {
+                                        <a href="@Url.Action("RemoveUserFromProject", "Project", new { ProjectId = Model.Id, UserId = @user.Id })">
+                                            <span class="fa fa-trash" data-bs-toggle="tooltip"
+                                                  data-bs-title="Remove user from project"></span>
+                                        </a>
+                                    }
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="tab-pane fade" id="tre" role="tabpanel" aria-labelledby="contact-tab">
+                @if (User.IsInRole("dare-control-admin"))
+                {
+                    <button type="button" class="btn btn-sm btn-primary mb-3" id="addTre"><i
+                            class="fa fa-plus me-2"></i>Add TRE
+                    </button>
+                }
+                <div class="row">
+                    <div class="col-lg-5 col-md-6">
+                        <ul class="list-group">
+                            @foreach (var tre in Model.Tres)
+                            {
+                                <li class="list-group-item justify-content-between d-flex">
+                                    <a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })"
+                                       class="fw-bold">@tre.Name</a>
+                                    @{
+                                        var doesNotHaveDecision = true;
+                                    }
+                                    <span class="d-flex align-items-center">
+                                        @if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)
+                                        {
+                                            doesNotHaveDecision = false;
+                                            <span
+                                                class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 me-3">
+                                                <i class="fa-solid fa-check-circle me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                            </span>
+                                        }
+                                        else if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Undecided)
+                                        {
+                                            doesNotHaveDecision = false;
+
+                                            <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 me-3">
+                                                <i class="fa-solid fa-circle-notch fa-spin me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                            </span>
+                                        }
+                                        else if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Rejected)
+                                        {
+                                            doesNotHaveDecision = false;
+
+                                            <span
+                                                class="badge  px-2 badge-sm bg-danger text-light rounded-pill m-0 me-3">
+                                                <i class="fa-solid fa-close me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                            </span>
+                                        }
+
+                                        @if (doesNotHaveDecision == true)
+                                        {
+                                            <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 me-3">
+                                                <i class="fa-solid fa-circle-notch fa-spin me-1"></i> Undecided
+                                            </span>
+                                        }
+                                        @if (User.IsInRole("dare-control-admin"))
+                                        {
+                                            <a href="@Url.Action("RemoveTreFromProject", "Project", new { ProjectId = Model.Id, TreId = tre.Id })">
+                                            <span class="fa fa-trash" data-bs-toggle="tooltip"
+                                                  data-bs-title="Remove TRE from project"></span>
+                                        </a>
+                                        }
+                                    </span>
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade bd-user-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel"
+     aria-hidden="true" id="userModal">
+    <div class="modal-dialog modal-md shadow-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Add User</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        @if (Model.UserItemList == null || !Model.UserItemList.Any())
+                        {
+                            <div class="alert alert-info">
+                                <i class="fa fa-info-circle me-2"></i>
+                                No users available to add. All users may already be members of this project.
+                            </div>
+                        }
+                        else
+                        {
+                            <div class="table-responsive">
+                                <table class="table" id="UserList">
+                                    @foreach (var user in Model.UserItemList)
+                                    {
+                                        <tr>
+                                            <td>
+                                                <input type="checkbox" value="@user.Value" id="@user.Value"
+                                                       name="selectedUser" class="form-check-input me-20"/>
+                                                @user.Text
+                                            </td>
+                                        </tr>
+                                    }
+                                </table>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-link" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="SaveUserList(@Model.Id)">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade bd-tre-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel"
+     aria-hidden="true" id="treModal">
+    <div class="modal-dialog modal-md shadow-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Add TRE</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="table-responsive">
+                            <table class="table " id="TreList">
+                                <caption>List of Tres on Project</caption>
+                                @foreach (var tre in Model.TreItemList)
+                                {
+                                    <tr>
+                                        <td>
+                                            <input type="checkbox" value="@tre.Value" id="Tre_@tre.Value"
+                                                   name="selectedTre" class="form-check-input me-2"/>
+                                            @tre.Text
+                                        </td>
+                                    </tr>
+                                }
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-link" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="SaveTreList(@Model.Id)">Add</button>
+            </div>
+        </div>
+    </div>
+</div>

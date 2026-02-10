@@ -1,0 +1,207 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@model ProjectUserTre
+@{
+    ViewData["Title"] = "Edit @Model.Name";
+
+    if (Model != null && Model.FormIoUrl.StartsWith('/'))
+    {
+        Model.FormIoUrl = $"{Context.Request.Scheme}://{Context.Request.Host.Value}" + Model.FormIoUrl;
+    }
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+
+    <div class="d-flex align-items-center justify-content-between">
+        <div>
+            <h1 class="fs-3 mb-0">@Model.Name</h1>
+            <p class="text-muted small mb-0">#@Model.Id</p>
+        </div>
+        <a href="@Url.Action("GetProject", "Project", new { id = Model.Id })" class="btn btn-sm btn-outline-primary">
+            <span>Exit Edit</span>
+        </a>
+    </div>
+    <div class="mt-4">
+        <ul class="nav nav-underline border-bottom" id="myTab" role="tablist">
+            <li class="nav-item" role="presentation">
+                <a href="#home-tab" class="nav-link text-dark active" id="home-tab" data-bs-toggle="tab" data-bs-target="#project" role="tab" aria-controls="Project" aria-selected="true">About</a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#submissions-tab" class="nav-link text-dark" id="submissions-tab" data-bs-toggle="tab" data-bs-target="#submissions" role="tab" aria-controls="submissions" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>Submissions</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">x</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#profile-tab" class="nav-link text-dark" id="profile-tab" data-bs-toggle="tab" data-bs-target="#userMembership" role="tab" aria-controls="User Membership" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>People</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Users.Count</span>
+                    </div>
+                </a>
+            </li>
+            <li class="nav-item" role="presentation">
+                <a href="#contact-tab" class="nav-link text-dark" id="contact-tab" data-bs-toggle="tab" data-bs-target="#tre" role="tab" aria-controls="Tre" aria-selected="false">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <span>TREs</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Tres.Count</span>
+                    </div>
+                </a>
+            </li>
+        </ul>
+
+
+        <div class="tab-content py-5" id="myTabContent">
+            <div class="tab-pane fade show active" id="project" role="tabpanel" aria-labelledby="home-tab">
+                <div class="row">
+                    <div class="col-md-6">
+                        
+                        <div id="errorMsg" style="color: #D63301; background-color: #FFCCBA; background-image: url('https://i.imgur.com/GnyDvKN.png'); border: 1px solid;margin: 10px 0px;padding: 15px 10px 15px 50px;background-repeat: no-repeat;background-position: 10px center;display: none;"></div>
+
+                        <div id="formio"> <img src="~/img/loader.gif" width="30" height="30" alt="Loading..." /> </div>
+                        <button id="ExternalSubmit" type="submit" class="btn btn-md btn-primary mr-2">Submit</button>
+
+                        <div id="SubmitForReview" class="text-left g-width-400 g-bg-white g-overflow-y-auto g-pa-20 g-overflow-y-auto" style="display: none;">
+                            <div class="text-right">
+                                <button type="button" class="btn btn-link mr-2 text-decoration-none" onclick="Custombox.modal.close();">
+                                    <em class="hs-admin-close g-font-size-22"></em>
+                                </button>
+                            </div>
+                        </div>
+                        <script>
+                            window.onload = function () {
+                                renderForm("@Model.FormIoUrl", @Html.Raw(Model.FormData), '/Project/ProjectFormSubmission/@Url.ActionContext.RouteData.Values["id"]', false, 'formio', "/Project/GetAllProjects");
+                            }
+                        </script>
+                    </div>
+                </div>
+            </div>
+            <div class="tab-pane fade" id="submissions" role="tabpanel" aria-labelledby="submissions-tab">
+                <div class="mt-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-primary mb-3" id="addSubmission">Add Submission</button>
+                </div>
+                <p>
+                    Minio URL: <a href="#">http://Html.Raw(Model.MinioEndpoint)</a><br />
+                    Submission Bucket: @Html.Raw(Model.SubmissionBucket)<br />
+                    Output Bucket: @Html.Raw(Model.OutputBucket)
+                </p>
+                
+            </div>
+            <div class="tab-pane fade" id="userMembership" role="tabpanel" aria-labelledby="profile-tab">
+                <div class="mt-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-primary mb-3" id="addUser">Add User</button>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <ul class="list-group">
+                            @foreach (var user in Model.Users)
+                            {
+                                <li class="list-group-item">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <a href="@Url.Action("GetUser", "User", new { id = user.Id })" class="fs-6 fw-bold">@user.Name</a>
+                                        <a href="@Url.Action("RemoveUserFromProject", "Project",new{ProjectId=Model.Id,UserId=@user.Id})">
+                                            <span class="fa fa-trash" data-bs-toggle="tooltip" data-bs-title="Remove user from project"></span>
+                                        </a>
+                                    </div>
+
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+
+            </div>
+            <div class="tab-pane fade" id="tre" role="tabpanel" aria-labelledby="contact-tab">
+                <div class="mt-2 mb-2">
+                    <button type="button" class="btn btn-sm btn-primary mb-3" id="addTre">Add TRE</button>
+                </div>
+                <div class="row">
+                    <div class="col-12">
+                        <ul class="list-group">
+                            @foreach (var tre in Model.Tres)
+                            {
+                                <li class="list-group-item">
+                                    <div class="d-flex align-items-center justify-content-between">
+                                        <a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })" class="fs-6 fw-bold">@tre.Name</a>
+                                        <a href="@Url.Action("RemoveTreFromProject", "Project",new{ProjectId=Model.Id,TreId=tre.Id})">
+                                            <span class="fa fa-trash" data-bs-toggle="tooltip" data-bs-title="Remove TRE from project"></span>
+                                        </a>
+                                    </div>
+
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="modal fade bd-user-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" id="userModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">Add User</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="UserList">
+                                    <caption>Users on project</caption>
+                                    @foreach (var user in Model.UserItemList)
+                                    {
+                                        <tr>
+                                            <td><input type="checkbox" value="@user.Value" id="@user.Value" name="selectedUser"/></td>
+                                            <td>@user.Text</td>
+                                        </tr>
+                                    }
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="SaveUserList(@Model.Id)">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal fade bd-tre-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" id="treModal">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h1 class="modal-title fs-5" id="exampleModalLabel">Add TRE</h1>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-12">
+                            <div class="table-responsive">
+                                <table class="table table-bordered" id="TreList">
+                                    <caption>List of tres on project</caption>
+                                    @foreach (var tre in Model.TreItemList)
+                                    {
+                                        <tr>
+                                            <td><input type="checkbox" value="@tre.Value" id="Tre_@tre.Value" name="selectedTre"/></td>
+                                            <td>@tre.Text</td>
+                                        </tr>
+                                    }
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="SaveTreList(@Model.Id)">Add</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

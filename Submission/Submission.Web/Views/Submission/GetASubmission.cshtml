@@ -1,0 +1,424 @@
+﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionInfo
+@using Submission.Web.Formatters;
+
+
+@{
+    string pageName = Model.Submission.TesName;
+    ViewData["Title"] = @pageName;
+
+    if (Model.Submission.SubmittedBy.FullName == "" || Model.Submission.SubmittedBy.FullName == null)
+    {
+        Model.Submission.SubmittedBy.FullName = Model.Submission.SubmittedBy.Name;
+
+    }
+}
+
+<div class="container-lg mt-4 p-4">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+        <div>
+            <h1 class="fs-3 mb-0">@Model.Submission.TesName</h1>
+            <p class="font-monospace text-muted small mb-0"> @Model.GetALlIDs() </p>
+            <div class="mt-3 mb-3 d-flex gap-4">
+                <div><i class="fa-solid fa-folder-open text-muted me-1"></i> <a href="@Url.Action("GetProject", "Project", new { id = Model.Submission.Project.Id })">@Model.Submission.Project.Name</a></div>
+                <div><i class="fa-solid fa-user text-muted me-1"></i> <a href="@Url.Action("GetUser", "User", new { id = @Model.Submission.SubmittedBy.Id })">@Model.Submission.SubmittedBy.FullName</a></div>
+                <div><i class="fa-solid fa-calendar text-muted me-1"></i> @Model.Submission.StartTime</div>
+            </div>
+        </div>
+        @{
+            var overallStatus = Model.Submission.Status;
+            if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
+            {
+                <h6 class="mb-0">
+                    <span class="badge bg-success rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Completed: @Model.Submission.EndTime">
+                        <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+                        <span>Completed</span>
+                    </span>
+                </h6>
+            }
+            else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Failed || overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Cancelled)
+            {
+                <h6 class="mb-0">
+                    <span class="badge bg-danger rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @Model.Submission.EndTime">
+                        <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+                        <span>@overallStatus.ToString()</span>
+                    </span>
+                </h6>
+            }
+            else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.PartialResult)
+            {
+                <h6 class="mb-0">
+                    <span class="badge bg-warning rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Partial Result: @Model.Submission.EndTime">
+                        <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+                        <span>Partial Result</span>
+                    </span>
+                </h6>
+            }
+            else
+            {
+                <h6 class="mb-0">
+                    <span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: 0m">
+                        <i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+                        <span>Running</span>
+                    </span>
+                </h6>
+            }
+        }
+    </div>
+    <div class="mb-5">
+        @{
+            var minio = @ViewBag.URLBucket;
+        }
+        <a class="btn btn-sm btn-primary me-2" target="_blank" href="http://@minio/browser/@Model.Submission.Project.SubmissionBucket" rel="noopener">Submission Bucket<i class="fa fa-external-link ms-2"></i></a>
+        <a class="btn btn-sm btn-outline-secondary" target="_blank" href="http://@minio/browser/@Model.Submission.Project.OutputBucket" rel="noopener">Output Bucket<i class="fa fa-external-link ms-2"></i></a>
+    </div>
+    <div class="row">
+        <div class="col-md-4">
+            <div class="card-header bg-white shadow-sm border-1 p-4">
+                <h5 class="mb-0">Timeline</h5>
+            </div>
+            <div class="bg-white shadow-sm border-1 p-4">
+                <ul class="timeline list-unstyled mb-0">
+                    <li class="position-relative">
+                        <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                        <span class="position-relative d-inline-flex">
+                            <span class="icon-wrap">
+                                <i class="fa-solid fa-circle-play fs-3 text-info me-3"></i>
+                            </span>
+                            <span class="d-flex flex-column">
+                                <span class="text-muted">
+                                    Started
+                                </span>
+                                <span class="text-dark" data-bs-toggle="tooltip" data-bs-title="@Model.Submission.StartTime">
+                                    @Model.Submission.StartTime
+                                </span>
+                            </span>
+                        </span>
+                    </li>
+                    @if (Model.Submission.EndTime != DateTime.MinValue)
+                    {
+
+                        <li class="position-relative">
+                            <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                            <span class="position-relative d-inline-flex">
+                                <span class="icon-wrap">
+                                    @if (Model.Stages.IsRed(Model.Submission.Status))
+                                    {
+                                        <i class="fa-solid fa-warning fs-3 text-danger me-3"></i>
+                                    }
+                                    else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.PartialResult)
+                                    {
+                                        <i class="fa-solid fa-circle-check fs-3 text-warning me-3"></i>
+
+                                    }
+                                    else
+                                    {
+                                        <i class="fa-solid fa-circle-check fs-3 text-success me-3"></i>
+
+                                    }
+                                </span>
+                                <span class="d-flex flex-column">
+                                    <span class="text-muted">
+                                        @Helpers.PrettyStatus(Model.Submission.Status)
+                                    </span>
+                                    <span class="text-dark" data-bs-toggle="tooltip" data-bs-title="@Model.Submission.EndTime">
+                                        @Model.Submission.EndTime
+                                    </span>
+                                </span>
+                            </span>
+                        </li>
+                    }
+                    else
+                    {
+                        <li class="position-relative">
+                            <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                            <span class="position-relative  d-inline-flex">
+                                <span class="icon-wrap">
+                                    <i class="fa-solid fa-circle-notch fa-spin fs-3 text-blue me-3"></i>
+                                </span>
+                                <span class="d-flex flex-column">
+                                    <span class="text-muted">
+                                        Running
+                                    </span>
+                                    <span class="text-dark" data-bs-toggle="tooltip" data-bs-title="@Model.Submission.GetTotalDisplayTime()">
+                                        @Model.Submission.GetTotalDisplayTime()
+                                    </span>
+                                </span>
+                            </span>
+                        </li>
+
+                    }
+                    @if (Model.Submission.EndTime != DateTime.MinValue)
+                    {
+                        <li class="position-relative">
+                            <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                            <span class="position-relative d-inline-flex">
+                                <span class="icon-wrap">
+                                    <i class="fa-solid fa-clock fs-3 text-black-50 me-3"></i>
+                                </span>
+                                <span class="d-flex flex-column">
+                                    <span class="text-muted">
+                                        Runtime
+                                    </span>
+                                    <span class="text-dark">
+                                        @Model.Submission.GetTotalDisplayTime()
+                                    </span>
+                                </span>
+                            </span>
+                        </li>
+                    }
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-8">
+            <div class="card-header bg-white shadow-sm border-1 p-4">
+                <h5 class="mb-0">Submission Query</h5>
+            </div>
+
+            <div class="bg-white shadow-sm border-1 p-4">
+                <div class="">
+                    <pre style="white-space:break-spaces;"><code class="json-viewer card card-body mt-2" id="jsonViewer" @*style="display:none;"*@></code></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card-header bg-white shadow-sm border-1 p-4 mt-4">
+                <h5 class="mb-0">Event Log</h5>
+            </div>
+            <div class="bg-white shadow-sm border-1 px-4 pb-0">
+                <div class="row">
+                    <table class="table crosstab mb-0 table-striped-columns">
+                        <caption>List of Tre Child Submissions</caption>
+                        <thead>
+                            <tr class="row">
+                                <th class="col-2">
+                                </th>
+                                @{
+                                    foreach (var child in Model.Submission.Children)
+                                    {
+                                        <th class="col">
+                                            <span style="display: inline;">
+                                                @child.Tre?.Name.ToString()<br>
+                                                <span class="small text-normal text-muted" style="font-weight: normal;">
+                                                    TRE Submission ID: <strong>
+                                                        @child.Id.ToString()
+                                                    </strong>
+                                                </span>
+                                            </span>
+
+                                            @if (child.Tre.IsOnline())
+                                            {
+                                                <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                                                    <i class="fa-solid fa-check-circle me-1"></i> Online
+                                                </span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                                                    <i class="fa-solid fa-ban me-1"></i> Offline
+                                                </span>
+                                            }
+                                        </th>
+                                    }
+                                }
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @{
+                                foreach (var stage in Model.Stages.StageInfos)
+                                {
+                                    if (stage.stageNumber == Model.Stages.StageInfos.Count)
+                                    {
+                                    <tfoot>
+                                        <tr class="row">
+                                            <td scope="col" class="col-2"></td>
+                                                @{
+                                                    foreach (var child in Model.Submission.Children)
+                                                    {
+                                                        var validstats = child.HistoricStatuses.Where(x => stage.statusTypeList.Contains(x.Status)).ToList();
+                                                        if (stage.stagesDict.ContainsKey(Model.Stages.StageInfos.Count) && stage.stageNumber == Model.Stages.StageInfos.Count && stage.statusTypeList.Contains(child.Status))
+                                                        {
+                                                            validstats.Add(new FiveSafesTes.Core.Models.HistoricStatus() { Start = child.StartTime, Status = child.Status });
+                                                            validstats = validstats.OrderBy(x => x.Start).ToList();
+                                                        }
+                                                    <td class="col">
+                                                        <ul class="list-unstyled">
+                                                            <li>
+                                                            <li class="position-relative">
+                                                                <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                                                                <span class="position-relative d-inline-flex">
+                                                                            @if (validstats.Count == 0)
+                                                                            {
+                                                                        <h6 class="mb-0">
+                                                                            <span class="badge bg-primary rounded-pill d-inline-flex align-items-center pe-3">
+                                                                                <i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+                                                                                <span class="text-start">
+                                                                                    <span class="mb-1">Running</span>
+                                                                                    <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                </span>
+                                                                            </span>
+                                                                        </h6>
+                                                                            }
+                                                                            @foreach (var status in validstats)
+                                                                            {
+                                                                                @if (status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
+                                                                                {
+                                                                            <h6 class="mb-0">
+                                                                                <a href="http://@minio/browser/@Model.Submission.Project.OutputBucket" target="_blank" rel="noopener">
+                                                                                    <span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @Model.Submission.EndTime">
+                                                                                        <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+                                                                                        <span class="text-start">
+                                                                                            <span class="mb-1">Completed</span>
+                                                                                            <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                            <span class="font-monospace small d-block"><span class="small">Click to View Output Bucket</span></span>
+                                                                                        </span>
+                                                                                    </span>
+                                                                                </a>
+                                                                            </h6>
+                                                                                }
+                                                                                else if (status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Failed)
+                                                                                {
+                                                                            <h6 class="mb-0">
+                                                                                <span class="badge bg-danger rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Failed">
+                                                                                    <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+                                                                                    <span class="text-start">
+                                                                                        <span class="mb-1">Failed</span>
+                                                                                        <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                    </span>
+                                                                                </span>
+                                                                            </h6>
+                                                                                }
+                                                                                else if (
+                                                                                status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Cancelled)
+
+                                                                                {
+                                                                            <h6 class="mb-0">
+                                                                                <span class="badge bg-danger rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Cancelled">
+                                                                                    <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+                                                                                    <span class="text-start">
+                                                                                        <span class="mb-1">Cancelled</span>
+                                                                                        <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                    </span>
+                                                                                </span>
+                                                                            </h6>
+                                                                                }
+                                                                                else
+                                                                                {
+                                                                            <h6 class="mb-0">
+                                                                                <span class="badge bg-primary rounded-pill d-inline-flex align-items-center pe-3">
+                                                                                    <i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+                                                                                    <span class="text-start">
+                                                                                        <span class="mb-1">Running</span>
+                                                                                        <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                    </span>
+                                                                                </span>
+                                                                            </h6>
+                                                                                }
+                                                                            }
+                                                                </span>
+                                                            </li>
+                                                            </li>
+                                                        </ul>
+                                                    </td>
+                                                    }
+                                                }
+                                        </tr>
+                                    </tfoot>
+                                    }
+                                    else
+                                    {
+                                        var stageNum = stage.stageNumber;
+                                    <tr class="row">
+                                        <td class="col-2">@stage.stageName</td>
+                                            @{
+                                                foreach (var child in Model.Submission.Children)
+                                                {
+                                                    //get all histroical statuses and current stat that is  listed in current stage stat
+                                                    var validstats = child.HistoricStatuses.Where(x => stage.statusTypeList.Contains(x.Status)).ToList();
+                                                    if (stage.stagesDict.ContainsKey(stageNum) && stage.stageNumber == stageNum && stage.statusTypeList.Contains(child.Status))
+                                                    {
+                                                        validstats.Add(new FiveSafesTes.Core.Models.HistoricStatus() { Start = child.LastStatusUpdate, Status = child.Status, End = child.EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : child.EndTime, IsCurrent = true, IsStillRunning = child.EndTime == DateTime.MinValue });
+                                                        validstats = validstats.OrderBy(x => x.Start).ToList();
+                                                    }
+                                                <td class="col">
+                                                    <ul class="list-unstyled">
+                                                            @foreach (var status in validstats)
+                                                            {
+                                                            <li>
+                                                            <li class="position-relative">
+                                                                        @if (!status.IsStillRunning && !Model.Stages.IsRed(status.Status))
+                                                                        {
+                                                                    <span class="position-absolute bg-grey h-100 timeline-line"></span>
+                                                                        }
+                                                                <span class="position-relative d-inline-flex">
+                                                                            @{
+                                                                                if (Model.Stages.IsRed(status.Status))
+                                                                                {
+                                                                            <span class="icon-wrap">
+                                                                                <i class="fa-solid fa-warning fs-6 text-danger me-3"></i>
+                                                                            </span>
+                                                                                }
+                                                                                else if (!status.IsStillRunning)
+                                                                                {
+                                                                            <span class="icon-wrap">
+                                                                                <i class="fa-solid fa-check-circle fs-6 text-success me-3"></i>
+                                                                            </span>
+                                                                                }
+                                                                                else
+                                                                                {
+
+                                                                            <span class="icon-wrap">
+                                                                                <i class="fa-solid fa-circle-notch fa-spin fs-6 text-blue me-3"></i>
+                                                                            </span>
+                                                                                }
+                                                                            }
+                                                                    <span class="d-flex flex-column">
+                                                                        <span class="text-dark">
+                                                                                    @Helpers.PrettyStatus(status.Status)
+                                                                        </span>
+                                                                        <span class="text-muted small" data-bs-toggle="tooltip" data-bs-title="Started: @status.Start Ended:@status.End Runtime: @status.GetDisplayRunTime()">
+                                                                                    @status.GetDisplayRunTime()
+                                                                        </span>
+                                                                    </span>
+                                                                </span>
+                                                            </li>
+                                                            </li>
+                                                            }
+                                                    </ul>
+                                                </td>
+                                                }
+                                            }
+                                    </tr>
+                                    }
+                                }
+                            }
+                        </tbody>
+
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+
+<script>
+    var tesJson = @Html.Raw(Model.Submission.TesJson);
+    var jsonViewer = document.getElementById("jsonViewer");
+    var showJsonButton = document.getElementById("showJsonButton");
+    var jsonVisible = false;
+    var test = jsonViewer.textContent = JSON.stringify(tesJson, null, 9);
+    showJsonButton.addEventListener("click", function () {
+        if (jsonVisible) {
+            jsonViewer.style.display = "none";
+            jsonVisible = false;
+        } else {
+            test;
+            jsonViewer.style.display = "block";
+            jsonVisible = true;
+        }
+    });
+</script>
+

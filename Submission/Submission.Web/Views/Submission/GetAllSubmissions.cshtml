@@ -1,0 +1,126 @@
+﻿@using FiveSafesTes.Core.Models.Enums
+@model List<FiveSafesTes.Core.Models.Submission>
+@{
+	ViewData["Title"] = "Submissions";
+	var submissionCount = Model.Count;
+
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+	<div class="d-flex align-items-center justify-content-between">
+		<h1 class="fs-3 mb-0">Submissions</h1>
+		@*@if (User.IsInRole("dare-control-admin"))*@
+		<a asp-controller="Submission" asp-action="Instructions" class="btn btn-primary btn-sm d-flex align-items-center">
+			<i class="fa fa-info-circle align-middle me-2"></i>
+			<span>Instructions</span>
+		</a>
+	</div>
+	<hr class="d-flex my-4">
+	<div class="table-responsive">
+		<table id="submissionList" class="table" order="[[3, 'asc' ]]">
+			<caption>List of Submissions</caption>
+			<thead>
+				<tr>
+					<th></th>
+					<th>Submission Name</th>
+					<th>Project</th>
+					<th>Submitted by</th>
+					<th>Submission Date</th>
+					<th></th>
+				</tr>
+			</thead>
+			<tbody>
+				@foreach (var submission in Model.OrderByDescending(x => x.StartTime))
+				{
+					<tr>
+						<td>
+
+							@{
+								var overallStatus = submission.Status;
+								if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
+								{
+									var minio = @ViewBag.URLBucket;
+									<h6 class="mb-0">
+										<a href="http://@minio/browser/@submission.Project.OutputBucket" target="_blank" rel="noopener">
+											<span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
+												<i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+												<span class="text-start">
+													<span class="mb-1">Completed</span>
+													<span class="font-monospace small d-block">@submission.GetTotalDisplayTime()</span>
+													<span class="font-monospace small d-block"><span class="small">Click to View Output Bucket</span></span>
+												</span>
+											</span>
+										</a>
+									</h6>
+								}
+								else if (overallStatus == StatusType.Failed || overallStatus == StatusType.Cancelled)
+								{
+									<h6 class="mb-0">
+										<span class="badge bg-danger rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @submission.EndTime">
+											<i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+											<span>@overallStatus.ToString()</span>
+										</span>
+									</h6>
+								}
+								else if (overallStatus == StatusType.PartialResult)
+								{
+
+									<h6 class="mb-0">
+										<span class="badge bg-warning rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Partial: @submission.EndTime">
+											<i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+											<span>Partial</span>
+										</span>
+									</h6>
+								}
+								else
+								{
+
+									<h6 class="mb-0">
+										<span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: @submission.GetTotalDisplayTime()">
+											<i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+											<span>Running</span>
+										</span>
+									</h6>
+
+
+								}
+
+							}
+						</td>
+						<td>
+							<a href="@Url.Action("GetASubmission", "Submission", new { id = submission.Id })">
+								<h2 class="mb-0 fw-bold hover-underline fs-6">
+									@submission.TesName
+
+								</h2>
+							</a>
+
+						</td>
+						<td>
+							@submission.Project.Name
+						</td>
+						<td>
+							@{
+								if (submission.SubmittedBy.FullName == "" || submission.SubmittedBy.FullName == null)
+								{
+									submission.SubmittedBy.FullName = submission.SubmittedBy.Name;
+								}
+							}
+							@submission.SubmittedBy.FullName
+						</td>
+						<td>
+							@submission.GetFormattedStartDate()
+						</td>
+						<td>
+							<a href="@Url.Action("GetASubmission", "Submission", new { id = submission.Id })" class="btn btn-sm btn-outline-primary">
+								<span class="small">View</span>
+							</a>
+						</td>
+
+					</tr>
+				}
+			</tbody>
+		</table>
+
+	</div>
+</div>

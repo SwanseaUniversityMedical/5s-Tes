@@ -1,0 +1,739 @@
+﻿@using Microsoft.Extensions.Configuration;
+@inject IConfiguration Configuration
+@inject UIName UIName
+<!DOCTYPE html>
+<html lang="en" class="h-100">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" shrink-to-fit="no" />
+    <title>@ViewData["Title"] - @UIName.Name</title>
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <link rel="stylesheet" href="~/css/fontawesome.css" />
+    <link rel="stylesheet" href="~/css/brands.css" />
+    <link rel="stylesheet" href="~/css/solid.css" />
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
+    <script src="https://cdn.form.io/formiojs/formio.form.min.js" crossorigin="anonymous"></script>
+    <link rel="stylesheet" href="https://cdn.form.io/formiojs/formio.form.min.css" crossorigin="anonymous" />
+    <link rel="stylesheet" href="~/css/datatables.min.css" />
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/taginput/tagsinput.css" asp-append-version="true" />
+    <script src="~/js/formIo.js"></script>
+    <script src="~/js/clipboard.min.js"></script>
+    <link rel="stylesheet" href="https://use.typekit.net/tyz0nfb.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" />
+</head>
+<body class="d-flex flex-column h-100">
+    <header>
+        <nav class="autohide navbar navbar-expand-md navbar-toggleable-md navbar-light bg-white box-shadow mb-3">
+            <div class="container-fluid">
+                <div class="d-flex align-items-center position-relative" style="z-index:99;">
+                    <button class="navbar-toggler collapsed" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
+                            aria-expanded="false" aria-label="Toggle navigation">
+                        <span id="nav-icon3" class="navbar-toggler-icon">
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                            <span></span>
+                        </span>
+                    </button>
+                    <a class="navbar-brand me-sm-5 me-2 fw-bold" asp-area="" asp-controller="Home" asp-action="Index">@UIName.Name</a>
+                </div>
+                <div class="navbar-collapse collapse">
+                    <ul class="navbar-nav flex-grow-1">
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="LoggedInUser">Home</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Submission" asp-action="GetAllSubmissions">Submissions</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Project" asp-action="GetAllProjects">Projects</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="User" asp-action="GetAllUsers">People</a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Tre" asp-action="GetAllTres">TREs</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="Account" asp-action="NewTokenIssue">API Access Token</a>
+                        </li>
+                    </ul>
+                </div>
+                
+                <div class="d-flex align-items-center position-relative" style="z-index:99;">
+                    <div class="d-lg-none d-md-block">
+                        <button class="btn btn-sm btn-primary me-2" type="button" data-bs-toggle="modal" data-bs-target="#showModalSearch">
+                            <i class="fa fa-search"></i>
+                        </button>
+                    </div>
+                    <form class="d-none d-lg-block" asp-controller="Home" asp-action="SearchView">
+                        <div class="input-group px-4">
+                            <input type="search" name="searchString" value="" placeholder="Search..." class="form-control form-control-sm" aria-label="Search" aria-describedby="button-addon2">
+                            <button class="btn btn-sm btn-primary" type="submit" id="button-addon2">Go</button>
+                        </div>
+                    </form>
+                    @if (User?.Identity?.IsAuthenticated == true)
+                    {
+                    <div class="nav-item dropdown">
+                        <a class="nav-link text-dark dropdown-toggle" href="#" id="navbarDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                            @User?.FindFirst("name")?.Value
+                        </a>
+                        <ul class="dropdown-menu dropdown-right" aria-labelledby="navbarDropdown">
+                            <li>
+                                <a class="dropdown-item" href="@Configuration.GetSection("SubmissionKeyCloakSettings")["AccountManagementURL"]">Account</a>
+                            </li>
+                            <li>
+                                <a class="dropdown-item" href="@Configuration.GetSection("Helpdesk")["URL"]">Helpdesk</a>
+                            </li>
+                            <li><hr class="dropdown-divider"></li>
+                            <li>
+                                <a class="dropdown-item" asp-area="" asp-controller="Account" asp-action="Logout">Logout</a>
+                            </li>
+                        </ul>
+                    </div>
+                    }
+                    else
+                    {
+                    <a asp-area="" asp-controller="Account" asp-action="Login" class="btn btn-outline-primary">Sign In</a>
+                    }
+
+                </div>
+
+            </div>
+        </nav>
+    </header>
+    <main role="main" class="pb-3">
+        <partial name="_Notification" />
+        @RenderBody()
+    </main>
+
+    <footer class="mt-auto footer text-muted">
+        <div class="footer-top py-lg-4 py-5">
+            <div class="container">
+                <div class="row align-items-center gy-5 gx-sm-5 text-center">
+                    <div class="col-lg-4 col-md-12 text-end-md">
+                        <a href="https://dareuk.org.uk/" target="_blank" class="dare-logo pe-lg-5 pe-0" rel="noopener">DARE UK</a>
+                    </div>
+                    <div class="col-lg-2 col-sm-4">
+                        <a href="https://www.ukri.org/" target="_blank" rel="noopener"><img src="/img/ukri-logo.png.webp" class="img-fluid" alt="UKRI logo" /></a>
+                    </div>
+                    <div class="col-lg-2 col-sm-4">
+                        <a href="https://www.hdruk.ac.uk/" target="_blank" rel="noopener"><img src="/img/hdruk-logo.png.webp" class="img-fluid" alt="HDRUK logo" style="max-height:55px;" /></a>
+                    </div>
+                    <div class="col-lg-2 col-sm-4">
+                        <a href="https://www.adruk.org/" target="_blank" rel="noopener"><img src="/img/adruk-logo.png.webp" class="img-fluid" alt="ADRUK logo" /></a>
+                    </div>
+                </div>
+
+
+            </div>
+        </div>
+        <div class="footer-bottom">
+            <div class="container text-md-start text-center">
+                <ul class="nav mb-2 flex-md-row flex-column">
+                    <li class="nav-item">
+                        <a class="nav-link text-light" asp-area="" asp-controller="Home" asp-action="TermsAndConditions">Terms and Conditions</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-light" asp-area="" asp-controller="Home" asp-action="PrivacyPolicy">Privacy Policy</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-light" href="https://dareuk.org.uk/about/" target="_blank" rel="noopener">About DARE UK</a>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link text-light" href="https://dareuk.org.uk/contact/" target="_blank" rel="noopener">Contact Us</a>
+                    </li>
+                </ul>
+                <p class="text-light mt-md-0 mt-5 mb-0">&copy; DARE UK - @UIName.Name @DateTime.Now.Year. All rights reserved.</p>
+            </div>
+        </div>
+    </footer>
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/bootstrap-history-tabs.js"></script>
+    <script src="~/js/datatables.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    <script>
+        $(document).ready(function () {
+            if (location.hash !== '') $('a[href="' + location.hash + '"]').tab('show');
+            return $('a[data-toggle="tab"]').on('shown', function (e) {
+                return location.hash = $(e.target).attr('href').substr(1);
+            });
+        });
+        $('.nav-underline a').click(function () {
+            var addressValue = $(this).attr("href");
+            window.location.hash = addressValue;
+        });
+        const tooltipTriggerList = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+        const tooltipList = [...tooltipTriggerList].map(tooltipTriggerEl => new bootstrap.Tooltip(tooltipTriggerEl))
+        new DataTable('#projectList');
+        $('#submissionList').DataTable({
+            columns: [
+                { orderable: false },
+                null,
+                null,
+                null,
+                null,
+                { orderable: false }
+            ],
+            order: [[4, 'desc']]
+        });
+        $('#launch-button').on('click', function () {
+
+            $('#welcomeModal').modal('show');
+
+        })
+
+        $('#addUser').on('click', function () {
+
+            $('#userModal').modal('show');
+
+        })
+
+        $('#addTre').on('click', function () {
+
+            $('#treModal').modal('show');
+
+        })
+
+        $('#addProject').on('click', function () {
+
+            $('#projectModal').modal('show');
+
+        })
+
+        //$('#addSubmission').on('click', function () {
+
+        //    $('#submissionModal').modal('show');
+
+        //})
+
+    </script>
+
+    <script>
+        $("input[name='OriginOption']").change(function () {
+
+            var selectedValue = $(this).val();
+
+            $("#externalUrlField, #uploadedFileField").hide();
+
+            if (selectedValue === "External") {
+                $("#externalUrlField").show();
+            } else if (selectedValue === "FileUpload") {
+                $("#uploadedFileField").show();
+            }
+        });
+    </script>
+
+    <script>
+        var SaveUserList = function (el) {
+            //debugger;
+            var projectId = $(el).attr('id');
+            var arrItem = [];
+            var commaSeparatedIds = "";
+
+            $("#UserList tr td input[type=checkbox]").each(function (index, val) {
+                //debugger;
+                var checkId = $(val).attr("Id");
+
+                var Ischecked = $("#" + checkId).is(":checked", true);
+
+                if (Ischecked) {
+                    arrItem.push(checkId);
+                }
+            })
+
+            if (arrItem.length != 0) {
+                commaSeparatedIds = arrItem.toString();
+
+                $.ajax({
+                    url: "/Project/AddUserList",
+                    type: "POST",
+                    data: { ProjectId: el, ItemList: commaSeparatedIds },
+                    success: function (reponse) {
+                        window.location.href = "/Project/GetProject/" + el;
+                    }
+                })
+            }
+        }
+    </script>
+    <script>
+        var SaveTreList = function (el) {
+            //debugger;
+            var arrItem = [];
+            var commaSeparatedIds = "";
+
+            $("#TreList tr td input[type=checkbox]").each(function (index, val) {
+                //debugger;
+                var checkId = $(val).attr("Id");
+                var arr = checkId.split('_');
+                var currentCheckboxId = arr[1];
+
+                var Ischecked = $("#" + checkId).is(":checked", true);
+
+                if (Ischecked) {
+                    arrItem.push(currentCheckboxId);
+                }
+            })
+
+            if (arrItem.length != 0) {
+                commaSeparatedIds = arrItem.toString();
+
+                $.ajax({
+                    url: "/Project/AddTreList",
+                    type: "POST",
+                    data: { ProjectId: el, ItemList: commaSeparatedIds },
+                    success: function (reponse) {
+                        window.location.href = "/Project/GetProject/" + el;
+                    }
+                })
+            }
+
+        }
+    </script>
+    <script>
+        var SaveProjectList = function (el) {
+            //debugger;
+            var arrItem = [];
+            var commaSeparatedIds = "";
+
+            $("#ProjectList tr td input[type=checkbox]").each(function (index, val) {
+                //debugger;
+                var checkId = $(val).attr("Id");
+
+                var Ischecked = $("#" + checkId).is(":checked", true);
+
+                if (Ischecked) {
+                    arrItem.push(checkId);
+                }
+            })
+
+            if (arrItem.length != 0) {
+                commaSeparatedIds = arrItem.toString();
+                //debugger;
+                $.ajax({
+                    url: "/User/AddProjectList",
+                    type: "POST",
+                    data: { Id: el, ItemList: commaSeparatedIds },
+                    success: function (reponse) {
+                        window.location.href = "/User/GetUser/" + el;
+                    }
+                })
+            }
+
+        }
+    </script>
+
+    <script>
+        $("input[name='Option']").change(function () {
+
+            var selectedValue = $(this).val();
+
+            $("#externalUrl, #uploadedFile").hide();
+
+            if (selectedValue === "url") {
+                $("#externalUrl").show();
+            } else if (selectedValue === "file") {
+                $("#uploadedFile").show();
+            }
+        });
+    </script>
+
+    <script>
+        $("#frmMain").submit(function (e) {
+            e.preventDefault();
+            debugger;
+            var selectedOptions = [];
+            $("#treDropdown option:selected").each(function () {
+                selectedOptions.push($(this).val());
+            });
+
+            var dropdownValue = selectedOptions.join("|");
+            var ProjectId = $("#projectId").val();
+            var Name = $("#name").val();
+            var SubmissionBucket = $("#submissionBucket").val();
+            var Project = $("#projectName").val();
+            var Option = $("input[name='Option']:checked").val();
+            var Url = $("#url").val();
+            var File = $("#file")[0].files[0];
+
+
+            var formData = new FormData();
+            formData.append("ProjectId", ProjectId);
+            formData.append("Name", Name);
+            formData.append("SubmissionBucket", SubmissionBucket);
+            formData.append("Project", Project);
+            formData.append("Tre", dropdownValue);
+            formData.append("Option", Option);
+            formData.append("Url", Url);
+            formData.append("File", File);
+
+            $.ajax({
+                url: '/Submission/SubmissionWizard',
+                type: 'POST',
+                data: formData,
+                contentType: false,
+                processData: false,
+                success: function (result) {
+                    window.location.href = "/Project/GetProject/" + ProjectId;
+                },
+                error: function (error) {
+                    var ElementError = document.getElementById("error");
+                    ElementError.textContent = error.responseText;
+                    ElementError.style.color = "red";
+                    console.log(error);
+                }
+            });
+        });
+    </script>
+    <script>
+        $("#showModalButton").click(function () {
+            //$('#showModalButton').on('click', function (e) {
+            //debugger;
+            var message = $('#showModalButton').data('message');
+            $('#modalContent').text(message);
+
+            //$('#modalComponentContainer').load('/Components/SubmissionWizerdView?message=' + message);
+
+            $('#submissionModal').modal('show');
+        });
+        $("#showModalButton2").click(function () {
+            //$('#showModalButton').on('click', function (e) {
+            //debugger;
+            var message = $('#showModalButton2').data('message');
+            $('#modalContent').text(message);
+
+            //$('#modalComponentContainer').load('/Components/SubmissionWizerdView?message=' + message);
+
+            $('#submissionModal1').modal('show');
+        });
+
+        $("#showModalButton3").click(function () {
+            var message = $('#showModalButton3').data('message');
+            $('#modalContent').text(message);
+            $('#submissionModal2').modal('show');
+        });
+
+    </script>
+
+   @* <script>
+        $(document).ready(function () {
+            
+
+            $('#addExecutorButton').click(function () {
+                //debugger;
+                addExecutor();
+            });
+
+            function addExecutor() {
+                debugger;
+                var image = $('#image').val();
+                var command = $('#command').val();
+
+                $.ajax({
+                    type: 'POST',
+                    url: '/Submission/AddExecutors',
+                    data: { image: image, command: command },
+                    success: function (data) {
+                        if (data.success) {
+                            
+                            refreshTable();
+                        } else {
+                            alert('Error adding executor.');
+                        }
+                    }
+                });
+            }
+
+            function refreshTable() {
+                $.get('/Shared/Components/SubmissionWizardRaw/Default', function (data) {
+                    $('#executorsTable tbody').html(data);
+                });
+            }
+        });
+    </script>*@
+
+    <script>
+        $(document).ready(function () {
+            
+            $('#addExecutorButton').on('click', function () {
+                
+                var text1 = $('#image').val();
+                var text2 = $('#command').val();
+
+                
+                if (text1 && text2) {
+                    
+                    var newRow = $('<tr><td>' + text1 + '</td><td>' + text2 + '</td></tr>');
+                    $('#executorsTable tbody').append(newRow);
+
+                    
+                    $('#image').val('');
+                    $('#command').val('');
+                } else {
+                    alert('Both Image and Command fields must be filled.');
+                }
+            });
+
+            $('#addExecutorButton').click(function () {
+                $('.bootstrap-tagsinput .badge').remove();
+            });
+        });
+    </script>
+
+    <script>
+        $(document).ready(function () {
+            $('#frmMain2').submit(function (e) {
+                e.preventDefault(); 
+                debugger;
+                
+                var executorData = [];
+                $('#executorsTable tbody tr').each(function () {
+                    var image = $(this).find('td:eq(0)')[0].children[0];
+                    var command = $(this).find('td:eq(1)')[0].children[0].children[0].children[0].children;
+
+                    var commands = []
+
+                    for (const child of command) {
+                        if (child.className == "badge rounded-pill text-light bg-primary"){
+                            console.log(child.textContent);
+                            commands.push(child.textContent)
+
+                        }
+                    }
+                    var env = $(this).find('td:eq(2)')[0].children[0].children[0].children[0].children;
+
+                    var envs = []
+
+                    for (const child of env) {
+                        if (child.className == "badge rounded-pill text-light bg-primary") {
+                            console.log(child.textContent);
+                            envs.push(child.textContent)
+                        }
+                    }
+                    executorData.push({ Image: image.value, Command: commands, ENV: envs });
+                });
+
+                
+                //var treData = [];
+                //$('.col-md-6.mb-4 .form-check-input').each(function () {
+                //    var name = $(this).siblings('input[type="hidden"]').val();
+                //    var isSelected = $(this).prop('checked');
+                //    treData.push({ Name: name, IsSelected: isSelected });
+                //});
+
+                var treData = [];
+                var anyCheckboxSelected = false;
+
+                $('.col-md-6.mb-4 .form-check-input').each(function () {
+                    var name = $(this).siblings('input[type="hidden"]').val();
+                    var isSelected = $(this).prop('checked');
+
+                    if (isSelected) {
+                        anyCheckboxSelected = true; 
+                    }
+
+                    treData.push({ Name: name, IsSelected: isSelected });
+                });
+                
+                var formData = new FormData($(this)[0]);
+
+                
+                formData.append('Executors', JSON.stringify(executorData));
+                
+                formData.append('SQL', "true");
+
+
+                $.ajax({
+                    url: '@Url.Action("AddiSubmissionWizard", "Submission")',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (result) {
+                        window.location.href = "/Project/GetProject/" + this.data.get("ProjectId");
+                        console.log(result);
+                    },
+                    error: function (error) {
+                        var ElementError = document.getElementById("error");
+                        ElementError.textContent = error.responseText;
+                        ElementError.style.color = "red";
+
+                        console.log(error);
+                    }
+                });
+            });
+        });
+
+
+        $(document).ready(function () {
+            $('#frmMain3').submit(function (e) {
+                e.preventDefault();
+                debugger;
+
+                var executorData = [];
+                $('#executorsTable tbody tr').each(function () {
+                    var image = $(this).find('td:eq(0)')[0].children[0];
+                    var command = $(this).find('td:eq(1)')[0].children[0].children[0].children[0].children;
+
+                    var commands = []
+
+                    for (const child of command) {
+                        if (child.className == "badge rounded-pill text-light bg-primary") {
+                            console.log(child.textContent);
+                            commands.push(child.textContent)
+
+                        }
+                    }
+                    var env = $(this).find('td:eq(2)')[0].children[0].children[0].children[0].children;
+
+                    var envs = []
+
+                    for (const child of env) {
+                        if (child.className == "badge rounded-pill text-light bg-primary") {
+                            console.log(child.textContent);
+                            envs.push(child.textContent)
+                        }
+                    }
+                    executorData.push({ Image: image.value, Command: commands, ENV: envs });
+                });
+
+
+                //var treData = [];
+                //$('.col-md-6.mb-4 .form-check-input').each(function () {
+                //    var name = $(this).siblings('input[type="hidden"]').val();
+                //    var isSelected = $(this).prop('checked');
+                //    treData.push({ Name: name, IsSelected: isSelected });
+                //});
+
+                var treData = [];
+                var anyCheckboxSelected = false;
+
+                $('.col-md-6.mb-4 .form-check-input').each(function () {
+                    var name = $(this).siblings('input[type="hidden"]').val();
+                    var isSelected = $(this).prop('checked');
+
+                    if (isSelected) {
+                        anyCheckboxSelected = true;
+                    }
+
+                    treData.push({ Name: name, IsSelected: isSelected });
+                });
+
+                var formData = new FormData($(this)[0]);
+
+
+                formData.append('Executors', JSON.stringify(executorData));
+
+                formData.append('SQL', "false");
+
+
+                $.ajax({
+                    url: '@Url.Action("AddiSubmissionWizard", "Submission")',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (result) {
+                        window.location.href = "/Project/GetProject/" + this.data.get("ProjectId");
+                        console.log(result);
+                    },
+                    error: function (error) {
+                        var ElementError = document.getElementById("error");
+                        ElementError.textContent = error.responseText;
+                        ElementError.style.color = "red";
+
+                        console.log(error);
+                    }
+                });
+            });
+        });
+        
+        // Post method Demo Mode
+        $(document).ready(function () {
+            $('#frmMainDemo').submit(function (e) {
+                e.preventDefault();
+                debugger;
+
+                var executorData = [];
+                var treData = [];
+                var anyCheckboxSelected = false;
+
+                $('.col-md-6.mb-4 .form-check-input').each(function () {
+                    var name = $(this).siblings('input[type="hidden"]').val();
+                    var isSelected = $(this).prop('checked');
+
+                    if (isSelected) {
+                        anyCheckboxSelected = true;
+                    }
+
+                    treData.push({ Name: name, IsSelected: isSelected });
+                });
+
+                var formData = new FormData($(this)[0]);
+                
+
+                formData.append('SQL', "false");
+
+
+                $.ajax({
+                    url: '@Url.Action("SubmitDemoTes", "Submission")',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    success: function (result) {
+                        window.location.href = "/Project/GetProject/" + this.data.get("ProjectId");
+                        console.log(result);
+                    },
+                    error: function (error) {
+                        console.log(error);
+                    }
+                });
+            });
+        });
+    </script>
+    <script src="/taginput/tagsinput.js"></script>
+    @*<script>
+        $(document).ready(function () {
+            debugger;
+            $('input[name="command"]').tagsinput({
+                trimValue: true,
+                confirmKeys: [13, 44, 32],
+                focusClass: 'my-focus-class'
+            });
+
+            $('.bootstrap-tagsinput input').on('focus', function () {
+                $(this).closest('.bootstrap-tagsinput').addClass('has-focus');
+            }).on('blur', function () {
+                $(this).closest('.bootstrap-tagsinput').removeClass('has-focus');
+            });
+
+        });
+
+    </script>*@
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <div class="modal fade bd-tre-modal-lg" tabindex="-1" role="dialog" aria-labelledby="searchLabel" aria-hidden="true" id="showModalSearch">
+        <div class="modal-dialog modal-md shadow-lg">
+            <div class="modal-content">
+                <div class="modal-body">
+                    <button type="button" class="btn-close float-end mb-3" data-bs-dismiss="modal" aria-label="Close"></button>
+                    <form class="" asp-controller="Home" asp-action="SearchView">
+                        <div class="input-group mb-3 px-4">
+                            <input type="search" name="searchString" value="" placeholder="Search..." class="form-control" aria-label="Search" aria-describedby="button-addon2">
+                            <button class="btn btn-primary" type="submit" id="button-addon2">Go</button>
+                        </div>
+                    </form>
+                    
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

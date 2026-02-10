@@ -1,0 +1,245 @@
+{
+  "_id": "64c8b89058a98238eba17437",
+  "title": "DARE Control Project",
+  "name": "dareControlProject",
+  "path": "darecontrolproject",
+  "type": "form",
+  "display": "form",
+  "tags": [],
+  "access": [
+    {
+      "type": "create_own",
+      "roles": []
+    },
+    {
+      "type": "create_all",
+      "roles": []
+    },
+    {
+      "type": "read_own",
+      "roles": []
+    },
+    {
+      "type": "read_all",
+      "roles": [ "643682757c5fb885facaba2e", "643682757c5fb87f60caba33", "643682757c5fb8a71fcaba38" ]
+    },
+    {
+      "type": "update_own",
+      "roles": []
+    },
+    {
+      "type": "update_all",
+      "roles": []
+    },
+    {
+      "type": "delete_own",
+      "roles": []
+    },
+    {
+      "type": "delete_all",
+      "roles": []
+    },
+    {
+      "type": "team_read",
+      "roles": []
+    },
+    {
+      "type": "team_write",
+      "roles": []
+    },
+    {
+      "type": "team_admin",
+      "roles": []
+    }
+  ],
+  "submissionAccess": [
+    {
+      "type": "create_own",
+      "roles": []
+    },
+    {
+      "type": "create_all",
+      "roles": []
+    },
+    {
+      "type": "read_own",
+      "roles": []
+    },
+    {
+      "type": "read_all",
+      "roles": []
+    },
+    {
+      "type": "update_own",
+      "roles": []
+    },
+    {
+      "type": "update_all",
+      "roles": []
+    },
+    {
+      "type": "delete_own",
+      "roles": []
+    },
+    {
+      "type": "delete_all",
+      "roles": []
+    },
+    {
+      "type": "team_read",
+      "roles": []
+    },
+    {
+      "type": "team_write",
+      "roles": []
+    },
+    {
+      "type": "team_admin",
+      "roles": []
+    }
+  ],
+  "owner": "605388c15a305bb6bee90290",
+  "components": [
+    {
+      "label": "Project Name",
+      "labelPosition": "left-left",
+      "applyMaskOn": "change",
+      "tableView": true,
+      "key": "Name",
+      "type": "textfield",
+      "input": true,
+      "labelWidth": 20
+    },
+    {
+      "label": "Columns",
+      "columns": [
+        {
+          "components": [
+            {
+              "label": "Start Date",
+              "tableView": false,
+              "datePicker": {
+                "disableWeekends": false,
+                "disableWeekdays": false
+              },
+              "enableMinDateInput": false,
+              "enableMaxDateInput": false,
+              "key": "StartDate",
+              "type": "datetime",
+              "input": true,
+              "widget": {
+                "type": "calendar",
+                "displayInTimezone": "viewer",
+                "locale": "en",
+                "useLocaleSettings": false,
+                "allowInput": true,
+                "mode": "single",
+                "enableTime": true,
+                "noCalendar": false,
+                "format": "yyyy-MM-dd hh:mm a",
+                "hourIncrement": 1,
+                "minuteIncrement": 1,
+                "time_24hr": false,
+                "minDate": null,
+                "disableWeekends": false,
+                "disableWeekdays": false,
+                "maxDate": null
+              }
+            }
+          ],
+          "width": 6,
+          "offset": 0,
+          "push": 0,
+          "pull": 0,
+          "size": "md",
+          "currentWidth": 6
+        },
+        {
+          "components": [
+            {
+              "label": "End Date",
+              "tableView": false,
+              "datePicker": {
+                "disableWeekends": false,
+                "disableWeekdays": false
+              },
+              "enableMinDateInput": false,
+              "enableMaxDateInput": false,
+              "key": "EndDate",
+              "type": "datetime",
+              "input": true,
+              "widget": {
+                "type": "calendar",
+                "displayInTimezone": "viewer",
+                "locale": "en",
+                "useLocaleSettings": false,
+                "allowInput": true,
+                "mode": "single",
+                "enableTime": true,
+                "noCalendar": false,
+                "format": "yyyy-MM-dd hh:mm a",
+                "hourIncrement": 1,
+                "minuteIncrement": 1,
+                "time_24hr": false,
+                "minDate": null,
+                "disableWeekends": false,
+                "disableWeekdays": false,
+                "maxDate": null
+              }
+            }
+          ],
+          "width": 6,
+          "offset": 0,
+          "push": 0,
+          "pull": 0,
+          "size": "md",
+          "currentWidth": 6
+        }
+      ],
+      "key": "columns",
+      "type": "columns",
+      "input": false,
+      "tableView": false
+    },
+    {
+      "label": "Project Owner",
+      "labelPosition": "left-left",
+      "applyMaskOn": "change",
+      "tableView": true,
+      "key": "ProjectOwner",
+      "type": "textfield",
+      "input": true,
+      "labelWidth": 20
+    },
+    {
+      "label": "Project Contact",
+      "labelPosition": "left-left",
+      "applyMaskOn": "change",
+      "tableView": true,
+      "key": "ProjectContact",
+      "type": "email",
+      "input": true,
+      "labelWidth": 20
+    },
+    {
+      "label": "Project Description",
+      "applyMaskOn": "change",
+      "autoExpand": false,
+      "tableView": true,
+      "key": "ProjectDescription",
+      "type": "textarea",
+      "input": true
+    }
+  ],
+  "settings": {},
+  "properties": {},
+  "project": "643682757c5fb85738caba27",
+  "controller": "",
+  "revisions": "",
+  "submissionRevisions": "",
+  "_vid": 0,
+  "created": "2023-08-01T07:47:28.637Z",
+  "modified": "2023-08-08T15:40:03.876Z",
+  "machineName": "rikojtsvfwnqslz:dareControlProject",
+  "plan": "commercial"
+}

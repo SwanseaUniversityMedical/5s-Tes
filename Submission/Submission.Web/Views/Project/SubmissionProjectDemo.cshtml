@@ -1,0 +1,13 @@
+@model FiveSafesTes.Core.Models.ViewModels.ProjectUserTre
+@{
+    string pageName = Model.Name;
+
+    ViewData["Title"] = @pageName + " - Demo TES Wizard";
+    int pId = Model.Id;
+}
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    @if (ViewBag.UserCanDoSubmissions)
+    {
+        @await Component.InvokeAsync("SubmissionWizardDemo", new {projectId=pId})
+    }
+</div>

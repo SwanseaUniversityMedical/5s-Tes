@@ -1,0 +1,159 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@using Submission.Web.Formatters
+@model FiveSafesTes.Core.Models.ViewModels.AddiSubmissionWizard
+@{
+    ViewData["Title"] = "Submission Wizard";
+}
+
+<partial name="../Shared/_ProjectNav" />
+@using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmMain2" }))
+    {
+    @Html.HiddenFor(x => x.ProjectId)
+    {
+        <h1 class="fs-4 mt-5">
+            SQL TES Wizard<br>
+        </h1>
+        <div class="col-md-6 mb-4">
+            @Html.LabelFor(x => x.TESName,new {@class="form-label fw-bold"})
+            @Html.TextBoxFor(x => x.TESName, new {@class="form-control"})
+        </div>
+
+        <div class="mb-4">
+            @Html.LabelFor(x => x.TESDescription,new {@class="form-label fw-bold"})
+            @Html.TextAreaFor(x => x.TESDescription, new {@class="form-control"})
+        </div>
+        <div class="col-md-4 mb-4">
+            <label class="fw-bold">Select TREs</label>
+            @for (var i = 0; i < Model.TreRadios.Count(); i++)
+            {
+                <div class="d-flex align-items-center justify-content-between">
+                    <div class="form-check">
+                        @Html.HiddenFor(x => x.TreRadios[i].Name)
+                        @Html.CheckBoxFor(x=>x.TreRadios[i].IsSelected, new {@class = "form-check-input"})
+                        <label class="form-check-label" for="flexCheckDefault">
+                            @Model.TreRadios[i].Name
+                        </label>
+                    </div>
+                    @if (Model.TreRadios[i].IsOnline)
+                    {
+                        <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-check-circle me-1"></i> Online
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-ban me-1"></i> Offline
+                        </span>
+                    }
+                </div>
+            }
+            @if (Model.TreRadios.Count() < 1)
+            {
+                <p class="text-danger">No available TREs</p>
+            }
+        </div>
+        <div class="mb-4">
+            @Html.LabelFor(x => x.Query,new {@class="form-label fw-bold"})
+            @Html.TextAreaFor(x => x.Query, new {@class="form-control"})
+        </div>
+
+        <label class="form-label fw-bold">ENV</label>
+        <div class="col-md-12 mb-4">
+            <table id="executorsTable" class="table">
+                <thead>
+                    <tr>
+                        <th class="col-md-4">Image</th>
+                        <th class="col-md-4">Command</th>
+                        <th class="col-md-4">Environment Variables</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="vertical-align: top;">
+                        <td class="border-0">
+                            <input type="text" id="Command" name="Command" class="form-control" />
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2">
+                                    <input type="text" id="environmentvariables" name="environmentvariables" class="form-control" data-role="tagsinput" />
+                                    <p><small class="form-text text-muted">Separate environment variables with Enter ↵ key, example Envvar=myVal </small></p>
+                                </div>
+                                <a href="#" id="addCommandButton" class="btn btn-sm btn-secondary">Add</a>
+                            </div>
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2" id="ENVBOX">
+                                    <input type="text" id="env" name="env" class="form-control" data-role="tagsinput" />
+                                    <p><small class="form-text text-muted">Type in your environment variable (e.g MyENV=MyVal) then press Enter ↵ key</small></p>
+                                </div>
+                                <a href="#" id="addENVButton" class="btn btn-sm btn-secondary">Add</a>
+                            </div>
+                        </td>
+                    </tr>
+                    @if (Model.Executors != null)
+                    {
+                        @foreach (var executor in Model.Executors)
+                        {
+                            <tr>
+                                <td class="col-md-4">@executor.Image</td>
+                                <td class="col-md-4">@executor.Command</td>
+                                <td class="col-md-4">@executor.ENV</td>
+                            </tr>
+                        }
+                    }
+
+                </tbody>
+            </table>
+        </div>
+
+        <label class="form-label fw-bold">Data Input</label>
+        <div class="col-md-12 mb-4">
+            <thead>
+                <tr>
+                    <th class="col-md-4">Path</th>
+                    <th class="col-md-4">Type</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr style="vertical-align: top;">
+                    <td class="col-md-4 border-0">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" />
+                        </div>
+                    </td>
+                    <td class="col-md-4 border-0">
+                        <div class="d-flex align-items-start justify-content-between">
+                            <select name="DataInputType" id="DataInputType">
+                                <option value="FILEEnum">FILE</option>
+                                <option value="DIRECTORYEnum">DIRECTORY</option>
+                            </select>
+                        </div>
+                    </td>
+                </tr>
+            </tbody>
+        </div>
+
+
+        <label class="form-label fw-bold">Raw Json Input </label>
+        <div id="RawInput" class="form-group">
+            @Html.TextAreaFor(m => m.RawInput, new {@class="form-control"})
+        </div>
+
+        <div class="d-flex align-items-center mt-5">
+            <button type="submit" class="btn btn-sm btn-primary">Submit</button>
+            <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-sm btn-link">Cancel</a>
+        </div>
+        <div class="d-flex align-items-center mt-5">
+            <div id="error"></div>
+        </div>
+    }
+    }
+
+
+
+
+
+
+
