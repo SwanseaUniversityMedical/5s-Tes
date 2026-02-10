@@ -116,7 +116,7 @@ app/
 
 - `app/projects/`: Contains all pages and logic related to project management. This includes the main projects listing page, table column definitions, and dynamic routes for individual projects.
 
-The `[projectId]` subdirectory provides pages and components for viewing and managing specific projects, such as displaying project details and configuring project-specific tables.
+- The `app/projects/[projectId]/` subdirectory provides pages and components for viewing and managing specific projects, such as displaying project details and configuring project-specific tables.
 
 - `app/sign-in/`: Contains the sign-in page for user authentication.
 
