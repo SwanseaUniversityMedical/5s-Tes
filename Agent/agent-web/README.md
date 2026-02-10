@@ -1,7 +1,6 @@
 ## TRE Agent UI
 
-Frontend web application for managing projects, credentials, and access rules.
-Built with **Next.js and TypeScript**.
+The TRE Agent UI is a Frontend web application for managing projects, credentials, and access rules. This app is built with **Next.js and TypeScript** and more instructions on how to run the app and project structure are provided below.
 
 ## Getting Started
 
