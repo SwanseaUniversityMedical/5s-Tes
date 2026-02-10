@@ -63,9 +63,9 @@ api/
 └── projects.ts
 ```
 
-- `api/projects.ts`: Handles API interactions related to project management, such as fetching, creating, or updating projects.
+- `api/projects.ts`: Handles API interactions related to project management, such as fetching, creating, updating projects and project approval workflows.
 
-- `api/credentials.ts`: Manages API calls for credential operations, including retrieval, creation, and updates of credentials (Submission & Egress).
+- `api/credentials.ts`: Manages API calls for credential operations, including updates of credentials (Submission & Egress).
 
 - `api/access-rules.ts`: Handles API interactions for access rules (DMN Rules) for fetching, creating, updating, validating and deleting access rules.
 
