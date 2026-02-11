@@ -20,7 +20,8 @@ The descriptions of the environment variables and the guide to set them are as f
 | KEYCLOAK_CLIENT_SECRET      | Secret associated with the Keycloak client, used for secure authentication.                  |
 | KEYCLOAK_URL                | Base URL for the Keycloak authentication server.                                             |
 | NEXT_PUBLIC_KEYCLOAK_REALM  | Keycloak realm name, specifying the authentication domain for the TRE environment.           |
-| NEXT_PUBLIC_APP_URL         | Public URL for the TRE Agent UI frontend application.                                        |
+| NEXT_PUBLIC_KEYCLOAK_URL    | Public URL of the Keycloak server for the frontend (used by client-side components such as UserMenu). This may differ from KEYCLOAK_URL if running in Docker or different environments. |
+| NEXT_PUBLIC_HELPDESK_URL    | Public URL for the Helpdesk portal. This is the link users will be directed to for support and help requests. |
 | AGENT_API_URL               | URL for the backend API server that powers the TRE AgentUI.                                  |
 
 ---
@@ -36,8 +37,8 @@ KEYCLOAK_CLIENT_ID=Dare-TRE-UI
 KEYCLOAK_CLIENT_SECRET=2de114bc-3599-45f1-9b61-5090c6859dfe
 KEYCLOAK_URL=http://localhost:8085
 NEXT_PUBLIC_KEYCLOAK_REALM=Dare-TRE
-NEXT_PUBLIC_KEYCLOAK_URL =
-NEXT_PUBLIC_APP_URL=http://localhost:3000
+NEXT_PUBLIC_KEYCLOAK_URL=http://localhost:8085
+NEXT_PUBLIC_HELPDESK_URL=https://ukserp.atlassian.net/servicedesk/customer/portal/3
 AGENT_API_URL=http://localhost:8072
 ```
 
