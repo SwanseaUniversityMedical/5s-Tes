@@ -23,7 +23,7 @@ AGENT_API_URL=http://localhost:8072
 
 #### Run the development server for TRE Admin UI:
 
-- Install dependencies (Optional)
+- Install dependencies (Mandatory for the first run)
 ```bash
 npm install
 ```
