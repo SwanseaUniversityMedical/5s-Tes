@@ -6,17 +6,37 @@ The **TRE Agent UI (TRE Admin) is a Frontend web application** for managing proj
 
 #### Create Environment Variables
 
-- Create a `.env` file in the `5s-Tes/Agent/agent-web/` directory.
+- Create a `.env` file in the `5s-Tes/Agent/agent-web/` directory and configure the environment variables.
 
-- Add these env variables within the `.env` file below:
+The descriptions of the environment variables and the guide to set them are as follows:
+
+> **Note:** It is recommended that users and developers generate their own `BETTER_AUTH_SECRET` by following the [BetterAuth guide](https://www.better-auth.com/docs/installation#set-environment-variables). Use the **Generate Secret** button provided in the guide to create a secure secret for your environment.
+
+| Environment Variable        | Description                                                                                  |
+|-----------------------------|----------------------------------------------------------------------------------------------|
+| BETTER_AUTH_SECRET          | Secret key used for authentication and session management in the TRE Agent UI.               |
+| BETTER_AUTH_URL             | URL for the authentication service backend (Better Auth), typically the TRE UI base URL.     |
+| KEYCLOAK_CLIENT_ID          | Client ID for Keycloak authentication, identifying the TRE Admin UI application.             |
+| KEYCLOAK_CLIENT_SECRET      | Secret associated with the Keycloak client, used for secure authentication.                  |
+| KEYCLOAK_URL                | Base URL for the Keycloak authentication server.                                             |
+| NEXT_PUBLIC_KEYCLOAK_REALM  | Keycloak realm name, specifying the authentication domain for the TRE environment.           |
+| NEXT_PUBLIC_APP_URL         | Public URL for the TRE Agent UI frontend application.                                        |
+| AGENT_API_URL               | URL for the backend API server that powers the TRE AgentUI.                                  |
+
+---
+
+#### Example `.env` file content:
+
+> **Note:** The values provided below are examples and make sure to update them corresponding to your local setup and configurations.
 
 ```bash
-BETTER_AUTH_SECRET=mU8w2913XafFbRODBy6rZlxSrFvEwesM
+BETTER_AUTH_SECRET= "your-generated-better-auth-secret"
 BETTER_AUTH_URL=http://localhost:3000
 KEYCLOAK_CLIENT_ID=Dare-TRE-UI
 KEYCLOAK_CLIENT_SECRET=2de114bc-3599-45f1-9b61-5090c6859dfe
 KEYCLOAK_URL=http://localhost:8085
 NEXT_PUBLIC_KEYCLOAK_REALM=Dare-TRE
+NEXT_PUBLIC_KEYCLOAK_URL =
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 AGENT_API_URL=http://localhost:8072
 ```
@@ -35,6 +55,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the TRE Admin UI.
 
+> **Note:** Make sure you set up and run the required backend services (Better Auth, Keycloak, and TRE Agent API) and configure the environment variables correctly for the TRE Admin UI to function properly.
 
 ## Project Structure
 
