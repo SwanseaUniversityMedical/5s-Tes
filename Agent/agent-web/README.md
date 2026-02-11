@@ -6,7 +6,7 @@ The **TRE Agent UI (TRE Admin) is a Frontend web application** for managing proj
 
 #### Create Environment Variables
 
-- Create a `.env` file in the root of the `5s-Tes/Agent/agent-web/` directory.
+- Create a `.env` file in the `5s-Tes/Agent/agent-web/` directory.
 
 - Add these env variables within the `.env` file below:
 
