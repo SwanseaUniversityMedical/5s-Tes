@@ -55,7 +55,7 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the TRE Admin UI.
 
-> **Note:** Make sure you set up and run the required backend services (Better Auth, Keycloak, and TRE Agent API) and configure the environment variables correctly for the TRE Admin UI to function properly.
+> **Note:** Make sure you set up and run the required backend services (Keycloak, and TRE Agent API) and configure the environment variables correctly for the TRE Admin UI to function properly.
 
 ## Project Structure
 
