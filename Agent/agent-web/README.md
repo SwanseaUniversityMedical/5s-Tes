@@ -1,6 +1,6 @@
 ## TRE Agent UI
 
-The **TRE Agent UI (TRE Admin) is a Frontend web application** for managing projects, credentials, and access rules. This app is built with **Next.js and TypeScript** and more instructions on how to run the app and project structure are provided below.
+The **TRE Agent UI (TRE Admin) is a Frontend web application** for managing projects/memberships approval, credentials, and access rules. This app is built with **Next.js and TypeScript**, and more instructions on how to run the app and project structure are provided below.
 
 ## Getting Started
 
