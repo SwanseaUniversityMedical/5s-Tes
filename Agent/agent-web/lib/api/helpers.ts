@@ -1,3 +1,5 @@
+import { ActionResult } from "@/types/ActionResult";
+
 export function resolveJsonReferences(data: any): any {
   // Early return for non-objects
   if (!data || typeof data !== "object") {
@@ -90,5 +92,33 @@ export function resolveJsonReferences(data: any): any {
 export function isNextRedirectError(error: unknown): boolean {
     return (error as any)?.digest?.startsWith?.("NEXT_REDIRECT") ?? false;
   }
-  
-  
+
+
+/* The handleRequest function is a utility that wraps
+API calls to provide consistent error handling and
+response formatting.
+
+It takes a promise representing an API request and
+returns a standardized ActionResult object
+indicating success or failure, along with
+the data or error message.
+
+If the error is a Next.js redirect, it rethrows
+it to allow proper handling by Next.js. */
+  export async function handleRequest<T>(
+    requestPromise: Promise<T>,
+  ): Promise<ActionResult<T>> {
+    try {
+      const data = await requestPromise;
+      return { success: true, data };
+    } catch (error) {
+      if (isNextRedirectError(error)) {
+        throw error;
+      }
+      return {
+        success: false,
+        error:
+          error instanceof Error ? error.message : "An unexpected error occurred",
+      };
+    }
+  }
