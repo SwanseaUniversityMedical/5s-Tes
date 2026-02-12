@@ -1,7 +1,7 @@
 "use server";
 
-import { isNextRedirectError } from "@/lib/api/helpers";
 import request from "@/lib/api/request";
+import { handleRequest } from "@/lib/api/helpers";
 import {
   DecisionInfo,
   AccessRulesData,
@@ -19,26 +19,6 @@ import {
   transformFormDataForApi,
 } from "@/lib/helpers/access-rules-api";
 
-
-/* ----- Helper Functions ----- */
-
-async function handleRequest<T>(
-  requestPromise: Promise<T>,
-): Promise<ActionResult<T>> {
-  try {
-    const data = await requestPromise;
-    return { success: true, data };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
-}
 
 /* ----- Fetch Keys for target API endpoints ----- */
 
