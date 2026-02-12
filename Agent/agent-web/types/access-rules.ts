@@ -77,3 +77,85 @@ export const ruleFormSchema = z.object({
 
 // Zod Validation for Access Rules Form Data
 export type RuleFormData = z.infer<typeof ruleFormSchema>;
+
+
+
+
+/* ----- API Response Types ------ */
+
+interface DmnRuleSubData {
+  id?: string | null;
+  text?: string | null;
+}
+
+export interface DmnRule {
+  id?: string | null;
+  description?: string | null;
+  inputEntries?: Array<DmnRuleSubData> | null;
+  outputEntries?: Array<DmnRuleSubData> | null;
+}
+
+export interface DmnDecisionTable {
+  decisionId?: string | null;
+  decisionName?: string | null;
+  hitPolicy?: string | null;
+  inputs?: Array<{
+    id?: string | null;
+    label?: string | null;
+    expression?: string | null;
+    typeRef?: string | null;
+  }> | null;
+  outputs?: Array<{
+    id?: string | null;
+    label?: string | null;
+    name?: string | null;
+    typeRef?: string | null;
+  }> | null;
+  rules?: Array<DmnRule> | null;
+}
+
+export interface DmnValidateResponse {
+  $id?: string;
+  success: boolean;
+  message: string | null;
+  data: string | null;
+}
+
+export interface DmnOperationResult {
+  $id?: string;
+  success: boolean;
+  message: string | null;
+  data: any;
+}
+
+export interface UpdateDmnRuleRequest {
+  ruleId: string;
+  description?: string | null;
+  inputValues: Array<string>;
+  outputValues: Array<string>;
+}
+
+export interface CreateDmnRuleRequest {
+  description?: string | null;
+  inputValues: Array<string>;
+  outputValues: Array<string>;
+}
+
+export interface UpdateAccessRuleDto {
+  inputUser?: string;
+  inputProject?: string;
+  inputSubmissionId?: string;
+  outputTag: string;
+  outputValue: string;
+  outputEnv: string;
+  description?: string;
+}
+
+export interface CreateAccessRuleDto {
+  inputUser?: string;
+  inputProject?: string;
+  outputTag: string;
+  outputValue: string;
+  outputEnv: string;
+  description?: string;
+}
