@@ -78,22 +78,7 @@ export const ruleFormSchema = z.object({
 // Zod Validation for Access Rules Form Data
 export type RuleFormData = z.infer<typeof ruleFormSchema>;
 
-
-
-
 /* ----- API Response Types ------ */
-
-interface DmnRuleSubData {
-  id?: string | null;
-  text?: string | null;
-}
-
-export interface DmnRule {
-  id?: string | null;
-  description?: string | null;
-  inputEntries?: Array<DmnRuleSubData> | null;
-  outputEntries?: Array<DmnRuleSubData> | null;
-}
 
 export interface DmnDecisionTable {
   decisionId?: string | null;
