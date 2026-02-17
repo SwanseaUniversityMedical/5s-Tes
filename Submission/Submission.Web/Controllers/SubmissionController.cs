@@ -440,5 +440,201 @@ namespace Submission.Web.Controllers
                 return BadRequest(e.Message);
             }
         }
+        
+        [HttpPost]
+        [Authorize]
+        public async Task<ActionResult> SubmissionWizardAction(AddiSubmissionWizard model, string Executors, string SQL)
+        {
+            if (!ModelState.IsValid) // SonarQube security
+            {
+                return View("/");
+            }
+
+            try
+            {
+                var listOfTre = "";
+
+                var paramlist = new Dictionary<string, string>();
+                paramlist.Add("projectId", model.ProjectId.ToString());
+                var project = await _clientHelper.CallAPIWithoutModel<Project?>(
+                    "/api/Project/GetProject/", paramlist);
+
+                var test = new TesTask();
+                var tesExecutors = new List<TesExecutor>();
+
+                if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
+                {
+                    bool First = true;
+                    List<Executors> executorsList = JsonConvert.DeserializeObject<List<Executors>>(Executors);
+                    foreach (var ex in executorsList)
+                    {
+                        if (string.IsNullOrEmpty(ex.Image)) continue;
+
+                        Dictionary<string, string> EnvVars = new Dictionary<string, string>();
+                        foreach (var anENV in ex.ENV)
+                        {
+                            var keyval = anENV.Split('=', 2);
+                            EnvVars[keyval[0]] = keyval[1];
+                        }
+
+                        var exet = new TesExecutor()
+                        {
+                            Image = ex.Image,
+                            Command = ex.Command,
+                            Env = EnvVars
+                        };
+                        tesExecutors.Add(exet);
+                    }
+                }
+
+                var TreDataTreData = model.TreRadios.Where(x => x.IsSelected == true).ToList();
+
+                if (TreDataTreData.Count == 0)
+                {
+                    var paramList = new Dictionary<string, string>();
+                    paramList.Add("projectId", model.ProjectId.ToString());
+                    var tre = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/",
+                        paramList);
+                    List<string> namesList = tre.Select(test => test.Name).ToList();
+                    listOfTre = string.Join("|", namesList);
+                }
+                else
+                {
+                    listOfTre = string.Join("|",
+                        model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
+                }
+
+                test = new TesTask();
+
+                if (string.IsNullOrEmpty(model.RawInput) == false)
+                {
+                    test = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
+                }
+
+
+                if (string.IsNullOrEmpty(model.TESName) == false)
+                {
+                    test.Name = model.TESName;
+                }
+
+                if (string.IsNullOrEmpty(model.TESDescription) == false)
+                {
+                    test.Description = model.TESDescription;
+                }
+
+                if (tesExecutors.Count > 0)
+                {
+                    if (test.Executors == null || test.Executors.Count == 0)
+                    {
+                        test.Executors = tesExecutors;
+                    }
+                    else
+                    {
+                        test.Executors.AddRange(tesExecutors);
+                    }
+                }
+
+                if (string.IsNullOrEmpty(model.Query) == false)
+                {
+                    var QueryExecutor = new TesExecutor()
+                    {
+                        Image = _URLSettingsFrontEnd.QueryImageGraphQL,
+                        Command = new List<string>
+                        {
+                            "/usr/bin/dotnet",
+                            "/app/Tre-Hasura.dll",
+                            "--Query_" + model.Query
+                        }
+                    };
+
+
+                    if (SQL == "true")
+                    {
+                        QueryExecutor.Image = _URLSettingsFrontEnd.QueryImageSQL;
+                        QueryExecutor.Command = new List<string>()
+                        {
+                            "/bin/bash",
+                            "/workspace/entrypoint.sh",
+                            $"--Query={model.Query}"
+                        };
+                        QueryExecutor.Env = new Dictionary<string, string>()
+                        {
+                            ["LOCATION"] = "/workspace/data/results.csv",
+                        };
+                    }
+
+
+                    if (test.Executors == null)
+                    {
+                        test.Executors = new List<TesExecutor>();
+                        test.Executors.Add(QueryExecutor);
+                    }
+                    else
+                    {
+                        test.Executors.Insert(0, QueryExecutor);
+                    }
+                }
+
+                if (test.Outputs == null || test.Outputs.Count == 0)
+                {
+                    test.Outputs = new List<TesOutput>()
+                    {
+                        new TesOutput()
+                        {
+                            Url = "",
+                            Name = "aName",
+                            Description = "ADescription",
+                            Path = "/app/data",
+                            Type = TesFileType.DIRECTORYEnum,
+                        }
+                    };
+                    if (SQL == "true")
+                    {
+                        test.Outputs[0].Path = "/workspace/data";
+                    }
+                }
+
+                if (test.Tags == null || test.Tags.Count == 0)
+                {
+                    test.Tags = new Dictionary<string, string>()
+                    {
+                        { "project", project.Name },
+                        { "tres", listOfTre },
+                        { "author", HttpContext.User.FindFirst("name").Value }
+                    };
+                }
+
+                if (string.IsNullOrEmpty(model.DataInputPath) == false)
+                {
+                    if (test.Inputs == null)
+                    {
+                        test.Inputs = new List<TesInput>();
+                    }
+                    test.Inputs.Add(new TesInput()
+                    {
+                        Path = model.DataInputPath,
+                        Type = Enum.Parse<TesFileType>(model.DataInputType),
+                        Name = "",
+                        Description = "",
+                        Url = "a",
+                        Content = ""
+                    });
+                }
+
+                var context = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                var Token = await _IKeyCloakService.RefreshUserToken(context);
+
+                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", test);
+
+
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Exception in {Function}");
+                return BadRequest(e.Message);
+            }
+        }
+    
     }
 }
