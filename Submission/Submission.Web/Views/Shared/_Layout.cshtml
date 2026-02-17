@@ -489,13 +489,13 @@
         $(document).ready(function () {
             $('#frmMainNewWizard').submit(function (e) {
                 e.preventDefault(); 
-                debugger;
+               
                 
                 var executorData = [];
                 
                 // Get data from the input row (first row with inputs)
                 var imageInput = $('#Image').val();
-                var commandInput = $('#environmentvariables').val(); // This appears to be the command field based on the HTML
+                var commandInput = $('#commands').val();
                 var envInput = $('#env').val();
                 
                 if (imageInput || commandInput || envInput) {
@@ -530,12 +530,7 @@
                 });
 
                 
-                //var treData = [];
-                //$('.col-md-6.mb-4 .form-check-input').each(function () {
-                //    var name = $(this).siblings('input[type="hidden"]').val();
-                //    var isSelected = $(this).prop('checked');
-                //    treData.push({ Name: name, IsSelected: isSelected });
-                //});
+            
 
                 var treData = [];
                 var anyCheckboxSelected = false;
@@ -568,7 +563,7 @@
 
 
                 $.ajax({
-                    url: '@Url.Action("AddiSubmissionWizard", "Submission")',
+                    url: '@Url.Action("SubmissionWizardAction", "Submission")',
                     type: 'POST',
                     data: formData,
                     contentType: false,
