@@ -4,10 +4,10 @@
       "commandName": "Project",
       "launchBrowser": true,
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development_Notts"
+        "ASPNETCORE_ENVIRONMENT": "Development"
       },
       "dotnetRunMessages": true,
-      "applicationUrl": "http://localhost:8989",
+      "applicationUrl": "http://localhost:5233",
       "comment": "Use http://localhost:8989 for local Notts development"
     },
     "https": {
