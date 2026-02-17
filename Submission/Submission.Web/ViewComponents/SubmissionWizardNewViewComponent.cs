@@ -3,16 +3,21 @@ using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Submission.Web.Models;
 
 namespace Submission.Web.ViewComponents
 {
     public class SubmissionWizardNewViewComponent : ViewComponent
     {
         private readonly IDareClientHelper _clientHelper;
-        public SubmissionWizardNewViewComponent(IDareClientHelper client)
+        private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
+        
+        public SubmissionWizardNewViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
         {
             _clientHelper = client;
+            _URLSettingsFrontEnd = URLSettingsFrontEnd;
         }
+        
         public async Task<IViewComponentResult> InvokeAsync(int projectId)
         {
             var paramlist = new Dictionary<string, string>();
@@ -53,6 +58,9 @@ namespace Submission.Web.ViewComponents
                 UserItemList = userItems,
                 TreItemList = treItems
             };
+
+            // Pass URL settings to the view
+            ViewBag.QueryImageSQL = _URLSettingsFrontEnd.QueryImageSQL;
 
             return View(model);
         }

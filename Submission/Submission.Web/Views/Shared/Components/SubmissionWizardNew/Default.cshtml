@@ -2,31 +2,95 @@
 @using Submission.Web.Formatters
 @model FiveSafesTes.Core.Models.ViewModels.AddiSubmissionWizard
 @{
-    ViewData["Title"] = "Submission Wizard";
+    ViewData["Title"] = "SQL TES Wizard";
 }
 
+<style>
+    .mode-section {
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .mode-selection {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-check-label strong {
+        color: #495057;
+    }
+    
+    .alert {
+        margin-bottom: 1rem;
+    }
+    
+    #rawMode textarea {
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+</style>
+
 <partial name="../Shared/_ProjectNav" />
+
 @using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmMainNewWizard" }))
-    {
+{
     @Html.HiddenFor(x => x.ProjectId)
-    {
-        <h1 class="fs-4 mt-5">
-            SQL TES Wizard New<br>
-        </h1>
-        <div class="col-md-6 mb-4">
-            @Html.LabelFor(x => x.TESName,new {@class="form-label fw-bold"})
-            @Html.TextBoxFor(x => x.TESName, new {@class="form-control"})
+    
+    <h1 class="fs-4 mt-5">SQL TES Wizard New</h1>
+    
+    <!-- Mode Selection -->
+    <div class="mode-selection">
+        <label class="form-label fw-bold mb-3">
+            <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
+        </label>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeSimple" value="simple" checked>
+            <label class="form-check-label" for="modeSimple">
+                <strong><i class="fa-solid fa-bolt me-2 text-success"></i>Simple SQL Query</strong> 
+                <br><small class="text-muted">Use default SQL query image, just provide query and basic settings</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeCustomImage" value="custom">
+            <label class="form-check-label" for="modeCustomImage">
+                <strong><i class="fa-solid fa-cogs me-2 text-warning"></i>Custom Image</strong> 
+                <br><small class="text-muted">Choose your own Docker image and configure executors</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeRawJson" value="raw">
+            <label class="form-check-label" for="modeRawJson">
+                <strong><i class="fa-solid fa-code me-2 text-info"></i>Raw JSON</strong> 
+                <br><small class="text-muted">Paste complete TES task JSON</small>
+            </label>
+        </div>
+    </div>
+
+    <!-- Common Fields -->
+    <div id="commonFields">
+        <div class="row">
+            <div class="col-md-6 mb-4">
+                @Html.LabelFor(x => x.TESName, new {@class="form-label fw-bold"})
+                @Html.TextBoxFor(x => x.TESName, new {@class="form-control", @placeholder="Enter task name"})
+            </div>
         </div>
 
         <div class="mb-4">
-            @Html.LabelFor(x => x.TESDescription,new {@class="form-label fw-bold"})
-            @Html.TextAreaFor(x => x.TESDescription, new {@class="form-control"})
+            @Html.LabelFor(x => x.TESDescription, new {@class="form-label fw-bold"})
+            @Html.TextAreaFor(x => x.TESDescription, new {@class="form-control", @rows="2", @placeholder="Enter task description (optional)"})
         </div>
-        <div class="col-md-4 mb-4">
-            <label class="fw-bold">Select TREs</label>
+
+        <div class="col-md-8 mb-4">
+            <label class="fw-bold"><i class="fa-solid fa-server me-2"></i>Select TREs</label>
             @for (var i = 0; i < Model.TreRadios.Count(); i++)
             {
-                <div class="d-flex align-items-center justify-content-between">
+                <div class="d-flex align-items-center justify-content-between mb-2">
                     <div class="form-check">
                         @Html.HiddenFor(x => x.TreRadios[i].Name)
                         @Html.CheckBoxFor(x=>x.TreRadios[i].IsSelected, new {@class = "form-check-input", @id = "tre_" + i})
@@ -36,13 +100,13 @@
                     </div>
                     @if (Model.TreRadios[i].IsOnline)
                     {
-                        <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                        <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
                             <i class="fa-solid fa-check-circle me-1"></i> Online
                         </span>
                     }
                     else
                     {
-                        <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                        <span class="badge px-2 badge-sm bg-secondary text-light rounded-pill m-0 ms-3">
                             <i class="fa-solid fa-ban me-1"></i> Offline
                         </span>
                     }
@@ -53,31 +117,71 @@
                 <p class="text-danger">No available TREs</p>
             }
         </div>
+    </div>
+
+    <!-- Mode 1: Simple SQL Query -->
+    <div id="simpleMode" class="mode-section">
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-2"></i>
+            <strong>Simple Mode:</strong> Uses the default SQL query image. Just provide your SQL query and output settings.
+        </div>
+        
         <div class="mb-4">
-            @Html.LabelFor(x => x.Query,new {@class="form-label fw-bold"})
-            @Html.TextAreaFor(x => x.Query, new {@class="form-control"})
+            @Html.LabelFor(x => x.Query, new {@class="form-label fw-bold"})
+            @Html.TextAreaFor(x => x.Query, new {@class="form-control", @rows="5", @placeholder="Enter your SQL query here..."})
         </div>
 
-        <label class="form-label fw-bold">ENV</label>
+        <div class="mb-4">
+            <label class="form-label fw-bold">Output Settings</label>
+            <div class="row">
+                <div class="col-md-6">
+                    <label class="form-label">Output Path</label>
+                    <input type="text" id="simpleOutputPath" name="simpleOutputPath" class="form-control" value="/workspace/data" />
+                    <small class="form-text text-muted">Default: /workspace/data</small>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Output Type</label>
+                    <select id="simpleOutputType" name="simpleOutputType" class="form-control">
+                        <option value="DIRECTORYEnum">DIRECTORY</option>
+                        <option value="FILEEnum">FILE</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Mode 2: Custom Image -->
+    <div id="customMode" class="mode-section" style="display:none;">
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            <strong>Custom Mode:</strong> Use your own Docker image and configure executors manually.
+        </div>
+
+        <div class="mb-4">
+            @Html.LabelFor(x => x.Query, new {@class="form-label fw-bold"})
+            @Html.TextAreaFor(x => x.Query, new {@class="form-control", @rows="3", @placeholder="Optional: SQL query if using query-enabled image"})
+        </div>
+
+        <label class="form-label fw-bold">Executors</label>
         <div class="col-md-12 mb-4">
             <table id="executorsTable" class="table">
                 <thead>
                     <tr>
-                        <th class="col-md-4">Image</th>
-                        <th class="col-md-4">Command</th>
+                        <th class="col-md-4">Docker Image</th>
+                        <th class="col-md-4">Commands</th>
                         <th class="col-md-4">Environment Variables</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr style="vertical-align: top;">
                         <td class="border-0">
-                            <input type="text" id="Image" name="Image" class="form-control" />
+                            <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
                         </td>
                         <td class="border-0">
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2">
-                                    <input type="text" id="commands" name="commands" class="form-control" data-role="tagsinput" />
-                                    <p><small class="form-text text-muted">Separate commands with Enter ↵ key</small></p>
+                                    <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
+                                    <small class="form-text text-muted">One command per line</small>
                                 </div>
                                 <a href="#" id="addCommandButton" class="btn btn-sm btn-secondary">Add</a>
                             </div>
@@ -85,8 +189,8 @@
                         <td class="border-0">
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2" id="ENVBOX">
-                                    <input type="text" id="env" name="env" class="form-control" data-role="tagsinput" />
-                                    <p><small class="form-text text-muted">Type in your environment variable (e.g MyENV=MyVal) then press Enter ↵ key</small></p>
+                                    <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
+                                    <small class="form-text text-muted">Format: KEY=value, one per line</small>
                                 </div>
                                 <a href="#" id="addENVButton" class="btn btn-sm btn-secondary">Add</a>
                             </div>
@@ -103,7 +207,6 @@
                             </tr>
                         }
                     }
-
                 </tbody>
             </table>
         </div>
@@ -113,45 +216,53 @@
             <table class="table">
                 <thead>
                     <tr>
-                        <th class="col-md-4">Path</th>
-                        <th class="col-md-4">Type</th>
+                        <th class="col-md-6">Path</th>
+                        <th class="col-md-6">Type</th>
                     </tr>
                 </thead>
                 <tbody>
                     <tr style="vertical-align: top;">
-                        <td class="col-md-4 border-0">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" />
-                            </div>
+                        <td class="col-md-6 border-0">
+                            <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/path/to/input/data" />
                         </td>
-                        <td class="col-md-4 border-0">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <select name="DataInputType" id="DataInputType" class="form-control">
-                                    <option value="FILEEnum">FILE</option>
-                                    <option value="DIRECTORYEnum">DIRECTORY</option>
-                                </select>
-                            </div>
+                        <td class="col-md-6 border-0">
+                            <select name="DataInputType" id="DataInputType" class="form-control">
+                                <option value="FILEEnum">FILE</option>
+                                <option value="DIRECTORYEnum">DIRECTORY</option>
+                            </select>
                         </td>
                     </tr>
                 </tbody>
             </table>
         </div>
+    </div>
 
+    <!-- Mode 3: Raw JSON -->
+    <div id="rawMode" class="mode-section" style="display:none;">
+        <div class="alert alert-primary">
+            <i class="fa-solid fa-code me-2"></i>
+            <strong>Raw JSON Mode:</strong> Paste your complete TES task JSON here. This will override all other settings.
+        </div>
+        
+        <div class="mb-4">
+            <label class="form-label fw-bold">TES Task JSON</label>
+            @Html.TextAreaFor(m => m.RawInput, new {@class="form-control", @rows="15", @placeholder="Paste your complete TES task JSON here..."})
+            <small class="form-text text-muted">
+                Example: {"name": "My Task", "executors": [{"image": "ubuntu:latest", "command": ["echo", "hello"]}], ...}
+            </small>
+        </div>
+    </div>
 
-        <label class="form-label fw-bold">Raw Json Input </label>
-        <div id="RawInput" class="form-group">
-            @Html.TextAreaFor(m => m.RawInput, new {@class="form-control"})
-        </div>
-
-        <div class="d-flex align-items-center mt-5">
-            <button type="submit" class="btn btn-sm btn-primary">Submit</button>
-            <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-sm btn-link">Cancel</a>
-        </div>
-        <div class="d-flex align-items-center mt-5">
-            <div id="error"></div>
-        </div>
-    }
-    }
+    <div class="d-flex align-items-center mt-5">
+        <button type="submit" class="btn btn-primary me-3">Submit TES Task</button>
+        <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-outline-secondary">Cancel</a>
+    </div>
+    
+    <div class="mt-3">
+        <div id="error" class="text-danger"></div>
+        <div id="success" class="text-success"></div>
+    </div>
+}
 
 
 
