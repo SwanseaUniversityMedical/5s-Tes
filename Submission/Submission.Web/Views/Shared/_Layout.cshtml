@@ -539,12 +539,21 @@
                         return;
                     }
                     
+                    // Get the SQL image URL
+                    var sqlImage = 'default-sql-image'; // fallback
+                    if (window.urlSettings && window.urlSettings.queryImageSQL) {
+                        sqlImage = window.urlSettings.queryImageSQL;
+                    } else {
+                        console.warn('URL settings not available, using fallback SQL image');
+                        $('#error').text('Warning: SQL image URL not configured properly. Using fallback.').css('color', 'orange');
+                    }
+                    
                     // Build the TES task for simple mode
                     tesTask = {
                         name: $('#TESName').val(),
                         description: $('#TESDescription').val(),
                         executors: [{
-                            image: '@ViewBag.QueryImageSQL', // This should be set in the controller
+                            image: sqlImage,
                             command: [
                                 '/bin/bash',
                                 '/workspace/entrypoint.sh',
@@ -563,6 +572,7 @@
                         }]
                     };
                     
+                    console.log('Built TES task for simple mode:', tesTask);
                     formData.append('GeneratedTesTask', JSON.stringify(tesTask));
                     // Send empty executors to avoid validation error
                     formData.append('Executors', JSON.stringify([]));

@@ -61,6 +61,8 @@ namespace Submission.Web.ViewComponents
 
             // Pass URL settings to the view
             ViewBag.QueryImageSQL = _URLSettingsFrontEnd.QueryImageSQL;
+            ViewBag.QueryImageGraphQL = _URLSettingsFrontEnd.QueryImageGraphQL;
+            ViewBag.MinioUrl = _URLSettingsFrontEnd.MinioUrl;
 
             return View(model);
         }

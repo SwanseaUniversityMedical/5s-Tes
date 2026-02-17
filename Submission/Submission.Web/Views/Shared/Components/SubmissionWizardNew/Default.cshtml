@@ -5,6 +5,80 @@
     ViewData["Title"] = "SQL TES Wizard";
 }
 
+<script>
+    // Make URLSettingsFrontEnd available to JavaScript
+    window.urlSettings = {
+        queryImageSQL: '@ViewBag.QueryImageSQL' || 'Not configured',
+        queryImageGraphQL: '@ViewBag.QueryImageGraphQL' || 'Not configured',
+        minioUrl: '@ViewBag.MinioUrl' || 'Not configured'
+    };
+    
+    // Debug logging for URL settings
+    console.log('URL Settings loaded:', window.urlSettings);
+    console.log('ViewBag values - SQL:', '@ViewBag.QueryImageSQL', 'GraphQL:', '@ViewBag.QueryImageGraphQL', 'Minio:', '@ViewBag.MinioUrl');
+    
+    // Immediate update attempt (in case DOM is already ready)
+    function updateSqlImageDisplay() {
+        var sqlImageElement = document.getElementById('sqlImageDisplay');
+        if (sqlImageElement) {
+            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
+                sqlImageElement.textContent = window.urlSettings.queryImageSQL;
+                sqlImageElement.style.color = 'inherit';
+                console.log('Updated SQL image display to:', window.urlSettings.queryImageSQL);
+            } else {
+                sqlImageElement.textContent = 'SQL Image URL not configured';
+                sqlImageElement.style.color = 'red';
+                console.warn('SQL image URL not configured');
+            }
+        }
+    }
+    
+    // Try to update immediately
+    updateSqlImageDisplay();
+    
+    // Also try after a short delay in case of timing issues
+    setTimeout(function() {
+        console.log('Retry updating SQL image display after delay...');
+        updateSqlImageDisplay();
+    }, 100);
+    
+    // Update the SQL image display
+    $(document).ready(function() {
+        console.log('Document ready, updating displays...');
+        
+        // Update SQL image display
+        updateSqlImageDisplay();
+        
+        // Update debug panel
+        var debugElement = document.getElementById('jsUrlSettings');
+        if (debugElement) {
+            debugElement.textContent = JSON.stringify(window.urlSettings, null, 2);
+        }
+        
+        // Also update the custom mode images
+        var customSqlElement = document.getElementById('customSqlImage');
+        var customGraphqlElement = document.getElementById('customGraphqlImage');
+        
+        if (customSqlElement) {
+            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
+                customSqlElement.textContent = window.urlSettings.queryImageSQL;
+            } else {
+                customSqlElement.textContent = 'Not configured';
+                customSqlElement.style.color = 'red';
+            }
+        }
+        
+        if (customGraphqlElement) {
+            if (window.urlSettings.queryImageGraphQL && window.urlSettings.queryImageGraphQL !== 'Not configured') {
+                customGraphqlElement.textContent = window.urlSettings.queryImageGraphQL;
+            } else {
+                customGraphqlElement.textContent = 'Not configured';
+                customGraphqlElement.style.color = 'red';
+            }
+        }
+    });
+</script>
+
 <style>
     .mode-section {
         border: 1px solid #e9ecef;
@@ -124,6 +198,9 @@
         <div class="alert alert-info">
             <i class="fa-solid fa-info-circle me-2"></i>
             <strong>Simple Mode:</strong> Uses the default SQL query image. Just provide your SQL query and output settings.
+            <br><small class="text-muted">
+                <strong>Image:</strong> <code id="sqlImageDisplay">Loading...</code>
+            </small>
         </div>
         
         <div class="mb-4">
@@ -155,6 +232,11 @@
         <div class="alert alert-warning">
             <i class="fa-solid fa-exclamation-triangle me-2"></i>
             <strong>Custom Mode:</strong> Use your own Docker image and configure executors manually.
+            <br><small class="text-muted">
+                <strong>Available images:</strong> 
+                <span class="badge bg-secondary me-1">SQL: <span id="customSqlImage">@ViewBag.QueryImageSQL</span></span>
+                <span class="badge bg-secondary">GraphQL: <span id="customGraphqlImage">@ViewBag.QueryImageGraphQL</span></span>
+            </small>
         </div>
 
         <div class="mb-4">
@@ -255,7 +337,7 @@
 
     <div class="d-flex align-items-center mt-5">
         <button type="submit" class="btn btn-primary me-3">Submit TES Task</button>
-        <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-outline-secondary">Cancel</a>
+        <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-outline-secondary me-3">Cancel</a>
     </div>
     
     <div class="mt-3">
