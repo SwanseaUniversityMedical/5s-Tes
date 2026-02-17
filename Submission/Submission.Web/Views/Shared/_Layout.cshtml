@@ -485,7 +485,136 @@
             });
         });
     </script>
+ <script>
+        $(document).ready(function () {
+            $('#frmMainNewWizard').submit(function (e) {
+                e.preventDefault(); 
+                debugger;
+                
+                var executorData = [];
+                
+                // Get data from the input row (first row with inputs)
+                var imageInput = $('#Image').val();
+                var commandInput = $('#environmentvariables').val(); // This appears to be the command field based on the HTML
+                var envInput = $('#env').val();
+                
+                if (imageInput || commandInput || envInput) {
+                    var commands = commandInput ? commandInput.split('\n').filter(c => c.trim() !== '') : [];
+                    var envs = envInput ? envInput.split('\n').filter(e => e.trim() !== '') : [];
+                    
+                    executorData.push({ 
+                        Image: imageInput, 
+                        Command: commands, 
+                        ENV: envs 
+                    });
+                }
+                
+                // Also collect any existing executors from the table (excluding the input row)
+                $('#executorsTable tbody tr').each(function (index) {
+                    if (index === 0) return; // Skip the input row
+                    
+                    var image = $(this).find('td:eq(0)').text().trim();
+                    var command = $(this).find('td:eq(1)').text().trim();
+                    var env = $(this).find('td:eq(2)').text().trim();
+                    
+                    if (image || command || env) {
+                        var commands = command ? command.split(',').map(c => c.trim()).filter(c => c !== '') : [];
+                        var envs = env ? env.split(',').map(e => e.trim()).filter(e => e !== '') : [];
+                        
+                        executorData.push({ 
+                            Image: image, 
+                            Command: commands, 
+                            ENV: envs 
+                        });
+                    }
+                });
 
+                
+                //var treData = [];
+                //$('.col-md-6.mb-4 .form-check-input').each(function () {
+                //    var name = $(this).siblings('input[type="hidden"]').val();
+                //    var isSelected = $(this).prop('checked');
+                //    treData.push({ Name: name, IsSelected: isSelected });
+                //});
+
+                var treData = [];
+                var anyCheckboxSelected = false;
+
+                $('.col-md-4.mb-4 .form-check-input').each(function () {
+                    var name = $(this).siblings('input[type="hidden"]').val();
+                    var isSelected = $(this).prop('checked');
+
+                    if (isSelected) {
+                        anyCheckboxSelected = true; 
+                    }
+
+                    treData.push({ Name: name, IsSelected: isSelected });
+                });
+                
+                var formData = new FormData($(this)[0]);
+
+                
+                formData.append('Executors', JSON.stringify(executorData));
+                
+                formData.append('SQL', "true");
+
+                // Debug logging
+                console.log('Executor data:', executorData);
+                console.log('TRE data:', treData);
+                console.log('Form data entries:');
+                for (var pair of formData.entries()) {
+                    console.log(pair[0], pair[1]);
+                }
+
+
+                $.ajax({
+                    url: '@Url.Action("AddiSubmissionWizard", "Submission")',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    beforeSend: function() {
+                        // Clear previous error messages
+                        var errorElement = document.getElementById("error");
+                        if (errorElement) {
+                            errorElement.textContent = "";
+                            errorElement.style.color = "";
+                        }
+                        
+                        // Disable submit button to prevent double submission
+                        $('#frmMainNewWizard button[type="submit"]').prop('disabled', true).text('Submitting...');
+                    },
+                    success: function (result) {
+                        console.log('Submission successful:', result);
+                        var projectId = $('#frmMainNewWizard input[name="ProjectId"]').val();
+                        window.location.href = "/Project/GetProject/" + projectId + "#submissions";
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Submission failed:', xhr, status, error);
+                        
+                        var errorElement = document.getElementById("error");
+                        if (errorElement) {
+                            var errorMessage = "Submission failed: ";
+                            
+                            if (xhr.responseText) {
+                                errorMessage += xhr.responseText;
+                            } else if (xhr.status === 0) {
+                                errorMessage += "Unable to connect to server. Please check your internet connection.";
+                            } else {
+                                errorMessage += error || "Unknown error occurred";
+                            }
+                            
+                            errorElement.textContent = errorMessage;
+                            errorElement.style.color = "red";
+                        }
+                        
+                        // Re-enable submit button
+                        $('#frmMainNewWizard button[type="submit"]').prop('disabled', false).text('Submit');
+                    }
+                });
+            });
+        });
+    </script>
     <script>
         $(document).ready(function () {
             $('#frmMain2').submit(function (e) {
