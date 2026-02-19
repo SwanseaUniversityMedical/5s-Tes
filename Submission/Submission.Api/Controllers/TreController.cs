@@ -10,7 +10,7 @@ using Submission.Api.Services;
 
 namespace Submission.Api.Controllers
 {
-    
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]

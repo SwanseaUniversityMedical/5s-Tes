@@ -9,7 +9,9 @@ using Submission.Api.Services;
 using Submission.Api.Services.Contract;
 
 namespace Submission.Api.Controllers
-{
+{    
+  
+    [ApiExplorerSettings(GroupName = "v1")]
     [Route("api/[controller]")]
     [Authorize]
     public class UserController : ControllerBase
