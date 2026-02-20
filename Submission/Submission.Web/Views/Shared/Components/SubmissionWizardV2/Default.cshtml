@@ -156,14 +156,14 @@
         <div class="mb-3">
             <label class="form-label fw-bold">TES Description</label>
             <span class="text-muted fw-normal ms-1">(optional)</span>
-            <textarea class="form-control" name="TESDescription" id="TESDescription" rows="2" placeholder="Enter task description (optional)">@Model.TESDescription</textarea>
+            <textarea class="form-control" name="TESDescription" id="TESDescription" rows="2" placeholder="Enter task description">@Model.TESDescription</textarea>
         </div>
 
         <div class="col-md-8 mb-4">
-            <label class="fw-bold"><i class="fa-solid fa-server me-2"></i>Select TREs</label>
+            <label class="fw-bold">Select TREs</label>
             @for (var i = 0; i < Model.TreRadios.Count(); i++)
             {
-                <div class="d-flex align-items-center justify-content-between mb-2">
+                <div class="d-flex align-items-center justify-content-between my-2">
                     <div class="form-check">
                         <input type="hidden" name="TreRadios[@(i)].Name" value="@Model.TreRadios[i].Name" />
                         <input class="form-check-input" type="checkbox"
@@ -201,14 +201,14 @@
     <div id="simpleMode" class="mode-section">
         <div class="alert alert-info">
             <i class="fa-solid fa-info-circle me-2"></i>
-            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query. Output will be saved to the project's S3 output bucket.
+            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query. Output will be saved to the project's S3 output bucket as a CSV file.
             <br><medium class="text-muted">
                 <strong>Default Image:</strong> <code id="sqlImageDisplay">Loading...</code>
             </medium>
         </div>
         
         <div class="mb-4">
-            <label class="form-label fw-bold">Query</label>
+            <label class="form-label fw-bold">SQL Query</label>
             <textarea class="form-control" name="Query" id="Query" rows="8" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT COUNT(*) AS n, AVG(value_as_number) AS mean&#10;FROM measurement&#10;WHERE measurement_concept_id = 3025315">@Model.Query</textarea>
         </div>
         
