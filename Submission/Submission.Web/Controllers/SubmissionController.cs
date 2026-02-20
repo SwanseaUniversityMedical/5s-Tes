@@ -448,7 +448,7 @@ namespace Submission.Web.Controllers
         
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string Executors, string SQL, string SimpleMode)
+        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string? Executors, string? SQL, string? SimpleMode)
         {
             if (!ModelState.IsValid) // SonarQube security
             {
@@ -479,6 +479,13 @@ namespace Submission.Web.Controllers
                 {
                     if (string.IsNullOrWhiteSpace(model.Query))
                         return BadRequest("A SQL query is required in Simple mode.");
+
+                    // Normalise the query: replace literal \n / \r\n escape sequences
+                    // (produced when the user pastes JSON-style text) with real newlines.
+                    var normalizedQuery = model.Query
+                        .Replace("\\r\\n", "\n")
+                        .Replace("\\r", "\n")
+                        .Replace("\\n", "\n");
 
                     // Resolve TRE list
                     var selectedTres = model.TreRadios?.Where(x => x.IsSelected).Select(x => x.Name).ToList()
@@ -520,7 +527,7 @@ namespace Submission.Web.Controllers
                                 Command = new List<string>
                                 {
                                     "--Output=/outputs/output.csv",
-                                    $"--Query={model.Query}"
+                                    $"--Query={normalizedQuery}"
                                 },
                                 Workdir = "/app",
                                 Stdin = null,
@@ -622,6 +629,11 @@ namespace Submission.Web.Controllers
 
                 if (string.IsNullOrEmpty(model.Query) == false)
                 {
+                    var queryNormalized = model.Query
+                        .Replace("\\r\\n", "\n")
+                        .Replace("\\r", "\n")
+                        .Replace("\\n", "\n");
+
                     var QueryExecutor = new TesExecutor()
                     {
                         Image = _URLSettingsFrontEnd.QueryImageGraphQL,
@@ -629,7 +641,7 @@ namespace Submission.Web.Controllers
                         {
                             "/usr/bin/dotnet",
                             "/app/Tre-Hasura.dll",
-                            "--Query_" + model.Query
+                            "--Query_" + queryNormalized
                         }
                     };
 
@@ -640,7 +652,7 @@ namespace Submission.Web.Controllers
                         {
                             "/bin/bash",
                             "/workspace/entrypoint.sh",
-                            $"--Query={model.Query}"
+                            $"--Query={queryNormalized}"
                         };
                         QueryExecutor.Env = new Dictionary<string, string>()
                         {
