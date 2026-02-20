@@ -469,7 +469,7 @@ namespace Submission.Web.Controllers
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
                     "/api/Project/GetProject/", paramlist);
 
-                var test = new TesTask();
+                var tes = new TesTask();
                 var tesExecutors = new List<TesExecutor>();
 
                 // ------------------------------------------------------------------
@@ -499,7 +499,7 @@ namespace Submission.Web.Controllers
                     }
                     listOfTre = string.Join("|", selectedTres);
 
-                    test = new TesTask
+                    tes = new TesTask
                     {
                         State = 0,
                         Name = string.IsNullOrWhiteSpace(model.TESName) ? "SQL Query Task" : model.TESName,
@@ -548,7 +548,7 @@ namespace Submission.Web.Controllers
 
                     var context2 = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
                     await _IKeyCloakService.RefreshUserToken(context2);
-                    await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", test);
+                    await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tes);
                     return Ok();
                 }
 
@@ -598,32 +598,32 @@ namespace Submission.Web.Controllers
                         model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
                 }
 
-                test = new TesTask();
+                tes = new TesTask();
 
                 if (string.IsNullOrEmpty(model.RawInput) == false)
                 {
-                    test = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
+                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
                 }
 
                 if (string.IsNullOrEmpty(model.TESName) == false)
                 {
-                    test.Name = model.TESName;
+                    tes.Name = model.TESName;
                 }
 
                 if (string.IsNullOrEmpty(model.TESDescription) == false)
                 {
-                    test.Description = model.TESDescription;
+                    tes.Description = model.TESDescription;
                 }
 
                 if (tesExecutors.Count > 0)
                 {
-                    if (test.Executors == null || test.Executors.Count == 0)
+                    if (tes.Executors == null || tes.Executors.Count == 0)
                     {
-                        test.Executors = tesExecutors;
+                        tes.Executors = tesExecutors;
                     }
                     else
                     {
-                        test.Executors.AddRange(tesExecutors);
+                        tes.Executors.AddRange(tesExecutors);
                     }
                 }
 
@@ -661,20 +661,20 @@ namespace Submission.Web.Controllers
                     }
 
 
-                    if (test.Executors == null)
+                    if (tes.Executors == null)
                     {
-                        test.Executors = new List<TesExecutor>();
-                        test.Executors.Add(QueryExecutor);
+                        tes.Executors = new List<TesExecutor>();
+                        tes.Executors.Add(QueryExecutor);
                     }
                     else
                     {
-                        test.Executors.Insert(0, QueryExecutor);
+                        tes.Executors.Insert(0, QueryExecutor);
                     }
                 }
 
-                if (test.Outputs == null || test.Outputs.Count == 0)
+                if (tes.Outputs == null || tes.Outputs.Count == 0)
                 {
-                    test.Outputs = new List<TesOutput>()
+                    tes.Outputs = new List<TesOutput>()
                     {
                         new TesOutput()
                         {
@@ -687,13 +687,13 @@ namespace Submission.Web.Controllers
                     };
                     if (SQL == "true")
                     {
-                        test.Outputs[0].Path = "/workspace/data";
+                        tes.Outputs[0].Path = "/workspace/data";
                     }
                 }
 
-                if (test.Tags == null || test.Tags.Count == 0)
+                if (tes.Tags == null || tes.Tags.Count == 0)
                 {
-                    test.Tags = new Dictionary<string, string>()
+                    tes.Tags = new Dictionary<string, string>()
                     {
                         { "project", project.Name },
                         { "tres", listOfTre },
@@ -703,11 +703,11 @@ namespace Submission.Web.Controllers
 
                 if (string.IsNullOrEmpty(model.DataInputPath) == false)
                 {
-                    if (test.Inputs == null)
+                    if (tes.Inputs == null)
                     {
-                        test.Inputs = new List<TesInput>();
+                        tes.Inputs = new List<TesInput>();
                     }
-                    test.Inputs.Add(new TesInput()
+                    tes.Inputs.Add(new TesInput()
                     {
                         Path = model.DataInputPath,
                         Type = Enum.Parse<TesFileType>(model.DataInputType),
@@ -717,13 +717,6 @@ namespace Submission.Web.Controllers
                         Content = ""
                     });
                 }
-
-                var context = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                var Token = await _IKeyCloakService.RefreshUserToken(context);
-
-                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", test);
-
-
                 return Ok();
             }
             catch (Exception e)
