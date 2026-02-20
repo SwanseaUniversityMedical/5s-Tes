@@ -173,21 +173,21 @@
                                @(Model.TreRadios[i].IsSelected ? "checked" : "") />
                         <input type="hidden" name="TreRadios[@(i)].IsSelected" value="false" />
                         <label class="form-check-label" for="tre_@(i)">
-                            @Model.TreRadios[i].Name
+                          @Model.TreRadios[i].Name
                         </label>
-                    </div>
-                    @if (Model.TreRadios[i].IsOnline)
-                    {
-                        <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                        @if (Model.TreRadios[i].IsOnline)
+                        {
+                          <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
                             <i class="fa-solid fa-check-circle me-1"></i> Online
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="badge px-2 badge-sm bg-secondary text-light rounded-pill m-0 ms-3">
+                          </span>
+                        }
+                        else
+                        {
+                          <span class="badge px-2 badge-sm bg-secondary text-light rounded-pill m-0 ms-3">
                             <i class="fa-solid fa-ban me-1"></i> Offline
-                        </span>
-                    }
+                          </span>
+                        }
+                    </div>
                 </div>
             }
             @if (Model.TreRadios.Count() < 1)
