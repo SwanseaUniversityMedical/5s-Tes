@@ -121,7 +121,7 @@ namespace Submission.Web.Controllers
             return View(projectView);
         }
 
-        public IActionResult SubmissionProjectSqlNew(int id)
+        public IActionResult SubmissionProjectSqlV2(int id)
         {
           if (!ModelState.IsValid) // SonarQube security
           {

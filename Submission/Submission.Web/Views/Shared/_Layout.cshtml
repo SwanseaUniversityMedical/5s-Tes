@@ -515,7 +515,7 @@
                 }
             });
 
-            $('#frmMainNewWizard').submit(function (e) {
+            $('#frmSQLWizardV2').submit(function (e) {
                 e.preventDefault();
                 
                 var selectedMode = $('input[name="submissionMode"]:checked').val();
@@ -679,14 +679,14 @@
                         $('#success').text('').css('color', '');
                         
                         // Disable submit button
-                        $('#frmMainNewWizard button[type="submit"]').prop('disabled', true).text('Submitting...');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', true).text('Submitting...');
                     },
                     success: function (result) {
                         console.log('Submission successful:', result);
                         $('#success').text('TES task submitted successfully!').css('color', 'green');
                         
                         setTimeout(function() {
-                            var projectId = $('#frmMainNewWizard input[name="ProjectId"]').val();
+                            var projectId = $('#frmSQLWizardV2 input[name="ProjectId"]').val();
                             window.location.href = "/Project/GetProject/" + projectId + "#submissions";
                         }, 1500);
                     },
@@ -705,7 +705,7 @@
                         $('#error').text(errorMessage).css('color', 'red');
                         
                         // Re-enable submit button
-                        $('#frmMainNewWizard button[type="submit"]').prop('disabled', false).text('Submit TES Task');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
                     }
                 });
             });

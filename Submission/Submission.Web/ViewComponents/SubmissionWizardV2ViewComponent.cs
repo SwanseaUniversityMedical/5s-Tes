@@ -7,12 +7,12 @@ using Submission.Web.Models;
 
 namespace Submission.Web.ViewComponents
 {
-    public class SubmissionWizardNewViewComponent : ViewComponent
+    public class SubmissionWizardV2ViewComponent : ViewComponent
     {
         private readonly IDareClientHelper _clientHelper;
         private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
         
-        public SubmissionWizardNewViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
+        public SubmissionWizardV2ViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
         {
             _clientHelper = client;
             _URLSettingsFrontEnd = URLSettingsFrontEnd;

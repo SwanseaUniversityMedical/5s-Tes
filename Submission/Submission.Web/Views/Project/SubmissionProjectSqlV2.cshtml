@@ -8,6 +8,6 @@
 <div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
   @if (ViewBag.UserCanDoSubmissions)
   {
-    @await Component.InvokeAsync("SubmissionWizardNew", new {projectId=pId})
+    @await Component.InvokeAsync("SubmissionWizardV2", new {projectId=pId})
   }
 </div>
