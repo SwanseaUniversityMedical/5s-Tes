@@ -448,7 +448,7 @@ namespace Submission.Web.Controllers
         
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult> SubmissionWizardAction(AddiSubmissionWizard model, string Executors, string SQL)
+        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string Executors, string SQL)
         {
             if (!ModelState.IsValid) // SonarQube security
             {

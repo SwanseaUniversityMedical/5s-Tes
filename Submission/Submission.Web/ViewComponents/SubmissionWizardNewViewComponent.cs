@@ -48,7 +48,7 @@ namespace Submission.Web.ViewComponents
                 .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
                 .ToList();
 
-            var model = new AddiSubmissionWizard()
+            var model = new SubmissionWizardV2()
             {
                 ProjectId = project.Id,
                 ProjectName = project.Name,

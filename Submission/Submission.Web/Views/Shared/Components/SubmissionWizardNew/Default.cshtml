@@ -1,6 +1,4 @@
-﻿@using FiveSafesTes.Core.Models.ViewModels
-@using Submission.Web.Formatters
-@model FiveSafesTes.Core.Models.ViewModels.AddiSubmissionWizard
+﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardV2
 @{
     ViewData["Title"] = "SQL TES Wizard";
 }
@@ -116,7 +114,7 @@
 {
     @Html.HiddenFor(x => x.ProjectId)
     
-    <h1 class="fs-4 mt-5">SQL TES Wizard New</h1>
+    <h1 class="fs-4 mt-5">SQL TES Wizard V2</h1>
     
     <!-- Mode Selection -->
     <div class="mode-selection">
