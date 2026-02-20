@@ -1,0 +1,325 @@
+﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardV2
+@{
+    ViewData["Title"] = "SQL TES Wizard";
+}
+
+<script>
+    // Make URLSettingsFrontEnd available to JavaScript
+    window.urlSettings = {
+        queryImageSQL: '@ViewBag.QueryImageSQL' || 'Not configured',
+        queryImageGraphQL: '@ViewBag.QueryImageGraphQL' || 'Not configured',
+        minioUrl: '@ViewBag.MinioUrl' || 'Not configured'
+    };
+    
+    // Debug logging for URL settings
+    console.log('URL Settings loaded:', window.urlSettings);
+    console.log('ViewBag values - SQL:', '@ViewBag.QueryImageSQL', 'GraphQL:', '@ViewBag.QueryImageGraphQL', 'Minio:', '@ViewBag.MinioUrl');
+    
+    // Immediate update attempt (in case DOM is already ready)
+    function updateSqlImageDisplay() {
+        var sqlImageElement = document.getElementById('sqlImageDisplay');
+        if (sqlImageElement) {
+            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
+                sqlImageElement.textContent = window.urlSettings.queryImageSQL;
+                sqlImageElement.style.color = 'inherit';
+                console.log('Updated SQL image display to:', window.urlSettings.queryImageSQL);
+            } else {
+                sqlImageElement.textContent = 'SQL Image URL not configured';
+                sqlImageElement.style.color = 'red';
+                console.warn('SQL image URL not configured');
+            }
+        }
+    }
+    
+    // Try to update immediately
+    updateSqlImageDisplay();
+    
+    // Also try after a short delay in case of timing issues
+    setTimeout(function() {
+        console.log('Retry updating SQL image display after delay...');
+        updateSqlImageDisplay();
+    }, 100);
+    
+    // Update the SQL image display
+    $(document).ready(function() {
+        console.log('Document ready, updating displays...');
+        
+        // Update SQL image display
+        updateSqlImageDisplay();
+        
+        // Update debug panel
+        var debugElement = document.getElementById('jsUrlSettings');
+        if (debugElement) {
+            debugElement.textContent = JSON.stringify(window.urlSettings, null, 2);
+        }
+        
+        // Also update the custom mode images
+        var customSqlElement = document.getElementById('customSqlImage');
+        var customGraphqlElement = document.getElementById('customGraphqlImage');
+        
+        if (customSqlElement) {
+            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
+                customSqlElement.textContent = window.urlSettings.queryImageSQL;
+            } else {
+                customSqlElement.textContent = 'Not configured';
+                customSqlElement.style.color = 'red';
+            }
+        }
+        
+        if (customGraphqlElement) {
+            if (window.urlSettings.queryImageGraphQL && window.urlSettings.queryImageGraphQL !== 'Not configured') {
+                customGraphqlElement.textContent = window.urlSettings.queryImageGraphQL;
+            } else {
+                customGraphqlElement.textContent = 'Not configured';
+                customGraphqlElement.style.color = 'red';
+            }
+        }
+    });
+</script>
+
+<style>
+    .mode-section {
+        border: 1px solid #e9ecef;
+        border-radius: 0.5rem;
+        padding: 1.5rem;
+        margin-bottom: 1rem;
+        background-color: #f8f9fa;
+    }
+    
+    .mode-selection {
+        background-color: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        padding: 1rem;
+        margin-bottom: 1.5rem;
+    }
+    
+    .form-check-label strong {
+        color: #495057;
+    }
+    
+    .alert {
+        margin-bottom: 1rem;
+    }
+    
+    #rawMode textarea {
+        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+        font-size: 0.9rem;
+    }
+</style>
+
+<partial name="../Shared/_ProjectNav" />
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmSQLWizardV2" }))
+{
+    @Html.HiddenFor(x => x.ProjectId)
+    
+    <h1 class="fs-4 mt-5">SQL TES Wizard V2</h1>
+    
+    <!-- Mode Selection -->
+    <div class="mode-selection">
+        <label class="form-label fw-bold mb-3">
+            <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
+        </label>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeSimple" value="simple" checked>
+            <label class="form-check-label" for="modeSimple">
+                <strong><i class="fa-solid fa-bolt me-2 text-success"></i>Simple SQL Query</strong> 
+                <br><small class="text-muted">Use default SQL query image, just provide query and basic settings</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeCustomImage" value="custom">
+            <label class="form-check-label" for="modeCustomImage">
+                <strong><i class="fa-solid fa-cogs me-2 text-warning"></i>Custom Image</strong> 
+                <br><small class="text-muted">Choose your own Docker image and configure executors</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeRawJson" value="raw">
+            <label class="form-check-label" for="modeRawJson">
+                <strong><i class="fa-solid fa-code me-2 text-info"></i>Raw JSON</strong> 
+                <br><small class="text-muted">Paste complete TES task JSON</small>
+            </label>
+        </div>
+    </div>
+
+    <!-- Common Fields (hidden for raw mode) -->
+    <div id="commonFields">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <label class="form-label fw-bold">TES Name</label>
+                <input class="form-control" type="text" name="TESName" id="TESName" value="@Model.TESName" placeholder="Enter task name" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label class="form-label fw-bold">TES Description</label>
+            <span class="text-muted fw-normal ms-1">(optional)</span>
+            <textarea class="form-control" name="TESDescription" id="TESDescription" rows="2" placeholder="Enter task description (optional)">@Model.TESDescription</textarea>
+        </div>
+
+        <div class="col-md-8 mb-4">
+            <label class="fw-bold"><i class="fa-solid fa-server me-2"></i>Select TREs</label>
+            @for (var i = 0; i < Model.TreRadios.Count(); i++)
+            {
+                <div class="d-flex align-items-center justify-content-between mb-2">
+                    <div class="form-check">
+                        <input type="hidden" name="TreRadios[@(i)].Name" value="@Model.TreRadios[i].Name" />
+                        <input class="form-check-input" type="checkbox"
+                               id="tre_@(i)"
+                               name="TreRadios[@(i)].IsSelected"
+                               value="true"
+                               @(Model.TreRadios[i].IsSelected ? "checked" : "") />
+                        <input type="hidden" name="TreRadios[@(i)].IsSelected" value="false" />
+                        <label class="form-check-label" for="tre_@(i)">
+                            @Model.TreRadios[i].Name
+                        </label>
+                    </div>
+                    @if (Model.TreRadios[i].IsOnline)
+                    {
+                        <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-check-circle me-1"></i> Online
+                        </span>
+                    }
+                    else
+                    {
+                        <span class="badge px-2 badge-sm bg-secondary text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-ban me-1"></i> Offline
+                        </span>
+                    }
+                </div>
+            }
+            @if (Model.TreRadios.Count() < 1)
+            {
+                <p class="text-danger">No available TREs</p>
+            }
+        </div>
+    </div>
+
+    <!-- Mode 1: Simple SQL Query -->
+    <div id="simpleMode" class="mode-section">
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-2"></i>
+            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query. Output will be saved to the project's S3 output bucket.
+            <br><medium class="text-muted">
+                <strong>Default Image:</strong> <code id="sqlImageDisplay">Loading...</code>
+            </medium>
+        </div>
+        
+        <div class="mb-4">
+            <label class="form-label fw-bold">Query</label>
+            <textarea class="form-control" name="Query" id="Query" rows="8" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT COUNT(*) AS n, AVG(value_as_number) AS mean&#10;FROM measurement&#10;WHERE measurement_concept_id = 3025315">@Model.Query</textarea>
+        </div>
+        
+    </div>
+
+    <!-- Mode 2: Custom Image -->
+    <div id="customMode" class="mode-section" style="display:none;">
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            <strong>Custom Mode:</strong> Use your own Docker image and configure executors manually. Output will be saved to the project's S3 output bucket.
+            
+        </div>
+        
+        <label class="form-label fw-bold">Executors</label>
+        <div class="col-md-12 mb-4">
+            <table id="executorsTable" class="table">
+                <thead>
+                    <tr>
+                        <th class="col-md-4">Docker Image</th>
+                        <th class="col-md-4">Commands</th>
+                        <th class="col-md-4">Environment Variables</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="vertical-align: top;">
+                        <td class="border-0">
+                            <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2">
+                                    <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
+                                    <medium class="form-text text-muted">Note: One command per line</medium>
+                                </div>
+                               
+                            </div>
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2" id="ENVBOX">
+                                    <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
+                                    <medium class="form-text text-muted">Format: KEY=value, one per line</medium>
+                                </div>
+                              
+                            </div>
+                        </td>
+                    </tr>
+                    @if (Model.Executors != null)
+                    {
+                        @foreach (var executor in Model.Executors)
+                        {
+                            <tr>
+                                <td class="col-md-4">@executor.Image</td>
+                                <td class="col-md-4">@executor.Command</td>
+                                <td class="col-md-4">@executor.ENV</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+        @* TODO: understand the data input first *@
+    @*     <label class="form-label fw-bold">Data Input</label> *@
+    @*     <div class="col-md-12 mb-4"> *@
+    @*         <table class="table"> *@
+    @*             <thead> *@
+    @*                 <tr> *@
+    @*                     <th class="col-md-6">Path</th> *@
+    @*                     <th class="col-md-6">Type</th> *@
+    @*                 </tr> *@
+    @*             </thead> *@
+    @*             <tbody> *@
+    @*                 <tr style="vertical-align: top;"> *@
+    @*                     <td class="col-md-6 border-0"> *@
+    @*                         <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/path/to/input/data" /> *@
+    @*                     </td> *@
+    @*                     <td class="col-md-6 border-0"> *@
+    @*                         <select name="DataInputType" id="DataInputType" class="form-control"> *@
+    @*                             <option value="FILEEnum">FILE</option> *@
+    @*                             <option value="DIRECTORYEnum">DIRECTORY</option> *@
+    @*                         </select> *@
+    @*                     </td> *@
+    @*                 </tr> *@
+    @*             </tbody> *@
+    @*         </table> *@
+    @*     </div> *@
+    </div>
+
+    <!-- Mode 3: Raw JSON -->
+    <div id="rawMode" class="mode-section" style="display:none;">
+        <div class="alert alert-primary">
+            <i class="fa-solid fa-code me-2"></i>
+            <strong>Raw JSON Mode:</strong> Paste your complete TES task JSON here. This will override all other settings.
+        </div>
+        
+        <div class="mb-4">
+            <label class="form-label fw-bold">TES Task JSON</label>
+            <textarea class="form-control" name="RawInput" id="RawInput" rows="15" placeholder="Paste your complete TES task JSON here..." style="font-family: 'Monaco', 'Consolas', 'Courier New', monospace; font-size: 0.9rem;">@Model.RawInput</textarea>
+            <small class="form-text text-muted">
+                Example: {"name": "My Task", "executors": [{"image": "ubuntu:latest", "command": ["echo", "hello"]}], ...}
+            </small>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center mt-5">
+        <button type="submit" class="btn btn-primary me-3">Submit TES Task</button>
+        <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-outline-secondary me-3">Cancel</a>
+    </div>
+    
+    <div class="mt-3">
+        <div id="error" class="text-danger"></div>
+        <div id="success" class="text-success"></div>
+    </div>
+}
