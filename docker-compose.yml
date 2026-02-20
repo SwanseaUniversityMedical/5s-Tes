@@ -1,5 +1,3 @@
-version: '3.5'
-
 services:
   postgres:
     image: postgres
@@ -11,7 +9,7 @@ services:
     ports:
       - 32769:5432
     volumes:
-      - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
     environment:
       - POSTGRES_USER=postgres
