@@ -553,12 +553,11 @@ namespace Submission.Web.Controllers
                 }
 
                 // ------------------------------------------------------------------
-                // CUSTOM / RAW modes — existing logic below
+                // CUSTOM / RAW modes
                 // ------------------------------------------------------------------
 
                 if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
                 {
-                    bool First = true;
                     List<Executors> executorsList = JsonConvert.DeserializeObject<List<Executors>>(Executors);
                     foreach (var ex in executorsList)
                     {
@@ -571,10 +570,18 @@ namespace Submission.Web.Controllers
                             EnvVars[keyval[0]] = keyval[1];
                         }
 
+                        // Normalise each command argument — replace literal \n with real newlines
+                        var normalizedCommands = ex.Command?
+                            .Select(c => c
+                                .Replace("\\r\\n", "\n")
+                                .Replace("\\r", "\n")
+                                .Replace("\\n", "\n"))
+                            .ToList() ?? new List<string>();
+
                         var exet = new TesExecutor()
                         {
                             Image = ex.Image,
-                            Command = ex.Command,
+                            Command = normalizedCommands,
                             Env = EnvVars
                         };
                         tesExecutors.Add(exet);
@@ -674,21 +681,18 @@ namespace Submission.Web.Controllers
 
                 if (tes.Outputs == null || tes.Outputs.Count == 0)
                 {
+                    // Same output structure as simple mode
                     tes.Outputs = new List<TesOutput>()
                     {
                         new TesOutput()
                         {
-                            Url = "",
-                            Name = "aName",
-                            Description = "ADescription",
-                            Path = "/app/data",
+                            Url = "s3://",
+                            Name = "workdir",
+                            Description = "analysis test output",
+                            Path = "/outputs",
                             Type = TesFileType.DIRECTORYEnum,
                         }
                     };
-                    if (SQL == "true")
-                    {
-                        tes.Outputs[0].Path = "/workspace/data";
-                    }
                 }
 
                 if (tes.Tags == null || tes.Tags.Count == 0)
@@ -713,10 +717,15 @@ namespace Submission.Web.Controllers
                         Type = Enum.Parse<TesFileType>(model.DataInputType),
                         Name = "",
                         Description = "",
-                        Url = "a",
+                        Url = "",
                         Content = ""
                     });
                 }
+
+                var context = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await _IKeyCloakService.RefreshUserToken(context);
+                await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tes);
+
                 return Ok();
             }
             catch (Exception e)

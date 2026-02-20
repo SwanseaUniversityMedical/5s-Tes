@@ -241,18 +241,18 @@
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2">
                                     <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
-                                    <small class="form-text text-muted">One command per line</small>
+                                    <medium class="form-text text-muted">Note: One command per line</medium>
                                 </div>
-                                <a href="#" id="addCommandButton" class="btn btn-sm btn-secondary">Add</a>
+                               
                             </div>
                         </td>
                         <td class="border-0">
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2" id="ENVBOX">
                                     <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
-                                    <small class="form-text text-muted">Format: KEY=value, one per line</small>
+                                    <medium class="form-text text-muted">Format: KEY=value, one per line</medium>
                                 </div>
-                                <a href="#" id="addENVButton" class="btn btn-sm btn-secondary">Add</a>
+                              
                             </div>
                         </td>
                     </tr>
@@ -270,31 +270,31 @@
                 </tbody>
             </table>
         </div>
-
-        <label class="form-label fw-bold">Data Input</label>
-        <div class="col-md-12 mb-4">
-            <table class="table">
-                <thead>
-                    <tr>
-                        <th class="col-md-6">Path</th>
-                        <th class="col-md-6">Type</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr style="vertical-align: top;">
-                        <td class="col-md-6 border-0">
-                            <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/path/to/input/data" />
-                        </td>
-                        <td class="col-md-6 border-0">
-                            <select name="DataInputType" id="DataInputType" class="form-control">
-                                <option value="FILEEnum">FILE</option>
-                                <option value="DIRECTORYEnum">DIRECTORY</option>
-                            </select>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
+        @* TODO: understand the data input first *@
+    @*     <label class="form-label fw-bold">Data Input</label> *@
+    @*     <div class="col-md-12 mb-4"> *@
+    @*         <table class="table"> *@
+    @*             <thead> *@
+    @*                 <tr> *@
+    @*                     <th class="col-md-6">Path</th> *@
+    @*                     <th class="col-md-6">Type</th> *@
+    @*                 </tr> *@
+    @*             </thead> *@
+    @*             <tbody> *@
+    @*                 <tr style="vertical-align: top;"> *@
+    @*                     <td class="col-md-6 border-0"> *@
+    @*                         <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/path/to/input/data" /> *@
+    @*                     </td> *@
+    @*                     <td class="col-md-6 border-0"> *@
+    @*                         <select name="DataInputType" id="DataInputType" class="form-control"> *@
+    @*                             <option value="FILEEnum">FILE</option> *@
+    @*                             <option value="DIRECTORYEnum">DIRECTORY</option> *@
+    @*                         </select> *@
+    @*                     </td> *@
+    @*                 </tr> *@
+    @*             </tbody> *@
+    @*         </table> *@
+    @*     </div> *@
     </div>
 
     <!-- Mode 3: Raw JSON -->
