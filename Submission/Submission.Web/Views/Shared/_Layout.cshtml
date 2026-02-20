@@ -515,6 +515,9 @@
                 }
             });
 
+            // Trigger on page load so the checked radio's section is visible
+            $('input[name="submissionMode"]:checked').trigger('change');
+
             $('#frmSQLWizardV2').submit(function (e) {
                 e.preventDefault();
                 
@@ -529,53 +532,16 @@
                 
                 // Handle different submission modes
                 if (selectedMode === 'simple') {
-                    // Simple mode: build executor with default SQL image
+                    // Simple mode: only validate query — server builds the full TES message
                     var query = $('#Query').val();
-                    var outputPath = $('#simpleOutputPath').val() || '/workspace/data';
-                    var outputType = $('#simpleOutputType').val() || 'DIRECTORYEnum';
-                    
                     if (!query || query.trim() === '') {
-                        $('#error').text('Please enter a SQL query for simple mode.').css('color', 'red');
+                        $('#error').text('Please enter a SQL query.').css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
                         return;
                     }
-                    
-                    // Get the SQL image URL
-                    var sqlImage = 'default-sql-image'; // fallback
-                    if (window.urlSettings && window.urlSettings.queryImageSQL) {
-                        sqlImage = window.urlSettings.queryImageSQL;
-                    } else {
-                        console.warn('URL settings not available, using fallback SQL image');
-                        $('#error').text('Warning: SQL image URL not configured properly. Using fallback.').css('color', 'orange');
-                    }
-                    
-                    // Build the TES task for simple mode
-                    tesTask = {
-                        name: $('#TESName').val(),
-                        description: $('#TESDescription').val(),
-                        executors: [{
-                            image: sqlImage,
-                            command: [
-                                '/bin/bash',
-                                '/workspace/entrypoint.sh',
-                                '--Query=' + query
-                            ],
-                            env: {
-                                'LOCATION': outputPath + '/results.csv'
-                            }
-                        }],
-                        outputs: [{
-                            name: 'results',
-                            description: 'SQL query results',
-                            path: outputPath,
-                            type: outputType,
-                            url: ''
-                        }]
-                    };
-                    
-                    console.log('Built TES task for simple mode:', tesTask);
-                    formData.append('GeneratedTesTask', JSON.stringify(tesTask));
-                    // Send empty executors to avoid validation error
+                    formData.append('SimpleMode', 'true');
                     formData.append('Executors', JSON.stringify([]));
+                    formData.append('SQL', 'true');
                     
                 } else if (selectedMode === 'custom') {
                     // Custom mode: collect executor data from form
@@ -626,12 +592,14 @@
                     });
                     
                     formData.append('Executors', JSON.stringify(executorData));
+                    formData.append('SQL', 'true');
                     
                 } else if (selectedMode === 'raw') {
                     // Raw mode: validate JSON input
                     var rawInput = $('#RawInput').val();
                     if (!rawInput || rawInput.trim() === '') {
                         $('#error').text('Please enter a valid TES task JSON for raw mode.').css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
                         return;
                     }
                     
@@ -639,6 +607,7 @@
                         JSON.parse(rawInput);
                     } catch (e) {
                         $('#error').text('Invalid JSON format: ' + e.message).css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
                         return;
                     }
                     
@@ -655,14 +624,10 @@
                 });
                 
                 formData.append('TreData', JSON.stringify(treData));
-                formData.append('SQL', "true");
 
                 // Debug logging
                 console.log('Selected mode:', selectedMode);
-                console.log('Executor data:', executorData);
-                console.log('TES task:', tesTask);
                 console.log('TRE data:', treData);
-                console.log('Form data entries:');
                 for (var pair of formData.entries()) {
                     console.log(pair[0] + ':', pair[1]);
                 }

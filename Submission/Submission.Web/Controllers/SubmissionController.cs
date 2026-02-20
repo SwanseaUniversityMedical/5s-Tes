@@ -448,7 +448,7 @@ namespace Submission.Web.Controllers
         
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string Executors, string SQL)
+        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string Executors, string SQL, string SimpleMode)
         {
             if (!ModelState.IsValid) // SonarQube security
             {
@@ -471,6 +471,83 @@ namespace Submission.Web.Controllers
 
                 var test = new TesTask();
                 var tesExecutors = new List<TesExecutor>();
+
+                // ------------------------------------------------------------------
+                // SIMPLE MODE: build the full TES message from defaults + query only
+                // ------------------------------------------------------------------
+                if (SimpleMode == "true")
+                {
+                    if (string.IsNullOrWhiteSpace(model.Query))
+                        return BadRequest("A SQL query is required in Simple mode.");
+
+                    // Resolve TRE list
+                    var selectedTres = model.TreRadios?.Where(x => x.IsSelected).Select(x => x.Name).ToList()
+                                       ?? new List<string>();
+                    if (selectedTres.Count == 0)
+                    {
+                        var paramList2 = new Dictionary<string, string>();
+                        paramList2.Add("projectId", model.ProjectId.ToString());
+                        var allTres = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/", paramList2);
+                        selectedTres = allTres.Select(t => t.Name).ToList();
+                    }
+                    listOfTre = string.Join("|", selectedTres);
+
+                    test = new TesTask
+                    {
+                        State = 0,
+                        Name = string.IsNullOrWhiteSpace(model.TESName) ? "SQL Query Task" : model.TESName,
+                        Description = string.IsNullOrWhiteSpace(model.TESDescription)
+                            ? "Federated analysis task"
+                            : model.TESDescription,
+                        Inputs = null,
+                        Outputs = new List<TesOutput>
+                        {
+                            new TesOutput
+                            {
+                                Name = "workdir",
+                                Description = "analysis test output",
+                                Url = "s3://",
+                                Path = "/outputs",
+                                Type = TesFileType.DIRECTORYEnum
+                            }
+                        },
+                        Resources = null,
+                        Executors = new List<TesExecutor>
+                        {
+                            new TesExecutor
+                            {
+                                Image = _URLSettingsFrontEnd.QueryImageSQL,
+                                Command = new List<string>
+                                {
+                                    "--Output=/outputs/output.csv",
+                                    $"--Query={model.Query}"
+                                },
+                                Workdir = "/app",
+                                Stdin = null,
+                                Stdout = null,
+                                Stderr = null,
+                                Env = new Dictionary<string, string>()
+                            }
+                        },
+                        Volumes = null,
+                        Tags = new Dictionary<string, string>
+                        {
+                            { "Project", project?.Name ?? "Testing" },
+                            { "tres", listOfTre }
+                        },
+                        Logs = null,
+                        CreationTime = null
+                    };
+
+                    var context2 = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                    await _IKeyCloakService.RefreshUserToken(context2);
+                    await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", test);
+                    return Ok();
+                }
+
+                // ------------------------------------------------------------------
+                // CUSTOM / RAW modes — existing logic below
+                // ------------------------------------------------------------------
 
                 if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
                 {
@@ -505,7 +582,7 @@ namespace Submission.Web.Controllers
                     paramList.Add("projectId", model.ProjectId.ToString());
                     var tre = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/",
                         paramList);
-                    List<string> namesList = tre.Select(test => test.Name).ToList();
+                    List<string> namesList = tre.Select(t => t.Name).ToList();
                     listOfTre = string.Join("|", namesList);
                 }
                 else
@@ -520,7 +597,6 @@ namespace Submission.Web.Controllers
                 {
                     test = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
                 }
-
 
                 if (string.IsNullOrEmpty(model.TESName) == false)
                 {
@@ -556,7 +632,6 @@ namespace Submission.Web.Controllers
                             "--Query_" + model.Query
                         }
                     };
-
 
                     if (SQL == "true")
                     {
