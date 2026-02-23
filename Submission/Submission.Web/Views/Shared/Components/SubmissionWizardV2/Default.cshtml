@@ -50,9 +50,9 @@
     
     <!-- Mode Selection -->
     <div class="mode-selection">
-        <label class="form-label fw-bold mb-3">
-            <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
-        </label>
+      <label class="form-label fw-bold mb-3">
+        <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
+      </label>
         <div class="form-check mb-2">
             <input class="form-check-input" type="radio" name="submissionMode" id="modeSimple" value="simple" checked>
             <label class="form-check-label" for="modeSimple">
@@ -71,7 +71,7 @@
             <input class="form-check-input" type="radio" name="submissionMode" id="modeRawJson" value="raw">
             <label class="form-check-label" for="modeRawJson">
                 <strong><i class="fa-solid fa-code me-2 text-info"></i>Raw JSON</strong> 
-                <br><small class="text-muted">Paste complete TES task JSON</small>
+                <br><small class="text-muted">Write complete TES task JSON</small>
             </label>
         </div>
     </div>
@@ -133,7 +133,7 @@
     <div id="simpleMode" class="mode-section">
         <div class="alert alert-info">
             <i class="fa-solid fa-info-circle me-2"></i>
-            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query. Output will be saved to the project's S3 output bucket as a CSV file.
+            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query, submit the task, and output will be saved to the project's S3 output bucket as a CSV file.
             <br><medium class="text-muted">
                 <strong>Default Image:</strong> <code id="sqlImageDisplay">Loading...</code>
             </medium>
@@ -233,14 +233,34 @@
     <div id="rawMode" class="mode-section" style="display:none;">
         <div class="alert alert-primary">
             <i class="fa-solid fa-code me-2"></i>
-            <strong>Raw JSON Mode:</strong> Paste your complete TES task JSON here. This will override all other settings.
+            <strong>Raw JSON Mode:</strong> Build your complete TES task JSON here. This will override all other settings.
+            <br/>
+            <strong class="mt-2">Notes</strong>:
+              <div class="ms-3">
+                <li>The JSON should follow the request body schema <a href="https://ga4gh.github.io/task-execution-schemas/docs/#tag/TaskService/operation/CreateTask" target="_blank" rel="noopener" class="text-decoration-underline">here</a></li>
+                <li>Tags <span>Project</span> (target project) and <span>tres</span> (list of target TREs) are required</li>
+              </div>
         </div>
         
         <div class="mb-4">
-            <label class="form-label fw-bold">TES Task JSON</label>
-            <textarea class="form-control" name="RawInput" id="RawInput" rows="15" placeholder="Paste your complete TES task JSON here..." style="font-family: 'Monaco', 'Consolas', 'Courier New', monospace; font-size: 0.9rem;">@Model.RawInput</textarea>
-            <small class="form-text text-muted">
-                Example: {"name": "My Task", "executors": [{"image": "ubuntu:latest", "command": ["echo", "hello"]}], ...}
+            <div class="d-flex align-items-center justify-content-between mb-1">
+                <label class="form-label fw-bold mb-0">TES Task JSON</label>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnFormatJson" title="Format / Pretty-print JSON">
+                        <i class="fa-solid fa-indent me-1"></i>Format
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopyJson" title="Copy to clipboard">
+                        <i class="fa-solid fa-copy me-1"></i>Copy
+                    </button>
+                </div>
+            </div>
+            <!-- Monaco editor mount point -->
+            <div id="monacoEditorContainer" style="width:100%; height:480px; border:1px solid #dee2e6; border-radius:0.375rem; overflow:hidden;"></div>
+            <!-- Hidden textarea keeps the value so existing form-submit code still works with $('#RawInput').val() -->
+            <textarea name="RawInput" id="RawInput" style="display:none;">@Model.RawInput</textarea>
+            <small class="form-text text-muted mt-1 d-block">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                 JSON intellisense, syntax highlighting and error markers are available.
             </small>
         </div>
     </div>
@@ -255,3 +275,102 @@
         <div id="success" class="text-success"></div>
     </div>
 }
+
+<!-- ────────────────────────────────────────────────────────────
+     Monaco Editor  (loaded via AMD / require from CDN)
+     ──────────────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min/vs/loader.min.js"
+        crossorigin="anonymous"
+        referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+    'use strict';
+
+    var monacoEditor = null;      // will hold the IStandaloneCodeEditor instance
+    var monacoReady  = false;
+
+    /* ── 1.  Boot Monaco ── */
+    require.config({
+        paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min/vs' }
+    });
+
+    require(['vs/editor/editor.main'], function () {
+        var initialValue = document.getElementById('RawInput').value || '';
+
+        monacoEditor = monaco.editor.create(
+            document.getElementById('monacoEditorContainer'),
+            {
+                value:          initialValue,
+                language:       'json',
+                theme:          'vs',           // light theme to match Bootstrap
+                automaticLayout: true,          // resize when container changes
+                minimap:        { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize:       13,
+                tabSize:        2,
+                wordWrap:       'on',
+                formatOnPaste:  true,
+                formatOnType:   false,
+                lineNumbers:    'on',
+                renderLineHighlight: 'line',
+                scrollbar: {
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8
+                }
+            }
+        );
+
+        monacoReady = true;
+        window.monacoEditor = monacoEditor;  // expose globally for submit handler
+
+        /* Keep the hidden textarea in sync so the existing jQuery
+           submit handler can still do  $('#RawInput').val()  */
+        monacoEditor.onDidChangeModelContent(function () {
+            document.getElementById('RawInput').value = monacoEditor.getValue();
+        });
+
+        /* ── 2.  Format button ── */
+        document.getElementById('btnFormatJson').addEventListener('click', function () {
+            if (!monacoReady) return;
+            monacoEditor.getAction('editor.action.formatDocument').run().then(function () {
+                // after built-in formatter runs, sync textarea
+                document.getElementById('RawInput').value = monacoEditor.getValue();
+            });
+        });
+
+        /* ── 3.  Copy button ── */
+        document.getElementById('btnCopyJson').addEventListener('click', function () {
+            if (!monacoReady) return;
+            var text = monacoEditor.getValue();
+            navigator.clipboard.writeText(text).then(function () {
+                var btn = document.getElementById('btnCopyJson');
+                var original = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Copied!';
+                btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+                setTimeout(function () {
+                    btn.innerHTML = original;
+                    btn.classList.replace('btn-outline-success', 'btn-outline-secondary');
+                }, 2000);
+            }).catch(function () {
+                // fallback for older browsers
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
+        });
+
+        /* ── 4.  When switching TO raw mode, resize editor ── */
+        document.querySelectorAll('input[name="submissionMode"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (this.value === 'raw' && monacoReady) {
+                    setTimeout(function () { monacoEditor.layout(); }, 50);
+                }
+            });
+        });
+    });
+}());
+</script>
+

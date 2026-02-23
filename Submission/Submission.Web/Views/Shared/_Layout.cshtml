@@ -595,7 +595,10 @@
                     formData.append('SQL', 'true');
                     
                 } else if (selectedMode === 'raw') {
-                    // Raw mode: validate JSON input
+                    // Raw mode: sync Monaco → hidden textarea before reading
+                    if (window.monacoEditor) {
+                        document.getElementById('RawInput').value = window.monacoEditor.getValue();
+                    }
                     var rawInput = $('#RawInput').val();
                     if (!rawInput || rawInput.trim() === '') {
                         $('#error').text('Please enter a valid TES task JSON for raw mode.').css('color', 'red');
