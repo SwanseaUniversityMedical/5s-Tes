@@ -1,7 +1,10 @@
 ﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardV2
+
 @{
     ViewData["Title"] = "SQL TES Wizard";
 }
+
+<link rel="stylesheet" href="~/css/submissionwizardv2.css" asp-append-version="true" />
 
 <script>
     // Make URLSettingsFrontEnd available to JavaScript
@@ -11,9 +14,6 @@
         minioUrl: '@ViewBag.MinioUrl' || 'Not configured'
     };
     
-    // Debug logging for URL settings
-    console.log('URL Settings loaded:', window.urlSettings);
-    console.log('ViewBag values - SQL:', '@ViewBag.QueryImageSQL', 'GraphQL:', '@ViewBag.QueryImageGraphQL', 'Minio:', '@ViewBag.MinioUrl');
     
     // Immediate update attempt (in case DOM is already ready)
     function updateSqlImageDisplay() {
@@ -31,82 +31,14 @@
         }
     }
     
-    // Try to update immediately
-    updateSqlImageDisplay();
-    
-    // Also try after a short delay in case of timing issues
+
+    //  try  to update sql image after a short delay in case of timing issues
     setTimeout(function() {
-        console.log('Retry updating SQL image display after delay...');
         updateSqlImageDisplay();
     }, 100);
-    
-    // Update the SQL image display
-    $(document).ready(function() {
-        console.log('Document ready, updating displays...');
-        
-        // Update SQL image display
-        updateSqlImageDisplay();
-        
-        // Update debug panel
-        var debugElement = document.getElementById('jsUrlSettings');
-        if (debugElement) {
-            debugElement.textContent = JSON.stringify(window.urlSettings, null, 2);
-        }
-        
-        // Also update the custom mode images
-        var customSqlElement = document.getElementById('customSqlImage');
-        var customGraphqlElement = document.getElementById('customGraphqlImage');
-        
-        if (customSqlElement) {
-            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
-                customSqlElement.textContent = window.urlSettings.queryImageSQL;
-            } else {
-                customSqlElement.textContent = 'Not configured';
-                customSqlElement.style.color = 'red';
-            }
-        }
-        
-        if (customGraphqlElement) {
-            if (window.urlSettings.queryImageGraphQL && window.urlSettings.queryImageGraphQL !== 'Not configured') {
-                customGraphqlElement.textContent = window.urlSettings.queryImageGraphQL;
-            } else {
-                customGraphqlElement.textContent = 'Not configured';
-                customGraphqlElement.style.color = 'red';
-            }
-        }
-    });
 </script>
 
-<style>
-    .mode-section {
-        border: 1px solid #e9ecef;
-        border-radius: 0.5rem;
-        padding: 1.5rem;
-        margin-bottom: 1rem;
-        background-color: #f8f9fa;
-    }
-    
-    .mode-selection {
-        background-color: #fff;
-        border: 1px solid #dee2e6;
-        border-radius: 0.5rem;
-        padding: 1rem;
-        margin-bottom: 1.5rem;
-    }
-    
-    .form-check-label strong {
-        color: #495057;
-    }
-    
-    .alert {
-        margin-bottom: 1rem;
-    }
-    
-    #rawMode textarea {
-        font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
-        font-size: 0.9rem;
-    }
-</style>
+
 
 <partial name="../Shared/_ProjectNav" />
 
