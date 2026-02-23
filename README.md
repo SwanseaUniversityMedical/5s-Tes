@@ -1,7 +1,7 @@
 # 5S-TES [docs-badge] [5s-tes-docs]
 
-[5s-tes-logo]
 
+[![5s-tes][5s-tes-logo]]
 Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Trusted Research Environments (TREs).
 
 - Provides a standardised API for job submission and monitoring
