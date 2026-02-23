@@ -1,6 +1,6 @@
 # 5S-TES [![Five Safes TES docs][docs-badge]][5s-tes-docs]
 
-[![ Five Safes TES logo][5s-tes-logo]]
+![ Five Safes TES logo][5s-tes-logo]
 
 Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Trusted Research Environments (TREs).
 
@@ -8,18 +8,20 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
-# Submission.Api & Submission.Web [![Submission Docs][docs-badge]][5s-tes-submission-docs]
+# Submission.Api & Submission.Web 
+[![Submission Docs][docs-badge]][5s-tes-submission-docs]
 
 - Provides an API and user interface for researchers to submit tasks.
 - Authenticates and authorises approved researchers.
 - Queues validated tasks for the Trusted Research Environment agent to pick up and execute.
 - Tracks the status of submitted tasks.
 
-# TRE Agent [![Agent Docs][docs-badge]][5s-tes-agent-docs]
+## TRE Agent 
+[![Agent Docs][docs-badge]][5s-tes-agent-docs]
 
 ### Agent.Api
 
-### Core Functionality
+#### Core Functionality
 
 - Polls the Submission Layer to retrieve new tasks
 - Submits tasks to a GA4GH TES implementation
@@ -39,22 +41,22 @@ Web FrontEnd for the Agent.Api. Allows TRE Admins to:
 
 An alternative to the Agent.Web built with Next.js and TypeScript. More information in the directory README.md
 
-# Credentials
+## Credentials
 
-## Credentials.Camunda
+### Credentials.Camunda
 
 - Contains core logic handlers for TRE Agent to manage user credentials to access the TRE’s database
 - Creates and revokes ephemeral user accounts to access the TRE’s database.
 - Uses Camunda, Vault and LDAP services.
 
-## Credentials.Models
+### Credentials.Models
 
 - Contains Models and Services shared between Credentials.Camunda and Agent.Api that facilitate creating and revoking
   ephemeral user credentials.
 
-# Shared
+## Shared
 
-## Five Safes TES Core Library
+### Five Safes TES Core Library
 
 - A shared library that includes Models, Services and Settings shared across the TRE Agent, Submission and Credentials.
 
