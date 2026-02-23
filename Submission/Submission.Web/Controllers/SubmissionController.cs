@@ -558,7 +558,7 @@ namespace Submission.Web.Controllers
 
                 if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
                 {
-                    List<Executors> executorsList = JsonConvert.DeserializeObject<List<Executors>>(Executors);
+                    List<ExecutorsV2> executorsList = JsonConvert.DeserializeObject<List<ExecutorsV2>>(Executors);
                     foreach (var ex in executorsList)
                     {
                         if (string.IsNullOrEmpty(ex.Image)) continue;
