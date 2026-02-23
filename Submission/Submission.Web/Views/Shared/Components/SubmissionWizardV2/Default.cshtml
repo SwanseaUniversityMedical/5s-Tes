@@ -80,7 +80,8 @@
     <div id="commonFields">
         <div class="row">
             <div class="col-md-6 mb-3">
-                <label class="form-label fw-bold">TES Name</label>
+              <label class="form-label fw-bold">TES Name</label>
+              <span class="text-danger fw-normal">*</span>
                 <input class="form-control" type="text" name="TESName" id="TESName" value="@Model.TESName" placeholder="Enter task name" />
             </div>
         </div>
@@ -92,7 +93,8 @@
         </div>
 
         <div class="col-md-8 mb-4">
-            <label class="fw-bold">Select TREs</label>
+          <label class="fw-bold">Select TREs</label>
+          <span class="text-danger fw-normal">*</span>
             @for (var i = 0; i < Model.TreRadios.Count(); i++)
             {
                 <div class="d-flex align-items-center justify-content-between my-2">
