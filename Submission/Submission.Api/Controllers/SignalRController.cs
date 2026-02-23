@@ -7,6 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Submission.Api.Controllers
 {
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
     
     [Route("api/[controller]")]
