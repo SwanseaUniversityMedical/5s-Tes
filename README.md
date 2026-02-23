@@ -1,6 +1,6 @@
-# 5S-TES [![Five Safes TES docs][docs-badge]][5s-tes-docs]
+# 5S-TES 
 
-![ Five Safes TES logo][5s-tes-logo]
+[![ Five Safes TES logo][5s-tes-logo]] [5s-tes-docs]
 
 Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Trusted Research Environments (TREs).
 
@@ -8,8 +8,9 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
+[![Five Safes TES docs][docs-badge]][5s-tes-docs]
 # Submission.Api & Submission.Web 
-[![Submission Docs][docs-badge]][5s-tes-submission-docs]
+
 
 - Provides an API and user interface for researchers to submit tasks.
 - Authenticates and authorises approved researchers.
@@ -17,7 +18,7 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Tracks the status of submitted tasks.
 
 ## TRE Agent 
-[![Agent Docs][docs-badge]][5s-tes-agent-docs]
+
 
 ### Agent.Api
 
@@ -63,9 +64,5 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
 
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes
-
-[5s-tes-submission-docs]: https://docs.federated-analytics.ac.uk/submission
-
-[5s-tes-agent-docs]: https://docs.federated-analytics.ac.uk/tre_agent
 
 [docs-badge]: https://img.shields.io/badge/docs-black?style=for-the-badge&labelColor=%23222
