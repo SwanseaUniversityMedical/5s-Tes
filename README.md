@@ -1,7 +1,6 @@
-# 5S-TES [![Five Safes TES docs][docs-badge] [5s-tes-docs]]
+# 5S-TES [![Five Safes TES docs][docs-badge]][5s-tes-docs]
 
-
-[![5s-tes][5s-tes-logo]]
+[![ Five Safes TES logo][5s-tes-logo]]
 
 Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Trusted Research Environments (TREs).
 
@@ -9,14 +8,14 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
-# Submission.Api & Submission.Web [![Submission Docs][docs-badge] [5s-tes-submission-docs]]
+# Submission.Api & Submission.Web [![Submission Docs][docs-badge]][5s-tes-submission-docs]
 
 - Provides an API and user interface for researchers to submit tasks.
 - Authenticates and authorises approved researchers.
 - Queues validated tasks for the Trusted Research Environment agent to pick up and execute.
 - Tracks the status of submitted tasks.
 
-# TRE Agent [![Agent Docs][docs-badge] [5s-tes-agent-docs]]
+# TRE Agent [![Agent Docs][docs-badge]][5s-tes-agent-docs]
 
 ### Agent.Api
 
