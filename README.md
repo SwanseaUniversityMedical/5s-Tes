@@ -39,7 +39,7 @@ Web FrontEnd for the Agent.Api. Allows TRE Admins to:
 
 ### agent-web
 
-An alternative to the Agent.Web built with Next.js and TypeScript. More information in the directory README.md
+An alternative to the Agent.Web built with Next.js and TypeScript. More information in the directory's README.md
 
 ## Credentials
 
