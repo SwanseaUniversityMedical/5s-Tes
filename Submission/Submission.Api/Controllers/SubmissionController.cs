@@ -16,10 +16,9 @@ using Submission.Api.Services;
 
 namespace Submission.Api.Controllers
 {
-
-    [Route("api/[controller]")]
-    
-    [ApiController]
+  [ApiExplorerSettings(GroupName = "v1")]
+  [Route("api/[controller]")]
+  [ApiController]
     
 
     /// <summary>

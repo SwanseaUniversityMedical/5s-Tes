@@ -317,6 +317,7 @@ app.UseSwagger();
 app.UseSwaggerUI(c =>
 {
     c.EnableValidator(null);
+    c.SwaggerEndpoint("/swagger/ga4gh-tes/swagger.json", $"GA4GH TES API");
     c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{environment.ApplicationName} v1");
     c.OAuthClientId(submissionKeyCloakSettings.ClientId);
     c.OAuthClientSecret(submissionKeyCloakSettings.ClientSecret);
@@ -422,33 +423,42 @@ async void AddServices(WebApplicationBuilder builder)
     builder.Services.AddHostedService<DAREBackgroundService>();
 
     //TODO
+    builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
-    {
+      {
+        c.EnableAnnotations();
+        c.UseOneOfForPolymorphism();
+        // GA4GH TES API Docs definition
+        c.SwaggerDoc("ga4gh-tes", new()
+          {
+            Title = "GA4GH TES API",
+            Version = "v1.1.0",
+            Description = "A GA4GH TES API implementation"
+          }
+        );
         c.SwaggerDoc("v1", new OpenApiInfo { Title = environment.ApplicationName, Version = "v1" });
 
         var securityScheme = new OpenApiSecurityScheme
         {
-            Name = "JWT Authentication",
-            Description = "Enter JWT token.",
-            In = ParameterLocation.Header,
-            Type = SecuritySchemeType.Http,
-            Scheme = "bearer",
-            BearerFormat = "JWT",
-            Reference = new OpenApiReference
-            {
-                Id = JwtBearerDefaults.AuthenticationScheme,
-                Type = ReferenceType.SecurityScheme
-            }
+          Name = "JWT Authentication",
+          Description = "Enter JWT token.",
+          In = ParameterLocation.Header,
+          Type = SecuritySchemeType.Http,
+          Scheme = "bearer",
+          BearerFormat = "JWT",
+          Reference = new OpenApiReference
+          {
+            Id = JwtBearerDefaults.AuthenticationScheme,
+            Type = ReferenceType.SecurityScheme
+          }
         };
 
         c.AddSecurityDefinition(securityScheme.Reference.Id, securityScheme);
         c.AddSecurityRequirement(new OpenApiSecurityRequirement
         {
-            { securityScheme, new string[] { } }
+          { securityScheme, new string[] { } }
         });
-
-
-    }
+      }
     );
 
     if (!string.IsNullOrEmpty(configuration.GetConnectionString("DefaultConnection")))

@@ -15,7 +15,7 @@ using Submission.Api.Services.Contract;
 
 namespace Submission.Api.Controllers
 {
-
+    [ApiExplorerSettings(GroupName = "v1")]
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]

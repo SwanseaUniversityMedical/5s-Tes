@@ -18,8 +18,8 @@ using Submission.Api.Services.Contract;
 
 namespace Submission.Api.Controllers
 {
+    [ApiExplorerSettings(GroupName = "ga4gh-tes")]
     [Route("api/[controller]")]
-    
     [ApiController]
     public class TaskServiceApiController : ControllerBase
     {
@@ -413,9 +413,9 @@ namespace Submission.Api.Controllers
             try { 
             var serviceInfo = new TesServiceInfo
             {
-                Name = "DARE FX",
+                Name = "5S-TES",
                 Doc = string.Empty,
-                Storage = new List<string>(){ "s3://ohsu-compbio-funnel/storage" },
+                Storage = new List<string>(){ "s3://" },
                 TesResourcesSupportedBackendParameters =
                     Enum.GetNames(typeof(TesResources.SupportedBackendParameters)).ToList()
             };
