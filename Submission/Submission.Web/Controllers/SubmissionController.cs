@@ -21,7 +21,6 @@ namespace Submission.Web.Controllers
         private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
         private readonly IKeyCloakService _IKeyCloakService;
 
-
         public SubmissionController(IDareClientHelper client, IConfiguration configuration,
             URLSettingsFrontEnd URLSettingsFrontEnd, IKeyCloakService IKeyCloakService)
         {
@@ -31,15 +30,12 @@ namespace Submission.Web.Controllers
             _IKeyCloakService = IKeyCloakService;
         }
 
-
         public IActionResult Instructions()
         {
             var url = _configuration["DareAPISettings:HelpAddress"];
             return View(model: url);
         }
 
-
-        
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> SubmissionWizard(SubmissionWizard model)
@@ -50,7 +46,7 @@ namespace Submission.Web.Controllers
                     .Where(x => x.Value.Errors.Count > 0)
                     .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) })
                     .ToList();
-                
+
                 return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
             }
 
@@ -62,7 +58,6 @@ namespace Submission.Web.Controllers
                 paramlist.Add("projectId", model.ProjectId.ToString());
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
                     "/api/Project/GetProject/", paramlist);
-
 
                 if (model.TreRadios == null)
                 {
@@ -86,23 +81,20 @@ namespace Submission.Web.Controllers
                 else
                 {
                     var paramss = new Dictionary<string, string>();
-
                     paramss.Add("bucketName", project.SubmissionBucket);
                     if (model.File != null)
                     {
-                        var uplodaResultTest =
-                            await _clientHelper.CallAPIToSendFile<APIReturn>("/api/Project/UploadToMinio", "file",
-                                model.File, paramss);
+                        await _clientHelper.CallAPIToSendFile<APIReturn>("/api/Project/UploadToMinio", "file",
+                            model.File, paramss);
                     }
 
                     var minioEndpoint =
                         await _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint");
-                    //Don't add http:// minioEndpoint.Url already has it. And if not it should!
-                    imageUrl = /*"http://" +*/ minioEndpoint.Url + "/browser/" + project.SubmissionBucket + "/" +
-                                               model.File.FileName;
+                    // Don't add http:// — minioEndpoint.Url already has it.
+                    imageUrl = minioEndpoint.Url + "/browser/" + project.SubmissionBucket + "/" + model.File.FileName;
                 }
 
-                var TesTask = new TesTask()
+                var tesTask = new TesTask()
                 {
                     Name = model.TESName,
                     Executors = new List<TesExecutor>()
@@ -120,11 +112,8 @@ namespace Submission.Web.Controllers
                     }
                 };
 
-
-                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", TesTask);
-
+                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
                 return RedirectToAction("GetASubmission", new { id = result.Id });
-                //return Ok();
             }
             catch (Exception e)
             {
@@ -155,12 +144,8 @@ namespace Submission.Web.Controllers
             ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
 
-            List<FiveSafesTes.Core.Models.Submission> displaySubmissionsList = new List<FiveSafesTes.Core.Models.Submission>();
             var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions/").Result
                 .Where(x => x.Parent == null).ToList();
-
-            res = res.Where(x => x.Parent == null).ToList();
-
 
             return View(res);
         }
@@ -175,18 +160,18 @@ namespace Submission.Web.Controllers
 
             var res = _clientHelper.CallAPIWithoutModel<FiveSafesTes.Core.Models.Submission>($"/api/Submission/GetASubmission/{id}").Result;
 
-
             var minio = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint").Result;
             ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
-            var test = new SubmissionInfo()
+
+            var model = new SubmissionInfo()
             {
                 Submission = res,
                 Stages = _clientHelper.CallAPIWithoutModel<Stages>("/api/Submission/StageTypes/").Result
             };
-            return View(test);
-        }
 
+            return View(model);
+        }
 
         [HttpPost]
         [Authorize]
@@ -204,6 +189,7 @@ namespace Submission.Web.Controllers
                 paramlist.Add("projectId", model.ProjectId.ToString());
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
                     "/api/Project/GetProject/", paramlist) ?? throw new NullReferenceException("Project not found");
+
                 var treSelection = model.TreRadios.Where(x => x.IsSelected).ToList();
                 if (treSelection.Count == 0)
                 {
@@ -225,6 +211,7 @@ namespace Submission.Web.Controllers
                 {
                     tesTask = JsonConvert.DeserializeObject<TesTask>(model.JsonData) ??
                               throw new NullReferenceException("Json data not returned");
+
                     if (tesTask.Tags == null || tesTask.Tags.Count == 0)
                     {
                         tesTask.Tags = new Dictionary<string, string>()
@@ -237,9 +224,7 @@ namespace Submission.Web.Controllers
                 }
 
                 await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
                 await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
-
 
                 return Ok();
             }
@@ -249,7 +234,6 @@ namespace Submission.Web.Controllers
                 return BadRequest(e.Message);
             }
         }
-
 
         [HttpPost]
         [Authorize]
@@ -445,274 +429,152 @@ namespace Submission.Web.Controllers
                 return BadRequest(e.Message);
             }
         }
-        
+
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult> SubmissionSQLWizardAction(SubmissionWizardV2 model, string? Executors, string Mode)
+        public async Task<ActionResult> SubmissionSqlWizardAction(
+            SubmissionWizardV2 model, string? CustomExecutors, string Mode)
         {
-            if (!ModelState.IsValid) // SonarQube security
+            if (!ModelState.IsValid)
             {
                 var errors = ModelState
                     .Where(x => x.Value.Errors.Count > 0)
-                    .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) })
-                    .ToList();
-                
-                return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
+                    .SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage));
+                return BadRequest($"Model validation failed: {string.Join(", ", errors)}");
             }
 
             try
             {
-                var listOfTre = "";
+                TesTask tes;
 
-                var paramlist = new Dictionary<string, string>();
-                paramlist.Add("projectId", model.ProjectId.ToString());
-                var project = await _clientHelper.CallAPIWithoutModel<Project?>(
-                    "/api/Project/GetProject/", paramlist);
-
-                var tes = new TesTask();
-                var tesExecutors = new List<TesExecutor>();
-                // ------------------------------------------------------------------
-                // Raw mode
-                // ------------------------------------------------------------------
+                // ── RAW mode ─────────────────────────────────────────────────────────
                 if (Mode == "Raw")
                 {
-                  if (string.IsNullOrEmpty(model.RawInput) == false)
-                  {
-                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
-                    
-                  }
+                    if (string.IsNullOrWhiteSpace(model.RawInput))
+                        return BadRequest("Raw JSON input is required in Raw mode.");
+
+                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput)
+                          ?? throw new InvalidOperationException("Failed to deserialise TES JSON.");
                 }
-
-                // ------------------------------------------------------------------
-                // SIMPLE MODE: build the full TES message from defaults + query only
-                // ------------------------------------------------------------------
-                if (Mode == "Simple")
+                // ── SIMPLE or CUSTOM modes ────────────────────────────────────────────
+                else if (Mode == "Simple" || Mode == "Custom")
                 {
-                    if (string.IsNullOrWhiteSpace(model.Query))
-                        return BadRequest("A SQL query is required in Simple mode.");
+                    // 1. Resolve project
+                    var project = await _clientHelper.CallAPIWithoutModel<Project?>(
+                        "/api/Project/GetProject/",
+                        new Dictionary<string, string> { { "projectId", model.ProjectId.ToString() } });
 
-                    // Normalise the query: replace literal \n / \r\n escape sequences
-                    // (produced when the user pastes JSON-style text) with real newlines.
-                    var normalizedQuery = model.Query
-                        .Replace("\\r\\n", "\n")
-                        .Replace("\\r", "\n")
-                        .Replace("\\n", "\n");
+                    // 2. Resolve TRE list (fall back to all TREs in the project)
+                    var selectedTres = model.TreRadios?
+                        .Where(x => x.IsSelected)
+                        .Select(x => x.Name)
+                        .ToList() ?? new List<string>();
 
-                    // Resolve TRE list
-                    var selectedTres = model.TreRadios?.Where(x => x.IsSelected).Select(x => x.Name).ToList()
-                                       ?? new List<string>();
                     if (selectedTres.Count == 0)
                     {
-                        var paramList2 = new Dictionary<string, string>();
-                        paramList2.Add("projectId", model.ProjectId.ToString());
-                        var allTres = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/", paramList2);
-                        selectedTres = allTres.Select(t => t.Name).ToList();
+                        return BadRequest("No Tres selected.");
                     }
-                    listOfTre = string.Join("|", selectedTres);
 
-                    tes = new TesTask
+                    var listOfTre = string.Join("|", selectedTres);
+
+                    // 3. Common TES metadata
+                    var tesName        = string.IsNullOrWhiteSpace(model.TESName)        ? "SQL Query Task"          : model.TESName;
+                    var tesDescription = string.IsNullOrWhiteSpace(model.TESDescription) ? "Federated analysis task" : model.TESDescription;
+
+                    // 4. Build executors depending on mode
+                    List<TesExecutor> executors;
+
+                    if (Mode == "Simple")
                     {
-                        State = 0,
-                        Name = string.IsNullOrWhiteSpace(model.TESName) ? "SQL Query Task" : model.TESName,
-                        Description = string.IsNullOrWhiteSpace(model.TESDescription)
-                            ? "Federated analysis task"
-                            : model.TESDescription,
-                        Inputs = null,
-                        Outputs = new List<TesOutput>
-                        {
-                            new TesOutput
-                            {
-                                Name = "workdir",
-                                Description = "analysis test output",
-                                Url = "s3://",
-                                Path = "/outputs",
-                                Type = TesFileType.DIRECTORYEnum
-                            }
-                        },
-                        Resources = null,
-                        Executors = new List<TesExecutor>
+                        if (string.IsNullOrWhiteSpace(model.Query))
+                            return BadRequest("A SQL query is required in Simple mode.");
+
+                        var query = NormaliseText(model.Query);
+
+                        executors = new List<TesExecutor>
                         {
                             new TesExecutor
                             {
-                                Image = _URLSettingsFrontEnd.QueryImageSQL,
+                                Image   = _URLSettingsFrontEnd.QueryImageSQL,
                                 Command = new List<string>
                                 {
                                     "--Output=/outputs/output.csv",
-                                    $"--Query={normalizedQuery}"
+                                    $"--Query={query}"
                                 },
                                 Workdir = "/app",
-                                Stdin = null,
-                                Stdout = null,
-                                Stderr = null,
-                                Env = new Dictionary<string, string>()
+                                Stdin   = null,
+                                Stdout  = null,
+                                Stderr  = null,
+                                Env     = new Dictionary<string, string>()
+                            }
+                        };
+                    }
+                    else // Custom
+                    {
+                        if (string.IsNullOrWhiteSpace(CustomExecutors) || CustomExecutors == "null")
+                            return BadRequest("Executors data is required in Custom mode.");
+
+                        var executorDtos = JsonConvert.DeserializeObject<List<ExecutorsV2>>(CustomExecutors)
+                                           ?? new List<ExecutorsV2>();
+
+                        executors = executorDtos
+                            .Where(ex => !string.IsNullOrEmpty(ex.Image))
+                            .Select(ex => new TesExecutor
+                            {
+                                Image   = ex.Image,
+                                Command = ex.Command?
+                                    .Select(NormaliseText)
+                                    .ToList() ?? new List<string>(),
+                                Workdir = "/app",
+                                Stdin   = null,
+                                Stdout  = null,
+                                Stderr  = null,
+                                Env     = ParseEnvList(ex.ENV)
+                            })
+                            .ToList();
+
+                        if (executors.Count == 0)
+                            return BadRequest("At least one valid executor with an image is required in Custom mode.");
+                    }
+
+                    // 5. Assemble the TES message (same shape for both Simple and Custom)
+                    tes = new TesTask
+                    {
+                        State       = 0,
+                        Name        = tesName,
+                        Description = tesDescription,
+                        Inputs      = null,
+                        Outputs     = new List<TesOutput>
+                        {
+                            new TesOutput
+                            {
+                                Name        = "workdir",
+                                Description = "analysis test output",
+                                Url         = "s3://",
+                                Path        = "/outputs",
+                                Type        = TesFileType.DIRECTORYEnum
                             }
                         },
-                        Volumes = null,
-                        Tags = new Dictionary<string, string>
+                        Resources    = null,
+                        Executors    = executors,
+                        Volumes      = null,
+                        Tags         = new Dictionary<string, string>
                         {
-                            { "Project", project?.Name ?? "Testing" },
-                            { "tres", listOfTre }
+                            { "Project", project?.Name ?? string.Empty },
+                            { "tres",    listOfTre }
                         },
-                        Logs = null,
+                        Logs         = null,
                         CreationTime = null
                     };
-
-                    var context2 = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                    await _IKeyCloakService.RefreshUserToken(context2);
-                    await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tes);
-                    return Ok();
                 }
-
-                // ------------------------------------------------------------------
-                // CUSTOM mode
-                // ------------------------------------------------------------------
-
-                if (Mode == "Custom")
-                  if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
-                  { List<ExecutorsV2> executorsList = JsonConvert.DeserializeObject<List<ExecutorsV2>>(Executors);
-                    foreach (var ex in executorsList)
-                    {
-                      if (string.IsNullOrEmpty(ex.Image)) continue;
-
-                      Dictionary<string, string> EnvVars = new Dictionary<string, string>();
-                      foreach (var anENV in ex.ENV)
-                      {
-                        var keyval = anENV.Split('=', 2);
-                        EnvVars[keyval[0]] = keyval[1];
-                      }
-
-                      // Normalise each command argument — replace literal \n with real newlines
-                      var normalizedCommands = ex.Command?
-                        .Select(c => c
-                          .Replace("\\r\\n", "\n")
-                          .Replace("\\r", "\n")
-                          .Replace("\\n", "\n"))
-                        .ToList() ?? new List<string>();
-
-                      var exet = new TesExecutor()
-                      {
-                        Image = ex.Image,
-                        Command = normalizedCommands,
-                        Env = EnvVars
-                      };
-                      tesExecutors.Add(exet);
-                    }}
-                  else
-                  {
-                    return BadRequest("Executors data is required in Custom mode.");
-                  }
-               
-
-              
-
-               
-                listOfTre = string.Join("|",
-                    model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
-                
-
-                tes = new TesTask();
-
-               
-
-                if (string.IsNullOrEmpty(model.TESName) == false)
+                else
                 {
-                    tes.Name = model.TESName;
+                    return BadRequest($"Unknown submission mode: '{Mode}'. Expected Simple, Custom, or Raw.");
                 }
 
-                if (string.IsNullOrEmpty(model.TESDescription) == false)
-                {
-                    tes.Description = model.TESDescription;
-                }
-
-                if (tesExecutors.Count > 0)
-                {
-                    if (tes.Executors == null || tes.Executors.Count == 0)
-                    {
-                        tes.Executors = tesExecutors;
-                    }
-                    else
-                    {
-                        tes.Executors.AddRange(tesExecutors);
-                    }
-                }
-
-                if (string.IsNullOrEmpty(model.Query) == false)
-                {
-                    var queryNormalized = model.Query
-                        .Replace("\\r\\n", "\n")
-                        .Replace("\\r", "\n")
-                        .Replace("\\n", "\n");
-
-                    var QueryExecutor = new TesExecutor()
-                    {
-                        Image = _URLSettingsFrontEnd.QueryImageGraphQL,
-                        Command = new List<string>
-                        {
-                            "/usr/bin/dotnet",
-                            "/app/Tre-Hasura.dll",
-                            "--Query_" + queryNormalized
-                        }
-                    };
-
-                   
-
-
-                    if (tes.Executors == null)
-                    {
-                        tes.Executors = new List<TesExecutor>();
-                        tes.Executors.Add(QueryExecutor);
-                    }
-                    else
-                    {
-                        tes.Executors.Insert(0, QueryExecutor);
-                    }
-                }
-
-                if (tes.Outputs == null || tes.Outputs.Count == 0)
-                {
-                    // Same output structure as simple mode
-                    tes.Outputs = new List<TesOutput>()
-                    {
-                        new TesOutput()
-                        {
-                            Url = "s3://",
-                            Name = "workdir",
-                            Description = "analysis test output",
-                            Path = "/outputs",
-                            Type = TesFileType.DIRECTORYEnum,
-                        }
-                    };
-                }
-
-                if (tes.Tags == null || tes.Tags.Count == 0)
-                {
-                    tes.Tags = new Dictionary<string, string>()
-                    {
-                        { "project", project.Name },
-                        { "tres", listOfTre },
-                        { "author", HttpContext.User.FindFirst("name").Value }
-                    };
-                }
-
-                if (string.IsNullOrEmpty(model.DataInputPath) == false)
-                {
-                    if (tes.Inputs == null)
-                    {
-                        tes.Inputs = new List<TesInput>();
-                    }
-                    tes.Inputs.Add(new TesInput()
-                    {
-                        Path = model.DataInputPath,
-                        Type = Enum.Parse<TesFileType>(model.DataInputType),
-                        Name = "",
-                        Description = "",
-                        Url = "",
-                        Content = ""
-                    });
-                }
-
-                var context = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                await _IKeyCloakService.RefreshUserToken(context);
+                // ── Submit to TES API ─────────────────────────────────────────────────
+                var authContext = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await _IKeyCloakService.RefreshUserToken(authContext);
                 await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tes);
 
                 return Ok();
@@ -723,6 +585,35 @@ namespace Submission.Web.Controllers
                 return BadRequest(e.Message);
             }
         }
-    
+
+        // ── Private helpers ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Replaces literal escape sequences (\n, \r\n, \r) with real newline characters.
+        /// This handles text that arrives as JSON-encoded strings with visible backslash-n.
+        /// </summary>
+        private static string NormaliseText(string text) =>
+            text.Replace("\\r\\n", "\n")
+                .Replace("\\r",    "\n")
+                .Replace("\\n",    "\n");
+
+        /// <summary>
+        /// Converts a list of "KEY=value" strings into a dictionary.
+        /// </summary>
+        private static Dictionary<string, string> ParseEnvList(IEnumerable<string>? envLines)
+        {
+            var result = new Dictionary<string, string>();
+            if (envLines == null) return result;
+
+            foreach (var line in envLines)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var parts = line.Split('=', 2);
+                if (parts.Length == 2)
+                    result[parts[0].Trim()] = parts[1].Trim();
+            }
+
+            return result;
+        }
     }
 }
