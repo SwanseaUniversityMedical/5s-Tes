@@ -49,10 +49,10 @@
     <h1 class="fs-4 mt-5">SQL TES Wizard V2</h1>
     
     <!-- Mode Selection -->
-    <div class="mode-selection">
-      <label class="form-label fw-bold mb-3">
+    <fieldset class="mode-selection">
+      <legend class="form-label fw-bold mb-3">
         <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
-      </label>
+      </legend>
         <div class="form-check mb-2">
             <input class="form-check-input" type="radio" name="submissionMode" id="modeSimple" value="simple" checked>
             <label class="form-check-label" for="modeSimple">
@@ -74,27 +74,28 @@
                 <br><small class="text-muted">Write complete TES task JSON</small>
             </label>
         </div>
-    </div>
+    </fieldset>
 
     <!-- Common Fields (hidden for raw mode) -->
     <div id="commonFields">
         <div class="row">
             <div class="col-md-6 mb-3">
-              <label class="form-label fw-bold">TES Name</label>
+              <label for="TESName" class="form-label fw-bold">TES Name</label>
               <span class="text-danger fw-normal">*</span>
                 <input class="form-control" type="text" name="TESName" id="TESName" value="@Model.TESName" placeholder="Enter task name" />
             </div>
         </div>
 
         <div class="mb-3">
-            <label class="form-label fw-bold">TES Description</label>
+            <label for="TESDescription" class="form-label fw-bold">TES Description</label>
             <span class="text-muted fw-normal ms-1">(optional)</span>
             <textarea class="form-control" name="TESDescription" id="TESDescription" rows="2" placeholder="Enter task description">@Model.TESDescription</textarea>
         </div>
 
-        <div class="col-md-8 mb-4">
-          <label class="fw-bold">Select TREs</label>
-          <span class="text-danger fw-normal">*</span>
+        <fieldset class="col-md-8 mb-4">
+          <legend class="form-label fw-bold mb-0" style="font-size: 0.9rem;">
+            Select TREs <span class="text-danger fw-normal">*</span>
+          </legend>
             @for (var i = 0; i < Model.TreRadios.Count(); i++)
             {
                 <div class="d-flex align-items-center justify-content-between my-2">
@@ -128,7 +129,7 @@
             {
                 <p class="text-danger">No available TREs</p>
             }
-        </div>
+        </fieldset>
     </div>
 
     <!-- Mode 1: Simple SQL Query -->
@@ -142,7 +143,7 @@
         </div>
         
         <div class="mb-4">
-            <label class="form-label fw-bold">SQL Query</label>
+            <label for="Query" class="form-label fw-bold">SQL Query</label>
             <textarea class="form-control" name="Query" id="Query" rows="8" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT COUNT(*) AS n, AVG(value_as_number) AS mean&#10;FROM measurement&#10;WHERE measurement_concept_id = 3025315">@Model.Query</textarea>
         </div>
         
@@ -156,7 +157,7 @@
             
         </div>
         
-        <label class="form-label fw-bold">Executors</label>
+        <h5 class="form-label fw-bold">Executors</h5>
         <div class="col-md-12 mb-4">
             <table id="executorsTable" class="table">
                 <thead>
@@ -215,15 +216,15 @@
             <strong>Raw JSON Mode:</strong> Build your complete TES task JSON here. This will override all other settings.
             <br/>
             <strong class="mt-2">Notes</strong>:
-              <div class="ms-3">
+              <ul>
                 <li>The JSON should follow the request body schema <a href="https://ga4gh.github.io/task-execution-schemas/docs/#tag/TaskService/operation/CreateTask" target="_blank" rel="noopener" class="text-decoration-underline">here</a></li>
                 <li>Tags <span>Project</span> (target project) and <span>tres</span> (list of target TREs, separated by "|") are required</li>
-              </div>
+              </ul>
         </div>
         
         <div class="mb-4">
             <div class="d-flex align-items-center justify-content-between mb-1">
-                <label class="form-label fw-bold mb-0">TES Task JSON</label>
+              <h5 class="form-label fw-bold mb-0">TES Task JSON</h5>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="btnFormatJson" title="Format / Pretty-print JSON">
                         <i class="fa-solid fa-indent me-1"></i>Format
