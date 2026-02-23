@@ -539,9 +539,9 @@
                         $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
                         return;
                     }
-                    formData.append('SimpleMode', 'true');
-                    formData.append('Executors', JSON.stringify([]));
-                    formData.append('SQL', 'true');
+                    formData.append('Mode', 'Simple');
+                    formData.append('CustomExecutors', JSON.stringify([]));
+                   
                     
                 } else if (selectedMode === 'custom') {
                     // Custom mode: collect executor data from form
@@ -591,8 +591,8 @@
                         }
                     });
                     
-                    formData.append('Executors', JSON.stringify(executorData));
-                    formData.append('SQL', 'true');
+                    formData.append('CustomExecutors', JSON.stringify(executorData));
+                    formData.append('Mode', 'Custom');
                     
                 } else if (selectedMode === 'raw') {
                     // Raw mode: sync Monaco → hidden textarea before reading
@@ -615,28 +615,15 @@
                     }
                     
                     // Send empty executors for raw mode since executors are in the JSON
-                    formData.append('Executors', JSON.stringify([]));
+                    formData.append('CustomExecutors', JSON.stringify([]));
+                    formData.append('Mode', 'Raw');
                 }
                 
-                // Collect TRE data
-                var treData = [];
-                $('.col-md-4.mb-4 .form-check-input').each(function () {
-                    var name = $(this).siblings('input[type="hidden"]').val();
-                    var isSelected = $(this).prop('checked');
-                    treData.push({ Name: name, IsSelected: isSelected });
-                });
-                
-                formData.append('TreData', JSON.stringify(treData));
 
-                // Debug logging
-                console.log('Selected mode:', selectedMode);
-                console.log('TRE data:', treData);
-                for (var pair of formData.entries()) {
-                    console.log(pair[0] + ':', pair[1]);
-                }
+              
 
                 $.ajax({
-                    url: '@Url.Action("SubmissionWizardAction", "Submission")',
+                    url: '@Url.Action("SubmissionSQLWizardAction", "Submission")',
                     type: 'POST',
                     data: formData,
                     contentType: false,
@@ -665,7 +652,7 @@
                         if (xhr.responseText) {
                             errorMessage += xhr.responseText;
                         } else if (xhr.status === 0) {
-                            errorMessage += "Unable to connect to server. Please check your internet connection.";
+                            errorMessage += "Please make sure the the TES message is valid and the server is reachable.";
                         } else {
                             errorMessage += error || "Unknown error occurred";
                         }

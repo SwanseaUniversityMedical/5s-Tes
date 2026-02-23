@@ -448,7 +448,7 @@ namespace Submission.Web.Controllers
         
         [HttpPost]
         [Authorize]
-        public async Task<ActionResult> SubmissionWizardAction(SubmissionWizardV2 model, string? Executors, string? SQL, string? SimpleMode)
+        public async Task<ActionResult> SubmissionSQLWizardAction(SubmissionWizardV2 model, string? Executors, string Mode)
         {
             if (!ModelState.IsValid) // SonarQube security
             {
@@ -471,11 +471,22 @@ namespace Submission.Web.Controllers
 
                 var tes = new TesTask();
                 var tesExecutors = new List<TesExecutor>();
+                // ------------------------------------------------------------------
+                // Raw mode
+                // ------------------------------------------------------------------
+                if (Mode == "Raw")
+                {
+                  if (string.IsNullOrEmpty(model.RawInput) == false)
+                  {
+                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
+                    
+                  }
+                }
 
                 // ------------------------------------------------------------------
                 // SIMPLE MODE: build the full TES message from defaults + query only
                 // ------------------------------------------------------------------
-                if (SimpleMode == "true")
+                if (Mode == "Simple")
                 {
                     if (string.IsNullOrWhiteSpace(model.Query))
                         return BadRequest("A SQL query is required in Simple mode.");
@@ -553,64 +564,55 @@ namespace Submission.Web.Controllers
                 }
 
                 // ------------------------------------------------------------------
-                // CUSTOM / RAW modes
+                // CUSTOM mode
                 // ------------------------------------------------------------------
 
-                if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
-                {
-                    List<ExecutorsV2> executorsList = JsonConvert.DeserializeObject<List<ExecutorsV2>>(Executors);
+                if (Mode == "Custom")
+                  if (string.IsNullOrEmpty(Executors) == false && Executors != "null")
+                  { List<ExecutorsV2> executorsList = JsonConvert.DeserializeObject<List<ExecutorsV2>>(Executors);
                     foreach (var ex in executorsList)
                     {
-                        if (string.IsNullOrEmpty(ex.Image)) continue;
+                      if (string.IsNullOrEmpty(ex.Image)) continue;
 
-                        Dictionary<string, string> EnvVars = new Dictionary<string, string>();
-                        foreach (var anENV in ex.ENV)
-                        {
-                            var keyval = anENV.Split('=', 2);
-                            EnvVars[keyval[0]] = keyval[1];
-                        }
+                      Dictionary<string, string> EnvVars = new Dictionary<string, string>();
+                      foreach (var anENV in ex.ENV)
+                      {
+                        var keyval = anENV.Split('=', 2);
+                        EnvVars[keyval[0]] = keyval[1];
+                      }
 
-                        // Normalise each command argument — replace literal \n with real newlines
-                        var normalizedCommands = ex.Command?
-                            .Select(c => c
-                                .Replace("\\r\\n", "\n")
-                                .Replace("\\r", "\n")
-                                .Replace("\\n", "\n"))
-                            .ToList() ?? new List<string>();
+                      // Normalise each command argument — replace literal \n with real newlines
+                      var normalizedCommands = ex.Command?
+                        .Select(c => c
+                          .Replace("\\r\\n", "\n")
+                          .Replace("\\r", "\n")
+                          .Replace("\\n", "\n"))
+                        .ToList() ?? new List<string>();
 
-                        var exet = new TesExecutor()
-                        {
-                            Image = ex.Image,
-                            Command = normalizedCommands,
-                            Env = EnvVars
-                        };
-                        tesExecutors.Add(exet);
-                    }
-                }
+                      var exet = new TesExecutor()
+                      {
+                        Image = ex.Image,
+                        Command = normalizedCommands,
+                        Env = EnvVars
+                      };
+                      tesExecutors.Add(exet);
+                    }}
+                  else
+                  {
+                    return BadRequest("Executors data is required in Custom mode.");
+                  }
+               
 
-                var TreDataTreData = model.TreRadios.Where(x => x.IsSelected == true).ToList();
+              
 
-                if (TreDataTreData.Count == 0)
-                {
-                    var paramList = new Dictionary<string, string>();
-                    paramList.Add("projectId", model.ProjectId.ToString());
-                    var tre = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/",
-                        paramList);
-                    List<string> namesList = tre.Select(t => t.Name).ToList();
-                    listOfTre = string.Join("|", namesList);
-                }
-                else
-                {
-                    listOfTre = string.Join("|",
-                        model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
-                }
+               
+                listOfTre = string.Join("|",
+                    model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
+                
 
                 tes = new TesTask();
 
-                if (string.IsNullOrEmpty(model.RawInput) == false)
-                {
-                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput);
-                }
+               
 
                 if (string.IsNullOrEmpty(model.TESName) == false)
                 {
@@ -652,20 +654,7 @@ namespace Submission.Web.Controllers
                         }
                     };
 
-                    if (SQL == "true")
-                    {
-                        QueryExecutor.Image = _URLSettingsFrontEnd.QueryImageSQL;
-                        QueryExecutor.Command = new List<string>()
-                        {
-                            "/bin/bash",
-                            "/workspace/entrypoint.sh",
-                            $"--Query={queryNormalized}"
-                        };
-                        QueryExecutor.Env = new Dictionary<string, string>()
-                        {
-                            ["LOCATION"] = "/workspace/data/results.csv",
-                        };
-                    }
+                   
 
 
                     if (tes.Executors == null)
