@@ -8,9 +8,11 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
-[![Five Safes TES docs][docs-badge]][5s-tes-docs]
+![.NET][net-badge][![Release][release-badge]][release][![Five Safes TES docs][docs-badge]][5s-tes-docs]
 
-# Submission.Api & Submission.Web 
+
+
+## Submission
 
 - Provides an API and user interface for researchers to submit tasks.
 - Authenticates and authorises approved researchers.
@@ -20,8 +22,6 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 ## TRE Agent 
 
 ### Agent.Api
-
-#### Core Functionality
 
 - Polls the Submission Layer to retrieve new tasks
 - Submits tasks to a GA4GH TES implementation
@@ -65,3 +65,7 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes
 
 [docs-badge]: https://img.shields.io/badge/docs-black?style=for-the-badge&labelColor=%23222
+
+[release-badge]: https://img.shields.io/github/v/release/SwanseaUniversityMedical/5s-Tes?style=for-the-badge&labelColor=%23222
+[release]: https://github.com/SwanseaUniversityMedical/5s-Tes/releases
+[net-badge]: https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.net&logoColor=white
