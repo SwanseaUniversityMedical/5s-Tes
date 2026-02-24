@@ -549,7 +549,7 @@ namespace Submission.Web.Controllers
                             new TesOutput
                             {
                                 Name        = "workdir",
-                                Description = "analysis test output",
+                                Description = "Analysis output",
                                 Url         = "s3://",
                                 Path        = "/outputs",
                                 Type        = TesFileType.DIRECTORYEnum
