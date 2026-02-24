@@ -125,7 +125,12 @@ namespace Submission.Web.Controllers
         {
           if (!ModelState.IsValid) // SonarQube security
           {
-            return View("/");
+            var errors = ModelState
+              .Where(x => x.Value?.Errors.Count > 0)
+              .Select(x => new { Field = x.Key, Errors = x.Value?.Errors.Select(e => e.ErrorMessage) })
+              .ToList();
+
+            return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
           }
 
           var paramlist = new Dictionary<string, string>();
