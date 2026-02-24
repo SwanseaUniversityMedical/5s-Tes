@@ -1,4 +1,4 @@
-# 5S-TES 
+# 5S-TES
 
 ![ Five Safes TES logo][5s-tes-logo]
 
@@ -8,11 +8,10 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
-Deployment repository for the stack is : [5S-TES-deployment](https://github.com/SwanseaUniversityMedical/5S-TES-deployment)
+Deployment repository for the stack
+is : [5S-TES-deployment](https://github.com/SwanseaUniversityMedical/5S-TES-deployment)
 
 ![.NET][net-badge][![Release][release-badge]][release][![Five Safes TES docs][docs-badge]][5s-tes-docs]
-
-
 
 ## Submission
 
@@ -21,7 +20,7 @@ Deployment repository for the stack is : [5S-TES-deployment](https://github.com/
 - Queues validated tasks for the Trusted Research Environment agent to pick up and execute.
 - Tracks the status of submitted tasks.
 
-## TRE Agent 
+## TRE Agent
 
 ### Agent.Api
 
@@ -69,5 +68,7 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 [docs-badge]: https://img.shields.io/badge/docs-black?style=for-the-badge&labelColor=%23222
 
 [release-badge]: https://img.shields.io/github/v/release/SwanseaUniversityMedical/5s-Tes?style=for-the-badge&labelColor=%23222
+
 [release]: https://github.com/SwanseaUniversityMedical/5s-Tes/releases
+
 [net-badge]: https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.net&logoColor=white
