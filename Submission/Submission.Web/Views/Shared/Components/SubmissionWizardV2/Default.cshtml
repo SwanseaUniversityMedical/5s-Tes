@@ -143,7 +143,7 @@
         </div>
         
         <div class="mb-4">
-            <label for="Query" class="form-label fw-bold">SQL Query</label>
+            <label for="Query" class="fw-bold mb-2" style="font-size: 1rem;">SQL Query</label>
             <textarea class="form-control" name="Query" id="Query" rows="8" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT COUNT(*) AS n, AVG(value_as_number) AS mean&#10;FROM measurement&#10;WHERE measurement_concept_id = 3025315">@Model.Query</textarea>
         </div>
         
@@ -158,7 +158,7 @@
         </div>
         
         <fieldset class="row mb-4">
-          <legend class="form-label fw-bold mt-2" style="font-size: 1.2rem;">Data Input <span class="text-muted fw-normal">(optional)</span></legend>
+          <legend class="form-label fw-bold mt-2" style="font-size: 1rem;">Data Input <span class="text-muted fw-normal">(optional)</span></legend>
           <div class="col-md-8">
             <label for="DataInputPath" class="form-label text-muted fw-bold">Path</label>
             <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/inputs/data" value="@Model.DataInputPath"/>
@@ -171,7 +171,7 @@
             </select>
           </div>
         </fieldset>
-        <h5 class="form-label fw-bold">Executors</h5>
+        <h5 class="fw-bold" style="font-size: 1rem;">Executors</h5>
         <div class="col-md-12 mb-2">
             <table id="executorsTable" class="table">
                 <thead>
@@ -236,7 +236,7 @@
         
         <div class="mb-4">
             <div class="d-flex align-items-center justify-content-between mb-1">
-              <h5 class="form-label fw-bold mb-0">TES Task JSON</h5>
+              <h5 class="fw-bold" style="font-size: 1rem;">TES Task JSON</h5>
                 <div class="d-flex gap-2">
                     <button type="button" class="btn btn-sm btn-outline-secondary" id="btnFormatJson" title="Format / Pretty-print JSON">
                         <i class="fa-solid fa-indent me-1"></i>Format
