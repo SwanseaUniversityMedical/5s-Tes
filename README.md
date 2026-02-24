@@ -3,7 +3,7 @@
 Five Safes TES supports the secure, remote execution of [GA4GH TES](https://ga4gh.github.io/task-execution-schemas/docs/) analyses in Trusted Research Environments (TREs).
 
 - Provides a standardised API for job submission and monitoring
-- Enables the execution of [GA4GH TES](https://ga4gh.github.io/task-execution-schemas/docs/) tasks inside TREs
+- Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
 Deployment repository for the stack
