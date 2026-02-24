@@ -8,6 +8,8 @@ Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Tr
 - Enables the execution of GA4GH TES tasks inside TREs
 - Supports federated analysis
 
+Deployment repository for the stack is : [5S-TES-deployement](https://github.com/SwanseaUniversityMedical/5S-TES-deployment)
+
 ![.NET][net-badge][![Release][release-badge]][release][![Five Safes TES docs][docs-badge]][5s-tes-docs]
 
 
