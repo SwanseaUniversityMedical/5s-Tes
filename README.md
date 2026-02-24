@@ -1,5 +1,3 @@
-# 5S-TES
-
 ![ Five Safes TES logo][5s-tes-logo]
 
 Five Safes TES supports the secure, remote execution of GA4GH TES analyses in Trusted Research Environments (TREs).
