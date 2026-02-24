@@ -62,13 +62,10 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 - A shared library that includes Models, Services and Settings shared across the TRE Agent, Submission and Credentials.
 
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
-
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes
-
 [docs-badge]: https://img.shields.io/badge/docs-black?style=for-the-badge&labelColor=%23222
 
 [release-badge]: https://img.shields.io/github/v/release/SwanseaUniversityMedical/5s-Tes?style=for-the-badge&labelColor=%23222
-
 [release]: https://github.com/SwanseaUniversityMedical/5s-Tes/releases
 
 [net-badge]: https://img.shields.io/badge/.NET-512BD4?style=for-the-badge&logo=.net&logoColor=white
