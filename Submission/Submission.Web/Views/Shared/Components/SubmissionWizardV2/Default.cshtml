@@ -153,12 +153,26 @@
     <div id="customMode" class="mode-section" style="display:none;">
         <div class="alert alert-warning">
             <i class="fa-solid fa-exclamation-triangle me-2"></i>
-            <strong>Custom Mode:</strong> Use your own Docker image and configure executors manually. Output will be saved to the project's S3 output bucket.
+            <strong>Custom Mode:</strong> Use your own Docker image and configure executor/data input manually. Output will be saved to the project's S3 output bucket.
             
         </div>
         
+        <fieldset class="row mb-4">
+          <legend class="form-label fw-bold mt-2" style="font-size: 1.2rem;">Data Input <span class="text-muted fw-normal">(optional)</span></legend>
+          <div class="col-md-8">
+            <label for="DataInputPath" class="form-label text-muted fw-bold">Path</label>
+            <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/inputs/data" value="@Model.DataInputPath"/>
+          </div>
+          <div class="col-md-4">
+            <label for="DataInputType" class="form-label text-muted fw-bold">Type</label>
+            <select id="DataInputType" name="DataInputType" class="form-select">
+              <option value="FILEEnum">FILE</option>
+              <option value="DIRECTORYEnum">DIRECTORY</option>
+            </select>
+          </div>
+        </fieldset>
         <h5 class="form-label fw-bold">Executors</h5>
-        <div class="col-md-12 mb-4">
+        <div class="col-md-12 mb-2">
             <table id="executorsTable" class="table">
                 <thead>
                     <tr>
@@ -176,7 +190,7 @@
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2">
                                     <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
-                                    <medium class="form-text text-muted">Note: One command per line</medium>
+                                    <medium class="form-text text-muted fw-bold">Note: One command per line</medium>
                                 </div>
                                
                             </div>
@@ -185,7 +199,7 @@
                             <div class="d-flex align-items-start justify-content-between">
                                 <div class="w-100 me-2" id="ENVBOX">
                                     <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
-                                    <medium class="form-text text-muted">Format: KEY=value, one per line</medium>
+                                    <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
                                 </div>
                               
                             </div>
@@ -205,21 +219,6 @@
                 </tbody>
             </table>
         </div>
-        <label class="form-label fw-bold mt-2">Data Input <span class="text-muted fw-normal">(optional)</span></label>
-        <div class="row mb-4">
-            <div class="col-md-8">
-                <label for="DataInputPath" class="form-label text-muted small">Path</label>
-                <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/inputs/data" value="@Model.DataInputPath" />
-            </div>
-            <div class="col-md-4">
-                <label for="DataInputType" class="form-label text-muted small">Type</label>
-                <select id="DataInputType" name="DataInputType" class="form-select">
-                    <option value="FILEEnum" >FILE</option>
-                    <option value="DIRECTORYEnum" >DIRECTORY</option>
-                </select>
-            </div>
-        </div>
-   
     </div>
 
     <!-- Mode 3: Raw JSON -->
