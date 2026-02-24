@@ -478,11 +478,16 @@ namespace Submission.Web.Controllers
                     var listOfTre = string.Join("|", selectedTres);
 
                     // 3. Common TES metadata
-                    var tesName        = string.IsNullOrWhiteSpace(model.TESName)        ? "SQL Query Task"          : model.TESName;
+                    if (string.IsNullOrWhiteSpace(model.TESName))
+                    {
+                      return BadRequest("No TES Name provided.");
+                    }
+                    var tesName        = model.TESName;
                     var tesDescription = string.IsNullOrWhiteSpace(model.TESDescription) ? "Federated analysis task" : model.TESDescription;
 
                     // 4. Build executors depending on mode
                     List<TesExecutor> executors;
+                    List<TesInput>? tesInputs = null;
 
                     if (Mode == "Simple")
                     {
@@ -535,6 +540,24 @@ namespace Submission.Web.Controllers
 
                         if (executors.Count == 0)
                             return BadRequest("At least one valid executor with an image is required in Custom mode.");
+
+                        // Build optional single input from model fields
+                        if (!string.IsNullOrWhiteSpace(model.DataInputPath))
+                        {
+                            _ = Enum.TryParse<TesFileType>(model.DataInputType, out var fileType);
+                            tesInputs = new List<TesInput>
+                            {
+                                new TesInput
+                                {
+                                    Name        = "Input",
+                                    Description = "Analysis input",
+                                    Url         = "",
+                                    Path        = model.DataInputPath,
+                                    Type        = fileType == 0 ? TesFileType.FILEEnum : fileType,
+                                    Content     = ""
+                                }
+                            };
+                        }
                     }
 
                     // 5. Assemble the TES message (same shape for both Simple and Custom)
@@ -543,12 +566,12 @@ namespace Submission.Web.Controllers
                         State       = 0,
                         Name        = tesName,
                         Description = tesDescription,
-                        Inputs      = null,
+                        Inputs      = tesInputs,
                         Outputs     = new List<TesOutput>
                         {
                             new TesOutput
                             {
-                                Name        = "workdir",
+                                Name        = "Output",
                                 Description = "Analysis output",
                                 Url         = "s3://",
                                 Path        = "/outputs",

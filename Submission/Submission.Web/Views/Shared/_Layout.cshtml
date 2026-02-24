@@ -594,6 +594,20 @@
                     formData.append('CustomExecutors', JSON.stringify(executorData));
                     formData.append('Mode', 'Custom');
                     
+                    // Collect single input (path + type) if path is provided
+                    var inputData = [];
+                    var inputPath = $('#DataInputPath').val();
+                    if (inputPath && inputPath.trim() !== '') {
+                        inputData.push({
+                            Name:        '',
+                            Description: '',
+                            Url:         '',
+                            Path:        inputPath.trim(),
+                            Type:        $('#DataInputType').val() || 'FILEEnum'
+                        });
+                    }
+                    formData.append('CustomInputs', JSON.stringify(inputData));
+                    
                 } else if (selectedMode === 'raw') {
                     // Raw mode: sync Monaco → hidden textarea before reading
                     if (window.monacoEditor) {

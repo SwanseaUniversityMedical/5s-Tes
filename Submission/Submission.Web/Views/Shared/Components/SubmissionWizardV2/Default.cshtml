@@ -205,7 +205,20 @@
                 </tbody>
             </table>
         </div>
-        @* TODO: understand the data input and how it works then add it here *@
+        <label class="form-label fw-bold mt-2">Data Input <span class="text-muted fw-normal">(optional)</span></label>
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <label for="DataInputPath" class="form-label text-muted small">Path</label>
+                <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/inputs/data" value="@Model.DataInputPath" />
+            </div>
+            <div class="col-md-4">
+                <label for="DataInputType" class="form-label text-muted small">Type</label>
+                <select id="DataInputType" name="DataInputType" class="form-select">
+                    <option value="FILEEnum" >FILE</option>
+                    <option value="DIRECTORYEnum" >DIRECTORY</option>
+                </select>
+            </div>
+        </div>
    
     </div>
 
@@ -255,6 +268,7 @@
         <div id="success" class="text-success"></div>
     </div>
 }
+
 
 <!-- ────────────────────────────────────────────────────────────
 Monaco Editor  (loaded via AMD / require from CDN)
