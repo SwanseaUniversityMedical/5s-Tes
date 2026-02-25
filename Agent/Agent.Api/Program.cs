@@ -79,10 +79,6 @@ builder.Services.AddDbContext<CredentialsDbContext>(options =>
 AddDependencies(builder, configuration);
 AddVaultServices(builder, configuration);
 
-builder.Services.Configure<OPASettings>(configuration.GetSection("OPASettings"));
-builder.Services.AddTransient(opa => opa.GetService<IOptions<OPASettings>>().Value);
-builder.Services.AddScoped<OpaService>();
-
 
 builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
 builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
@@ -156,6 +152,9 @@ builder.Services.AddHangfire(config => { config.UsePostgreSqlStorage(hangfireCon
 builder.Services.AddHangfireServer();
 var encryptionSettings = new EncryptionSettings();
 configuration.Bind(nameof(encryptionSettings), encryptionSettings);
+if (string.IsNullOrWhiteSpace(encryptionSettings.Key) || string.IsNullOrWhiteSpace(encryptionSettings.Base))
+    throw new InvalidOperationException(
+        "EncryptionSettings:Key and EncryptionSettings:Base must be provided via appsettings or environment variables (EncryptionSettings__Key / EncryptionSettings__Base). Note: They need to be 16 bytes Base-64 string");
 builder.Services.AddSingleton(encryptionSettings);
 builder.Services.AddScoped<IEncDecHelper, EncDecHelper>();
 builder.Services.AddScoped<IDareSyncHelper, DareSyncHelper>();
