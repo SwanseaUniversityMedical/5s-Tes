@@ -124,21 +124,24 @@
                                 <i class="fa fa-table-columns align-middle me-2"></i>
                                 <span>Create Submission </span>
                             </button>
-                            <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
+                            @{
+                                var projectId = Model.Id;
+                            }
+                             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
                               @if (Configuration.GetValue<bool>("DemoMode"))
                               {
                                 <li><a class="dropdown-item"
-                                       href="@Url.Action("SubmissionProjectDemo", "Project", new { id = Model.Id })">Demo
+                                       href="/Project/SubmissionProjectDemo/@projectId">Demo
                                   TES Wizard</a></li>
                               }
                               <li><a class="dropdown-item"
-                                     href="@Url.Action("SubmissionProjectSQL", "Project", new { id = Model.Id })">SQL TES
+                                     href="/Project/SubmissionProjectSQL/@projectId">SQL TES
                                 Wizard</a></li>
                               <li><a class="dropdown-item"
-                                     href="@Url.Action("SubmissionProjectGraphQL", "Project", new { id = Model.Id })">GraphQL
+                                     href="/Project/SubmissionProjectGraphQL/@projectId">GraphQL
                                 TES Wizard</a></li>
                               <li><a class="dropdown-item"
-                                     href="@Url.Action("SubmissionProjectSqlV2", "Project", new { id = Model.Id })">SQL
+                                     href="/Project/SubmissionProjectSqlV2/@projectId">SQL
                                 TES Wizard V2</a></li>
                             </ul>
                         </div>
