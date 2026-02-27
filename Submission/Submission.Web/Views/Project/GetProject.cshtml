@@ -5,7 +5,6 @@
     string pageName = Model.Name;
 
     ViewData["Title"] = @pageName;
-    int pId = Model.Id;
 }
 @inject IConfiguration Configuration
 
@@ -126,21 +125,21 @@
                                 <span>Create Submission </span>
                             </button>
                             <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                                @if (Configuration.GetValue<bool>("DemoMode"))
-                                {
-                                    <li><a class="dropdown-item"
-                                           href="@Url.Action("SubmissionProjectDemo", "Project", new { id = pId })">Demo
-                                            TES Wizard</a></li>
-                                }
+                              @if (Configuration.GetValue<bool>("DemoMode"))
+                              {
                                 <li><a class="dropdown-item"
-                                       href="@Url.Action("SubmissionProjectSQL", "Project", new { id = pId })">SQL TES
-                                        Wizard</a></li>
-                                <li><a class="dropdown-item"
-                                       href="@Url.Action("SubmissionProjectGraphQL", "Project", new { id = pId })">GraphQL
+                                       href="@Url.Action("SubmissionProjectDemo", "Project", new { id = Model.Id })">Demo
                                   TES Wizard</a></li>
-                                <li><a class="dropdown-item"
-                                       href="@Url.Action("SubmissionProjectSqlV2", "Project", new { id = pId })">SQL
-                                  TES Wizard V2</a></li>
+                              }
+                              <li><a class="dropdown-item"
+                                     href="@Url.Action("SubmissionProjectSQL", "Project", new { id = Model.Id })">SQL TES
+                                Wizard</a></li>
+                              <li><a class="dropdown-item"
+                                     href="@Url.Action("SubmissionProjectGraphQL", "Project", new { id = Model.Id })">GraphQL
+                                TES Wizard</a></li>
+                              <li><a class="dropdown-item"
+                                     href="@Url.Action("SubmissionProjectSqlV2", "Project", new { id = Model.Id })">SQL
+                                TES Wizard V2</a></li>
                             </ul>
                         </div>
                         <a asp-controller="Submission" asp-action="Instructions"
