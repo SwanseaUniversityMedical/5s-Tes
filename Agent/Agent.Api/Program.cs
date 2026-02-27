@@ -152,9 +152,9 @@ builder.Services.AddHangfire(config => { config.UsePostgreSqlStorage(hangfireCon
 builder.Services.AddHangfireServer();
 var encryptionSettings = new EncryptionSettings();
 configuration.Bind(nameof(encryptionSettings), encryptionSettings);
-if (string.IsNullOrWhiteSpace(encryptionSettings.Key) || string.IsNullOrWhiteSpace(encryptionSettings.Base))
+if (string.IsNullOrWhiteSpace(encryptionSettings.Key))
     throw new InvalidOperationException(
-        "EncryptionSettings:Key and EncryptionSettings:Base must be provided via appsettings or environment variables (EncryptionSettings__Key / EncryptionSettings__Base). Note: They need to be 16 bytes Base-64 string");
+        "EncryptionSettings:Key must be provided via appsettings or environment variables (EncryptionSettings__Key). It must be a valid 16, 24, or 32-byte Base64-encoded string for AES-128/192/256.");
 builder.Services.AddSingleton(encryptionSettings);
 builder.Services.AddScoped<IEncDecHelper, EncDecHelper>();
 builder.Services.AddScoped<IDareSyncHelper, DareSyncHelper>();
