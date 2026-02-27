@@ -1,5 +1,6 @@
 ﻿using Serilog;
 using System.Reflection;
+using Microsoft.Extensions.Options;
 using Credentials.Models.Services;
 using FiveSafesTes.Core.Models;
 using Zeebe.Client;
@@ -10,28 +11,29 @@ namespace Credentials.Camunda.Services
     {
         private IServicedZeebeClient _camunda;
         private readonly IConfiguration _configuration;
-        private readonly DmnPath _DmnPath;
+        private readonly DmnPath _dmnPath;
         private readonly string path;
 
 
-        public ProcessModelService(IServicedZeebeClient servicedZeebeClient, IConfiguration configuration, DmnPath DmnPath)
+        public ProcessModelService(IServicedZeebeClient servicedZeebeClient, IConfiguration configuration,
+            IOptions<DmnPath> dmnPath)
         {
             _camunda = servicedZeebeClient;
             _configuration = configuration;
-            // Get DMN file path from configuration or use default
-            _DmnPath = DmnPath;
+            _dmnPath = dmnPath.Value;
 
-            if (!string.IsNullOrEmpty(DmnPath.Path))
+            if (!string.IsNullOrEmpty(_dmnPath.Path))
             {
                 // Use configured path - make it absolute if relative
-                if (Path.IsPathRooted(DmnPath.Path))
+                if (Path.IsPathRooted(_dmnPath.Path))
                 {
-                    path = Path.Combine(DmnPath.Path, "credentials.dmn");
+                    path = Path.Combine(_dmnPath.Path, "credentials.dmn");
                 }
                 else
                 {
-                    var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                    path = Path.GetFullPath(Path.Combine(projectDirectory, DmnPath.Path, "credentials.dmn"));
+                    var projectDirectory =
+                        Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+                    path = Path.GetFullPath(Path.Combine(projectDirectory, _dmnPath.Path, "credentials.dmn"));
                 }
             }
             else
@@ -41,13 +43,10 @@ namespace Credentials.Camunda.Services
 
                 
             }
-        }       
+        }
 
         public async Task DeployProcessDefinitionAndDecisionModels()
         {
-
-
-
             /* Testing connection */
             var gatewayAddress = _configuration["ZeebeBootstrap:Client:GatewayAddress"];
 
@@ -75,7 +74,7 @@ namespace Credentials.Camunda.Services
         private async Task<int> DeployFromFileSystem()
         {
             var deployedCount = 0;
-            
+
             // Try to find ProcessModels directory in the application directory
             var appDirectory = Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location);
             var processModelsPath = Path.Combine(appDirectory!, "ProcessModels");
@@ -87,14 +86,14 @@ namespace Credentials.Camunda.Services
             }
 
             var modelFiles = Directory.GetFiles(processModelsPath, "*.*", SearchOption.AllDirectories)
-                .Where(f => f.EndsWith(".bpmn", StringComparison.OrdinalIgnoreCase) || 
-                           f.EndsWith(".dmn", StringComparison.OrdinalIgnoreCase))
+                .Where(f => f.EndsWith(".bpmn", StringComparison.OrdinalIgnoreCase) ||
+                            f.EndsWith(".dmn", StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             if (modelFiles.Any())
             {
                 Log.Information($"Found {modelFiles.Count} process model files in file system to deploy.");
-                
+
                 foreach (var filePath in modelFiles)
                 {
                     var deploymentFileName = Path.GetFileName(filePath);
@@ -131,14 +130,12 @@ namespace Credentials.Camunda.Services
                 using var fileStream = File.OpenRead(path);
                 var fileName = Path.GetFileName(path);
                 await _camunda.DeployModel(fileStream, fileName);
-   
             }
             else
             {
                 Log.Error($"DMN file not found: {path}");
             }
 
-            
 
             return deployedCount;
         }
