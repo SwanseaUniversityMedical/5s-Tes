@@ -115,36 +115,51 @@ namespace Agent.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> AddRule([FromBody] CreateDmnRuleRequest request)
         {
+            var _tempPath = System.IO.Path.GetTempFileName() + ".dmn";
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return BadRequest(ModelState);
-                }
+              if (!ModelState.IsValid)
+              {
+                return BadRequest(ModelState);
+              }
 
-                var newRule = await _dmnService.AddRuleAsync(path, request);
+              // Copy real file to temp
+              System.IO.File.Copy(path, _tempPath, overwrite: true);
 
-                // Validate the updated DMN
-                await _dmnService.ValidateDmnAsync(path);
+              // Add rule to TEMP file for Zeebe Validation
+              var newRule = await _dmnService.AddRuleAsync(_tempPath, request);
 
-                // Deploy to Zeebe
-                await _dmnService.DeployDmnToZeebeAsync(path);
+              // Validate the updated DMN
+              await _dmnService.ValidateDmnAsync(_tempPath);
 
-                return Ok(new DmnOperationResult
-                {
-                    Success = true,
-                    Message = "Rule added successfully and deployed to Zeebe",
-                    Data = newRule
-                });
+              // Deploy to Zeebe
+              await _dmnService.DeployDmnToZeebeAsync(_tempPath);
+
+              // Save to real file - (Zeebe returns without Error)
+              System.IO.File.Copy(_tempPath, path, overwrite: true);
+
+              return Ok(new DmnOperationResult
+              {
+                Success = true,
+                Message = "Rule added successfully and deployed to Zeebe",
+                Data = newRule
+              });
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Error adding DMN rule");
-                return BadRequest(new DmnOperationResult
-                {
-                    Success = false,
-                    Message = ex.Message
-                });
+              _logger.LogError(ex, "Error adding DMN rule");
+              return BadRequest(new DmnOperationResult
+              {
+                Success = false,
+                Message = ex.Message
+              });
+            }
+            finally
+            {
+              if (System.IO.File.Exists(_tempPath))
+              {
+                System.IO.File.Delete(_tempPath);
+              }
             }
         }
 
@@ -159,21 +174,29 @@ namespace Agent.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> UpdateRule([FromBody] UpdateDmnRuleRequest request)
         {
+            var _tempPath = System.IO.Path.GetTempFileName() + ".dmn";
             try
             {
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ModelState);
                 }
-
-                await _dmnService.UpdateRuleAsync(path, request);
+                
+                // Copy real file to temp
+                System.IO.File.Copy(path, _tempPath, overwrite: true);
+                
+                // Update rule in TEMP file for Zeebe Validation
+                await _dmnService.UpdateRuleAsync(_tempPath, request);
 
                 // Validate the updated DMN
-                await _dmnService.ValidateDmnAsync(path);
+                await _dmnService.ValidateDmnAsync(_tempPath);
 
                 // Deploy to Zeebe
-                await _dmnService.DeployDmnToZeebeAsync(path);
+                await _dmnService.DeployDmnToZeebeAsync(_tempPath);
 
+                // Save to real file - (Zeebe returns without Error)
+                System.IO.File.Copy(_tempPath, path, overwrite: true);
+                
                 return Ok(new DmnOperationResult
                 {
                     Success = true,
@@ -188,6 +211,13 @@ namespace Agent.Api.Controllers
                     Success = false,
                     Message = ex.Message
                 });
+            }
+            finally
+            {
+              if (System.IO.File.Exists(_tempPath))
+              {
+                System.IO.File.Delete(_tempPath);
+              }
             }
         }
 
