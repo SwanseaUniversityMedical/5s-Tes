@@ -115,6 +115,13 @@ namespace Agent.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> AddRule([FromBody] CreateDmnRuleRequest request)
         {
+            // We use a temp file to prevent invalid rules from contaminating the real DMN file.
+            // The rule must be added before validation because ValidateDmnAsync validates the
+            // entire DMN file structure (not individual values). The real content validation
+            // happens when Zeebe parses the FEEL expressions during deployment. If Zeebe rejects
+            // the deployment, the real file remains untouched and the error will be returned 
+            // to the user for correction and Temp file is deleted in the finally block.
+
             var _tempPath = System.IO.Path.GetTempFileName() + ".dmn";
             try
             {
