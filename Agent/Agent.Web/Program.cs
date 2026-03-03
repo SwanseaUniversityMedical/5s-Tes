@@ -253,37 +253,31 @@ try
                 },
                 OnRedirectToIdentityProvider = async context =>
                 {
-
-                    //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                    //    context.HttpContext.Connection.RemoteIpAddress);
-                    //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                    //    context.HttpContext.Connection.RemotePort);
-                    //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                    //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                    //foreach (var header in context.HttpContext.Request.Headers)
-                    //{
-                    //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                    //}
-
-                    //foreach (var header in context.HttpContext.Response.Headers)
-                    //{
-                    //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                    //}
-
-                    //if (treKeyCloakSettings.UseRedirectURL)
-                    //{
-                    //    context.ProtocolMessage.RedirectUri = treKeyCloakSettings.RedirectURL;
-                    //}
-
-                    //Log.Information("Redirect Uri {Redirect}", context.ProtocolMessage.RedirectUri);
+                    if (treKeyCloakSettings.UseRedirectURL && !string.IsNullOrWhiteSpace(treKeyCloakSettings.RedirectURL))
+                    {
+                        var redirectUri = treKeyCloakSettings.RedirectURL.TrimEnd('/') + "/signin-oidc";
+                        Log.Information("{Function} Overriding redirect_uri to {RedirectUri}", "OnRedirectToIdentityProvider", redirectUri);
+                        context.ProtocolMessage.RedirectUri = redirectUri;
+                    }
+                    else
+                    {
+                        Log.Information("{Function} Redirect Uri {Redirect}", "OnRedirectToIdentityProvider", context.ProtocolMessage.RedirectUri);
+                    }
 
                     await Task.FromResult(0);
                 }
             };
 
-            options.NonceCookie.SameSite = SameSiteMode.None;
-            options.CorrelationCookie.SameSite = SameSiteMode.None;
+            // Use Lax instead of None so correlation/nonce cookies work over plain HTTP
+            // (SameSite=None requires Secure flag which is absent on HTTP)
+            var isHttps = configuration["sslcookies"]?.ToLower() == "true"
+                          || configuration["httpsRedirect"]?.ToLower() == "true";
+            var sameSiteMode = isHttps ? SameSiteMode.None : SameSiteMode.Lax;
+
+            options.NonceCookie.SameSite = sameSiteMode;
+            options.NonceCookie.SecurePolicy = isHttps ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
+            options.CorrelationCookie.SameSite = sameSiteMode;
+            options.CorrelationCookie.SecurePolicy = isHttps ? CookieSecurePolicy.Always : CookieSecurePolicy.SameAsRequest;
 
             //Need this to be instantiated before using
             options.TokenValidationParameters = new TokenValidationParameters();
