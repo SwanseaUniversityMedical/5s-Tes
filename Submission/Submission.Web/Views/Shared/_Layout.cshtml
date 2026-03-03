@@ -485,7 +485,201 @@
             });
         });
     </script>
+ <script>
+        $(document).ready(function () {
+            // Mode switching logic
+            $('input[name="submissionMode"]').change(function() {
+                var selectedMode = $(this).val();
+                
+                // Hide all mode sections
+                $('.mode-section').hide();
+                
+                // Show/hide common fields based on mode
+                if (selectedMode === 'raw') {
+                    $('#commonFields').hide();
+                } else {
+                    $('#commonFields').show();
+                }
+                
+                // Show the selected mode section
+                switch(selectedMode) {
+                    case 'simple':
+                        $('#simpleMode').show();
+                        break;
+                    case 'custom':
+                        $('#customMode').show();
+                        break;
+                    case 'raw':
+                        $('#rawMode').show();
+                        break;
+                }
+            });
 
+            // Trigger on page load so the checked radio's section is visible
+            $('input[name="submissionMode"]:checked').trigger('change');
+
+            $('#frmSQLWizardV2').submit(function (e) {
+                e.preventDefault();
+                
+                var selectedMode = $('input[name="submissionMode"]:checked').val();
+                var formData = new FormData($(this)[0]);
+                
+                // Add the selected mode to form data
+                formData.append('submissionMode', selectedMode);
+                
+                var executorData = [];
+                var tesTask = null;
+                
+                // Handle different submission modes
+                if (selectedMode === 'simple') {
+                    // Simple mode: only validate query — server builds the full TES message
+                    var query = $('#Query').val();
+                    if (!query || query.trim() === '') {
+                        $('#error').text('Please enter a SQL query.').css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
+                        return;
+                    }
+                    formData.append('Mode', 'Simple');
+                    formData.append('CustomExecutors', JSON.stringify([]));
+                   
+                    
+                } else if (selectedMode === 'custom') {
+                    // Custom mode: collect executor data from form
+                    var imageInput = $('#Image').val();
+                    var commandInput = $('#commands').val();
+                    var envInput = $('#env').val();
+                    
+                    if (imageInput || commandInput || envInput) {
+                        var commands = commandInput ? commandInput.split('\n').filter(c => c.trim() !== '') : [];
+                        var envs = {};
+                        
+                        if (envInput) {
+                            envInput.split('\n').forEach(function(line) {
+                                if (line.trim() && line.includes('=')) {
+                                    var parts = line.split('=');
+                                    if (parts.length >= 2) {
+                                        envs[parts[0].trim()] = parts.slice(1).join('=').trim();
+                                    }
+                                }
+                            });
+                        }
+                        
+                        executorData.push({ 
+                            Image: imageInput, 
+                            Command: commands, 
+                            ENV: Object.keys(envs).map(key => key + '=' + envs[key])
+                        });
+                    }
+                    
+                    // Also collect any existing executors from the table
+                    $('#executorsTable tbody tr').each(function (index) {
+                        if (index === 0) return; // Skip the input row
+                        
+                        var image = $(this).find('td:eq(0)').text().trim();
+                        var command = $(this).find('td:eq(1)').text().trim();
+                        var env = $(this).find('td:eq(2)').text().trim();
+                        
+                        if (image || command || env) {
+                            var commands = command ? command.split(',').map(c => c.trim()).filter(c => c !== '') : [];
+                            var envs = env ? env.split(',').map(e => e.trim()).filter(e => e !== '') : [];
+                            
+                            executorData.push({ 
+                                Image: image, 
+                                Command: commands, 
+                                ENV: envs 
+                            });
+                        }
+                    });
+                    
+                    formData.append('CustomExecutors', JSON.stringify(executorData));
+                    formData.append('Mode', 'Custom');
+                    
+                    // Collect single input (path + type) if path is provided
+                    var inputData = [];
+                    var inputPath = $('#DataInputPath').val();
+                    if (inputPath && inputPath.trim() !== '') {
+                        inputData.push({
+                            Name:        '',
+                            Description: '',
+                            Url:         '',
+                            Path:        inputPath.trim(),
+                            Type:        $('#DataInputType').val() || 'FILEEnum'
+                        });
+                    }
+                    formData.append('CustomInputs', JSON.stringify(inputData));
+                    
+                } else if (selectedMode === 'raw') {
+                    // Raw mode: sync Monaco → hidden textarea before reading
+                    if (window.monacoEditor) {
+                        document.getElementById('RawInput').value = window.monacoEditor.getValue();
+                    }
+                    var rawInput = $('#RawInput').val();
+                    if (!rawInput || rawInput.trim() === '') {
+                        $('#error').text('Please enter a valid TES task JSON for raw mode.').css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
+                        return;
+                    }
+                    
+                    try {
+                        JSON.parse(rawInput);
+                    } catch (e) {
+                        $('#error').text('Invalid JSON format: ' + e.message).css('color', 'red');
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
+                        return;
+                    }
+                    
+                    // Send empty executors for raw mode since executors are in the JSON
+                    formData.append('CustomExecutors', JSON.stringify([]));
+                    formData.append('Mode', 'Raw');
+                }
+                
+
+              
+
+                $.ajax({
+                    url: '@Url.Action("SubmissionSqlWizardAction", "Submission")',
+                    type: 'POST',
+                    data: formData,
+                    contentType: false,
+                    processData: false,
+                    beforeSend: function() {
+                        // Clear previous messages
+                        $('#error').text('').css('color', '');
+                        $('#success').text('').css('color', '');
+                        
+                        // Disable submit button
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', true).text('Submitting...');
+                    },
+                    success: function (result) {
+                        console.log('Submission successful:', result);
+                        $('#success').text('TES task submitted successfully!').css('color', 'green');
+                        
+                        setTimeout(function() {
+                            var projectId = $('#frmSQLWizardV2 input[name="ProjectId"]').val();
+                            window.location.href = "/Project/GetProject/" + projectId + "#submissions";
+                        }, 1500);
+                    },
+                    error: function (xhr, status, error) {
+                        console.error('Submission failed:', xhr, status, error);
+                        
+                        var errorMessage = "Submission failed: ";
+                        if (xhr.responseText) {
+                            errorMessage += xhr.responseText;
+                        } else if (xhr.status === 0) {
+                            errorMessage += "Please make sure the the TES message is valid and the server is reachable.";
+                        } else {
+                            errorMessage += error || "Unknown error occurred";
+                        }
+                        
+                        $('#error').text(errorMessage).css('color', 'red');
+                        
+                        // Re-enable submit button
+                        $('#frmSQLWizardV2 button[type="submit"]').prop('disabled', false).text('Submit TES Task');
+                    }
+                });
+            });
+        });
+    </script>
     <script>
         $(document).ready(function () {
             $('#frmMain2').submit(function (e) {

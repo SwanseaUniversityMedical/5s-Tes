@@ -1,0 +1,379 @@
+﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardV2
+
+@{
+    ViewData["Title"] = "SQL TES Wizard";
+}
+
+<link rel="stylesheet" href="~/css/submissionwizardv2.css" asp-append-version="true" />
+
+<script>
+    // Make URLSettingsFrontEnd available to JavaScript
+    window.urlSettings = {
+        queryImageSQL: '@ViewBag.QueryImageSQL' || 'Not configured',
+        queryImageGraphQL: '@ViewBag.QueryImageGraphQL' || 'Not configured',
+        minioUrl: '@ViewBag.MinioUrl' || 'Not configured'
+    };
+    
+    
+    // Immediate update attempt (in case DOM is already ready)
+    function updateSqlImageDisplay() {
+        var sqlImageElement = document.getElementById('sqlImageDisplay');
+        if (sqlImageElement) {
+            if (window.urlSettings.queryImageSQL && window.urlSettings.queryImageSQL !== 'Not configured') {
+                sqlImageElement.textContent = window.urlSettings.queryImageSQL;
+                sqlImageElement.style.color = 'inherit';
+                console.log('Updated SQL image display to:', window.urlSettings.queryImageSQL);
+            } else {
+                sqlImageElement.textContent = 'SQL Image URL not configured';
+                sqlImageElement.style.color = 'red';
+                console.warn('SQL image URL not configured');
+            }
+        }
+    }
+    
+
+    //  try  to update sql image after a short delay in case of timing issues
+    setTimeout(function() {
+        updateSqlImageDisplay();
+    }, 100);
+</script>
+
+
+
+<partial name="../Shared/_ProjectNav" />
+
+@using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmSQLWizardV2" }))
+{
+    @Html.HiddenFor(x => x.ProjectId)
+    
+    <h1 class="fs-4 mt-5">SQL TES Wizard V2</h1>
+    
+    <!-- Mode Selection -->
+    <fieldset class="mode-selection">
+      <legend class="form-label fw-bold mb-3">
+        <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
+      </legend>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeSimple" value="simple" checked>
+            <label class="form-check-label" for="modeSimple">
+                <strong><i class="fa-solid fa-bolt me-2 text-success"></i>Simple SQL Query</strong> 
+                <br><small class="text-muted">Use default SQL query image, just provide query and basic settings</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeCustomImage" value="custom">
+            <label class="form-check-label" for="modeCustomImage">
+                <strong><i class="fa-solid fa-cogs me-2 text-warning"></i>Custom Image</strong> 
+                <br><small class="text-muted">Choose your own Docker image and configure executors</small>
+            </label>
+        </div>
+        <div class="form-check mb-2">
+            <input class="form-check-input" type="radio" name="submissionMode" id="modeRawJson" value="raw">
+            <label class="form-check-label" for="modeRawJson">
+                <strong><i class="fa-solid fa-code me-2 text-info"></i>Raw JSON</strong> 
+                <br><small class="text-muted">Write complete TES task JSON</small>
+            </label>
+        </div>
+    </fieldset>
+
+    <!-- Common Fields (hidden for raw mode) -->
+    <div id="commonFields">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+              <label for="TESName" class="form-label fw-bold">TES Name</label>
+              <span class="text-danger fw-normal">*</span>
+                <input class="form-control" type="text" name="TESName" id="TESName" value="@Model.TESName" placeholder="Enter task name" />
+            </div>
+        </div>
+
+        <div class="mb-3">
+            <label for="TESDescription" class="form-label fw-bold">TES Description</label>
+            <span class="text-muted fw-normal ms-1">(optional)</span>
+            <textarea class="form-control" name="TESDescription" id="TESDescription" rows="2" placeholder="Enter task description">@Model.TESDescription</textarea>
+        </div>
+
+        <fieldset class="col-md-8 mb-4">
+          <legend class="form-label fw-bold mb-0" style="font-size: 0.9rem;">
+            Select TREs <span class="text-danger fw-normal">*</span>
+          </legend>
+            @for (var i = 0; i < Model.TreRadios.Count(); i++)
+            {
+                <div class="d-flex align-items-center justify-content-between my-2">
+                    <div class="form-check">
+                        <input type="hidden" name="TreRadios[@(i)].Name" value="@Model.TreRadios[i].Name" />
+                        <input class="form-check-input" type="checkbox"
+                               id="tre_@(i)"
+                               name="TreRadios[@(i)].IsSelected"
+                               value="true"
+                               @(Model.TreRadios[i].IsSelected ? "checked" : "") />
+                        <input type="hidden" name="TreRadios[@(i)].IsSelected" value="false" />
+                        <label class="form-check-label" for="tre_@(i)">
+                          @Model.TreRadios[i].Name
+                        </label>
+                        @if (Model.TreRadios[i].IsOnline)
+                        {
+                          <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-check-circle me-1"></i> Online
+                          </span>
+                        }
+                        else
+                        {
+                          <span class="badge px-2 badge-sm bg-secondary text-light rounded-pill m-0 ms-3">
+                            <i class="fa-solid fa-ban me-1"></i> Offline
+                          </span>
+                        }
+                    </div>
+                </div>
+            }
+            @if (Model.TreRadios.Count() < 1)
+            {
+                <p class="text-danger">No available TREs</p>
+            }
+        </fieldset>
+    </div>
+
+    <!-- Mode 1: Simple SQL Query -->
+    <div id="simpleMode" class="mode-section">
+        <div class="alert alert-info">
+            <i class="fa-solid fa-info-circle me-2"></i>
+            <strong>Simple Mode:</strong> Uses the default SQL query runner image. Just provide your SQL query, submit the task, and output will be saved to the project's S3 output bucket as a CSV file.
+            <br><medium class="text-muted">
+                <strong>Default Image:</strong> <code id="sqlImageDisplay">Loading...</code>
+            </medium>
+        </div>
+        
+        <div class="mb-4">
+            <label for="Query" class="fw-bold mb-2" style="font-size: 1rem;">SQL Query</label>
+            <textarea class="form-control" name="Query" id="Query" rows="8" placeholder="Enter your SQL query here...&#10;&#10;Example:&#10;SELECT COUNT(*) AS n, AVG(value_as_number) AS mean&#10;FROM measurement&#10;WHERE measurement_concept_id = 3025315">@Model.Query</textarea>
+        </div>
+        
+    </div>
+
+    <!-- Mode 2: Custom Image -->
+    <div id="customMode" class="mode-section" style="display:none;">
+        <div class="alert alert-warning">
+            <i class="fa-solid fa-exclamation-triangle me-2"></i>
+            <strong>Custom Mode:</strong> Use your own Docker image and configure executor/data input manually. Output will be saved to the project's S3 output bucket.
+            
+        </div>
+        
+        <fieldset class="row mb-4">
+          <legend class="form-label fw-bold mt-2" style="font-size: 1rem;">Data Input <span class="text-muted fw-normal">(optional)</span></legend>
+          <div class="col-md-8">
+            <label for="DataInputPath" class="form-label text-muted fw-bold">Path</label>
+            <input type="text" id="DataInputPath" name="DataInputPath" class="form-control" placeholder="/inputs/data" value="@Model.DataInputPath"/>
+          </div>
+          <div class="col-md-4">
+            <label for="DataInputType" class="form-label text-muted fw-bold">Type</label>
+            <select id="DataInputType" name="DataInputType" class="form-select">
+              <option value="FILEEnum">FILE</option>
+              <option value="DIRECTORYEnum">DIRECTORY</option>
+            </select>
+          </div>
+        </fieldset>
+        <fieldset class="row mb-4">
+          <legend class="form-label fw-bold mt-2" style="font-size: 1rem;">Data Output <span class="text-muted fw-normal">(defaulted)</span></legend>
+          <p class="text-muted small mb-0">
+            <i class="fa-solid fa-circle-info me-1"></i>
+            Output is automatically set to:
+            <code>Name: Output</code>,
+            <code>Description: Analysis output</code>,
+            <code>URL: s3://</code>,
+            <code>Path (Directory): /outputs</code>.
+          </p>
+        </fieldset>
+        <h5 class="fw-bold" style="font-size: 1rem;">Executors</h5>
+        <div class="col-md-12 mb-2">
+            <table id="executorsTable" class="table">
+                <thead>
+                    <tr>
+                        <th class="col-md-4">Docker Image</th>
+                        <th class="col-md-4">Commands</th>
+                        <th class="col-md-4">Environment Variables</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr style="vertical-align: top;">
+                        <td class="border-0">
+                            <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2">
+                                    <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
+                                    <medium class="form-text text-muted fw-bold">Note: One command per line</medium>
+                                </div>
+                               
+                            </div>
+                        </td>
+                        <td class="border-0">
+                            <div class="d-flex align-items-start justify-content-between">
+                                <div class="w-100 me-2" id="ENVBOX">
+                                    <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
+                                    <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
+                                </div>
+                              
+                            </div>
+                        </td>
+                    </tr>
+                    @if (Model.Executors != null)
+                    {
+                        @foreach (var executor in Model.Executors)
+                        {
+                            <tr>
+                                <td class="col-md-4">@executor.Image</td>
+                                <td class="col-md-4">@executor.Command</td>
+                                <td class="col-md-4">@executor.ENV</td>
+                            </tr>
+                        }
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Mode 3: Raw JSON -->
+    <div id="rawMode" class="mode-section" style="display:none;">
+        <div class="alert alert-primary">
+            <i class="fa-solid fa-code me-2"></i>
+            <strong>Raw JSON Mode:</strong> Build your complete TES task JSON here. This will override all other settings.
+            <br/>
+            <strong class="mt-2">Notes</strong>:
+              <ul>
+                <li>The JSON should follow the request body schema <a href="https://ga4gh.github.io/task-execution-schemas/docs/#tag/TaskService/operation/CreateTask" target="_blank" rel="noopener" class="text-decoration-underline">here</a></li>
+                <li>Tags <span>Project</span> (target project) and <span>tres</span> (list of target TREs, separated by "|") are required</li>
+              </ul>
+        </div>
+        
+        <div class="mb-4">
+            <div class="d-flex align-items-center justify-content-between mb-1">
+              <h5 class="fw-bold" style="font-size: 1rem;">TES Task JSON</h5>
+                <div class="d-flex gap-2">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnFormatJson" title="Format / Pretty-print JSON">
+                        <i class="fa-solid fa-indent me-1"></i>Format
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="btnCopyJson" title="Copy to clipboard">
+                        <i class="fa-solid fa-copy me-1"></i>Copy
+                    </button>
+                </div>
+            </div>
+            <!-- Monaco editor mount point -->
+            <div id="monacoEditorContainer" style="width:100%; height:480px; border:1px solid #dee2e6; border-radius:0.375rem; overflow:hidden;"></div>
+            <!-- Hidden textarea keeps the value so existing form-submit code still works with $('#RawInput').val() -->
+            <textarea name="RawInput" id="RawInput" style="display:none;">@Model.RawInput</textarea>
+            <small class="form-text text-muted mt-1 d-block">
+                <i class="fa-solid fa-circle-info me-1"></i>
+                 JSON intellisense, syntax highlighting and error markers are available.
+            </small>
+        </div>
+    </div>
+
+    <div class="d-flex align-items-center mt-5">
+        <button type="submit" class="btn btn-primary me-3">Submit TES Task</button>
+        <a href="/Project/GetProject/@Model.ProjectId#submissions" class="btn btn-outline-secondary me-3">Cancel</a>
+    </div>
+    
+    <div class="mt-3">
+        <div id="error" class="text-danger"></div>
+        <div id="success" class="text-success"></div>
+    </div>
+}
+
+
+<!-- ────────────────────────────────────────────────────────────
+Monaco Editor  (loaded via AMD / require from CDN)
+──────────────────────────────────────────────────────────── -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.53.0/min/vs/loader.min.js" integrity="sha512-ZG31AN9z/CQD1YDDAK4RUAvogwbJHv6bHrumrnMLzdCrVu4HeAqrUX7Jsal/cbUwXGfaMUNmQU04tQ8XXl5Znw==" 
+        crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+<script>
+(function () {
+    'use strict';
+
+    var monacoEditor = null;      // will hold the IStandaloneCodeEditor instance
+    var monacoReady  = false;
+
+    /* ── 1.  Boot Monaco ── */
+    require.config({
+        paths: { vs: 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.52.0/min/vs' }
+    });
+
+    require(['vs/editor/editor.main'], function () {
+        var initialValue = document.getElementById('RawInput').value || '';
+
+        monacoEditor = monaco.editor.create(
+            document.getElementById('monacoEditorContainer'),
+            {
+                value:          initialValue,
+                language:       'json',
+                theme:          'vs',           // light theme to match Bootstrap
+                automaticLayout: true,          // resize when container changes
+                minimap:        { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize:       13,
+                tabSize:        2,
+                wordWrap:       'on',
+                formatOnPaste:  true,
+                formatOnType:   false,
+                lineNumbers:    'on',
+                renderLineHighlight: 'line',
+                scrollbar: {
+                    verticalScrollbarSize: 8,
+                    horizontalScrollbarSize: 8
+                }
+            }
+        );
+
+        monacoReady = true;
+        window.monacoEditor = monacoEditor;  // expose globally for submit handler
+
+        /* Keep the hidden textarea in sync so the existing jQuery
+           submit handler can still do  $('#RawInput').val()  */
+        monacoEditor.onDidChangeModelContent(function () {
+            document.getElementById('RawInput').value = monacoEditor.getValue();
+        });
+
+        /* ── 2.  Format button ── */
+        document.getElementById('btnFormatJson').addEventListener('click', function () {
+            if (!monacoReady) return;
+            monacoEditor.getAction('editor.action.formatDocument').run().then(function () {
+                // after built-in formatter runs, sync textarea
+                document.getElementById('RawInput').value = monacoEditor.getValue();
+            });
+        });
+
+        /* ── 3.  Copy button ── */
+        document.getElementById('btnCopyJson').addEventListener('click', function () {
+            if (!monacoReady) return;
+            var text = monacoEditor.getValue();
+            navigator.clipboard.writeText(text).then(function () {
+                var btn = document.getElementById('btnCopyJson');
+                var original = btn.innerHTML;
+                btn.innerHTML = '<i class="fa-solid fa-check me-1"></i>Copied!';
+                btn.classList.replace('btn-outline-secondary', 'btn-outline-success');
+                setTimeout(function () {
+                    btn.innerHTML = original;
+                    btn.classList.replace('btn-outline-success', 'btn-outline-secondary');
+                }, 2000);
+            }).catch(function () {
+                // fallback for older browsers
+                var ta = document.createElement('textarea');
+                ta.value = text;
+                document.body.appendChild(ta);
+                ta.select();
+                document.execCommand('copy');
+                document.body.removeChild(ta);
+            });
+        });
+
+        /* ── 4.  When switching TO raw mode, resize editor ── */
+        document.querySelectorAll('input[name="submissionMode"]').forEach(function (radio) {
+            radio.addEventListener('change', function () {
+                if (this.value === 'raw' && monacoReady) {
+                    setTimeout(function () { monacoEditor.layout(); }, 50);
+                }
+            });
+        });
+    });
+}());
+</script>
+

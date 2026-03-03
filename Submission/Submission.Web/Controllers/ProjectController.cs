@@ -121,7 +121,35 @@ namespace Submission.Web.Controllers
             return View(projectView);
         }
 
+        public IActionResult SubmissionProjectSqlV2(int id)
+        {
+          if (!ModelState.IsValid) // SonarQube security
+          {
+            var errors = ModelState
+              .Where(x => x.Value?.Errors.Count > 0)
+              .Select(x => new { Field = x.Key, Errors = x.Value?.Errors.Select(e => e.ErrorMessage) })
+              .ToList();
 
+            return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
+          }
+
+          var paramlist = new Dictionary<string, string>();
+          paramlist.Add("projectId", id.ToString());
+          var project = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
+            "/api/Project/GetProjectUI/", paramlist).Result;
+
+
+          ViewBag.UserCanDoSubmissions = IsUserOnProject(project);
+
+          var projectView = new ProjectUserTre()
+          {
+            Id = project.Id,
+            Name = project.Name,
+            Submissions = project.Submissions.Where(x => x.HasParent == false).ToList(),
+          };
+
+          return View(projectView);
+        }
         public IActionResult SubmissionProjectSQL(int id)
         {
             if (!ModelState.IsValid) // SonarQube security

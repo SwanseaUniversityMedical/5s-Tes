@@ -68,8 +68,8 @@
         @{
             var minio = @ViewBag.URLBucket;
         }
-        <a class="btn btn-sm btn-primary me-2" target="_blank" href="http://@minio/browser/@Model.Submission.Project.SubmissionBucket" rel="noopener">Submission Bucket<i class="fa fa-external-link ms-2"></i></a>
-        <a class="btn btn-sm btn-outline-secondary" target="_blank" href="http://@minio/browser/@Model.Submission.Project.OutputBucket" rel="noopener">Output Bucket<i class="fa fa-external-link ms-2"></i></a>
+        <a class="btn btn-sm btn-primary me-2" target="_blank" href="@minio/browser/@Model.Submission.Project.SubmissionBucket" rel="noopener">Submission Bucket<i class="fa fa-external-link ms-2"></i></a>
+        <a class="btn btn-sm btn-outline-secondary" target="_blank" href="@minio/browser/@Model.Submission.Project.OutputBucket" rel="noopener">Output Bucket<i class="fa fa-external-link ms-2"></i></a>
     </div>
     <div class="row">
         <div class="col-md-4">
@@ -243,8 +243,7 @@
                                                             validstats = validstats.OrderBy(x => x.Start).ToList();
                                                         }
                                                     <td class="col">
-                                                        <ul class="list-unstyled">
-                                                            <li>
+                                                      <ul class="list-unstyled">
                                                             <li class="position-relative">
                                                                 <span class="position-absolute bg-grey h-100 timeline-line"></span>
                                                                 <span class="position-relative d-inline-flex">
@@ -265,7 +264,7 @@
                                                                                 @if (status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
                                                                                 {
                                                                             <h6 class="mb-0">
-                                                                                <a href="http://@minio/browser/@Model.Submission.Project.OutputBucket" target="_blank" rel="noopener">
+                                                                                <a href="@minio/browser/@Model.Submission.Project.OutputBucket" target="_blank" rel="noopener">
                                                                                     <span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @Model.Submission.EndTime">
                                                                                         <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
                                                                                         <span class="text-start">
@@ -317,7 +316,6 @@
                                                                                 }
                                                                             }
                                                                 </span>
-                                                            </li>
                                                             </li>
                                                         </ul>
                                                     </td>

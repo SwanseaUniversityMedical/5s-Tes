@@ -21,7 +21,6 @@ namespace Submission.Web.Controllers
         private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
         private readonly IKeyCloakService _IKeyCloakService;
 
-
         public SubmissionController(IDareClientHelper client, IConfiguration configuration,
             URLSettingsFrontEnd URLSettingsFrontEnd, IKeyCloakService IKeyCloakService)
         {
@@ -31,22 +30,24 @@ namespace Submission.Web.Controllers
             _IKeyCloakService = IKeyCloakService;
         }
 
-
         public IActionResult Instructions()
         {
             var url = _configuration["DareAPISettings:HelpAddress"];
             return View(model: url);
         }
 
-
-        
         [HttpPost]
         [Authorize]
         public async Task<IActionResult> SubmissionWizard(SubmissionWizard model)
         {
             if (!ModelState.IsValid) // SonarQube security
             {
-                return View("/");
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) })
+                    .ToList();
+
+                return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
             }
 
             try
@@ -57,7 +58,6 @@ namespace Submission.Web.Controllers
                 paramlist.Add("projectId", model.ProjectId.ToString());
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
                     "/api/Project/GetProject/", paramlist);
-
 
                 if (model.TreRadios == null)
                 {
@@ -81,23 +81,20 @@ namespace Submission.Web.Controllers
                 else
                 {
                     var paramss = new Dictionary<string, string>();
-
                     paramss.Add("bucketName", project.SubmissionBucket);
                     if (model.File != null)
                     {
-                        var uplodaResultTest =
-                            await _clientHelper.CallAPIToSendFile<APIReturn>("/api/Project/UploadToMinio", "file",
-                                model.File, paramss);
+                        await _clientHelper.CallAPIToSendFile<APIReturn>("/api/Project/UploadToMinio", "file",
+                            model.File, paramss);
                     }
 
                     var minioEndpoint =
                         await _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint");
-                    //Don't add http:// minioEndpoint.Url already has it. And if not it should!
-                    imageUrl = /*"http://" +*/ minioEndpoint.Url + "/browser/" + project.SubmissionBucket + "/" +
-                                               model.File.FileName;
+                    // Don't add http:// — minioEndpoint.Url already has it.
+                    imageUrl = minioEndpoint.Url + "/browser/" + project.SubmissionBucket + "/" + model.File.FileName;
                 }
 
-                var TesTask = new TesTask()
+                var tesTask = new TesTask()
                 {
                     Name = model.TESName,
                     Executors = new List<TesExecutor>()
@@ -115,11 +112,8 @@ namespace Submission.Web.Controllers
                     }
                 };
 
-
-                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", TesTask);
-
+                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
                 return RedirectToAction("GetASubmission", new { id = result.Id });
-                //return Ok();
             }
             catch (Exception e)
             {
@@ -150,12 +144,8 @@ namespace Submission.Web.Controllers
             ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
 
-            List<FiveSafesTes.Core.Models.Submission> displaySubmissionsList = new List<FiveSafesTes.Core.Models.Submission>();
             var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions/").Result
                 .Where(x => x.Parent == null).ToList();
-
-            res = res.Where(x => x.Parent == null).ToList();
-
 
             return View(res);
         }
@@ -165,23 +155,23 @@ namespace Submission.Web.Controllers
         {
             if (!ModelState.IsValid) // SonarQube security
             {
-                return View("/");
+                return BadRequest("Invalid model state");
             }
 
             var res = _clientHelper.CallAPIWithoutModel<FiveSafesTes.Core.Models.Submission>($"/api/Submission/GetASubmission/{id}").Result;
 
-
             var minio = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint").Result;
             ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
-            var test = new SubmissionInfo()
+
+            var model = new SubmissionInfo()
             {
                 Submission = res,
                 Stages = _clientHelper.CallAPIWithoutModel<Stages>("/api/Submission/StageTypes/").Result
             };
-            return View(test);
-        }
 
+            return View(model);
+        }
 
         [HttpPost]
         [Authorize]
@@ -199,6 +189,7 @@ namespace Submission.Web.Controllers
                 paramlist.Add("projectId", model.ProjectId.ToString());
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
                     "/api/Project/GetProject/", paramlist) ?? throw new NullReferenceException("Project not found");
+
                 var treSelection = model.TreRadios.Where(x => x.IsSelected).ToList();
                 if (treSelection.Count == 0)
                 {
@@ -220,6 +211,7 @@ namespace Submission.Web.Controllers
                 {
                     tesTask = JsonConvert.DeserializeObject<TesTask>(model.JsonData) ??
                               throw new NullReferenceException("Json data not returned");
+
                     if (tesTask.Tags == null || tesTask.Tags.Count == 0)
                     {
                         tesTask.Tags = new Dictionary<string, string>()
@@ -232,9 +224,7 @@ namespace Submission.Web.Controllers
                 }
 
                 await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-
                 await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
-
 
                 return Ok();
             }
@@ -244,7 +234,6 @@ namespace Submission.Web.Controllers
                 return BadRequest(e.Message);
             }
         }
-
 
         [HttpPost]
         [Authorize]
@@ -439,6 +428,215 @@ namespace Submission.Web.Controllers
                 Log.Error(e, "Exception in {Function}");
                 return BadRequest(e.Message);
             }
+        }
+
+        [HttpPost]
+        [Authorize]
+        public async Task<ActionResult> SubmissionSqlWizardAction(
+            SubmissionWizardV2 model, string? CustomExecutors, string Mode)
+        {
+            if (!ModelState.IsValid)
+            {
+                var errors = ModelState
+                    .Where(x => x.Value.Errors.Count > 0)
+                    .SelectMany(x => x.Value.Errors.Select(e => e.ErrorMessage));
+                return BadRequest($"Model validation failed: {string.Join(", ", errors)}");
+            }
+
+            try
+            {
+                TesTask tes;
+
+                // ── RAW mode ─────────────────────────────────────────────────────────
+                if (Mode == "Raw")
+                {
+                    if (string.IsNullOrWhiteSpace(model.RawInput))
+                        return BadRequest("Raw JSON input is required in Raw mode.");
+
+                    tes = JsonConvert.DeserializeObject<TesTask>(model.RawInput)
+                          ?? throw new InvalidOperationException("Failed to deserialise TES JSON.");
+                }
+                // ── SIMPLE or CUSTOM modes ────────────────────────────────────────────
+                else if (Mode == "Simple" || Mode == "Custom")
+                {
+                    // 1. Resolve project
+                    var project = await _clientHelper.CallAPIWithoutModel<Project?>(
+                        "/api/Project/GetProject/",
+                        new Dictionary<string, string> { { "projectId", model.ProjectId.ToString() } });
+
+                    // 2. Resolve TRE list (fall back to all TREs in the project)
+                    var selectedTres = model.TreRadios?
+                        .Where(x => x.IsSelected)
+                        .Select(x => x.Name)
+                        .ToList() ?? new List<string>();
+
+                    if (selectedTres.Count == 0)
+                    {
+                        return BadRequest("No Tres selected.");
+                    }
+
+                    var listOfTre = string.Join("|", selectedTres);
+
+                    // 3. Common TES metadata
+                    if (string.IsNullOrWhiteSpace(model.TESName))
+                    {
+                      return BadRequest("No TES Name provided.");
+                    }
+                    var tesName        = model.TESName;
+                    var tesDescription = string.IsNullOrWhiteSpace(model.TESDescription) ? "Federated analysis task" : model.TESDescription;
+
+                    // 4. Build executors depending on mode
+                    List<TesExecutor> executors;
+                    List<TesInput>? tesInputs = null;
+
+                    if (Mode == "Simple")
+                    {
+                        if (string.IsNullOrWhiteSpace(model.Query))
+                            return BadRequest("A SQL query is required in Simple mode.");
+
+                        var query = NormaliseText(model.Query);
+
+                        executors = new List<TesExecutor>
+                        {
+                            new TesExecutor
+                            {
+                                Image   = _URLSettingsFrontEnd.QueryImageSQL,
+                                Command = new List<string>
+                                {
+                                    "--Output=/outputs/output.csv",
+                                    $"--Query={query}"
+                                },
+                                Workdir = "/app",
+                                Stdin   = null,
+                                Stdout  = null,
+                                Stderr  = null,
+                                Env     = new Dictionary<string, string>()
+                            }
+                        };
+                    }
+                    else // Custom
+                    {
+                        if (string.IsNullOrWhiteSpace(CustomExecutors) || CustomExecutors == "null")
+                            return BadRequest("Executors data is required in Custom mode.");
+
+                        var executorDtos = JsonConvert.DeserializeObject<List<ExecutorsV2>>(CustomExecutors)
+                                           ?? new List<ExecutorsV2>();
+
+                        executors = executorDtos
+                            .Where(ex => !string.IsNullOrEmpty(ex.Image))
+                            .Select(ex => new TesExecutor
+                            {
+                                Image   = ex.Image,
+                                Command = ex.Command?
+                                    .Select(NormaliseText)
+                                    .ToList() ?? new List<string>(),
+                                Workdir = "/app",
+                                Stdin   = null,
+                                Stdout  = null,
+                                Stderr  = null,
+                                Env     = ParseEnvList(ex.ENV)
+                            })
+                            .ToList();
+
+                        if (executors.Count == 0)
+                            return BadRequest("At least one valid executor with an image is required in Custom mode.");
+
+                        // Build optional single input from model fields
+                        if (!string.IsNullOrWhiteSpace(model.DataInputPath))
+                        {
+                            _ = Enum.TryParse<TesFileType>(model.DataInputType, out var fileType);
+                            tesInputs = new List<TesInput>
+                            {
+                                new TesInput
+                                {
+                                    Name        = "Input",
+                                    Description = "Analysis input",
+                                    Url         = "",
+                                    Path        = model.DataInputPath,
+                                    Type        = fileType == 0 ? TesFileType.FILEEnum : fileType,
+                                    Content     = ""
+                                }
+                            };
+                        }
+                    }
+
+                    // 5. Assemble the TES message (same shape for both Simple and Custom)
+                    tes = new TesTask
+                    {
+                        State       = 0,
+                        Name        = tesName,
+                        Description = tesDescription,
+                        Inputs      = tesInputs,
+                        Outputs     = new List<TesOutput>
+                        {
+                            new TesOutput
+                            {
+                                Name        = "Output",
+                                Description = "Analysis output",
+                                Url         = "s3://",
+                                Path        = "/outputs",
+                                Type        = TesFileType.DIRECTORYEnum
+                            }
+                        },
+                        Resources    = null,
+                        Executors    = executors,
+                        Volumes      = null,
+                        Tags         = new Dictionary<string, string>
+                        {
+                            { "Project", project?.Name ?? string.Empty },
+                            { "tres",    listOfTre }
+                        },
+                        Logs         = null,
+                        CreationTime = null
+                    };
+                }
+                else
+                {
+                    return BadRequest($"Unknown submission mode: '{Mode}'. Expected Simple, Custom, or Raw.");
+                }
+
+                // ── Submit to TES API ─────────────────────────────────────────────────
+                var authContext = await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
+                await _IKeyCloakService.RefreshUserToken(authContext);
+                await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tes);
+
+                return Ok();
+            }
+            catch (Exception e)
+            {
+                Log.Error(e, "Exception in {Function}");
+                return BadRequest(e.Message);
+            }
+        }
+
+        // ── Private helpers ───────────────────────────────────────────────────────────
+
+        /// <summary>
+        /// Replaces literal escape sequences (\n, \r\n, \r) with real newline characters.
+        /// This handles text that arrives as JSON-encoded strings with visible backslash-n.
+        /// </summary>
+        private static string NormaliseText(string text) =>
+            text.Replace("\\r\\n", "\n")
+                .Replace("\\r",    "\n")
+                .Replace("\\n",    "\n");
+
+        /// <summary>
+        /// Converts a list of "KEY=value" strings into a dictionary.
+        /// </summary>
+        private static Dictionary<string, string> ParseEnvList(IEnumerable<string>? envLines)
+        {
+            var result = new Dictionary<string, string>();
+            if (envLines == null) return result;
+
+            foreach (var line in envLines)
+            {
+                if (string.IsNullOrWhiteSpace(line)) continue;
+                var parts = line.Split('=', 2);
+                if (parts.Length == 2)
+                    result[parts[0].Trim()] = parts[1].Trim();
+            }
+
+            return result;
         }
     }
 }
