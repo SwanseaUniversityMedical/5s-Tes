@@ -28,10 +28,16 @@ try
     {
         Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
         builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
-        builder.Services.AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-            .DisableAutomaticKeyGeneration();
     }
+
+    // Always persist Data Protection keys so OIDC correlation/nonce cookies survive
+    // across requests and container restarts (critical in Docker deployments)
+    var dpKeysDir = new DirectoryInfo("/root/.aspnet/DataProtection-Keys");
+    try { dpKeysDir.Create(); } catch { /* ignore if already exists */ }
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(dpKeysDir)
+        .SetApplicationName("Agent.Web");
+
     //builder.Host.UseSerilog();
     IdentityModelEventSource.ShowPII = true;
 
@@ -75,9 +81,9 @@ try
     {
         options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
         options.OnAppendCookie = cookieContext =>
-            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
+            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, cookieContext.CookieName);
         options.OnDeleteCookie = cookieContext =>
-            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
+            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, cookieContext.CookieName);
     });
 
 
@@ -394,8 +400,16 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 
 #region SameSite Cookie Issue - https: //community.auth0.com/t/correlation-failed-unknown-location-error-on-chrome-but-not-in-safari/40013/7
 
-void CheckSameSite(HttpContext httpContext, CookieOptions options)
+void CheckSameSite(HttpContext httpContext, CookieOptions options, string? cookieName = null)
 {
+    // Never touch OIDC correlation or nonce cookies - they need their SameSite preserved
+    // to work correctly during the authentication callback
+    if (!string.IsNullOrEmpty(cookieName) &&
+        (cookieName.StartsWith(".AspNetCore.Correlation.") || cookieName.StartsWith(".AspNetCore.OpenIdConnect.Nonce.")))
+    {
+        return;
+    }
+
     if (options.SameSite == SameSiteMode.None)
     {
         var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
