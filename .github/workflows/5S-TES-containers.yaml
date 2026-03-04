@@ -8,6 +8,8 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+    paths-ignore:
+      - "Submission/charts/**"
   push:
     # Only release off of release and maintenance branches for this asset
     branches:
@@ -18,6 +20,8 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+    paths-ignore:
+      - "Submission/charts/**"
 
 permissions:
   contents: write

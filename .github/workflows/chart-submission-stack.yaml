@@ -1,11 +1,11 @@
-name: Build Submission Helm Chart
+name: Build Submission Stack Helm Chart
 
 on:
   pull_request:
     # Only consider PRs that change files for this asset, including ci scripts
     paths:
-      - '.github/workflows/charts/submission.yaml'
-      - 'Submission/charts/submission/**'
+      - '.github/workflows/chart-submission-stack.yaml'
+      - 'Submission/charts/submission-stack/**'
     # Make sure all workflows that are "required checks" for a given
     # branch protection rule have the same paths: and branches-ignore:
     # filters. Otherwise, you can end up in a deadlock waiting on a
@@ -16,8 +16,8 @@ on:
       - 'main'
     # Only consider pushes that change files for this asset, including ci scripts
     paths:
-      - '.github/workflows/charts/submission.yaml'
-      - 'Submission/charts/submission/**'
+      - '.github/workflows/chart-submission-stack.yaml'
+      - 'Submission/charts/submission-stack/**'
 
 permissions:
   contents: write
@@ -32,17 +32,17 @@ concurrency:
 jobs:
   # Job name must be unique across repo to target
   # branch protection rules "required checks" properly!
-  submission-helm-chart:
+  submission-stack-helm-chart:
     uses: SwanseaUniversityMedical/workflows/.github/workflows/pr-and-release-chart.yaml@v3.1.4-charts
     with:
-      job-name: submission-helm-chart
+      job-name: submission-stack-helm-chart
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
       registry-project: ${{ vars.HARBOR_PROJECT }}
-      registry-repo: submission
-      release-tag-format: 'Submission-Helm-Chart-${version}'
+      registry-repo: submission-stack
+      release-tag-format: 'Submission-Stack-Helm-Chart-${version}'
       cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      chart: Submission/charts/submission
+      chart: Submission/charts/submission-stack
       test-command: |
         helm template $CHART --debug
 
