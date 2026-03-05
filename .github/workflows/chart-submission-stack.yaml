@@ -5,7 +5,7 @@ on:
     # Only consider PRs that change files for this asset, including ci scripts
     paths:
       - '.github/workflows/chart-submission-stack.yaml'
-      - 'Submission/charts/submission-stack/**'
+      - 'charts/submission-stack/**'
     # Make sure all workflows that are "required checks" for a given
     # branch protection rule have the same paths: and branches-ignore:
     # filters. Otherwise, you can end up in a deadlock waiting on a
@@ -17,7 +17,7 @@ on:
     # Only consider pushes that change files for this asset, including ci scripts
     paths:
       - '.github/workflows/chart-submission-stack.yaml'
-      - 'Submission/charts/submission-stack/**'
+      - 'charts/submission-stack/**'
 
 permissions:
   contents: write
