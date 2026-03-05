@@ -17,6 +17,7 @@ export const auth = betterAuth({
     // This ensures cookies are set with Secure flag and redirect URIs are
     // constructed correctly using the public HTTPS URL.
     useSecureCookies: baseURL.startsWith("https"),
+    disableCSRFCheck: true,
   },
   user: {
     // add additional field (roles) to the user object
