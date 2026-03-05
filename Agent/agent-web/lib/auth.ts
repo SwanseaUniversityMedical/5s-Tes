@@ -12,6 +12,12 @@ const baseURL = betterAuthUrl;
 export const auth = betterAuth({
   baseURL,
   basePath: "/api/auth",
+  advanced: {
+    // Required when the app is behind a reverse proxy that terminates HTTPS.
+    // This ensures cookies are set with Secure flag and redirect URIs are
+    // constructed correctly using the public HTTPS URL.
+    useSecureCookies: baseURL.startsWith("https"),
+  },
   user: {
     // add additional field (roles) to the user object
     additionalFields: {
