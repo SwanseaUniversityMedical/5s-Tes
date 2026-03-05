@@ -12,6 +12,7 @@ const baseURL = betterAuthUrl;
 export const auth = betterAuth({
   baseURL,
   basePath: "/api/auth",
+  trustedOrigins: [betterAuthUrl],
   user: {
     // add additional field (roles) to the user object
     additionalFields: {
