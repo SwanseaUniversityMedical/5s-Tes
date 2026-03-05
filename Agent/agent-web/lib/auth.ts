@@ -12,13 +12,6 @@ const baseURL = betterAuthUrl;
 export const auth = betterAuth({
   baseURL,
   basePath: "/api/auth",
-  advanced: {
-    // Required when the app is behind a reverse proxy that terminates HTTPS.
-    // This ensures cookies are set with Secure flag and redirect URIs are
-    // constructed correctly using the public HTTPS URL.
-    useSecureCookies: baseURL.startsWith("https"),
-    disableCSRFCheck: true,
-  },
   user: {
     // add additional field (roles) to the user object
     additionalFields: {
@@ -48,6 +41,7 @@ export const auth = betterAuth({
               roles: profile?.realm_access?.roles || [],
             } as Partial<User>;
           },
+          redirectURI: `${betterAuthUrl}/api/auth/oauth2/callback/keycloak`,
         },
       ],
     }),
