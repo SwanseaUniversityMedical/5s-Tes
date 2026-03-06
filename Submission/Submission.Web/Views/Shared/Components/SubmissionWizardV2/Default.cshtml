@@ -172,7 +172,7 @@
           </div>
         </fieldset>
         <fieldset class="row mb-4">
-          <legend class="form-label fw-bold mt-2" style="font-size: 1rem;">Data Output <span class="text-muted fw-normal">(defaulted)</span></legend>
+          <legend class="form-label fw-bold mt-2" style="font-size: 1rem;">Data Output</legend>
           <p class="text-muted small mb-0">
             <i class="fa-solid fa-circle-info me-1"></i>
             Output is automatically set to:
@@ -181,7 +181,22 @@
             <code>URL: s3://</code>,
             <code>Path (Directory): /outputs</code>.
           </p>
-        </fieldset>
+        <div class="col-md-8">
+          <label for="DataOutputPath" class="form-label text-muted fw-bold">Path</label>
+          <input type="text" id="DataOutputPath" name="DataOutputPath" class="form-control" placeholder="/outputs" value="@Model.DataOutputPath"/>
+        </div>
+          <div class="col-md-4">
+            <label for="DataOutputType" class="form-label text-muted fw-bold">Type</label>
+            <select id="DataOutputType" name="DataOutputType" class="form-select">
+              <option value="FILEEnum">FILE</option>
+              <option value="DIRECTORYEnum" selected>DIRECTORY</option>
+            </select>
+          </div>
+          <div class="col-md-8">
+            <label for="DataOutputUrl" class="form-label text-muted fw-bold">Url</label>
+            <input type="text" id="DataOutputUrl" name="DataOutputUrl" class="form-control" placeholder="s3://" value="@Model.DataOutputUrl"/>
+          </div>
+      </fieldset>
         <h5 class="fw-bold" style="font-size: 1rem;">Executors</h5>
         <div class="col-md-12 mb-2">
             <table id="executorsTable" class="table">

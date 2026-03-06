@@ -488,7 +488,16 @@ namespace Submission.Web.Controllers
                     // 4. Build executors depending on mode
                     List<TesExecutor> executors;
                     List<TesInput>? tesInputs = null;
-
+                    TesOutput tesOutput = new TesOutput
+                    {
+                      Name = "Output",
+                      Description = "Analysis output",
+                      Url = "s3://",
+                      Path = "/outputs",
+                      Type = TesFileType.DIRECTORYEnum
+                    };
+                    List<TesOutput>? tesOutputs = [tesOutput];
+                    
                     if (Mode == "Simple")
                     {
                         if (string.IsNullOrWhiteSpace(model.Query))
@@ -558,8 +567,32 @@ namespace Submission.Web.Controllers
                                 }
                             };
                         }
+                        
+                        // Set DataOutput
+                        _ = Enum.TryParse<TesFileType>(model.DataOutputType, out var outputFileType);
+                        tesOutputs = new List<TesOutput>
+                        {
+                          new TesOutput
+                          {
+                            Name = string.IsNullOrWhiteSpace(model.DataOutputName)
+                              ? tesOutput.Name
+                              : model.DataOutputName,
+                            Description = string.IsNullOrWhiteSpace(model.DataOutputDescription)
+                              ? tesOutput.Description
+                              : model.DataOutputDescription,
+                            Url = string.IsNullOrWhiteSpace(model.DataOutputUrl)
+                              ? tesOutput.Url 
+                              : model.DataOutputUrl,
+                            Path = string.IsNullOrWhiteSpace(model.DataOutputPath)
+                              ? tesOutput.Path
+                              : model.DataOutputPath,
+                            Type = outputFileType == 0
+                              ? TesFileType.FILEEnum 
+                              : outputFileType
+                          }
+                        };
+                        
                     }
-
                     // 5. Assemble the TES message (same shape for both Simple and Custom)
                     tes = new TesTask
                     {
@@ -567,17 +600,7 @@ namespace Submission.Web.Controllers
                         Name        = tesName,
                         Description = tesDescription,
                         Inputs      = tesInputs,
-                        Outputs     = new List<TesOutput>
-                        {
-                            new TesOutput
-                            {
-                                Name        = "Output",
-                                Description = "Analysis output",
-                                Url         = "s3://",
-                                Path        = "/outputs",
-                                Type        = TesFileType.DIRECTORYEnum
-                            }
-                        },
+                        Outputs     = tesOutputs,
                         Resources    = null,
                         Executors    = executors,
                         Volumes      = null,
