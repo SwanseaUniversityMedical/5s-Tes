@@ -1,10 +1,10 @@
-﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardV2
+﻿@model FiveSafesTes.Core.Models.ViewModels.SubmissionWizardTes
 
 @{
-    ViewData["Title"] = "SQL TES Wizard";
+    ViewData["Title"] = "TES Wizard";
 }
 
-<link rel="stylesheet" href="~/css/submissionwizardv2.css" asp-append-version="true" />
+<link rel="stylesheet" href="~/css/submissionwizard.css" asp-append-version="true" />
 
 <script>
     // Make URLSettingsFrontEnd available to JavaScript
@@ -46,7 +46,7 @@
 {
     @Html.HiddenFor(x => x.ProjectId)
     
-    <h1 class="fs-4 mt-5">SQL TES Wizard V2</h1>
+    <h1 class="fs-4 mt-5">TES Wizard</h1>
     
     <!-- Mode Selection -->
     <fieldset class="mode-selection">

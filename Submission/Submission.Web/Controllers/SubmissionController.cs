@@ -433,7 +433,7 @@ namespace Submission.Web.Controllers
         [HttpPost]
         [Authorize]
         public async Task<ActionResult> SubmissionSqlWizardAction(
-            SubmissionWizardV2 model, string? CustomExecutors, string Mode)
+            SubmissionWizardTes model, string? CustomExecutors, string Mode)
         {
             if (!ModelState.IsValid)
             {

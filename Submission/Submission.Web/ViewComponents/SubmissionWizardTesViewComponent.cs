@@ -7,12 +7,12 @@ using Submission.Web.Models;
 
 namespace Submission.Web.ViewComponents
 {
-    public class SubmissionWizardV2ViewComponent : ViewComponent
+    public class SubmissionWizardTesViewComponent : ViewComponent
     {
         private readonly IDareClientHelper _clientHelper;
         private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
         
-        public SubmissionWizardV2ViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
+        public SubmissionWizardTesViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
         {
             _clientHelper = client;
             _URLSettingsFrontEnd = URLSettingsFrontEnd;
@@ -48,7 +48,7 @@ namespace Submission.Web.ViewComponents
                 .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
                 .ToList();
 
-            var model = new SubmissionWizardV2()
+            var model = new SubmissionWizardTes()
             {
                 ProjectId = project.Id,
                 ProjectName = project.Name,

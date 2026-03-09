@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace FiveSafesTes.Core.Models.ViewModels
 {
-    public class SubmissionWizardV2
+    public class SubmissionWizardTes
     {
         public int ProjectId { get; set; }
 
