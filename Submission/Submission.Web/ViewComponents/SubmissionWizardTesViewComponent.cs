@@ -3,36 +3,32 @@ using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
+using Submission.Web.Models;
 
 namespace Submission.Web.ViewComponents
 {
-    public class SubmissionWizerdViewComponent : ViewComponent
+    public class SubmissionWizardTesViewComponent : ViewComponent
     {
         private readonly IDareClientHelper _clientHelper;
-        public SubmissionWizerdViewComponent(IDareClientHelper client)
+        private readonly URLSettingsFrontEnd _URLSettingsFrontEnd;
+        
+        public SubmissionWizardTesViewComponent(IDareClientHelper client, URLSettingsFrontEnd URLSettingsFrontEnd)
         {
             _clientHelper = client;
+            _URLSettingsFrontEnd = URLSettingsFrontEnd;
         }
+        
         public async Task<IViewComponentResult> InvokeAsync(int projectId)
         {
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("projectId", projectId.ToString());
-
             var project = _clientHelper.CallAPIWithoutModel<Project?>(
-                   "/api/Project/GetProject/", paramlist).Result;
-
-            //var projectawait = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
-            //"/api/Project/GetProjectUI/", paramlist);
-
-            var SelectTresOptions = project.Tres.Select(x => new { Name = x.Name, LastHeartBeatReceived = x.LastHeartBeatReceived }).ToList();
-            
+                "/api/Project/GetProject/", paramlist).Result;
+            var SelectTresOptions = project.Tres.ToList();
             List<TreInfo> treInfoList = new List<TreInfo>();
             foreach (var param in SelectTresOptions)
             {
-                TimeSpan timeSinceLastUpdate = DateTime.Now - param.LastHeartBeatReceived;
-                var isOnline = false;
-                if(timeSinceLastUpdate.TotalMinutes<30)
-                    isOnline = true;
+                var isOnline = param.IsOnline();
 
                 var treInfo = new TreInfo()
                 {
@@ -42,7 +38,6 @@ namespace Submission.Web.ViewComponents
                 };
                 treInfoList.Add(treInfo);
             }
-
             var userItems2 = project.Users;
             var treItems2 = project.Tres;
 
@@ -53,8 +48,7 @@ namespace Submission.Web.ViewComponents
                 .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
                 .ToList();
 
-
-            var model = new SubmissionWizard()
+            var model = new SubmissionWizardTes()
             {
                 ProjectId = project.Id,
                 ProjectName = project.Name,
@@ -63,8 +57,13 @@ namespace Submission.Web.ViewComponents
                 Submissions = project.Submissions.ToList(),
                 UserItemList = userItems,
                 TreItemList = treItems
-
             };
+
+            // Pass URL settings to the view
+            ViewBag.QueryImageSQL = _URLSettingsFrontEnd.QueryImageSQL;
+            ViewBag.QueryImageGraphQL = _URLSettingsFrontEnd.QueryImageGraphQL;
+            ViewBag.MinioUrl = _URLSettingsFrontEnd.MinioUrl;
+
             return View(model);
         }
     }

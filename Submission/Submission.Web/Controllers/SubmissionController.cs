@@ -36,92 +36,6 @@ namespace Submission.Web.Controllers
             return View(model: url);
         }
 
-        [HttpPost]
-        [Authorize]
-        public async Task<IActionResult> SubmissionWizard(SubmissionWizard model)
-        {
-            if (!ModelState.IsValid) // SonarQube security
-            {
-                var errors = ModelState
-                    .Where(x => x.Value.Errors.Count > 0)
-                    .Select(x => new { Field = x.Key, Errors = x.Value.Errors.Select(e => e.ErrorMessage) })
-                    .ToList();
-
-                return BadRequest($"Model validation failed: {string.Join(", ", errors.SelectMany(e => e.Errors))}");
-            }
-
-            try
-            {
-                var listOfTre = "";
-                var imageUrl = "";
-                var paramlist = new Dictionary<string, string>();
-                paramlist.Add("projectId", model.ProjectId.ToString());
-                var project = await _clientHelper.CallAPIWithoutModel<Project?>(
-                    "/api/Project/GetProject/", paramlist);
-
-                if (model.TreRadios == null)
-                {
-                    var paramList = new Dictionary<string, string>();
-                    paramList.Add("projectId", model.ProjectId.ToString());
-                    var tre = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/",
-                        paramList);
-                    List<string> namesList = tre.Select(test => test.Name).ToList();
-                    listOfTre = string.Join("|", namesList);
-                }
-                else
-                {
-                    listOfTre = string.Join("|",
-                        model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
-                }
-
-                if (model.OriginOption == CrateOrigin.External)
-                {
-                    imageUrl = model.ExternalURL;
-                }
-                else
-                {
-                    var paramss = new Dictionary<string, string>();
-                    paramss.Add("bucketName", project.SubmissionBucket);
-                    if (model.File != null)
-                    {
-                        await _clientHelper.CallAPIToSendFile<APIReturn>("/api/Project/UploadToMinio", "file",
-                            model.File, paramss);
-                    }
-
-                    var minioEndpoint =
-                        await _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint");
-                    // Don't add http:// — minioEndpoint.Url already has it.
-                    imageUrl = minioEndpoint.Url + "/browser/" + project.SubmissionBucket + "/" + model.File.FileName;
-                }
-
-                var tesTask = new TesTask()
-                {
-                    Name = model.TESName,
-                    Executors = new List<TesExecutor>()
-                    {
-                        new TesExecutor()
-                        {
-                            Image = imageUrl,
-                        }
-                    },
-                    Tags = new Dictionary<string, string>()
-                    {
-                        { "project", project.Name },
-                        { "tres", listOfTre },
-                        { "author", HttpContext.User.FindFirst("name").Value }
-                    }
-                };
-
-                var result = await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
-                return RedirectToAction("GetASubmission", new { id = result.Id });
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Exception in {Function}");
-                return BadRequest(e.Message);
-            }
-        }
-
         public static string GetContentType(string fileName)
         {
             // Create a new FileExtensionContentTypeProvider
@@ -433,7 +347,7 @@ namespace Submission.Web.Controllers
         [HttpPost]
         [Authorize]
         public async Task<ActionResult> SubmissionSqlWizardAction(
-            SubmissionWizardV2 model, string? CustomExecutors, string Mode)
+            SubmissionWizardTes model, string? CustomExecutors, string Mode)
         {
             if (!ModelState.IsValid)
             {
@@ -488,7 +402,16 @@ namespace Submission.Web.Controllers
                     // 4. Build executors depending on mode
                     List<TesExecutor> executors;
                     List<TesInput>? tesInputs = null;
-
+                    TesOutput tesOutput = new TesOutput
+                    {
+                      Name = "Output",
+                      Description = "Analysis output",
+                      Url = "s3://",
+                      Path = "/outputs",
+                      Type = TesFileType.DIRECTORYEnum
+                    };
+                    List<TesOutput>? tesOutputs = [tesOutput];
+                    
                     if (Mode == "Simple")
                     {
                         if (string.IsNullOrWhiteSpace(model.Query))
@@ -558,8 +481,32 @@ namespace Submission.Web.Controllers
                                 }
                             };
                         }
+                        
+                        // Set DataOutput
+                        _ = Enum.TryParse<TesFileType>(model.DataOutputType, out var outputFileType);
+                        tesOutputs = new List<TesOutput>
+                        {
+                          new TesOutput
+                          {
+                            Name = string.IsNullOrWhiteSpace(model.DataOutputName)
+                              ? tesOutput.Name
+                              : model.DataOutputName,
+                            Description = string.IsNullOrWhiteSpace(model.DataOutputDescription)
+                              ? tesOutput.Description
+                              : model.DataOutputDescription,
+                            Url = string.IsNullOrWhiteSpace(model.DataOutputUrl)
+                              ? tesOutput.Url 
+                              : model.DataOutputUrl,
+                            Path = string.IsNullOrWhiteSpace(model.DataOutputPath)
+                              ? tesOutput.Path
+                              : model.DataOutputPath,
+                            Type = outputFileType == 0
+                              ? TesFileType.FILEEnum 
+                              : outputFileType
+                          }
+                        };
+                        
                     }
-
                     // 5. Assemble the TES message (same shape for both Simple and Custom)
                     tes = new TesTask
                     {
@@ -567,17 +514,7 @@ namespace Submission.Web.Controllers
                         Name        = tesName,
                         Description = tesDescription,
                         Inputs      = tesInputs,
-                        Outputs     = new List<TesOutput>
-                        {
-                            new TesOutput
-                            {
-                                Name        = "Output",
-                                Description = "Analysis output",
-                                Url         = "s3://",
-                                Path        = "/outputs",
-                                Type        = TesFileType.DIRECTORYEnum
-                            }
-                        },
+                        Outputs     = tesOutputs,
                         Resources    = null,
                         Executors    = executors,
                         Volumes      = null,
