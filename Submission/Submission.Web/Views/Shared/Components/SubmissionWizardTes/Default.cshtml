@@ -197,43 +197,41 @@
                         <th class="col-md-4">Docker Image</th>
                         <th class="col-md-4">Commands</th>
                         <th class="col-md-4">Environment Variables</th>
+                        <th class="col-md-4">Workdir</th>
                     </tr>
                 </thead>
                 <tbody>
-                    <tr style="vertical-align: top;">
-                        <td class="border-0">
-                            <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
-                        </td>
-                        <td class="border-0">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <div class="w-100 me-2">
-                                    <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line"></textarea>
-                                    <medium class="form-text text-muted fw-bold">Note: One command per line</medium>
-                                </div>
+                <tr style="vertical-align: top;">
+                  <td class="border-0">
+                    <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
+                  </td>
+                  <td class="border-0">
+                    <div class="d-flex align-items-start justify-content-between">
+                      <div class="w-100 me-2">
+                        <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line."></textarea>
+                        <medium class="form-text text-muted fw-bold">Note: One command per line, no quotation marks needed</medium>
+                      </div>
                                
-                            </div>
-                        </td>
-                        <td class="border-0">
-                            <div class="d-flex align-items-start justify-content-between">
-                                <div class="w-100 me-2" id="ENVBOX">
-                                    <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
-                                    <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
-                                </div>
+                    </div>
+                  </td>
+                  <td class="border-0">
+                    <div class="d-flex align-items-start justify-content-between">
+                      <div class="w-100 me-2" id="ENVBOX">
+                        <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
+                        <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
+                      </div>
                               
-                            </div>
-                        </td>
-                    </tr>
-                    @if (Model.Executors != null)
-                    {
-                        @foreach (var executor in Model.Executors)
-                        {
-                            <tr>
-                                <td class="col-md-4">@executor.Image</td>
-                                <td class="col-md-4">@executor.Command</td>
-                                <td class="col-md-4">@executor.ENV</td>
-                            </tr>
-                        }
-                    }
+                    </div>
+                  </td>
+                  <td class="border-0">
+                    <div class="d-flex align-items-start justify-content-between">
+                      <div class="w-100 me-2" id="workDir">
+                        <input type="text" id="workdir" name="workdir" class="form-control" placeholder="e.g., mysql:8.0" />
+                      </div>
+                              
+                    </div>
+                  </td>
+                </tr>
                 </tbody>
             </table>
         </div>

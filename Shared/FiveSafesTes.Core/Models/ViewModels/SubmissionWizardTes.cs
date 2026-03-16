@@ -57,5 +57,6 @@ namespace FiveSafesTes.Core.Models.ViewModels
         public string Image { get; set; } = string.Empty;
         public List<string> Command { get; set; } = new();
         public List<string> ENV { get; set; } = new();
+        public string? Workdir { get; set; } = null;
     }
 }
