@@ -1,4 +1,4 @@
-﻿@using Microsoft.Extensions.Configuration;
+@using Microsoft.Extensions.Configuration;
 @inject IConfiguration Configuration
 @inject UIName UIName
 <!DOCTYPE html>
@@ -548,7 +548,7 @@
                     var imageInput = $('#Image').val();
                     var commandInput = $('#commands').val();
                     var envInput = $('#env').val();
-                    var workDirInput = $('#workDir').val();
+                    var workDirInput = $('#workdir').val();
                     
                     if (imageInput || commandInput || envInput) {
                         var commands = commandInput ? commandInput.split('\n').filter(c => c.trim() !== '') : [];
@@ -569,7 +569,7 @@
                             Image: imageInput, 
                             Command: commands, 
                             ENV: Object.keys(envs).map(key => key + '=' + envs[key]),
-                            WorkDir: workDirInput
+                            Workdir: workDirInput
                         });
                     }
                     
