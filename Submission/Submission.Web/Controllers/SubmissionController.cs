@@ -556,7 +556,9 @@ namespace Submission.Web.Controllers
         private static string NormaliseText(string text) =>
             text.Replace("\\r\\n", "\n")
                 .Replace("\\r",    "\n")
-                .Replace("\\n",    "\n");
+                .Replace("\\n",    "\n")
+                .Replace("\\\"",   "\"")   // ← unescape escaped quotes
+                .Replace("\\\\",   "\\");
 
         /// <summary>
         /// Converts a list of "KEY=value" strings into a dictionary.
