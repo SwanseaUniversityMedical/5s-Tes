@@ -44,7 +44,7 @@ namespace FiveSafesTes.Core.Models
 
         public string GetFormattedStartDate()
         {
-            var date = StartTime.ToString("yyyy/MM/dd:HH:mm:ss");
+            var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
             return date;
         }
 

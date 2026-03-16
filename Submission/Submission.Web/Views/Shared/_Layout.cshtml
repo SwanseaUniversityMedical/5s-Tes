@@ -1,4 +1,4 @@
-﻿@using Microsoft.Extensions.Configuration;
+@using Microsoft.Extensions.Configuration;
 @inject IConfiguration Configuration
 @inject UIName UIName
 <!DOCTYPE html>
@@ -548,6 +548,7 @@
                     var imageInput = $('#Image').val();
                     var commandInput = $('#commands').val();
                     var envInput = $('#env').val();
+                    var workDirInput = $('#workdir').val();
                     
                     if (imageInput || commandInput || envInput) {
                         var commands = commandInput ? commandInput.split('\n').filter(c => c.trim() !== '') : [];
@@ -567,29 +568,12 @@
                         executorData.push({ 
                             Image: imageInput, 
                             Command: commands, 
-                            ENV: Object.keys(envs).map(key => key + '=' + envs[key])
+                            ENV: Object.keys(envs).map(key => key + '=' + envs[key]),
+                            Workdir: workDirInput
                         });
                     }
                     
-                    // Also collect any existing executors from the table
-                    $('#executorsTable tbody tr').each(function (index) {
-                        if (index === 0) return; // Skip the input row
-                        
-                        var image = $(this).find('td:eq(0)').text().trim();
-                        var command = $(this).find('td:eq(1)').text().trim();
-                        var env = $(this).find('td:eq(2)').text().trim();
-                        
-                        if (image || command || env) {
-                            var commands = command ? command.split(',').map(c => c.trim()).filter(c => c !== '') : [];
-                            var envs = env ? env.split(',').map(e => e.trim()).filter(e => e !== '') : [];
-                            
-                            executorData.push({ 
-                                Image: image, 
-                                Command: commands, 
-                                ENV: envs 
-                            });
-                        }
-                    });
+                  
                     
                     formData.append('CustomExecutors', JSON.stringify(executorData));
                     formData.append('Mode', 'Custom');

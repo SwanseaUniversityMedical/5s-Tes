@@ -411,6 +411,7 @@ namespace Submission.Web.Controllers
                       Type = TesFileType.DIRECTORYEnum
                     };
                     List<TesOutput>? tesOutputs = [tesOutput];
+                   
                     
                     if (Mode == "Simple")
                     {
@@ -441,7 +442,7 @@ namespace Submission.Web.Controllers
                     {
                         if (string.IsNullOrWhiteSpace(CustomExecutors) || CustomExecutors == "null")
                             return BadRequest("Executors data is required in Custom mode.");
-
+                      
                         var executorDtos = JsonConvert.DeserializeObject<List<ExecutorsV2>>(CustomExecutors)
                                            ?? new List<ExecutorsV2>();
 
@@ -453,7 +454,7 @@ namespace Submission.Web.Controllers
                                 Command = ex.Command?
                                     .Select(NormaliseText)
                                     .ToList() ?? new List<string>(),
-                                Workdir = "/app",
+                                Workdir = (string.IsNullOrWhiteSpace(ex.Workdir) ? null : ex.Workdir),
                                 Stdin   = null,
                                 Stdout  = null,
                                 Stderr  = null,
@@ -555,7 +556,9 @@ namespace Submission.Web.Controllers
         private static string NormaliseText(string text) =>
             text.Replace("\\r\\n", "\n")
                 .Replace("\\r",    "\n")
-                .Replace("\\n",    "\n");
+                .Replace("\\n",    "\n")
+                .Replace("\\\"",   "\"")   // ← unescape escaped quotes
+                .Replace("\\\\",   "\\");
 
         /// <summary>
         /// Converts a list of "KEY=value" strings into a dictionary.
