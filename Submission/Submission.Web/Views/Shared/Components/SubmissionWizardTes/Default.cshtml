@@ -191,32 +191,38 @@
       </fieldset>
         <h5 class="fw-bold" style="font-size: 1rem;">Executors</h5>
         <div class="col-md-12 mb-2">
-            <table class="table table-borderless" style="table-layout: fixed;">
-                <tbody>
-                    <tr>
-                        <td class="px-0 pe-2">
-                            <label for="Image" class="form-label fw-bold">Docker Image</label>
-                            <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0" />
-                        </td>
-                        <td class="px-0 ps-2">
-                            <label for="workdir" class="form-label fw-bold">Workdir</label>
-                            <input type="text" id="workdir" name="workdir" class="form-control" placeholder="e.g., /workspace" />
-                        </td>
-                    </tr>
-                    <tr style="vertical-align: top;">
-                        <td class="px-0 pe-2">
-                            <label for="commands" class="form-label fw-bold">Commands</label>
-                            <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line."></textarea>
-                            <medium class="form-text text-muted fw-bold">Note: One command per line, no quotation marks needed</medium>
-                        </td>
-                        <td class="px-0 ps-2">
-                            <label for="env" class="form-label fw-bold">Environment Variables</label>
-                            <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
-                            <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
+          <table class="table table-borderless" style="table-layout: fixed;">
+            <thead class="visually-hidden">
+              <tr>
+                <th scope="col">Docker Image and Workdir</th>
+                <th scope="col">Commands and Environment Variables</th>
+              </tr>
+            </thead>
+            <tbody>
+            <tr>
+              <td class="px-0 pe-2">
+                <label for="Image" class="form-label fw-bold">Docker Image</label>
+                <input type="text" id="Image" name="Image" class="form-control" placeholder="e.g., mysql:8.0"/>
+              </td>
+              <td class="px-0 ps-2">
+                <label for="workdir" class="form-label fw-bold">Workdir</label>
+                <input type="text" id="workdir" name="workdir" class="form-control" placeholder="e.g., /workspace"/>
+              </td>
+            </tr>
+            <tr style="vertical-align: top;">
+              <td class="px-0 pe-2">
+                <label for="commands" class="form-label fw-bold">Commands</label>
+                <textarea id="commands" name="commands" class="form-control" rows="3" placeholder="Enter commands, one per line."></textarea>
+                <medium class="form-text text-muted fw-bold">Note: One command per line, no quotation marks needed</medium>
+              </td>
+              <td class="px-0 ps-2">
+                <label for="env" class="form-label fw-bold">Environment Variables</label>
+                <textarea id="env" name="env" class="form-control" rows="3" placeholder="KEY=value&#10;ANOTHER_KEY=another_value"></textarea>
+                <medium class="form-text text-muted fw-bold">Format: KEY=value, one per line</medium>
+              </td>
+            </tr>
+            </tbody>
+          </table>
         </div>
     </div>
 
