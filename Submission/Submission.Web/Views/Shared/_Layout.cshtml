@@ -573,27 +573,7 @@
                         });
                     }
                     
-                    // Also collect any existing executors from the table
-                    $('#executorsTable tbody tr').each(function (index) {
-                        if (index === 0) return; // Skip the input row
-                        
-                        var image = $(this).find('td:eq(0)').text().trim();
-                        var command = $(this).find('td:eq(1)').text().trim();
-                        var env = $(this).find('td:eq(2)').text().trim();
-                        var workDir = $(this).find('td:eq(3)').text().trim();
-                        
-                        if (image || command || env) {
-                            var commands = command ? command.split(',').map(c => c.trim()).filter(c => c !== '') : [];
-                            var envs = env ? env.split(',').map(e => e.trim()).filter(e => e !== '') : [];
-                            
-                            executorData.push({ 
-                                Image: image, 
-                                Command: commands, 
-                                ENV: envs,
-                                Workdir: workDir
-                            });
-                        }
-                    });
+                  
                     
                     formData.append('CustomExecutors', JSON.stringify(executorData));
                     formData.append('Mode', 'Custom');
