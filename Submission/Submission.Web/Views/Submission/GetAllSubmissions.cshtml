@@ -41,7 +41,7 @@
 								{
 									var minio = @ViewBag.URLBucket;
 									<h6 class="mb-0">
-										<a href="http://@minio/browser/@submission.Project.OutputBucket" target="_blank" rel="noopener">
+										<a href="@minio/browser/@submission.Project.OutputBucket" target="_blank" rel="noopener">
 											<span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
 												<i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
 												<span class="text-start">
