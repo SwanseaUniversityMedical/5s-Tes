@@ -30,7 +30,7 @@ concurrency:
 
 jobs:
   scan-code:
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.1.1-generic-sonar
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/generic-sonar.yaml@v1.2.0-generic-sonar
     with:
       sonar-url: ${{ vars.FEDA_SONAR_HOST_URL }}
       project-key: 5s-Tes

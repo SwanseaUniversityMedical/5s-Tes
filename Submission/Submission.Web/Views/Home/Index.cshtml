@@ -1,0 +1,86 @@
+﻿@model FiveSafesTes.Core.Models.User
+
+@{
+    var getAllProj = @ViewBag.getAllProj;
+    var getAllSubs = @ViewBag.getAllSubs;
+    var getAllUsers = @ViewBag.getAllUsers;
+    var getAllTres = @ViewBag.getAllTres;
+    var searchResults = @ViewBag.SearchResults;
+    var Name = @ViewBag.UIName;
+    ViewData["Title"] = "Home";
+}
+
+
+<div class="home-banner text-center">
+    <h1 class="display-5 text-light">Safe &amp; Transparent Research</h1>
+    <p class="text-light fs-6 mb-5">Search and discover the types of research this trusted platform is enabling for public good.</p>
+    <div class="col-xl-4 col-lg-6 col-md-8 col-sm-10 mx-auto">
+        <form class="" asp-controller="Home" asp-action="SearchView">
+            <div class="input-group mb-3 px-4">
+                <input type="search" name="searchString" value="" placeholder="Search..." class="form-control" aria-label="Search" aria-describedby="button-addon2">
+                <button class="btn btn-primary" type="submit" id="button-addon2">Go</button>
+            </div>
+        </form>
+    </div>
+</div>
+<div class="container mt-5">
+
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-4 g-md-5 g-4">
+        <div class="col">
+            <a asp-area="" asp-controller="Submission" asp-action="GetAllSubmissions" class="card shadow-sm">
+                <img class="card-img-top" src="/img/data-image.jpg" alt="Submissions image" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">Submissions</h4>
+                        <span class="badge bg-dark-blue rounded-pill">@getAllSubs</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a asp-area="" asp-controller="Project" asp-action="GetAllProjects" class="card shadow-sm">
+                <img class="card-img-top" src="/img/shutterstock_1081970570-Reduced-740x481.jpg" alt="Projects image" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">Projects</h4>
+                        <span class="badge bg-dark-blue rounded-pill">@getAllProj</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+        <div class="col">
+            <a asp-area="" asp-controller="User" asp-action="GetAllUsers" class="card shadow-sm">
+                <img class="card-img-top" src="/img/shutterstock_376975414-740x481.jpg.webp" alt="People image" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">People</h4>
+                        <span class="badge bg-dark-blue rounded-pill">@getAllUsers</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+        <div class="col">
+            <a asp-area="" asp-controller="Tre" asp-action="GetAllTres" class="card shadow-sm">
+                <img class="card-img-top" src="/img/about-banner.jpg" alt="TREs image" />
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h4 class="m-0 text-dark fs-5">TREs</h4>
+                        <span class="badge bg-dark-blue rounded-pill">@getAllTres</span>
+                    </div>
+                </div>
+            </a>
+        </div>
+
+    </div>
+</div>
+<div class="container my-5">
+    <div class="col-lg-8 mx-auto">
+        <h3 class="text-center mb-4">About @Name</h3>
+
+        <p>@Name was developed by UKRI's DARE UK to support fast and efficient sharing, linkage, and advanced analysis of sensitive data in an ethical and secure manner.</p>
+        <p>@Name allows approved researchers to work with a ‘federated’ network of trusted research environments (TREs) by querying the data held by different TREs from one location - meaning the data doesn't have to be joined or moved from its secure location and the researcher saves time by submitting a query once for multiple TREs.</p>
+        <p>The platform adopts a transparent approach and is open for the public to see what research is being conducted across the different TREs and also opens up the possibility of more collaboration in the research community.</p>
+    </div>
+</div>
+

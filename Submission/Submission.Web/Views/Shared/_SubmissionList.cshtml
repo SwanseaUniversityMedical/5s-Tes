@@ -1,0 +1,189 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels;
+@model SubmissionList
+
+
+<div class="table-responsive">
+    <table id="submissionList" class="table">
+        <caption>List of Submissions</caption>
+        <thead>
+            <tr>
+                <th></th>
+                <th>Submission Name</th>
+                <th>Project</th>
+                <th>Submitted by</th>
+                <th>Submission Date</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @if (Model.Submissions != null)
+            {
+                @foreach (var submission in Model.Submissions)
+                {
+                    var linkid = submission.Id;
+                    if (Model.UseParent)
+                    {
+                        linkid = submission.Parent.Id;
+                    }
+                    <tr>
+                        <td>
+                            @{
+                                var overallStatus = submission.Status;
+                                if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
+                                {
+
+                                    <h6 class="mb-0">
+                                        <span class="badge bg-success rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
+                                            <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+                                            <span>Completed</span>
+                                        </span>
+                                    </h6>
+                                }
+                                else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Failed || overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Cancelled)
+                                {
+                                    <h6 class="mb-0">
+                                        <span class="badge bg-danger rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @submission.EndTime">
+                                            <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+                                            <span>@overallStatus.ToString()</span>
+                                        </span>
+                                    </h6>
+                                }
+                                else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.PartialResult)
+                                {
+                                    <h6 class="mb-0">
+                                        <span class="badge bg-warning rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @submission.EndTime">
+                                            <i class="fa-solid fa-circle-check  fs-6 text-white me-2"></i>
+                                            <span>Partial Result</span>
+                                        </span>
+                                    </h6>
+                                }
+                                else
+                                {
+
+                                    <h6 class="mb-0">
+                                        <span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: @submission.GetTotalDisplayTime()">
+                                            <i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+                                            <span>Running</span>
+                                        </span>
+                                    </h6>
+
+
+                                }
+
+                            }
+
+                        </td>
+                        <td>
+                            <a href="@Url.Action("GetASubmission", "Submission", new { id = linkid })">
+                                <h2 class="mb-0 fw-bold hover-underline fs-6">
+                                    @submission.TesName
+                                </h2>
+                            </a>
+
+                        </td>
+                        <td>
+                            @submission.Project.Name
+                        </td>
+                        <td>
+                            @submission.SubmittedBy.Name
+                        </td>
+                        <td>
+                            @submission.GetFormattedStartDate()
+                        </td>
+                        <td>
+                            <a href="@Url.Action("GetASubmission", "Submission", new { id = linkid })" class="btn btn-sm btn-outline-primary">
+                                <span class="small">View</span>
+                            </a>
+                        </td>
+                    </tr>
+                }
+
+            }
+            @if (Model.SubmissionsGetProjectModel != null)
+            {
+          
+            @foreach (var submission in Model.SubmissionsGetProjectModel)
+            {
+                var linkid = submission.Id;
+                if (Model.UseParent)
+                {
+                    linkid = submission.ParentId.Value;
+                }
+                <tr>
+                    <td>
+                        @{
+                            var overallStatus = submission.Status;
+                            if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
+                            {
+
+                                <h6 class="mb-0">
+                                    <span class="badge bg-success rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
+                                        <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
+                                        <span>Completed</span>
+                                    </span>
+                                </h6>
+                            }
+                            else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Failed || overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Cancelled)
+                            {
+                                <h6 class="mb-0">
+                                    <span class="badge bg-danger rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @submission.EndTime">
+                                        <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
+                                        <span>@overallStatus.ToString()</span>
+                                    </span>
+                                </h6>
+                            }
+                            else if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.PartialResult)
+                            {
+                                <h6 class="mb-0">
+                                    <span class="badge bg-warning rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="@overallStatus.ToString(): @submission.EndTime">
+                                        <i class="fa-solid fa-circle-check  fs-6 text-white me-2"></i>
+                                        <span>Partial Result</span>
+                                    </span>
+                                </h6>
+                            }
+                            else
+                            {
+
+                                <h6 class="mb-0">
+                                    <span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: @submission.GetTotalDisplayTime()">
+                                        <i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
+                                        <span>Running</span>
+                                    </span>
+                                </h6>
+
+
+                            }
+
+                        }
+
+                    </td>
+                    <td>
+                        <a href="@Url.Action("GetASubmission", "Submission", new { id = linkid })">
+                            <h2 class="mb-0 fw-bold hover-underline fs-6">
+                                @submission.TesName
+                            </h2>
+                        </a>
+
+                    </td>
+                    <td>
+                        @submission.ProjectName
+                    </td>
+                    <td>
+                        @submission.SubmittedByName
+                    </td>
+                    <td>
+                        @submission.GetFormattedStartDate()
+                    </td>
+                    <td>
+                        <a href="@Url.Action("GetASubmission", "Submission", new { id = linkid })" class="btn btn-sm btn-outline-primary">
+                            <span class="small">View</span>
+                        </a>
+                    </td>
+                </tr>
+            }
+
+            }
+        </tbody>
+    </table>
+
+</div>

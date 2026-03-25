@@ -7,6 +7,7 @@ import { Plus } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { RuleFormData } from "@/types/access-rules";
 import { createAccessRule } from "@/api/access-rules";
+import { useErrorToast } from "@/lib/hooks/use-error-toast";
 import RuleFormDialog from "../forms/RulesFormDialog";
 
 /* ----- Types & Constants ----- */
@@ -112,12 +113,15 @@ export function HoverAddRow({
 }: HoverAddRowProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const router = useRouter();
+  const { showError, dismissError, handleOpenChange } = useErrorToast();
 
   const handleRowClick = () => {
     setIsDialogOpen(true);
   };
 
-  const handleSubmit = async (data: RuleFormData) => {
+  const handleSubmit = async (data: RuleFormData): Promise<boolean> => {
+    dismissError();
+
     const result = await createAccessRule({
       inputUser: data.inputUser,
       inputProject: data.inputProject,
@@ -129,10 +133,11 @@ export function HoverAddRow({
 
     if (result.success) {
       toast.success("Rule created successfully");
-      setIsDialogOpen(false);
       router.refresh();
+      return true;
     } else {
-      toast.error(`Failed to create rule: ${result.error}`);
+      showError(`Failed to create rule: ${result.error}`);
+      return false;
     }
   };
 
@@ -159,7 +164,7 @@ export function HoverAddRow({
       {/* Add New Rule Dialog */}
       <RuleFormDialog
         isOpen={isDialogOpen}
-        onOpenChange={setIsDialogOpen}
+        onOpenChange={handleOpenChange(setIsDialogOpen)}
         onSubmit={handleSubmit}
         mode="add"
       />

@@ -1,0 +1,80 @@
+﻿@{
+    var searchResults = @ViewBag.SearchResults;
+    var searchString = @ViewBag.SearchString;
+
+    ViewData["Title"] = "Search Results";
+}
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    @if (searchResults != null && searchString != null)
+    {
+        <h3 class="mb-3"><span class="text-muted">Search Results for:</span>@searchString.ToString()</h3>
+        <form class="d-none d-lg-block" asp-controller="Home" asp-action="SearchView">
+            <div class="input-group w-50 mb-5">
+                <input type="search" name="searchString" value="" placeholder="@searchString.ToString()" class="form-control form-control-sm" aria-label="Search" aria-describedby="button-addon2">
+                <button class="btn btn-sm btn-primary" type="submit" id="button-addon2">Go</button>
+            </div>
+        </form>
+        @*<ul>
+    @foreach (var project in searchResults)
+    {
+    <li><a href="@Url.Action("GetProject", "Project", new { id = project.Id })">@project.Name </a> </li>
+    <ul>
+    @foreach (var user in project.Users)
+    {
+    <li><a href="@Url.Action("GetUser", "User", new { id = user.Id })">@user.Name </a></li>
+    }
+    </ul>
+    <ul>
+    @foreach (var tre in project.Tres)
+    {
+    <li><a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })">@tre.Name</a></li>
+    }
+    </ul>
+    }
+    </ul>*@
+        <ul>
+            @foreach (var project in searchResults)
+
+            { 
+               
+                    <li><a href="@Url.Action("GetProject", "Project", new { id = project.Id })">Project: @project.Name </a> </li>
+
+             
+                <ul>
+                    @foreach (var user in project.Users) 
+                    {
+            
+                            <li><a href="@Url.Action("GetUser", "User", new { id = user.Id })">User: @user.Name </a></li>
+                     
+                    }
+                </ul>
+                <ul>
+                    @foreach (var tre in project.Tres)
+                    {
+
+
+                        <li><a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })">Tres: @tre.Name</a></li>
+                      
+                    }
+                </ul>
+                <ul>
+                    @foreach (var submissions in project.Submissions)
+                    {
+                        if (submissions.Parent == null )
+                        {
+                            <li><a href="@Url.Action("GetATre", "Tre", new { id = submissions.Id })">Submissions: @submissions.TesName</a></li>
+                        }
+                    }
+                </ul>
+            }
+        </ul>
+    }
+    else
+
+
+    {
+        <h2>Results</h2>
+
+        <h3>No results for this Query</h3>
+    }
+</div>

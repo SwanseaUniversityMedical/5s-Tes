@@ -1,0 +1,46 @@
+﻿@model FiveSafesTes.Core.Models.ViewModels.ProjectTre
+<div class="row">
+    <div class="col-sm-12">
+        <h1>Add User to Project</h1>
+
+        
+
+        
+
+        @using (Html.BeginForm("AddTreMembership", "Project", FormMethod.Post, new { id = "frmMain" }))
+        {
+            @Html.AntiForgeryToken()
+
+
+            <div class="form-group">
+                @{
+                    @Html.LabelFor(m => m.TreId, "Select the TRE")
+                    @Html.DropDownListFor(m => m.TreId, Model.TreItemList, new {@class = "form-control show-tick noBottomMargin"})
+
+                }
+
+                @Html.ValidationMessageFor(m => m.ProjectId, "Select TRE")
+
+            </div>
+            <div class="form-group">
+                @{
+                    @Html.LabelFor(m => m.ProjectId, "Select the project name")
+                    @Html.DropDownListFor(m => m.ProjectId, Model.ProjectItemList, new {@class = "form-control show-tick noBottomMargin"})
+                    
+                }
+
+                @Html.ValidationMessageFor(m => m.ProjectId, "Select Project")
+
+            </div>
+
+            
+
+
+
+            <div class="hero-block-1">
+                <button  type="submit" class="btn btn-primary"><i class="fas fa-paper-plane"></i>Add TRE Membership</button>
+            </div>
+        }
+
+    </div>
+</div>

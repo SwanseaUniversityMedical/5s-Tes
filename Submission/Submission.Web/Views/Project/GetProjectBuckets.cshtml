@@ -1,0 +1,10 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@model ProjectUserTre
+@{
+    ViewData["Title"] = "Edit @Model.Name";
+}
+
+Minio URL: http://@Html.Raw(Model.MinioEndpoint) 
+
+Submission Bucket: @Html.Raw(Model.SubmissionBucket) 
+Output Bucket: @Html.Raw(Model.OutputBucket)

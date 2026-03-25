@@ -1,0 +1,49 @@
+﻿@model FiveSafesTes.Core.Models.ViewModels.FormData
+@*
+    For more information on enabling MVC for empty projects, visit https://go.microsoft.com/fwlink/?LinkID=397860
+*@
+@{
+}
+@{
+    if (Model.Id > 0)
+    {
+        ViewData["Title"] = "Edit TRE";
+    }
+    else
+    {
+        ViewData["Title"] = "Create TRE";
+    }
+    //<p>@TempData["Friend"]</p>
+    if (Model != null && Model.FormIoUrl.StartsWith('/'))
+    {
+        Model.FormIoUrl = $"{Context.Request.Scheme}://{Context.Request.Host.Value}" + Model.FormIoUrl;
+    }
+}
+<div class="container-lg p-4">
+    <div class="d-flex align-items-center justify-content-between">
+        <h1 class="fs-3 mb-0">@ViewData["Title"]</h1>
+    </div>
+    <hr class="d-flex my-4">
+
+    <div class="row">
+        <div class="col-md-6">
+            <div id="errorMsg" style="color: #D63301; background-color: #FFCCBA; background-image: url('https://i.imgur.com/GnyDvKN.png'); border: 1px solid;margin: 10px 0px;padding: 15px 10px 15px 50px;background-repeat: no-repeat;background-position: 10px center;display: none;"></div>
+            <div id="formio"> <img src="~/img/loader.gif" width="30" height="30" alt="Loading..." /> </div>
+        </div>
+    </div>
+    <div class="d-flex align-items-center mt-4">
+        <button id="ExternalSubmit" type="submit" class="btn btn-md btn-primary me-2">Submit</button>
+        <a href="##" onClick="history.go(-1); return false;" class="btn btn-link btn-sm">Cancel</a>
+    </div>
+</div>
+<script>
+    var disableNameField = false;
+    if ('@Html.Raw(Model.FormIoString)' !== '{"id":0}') {
+        disableNameField = true;
+    }
+
+    window.onload = function () {
+        renderForm("@Model.FormIoUrl", @Html.Raw(Model.FormIoString), '/Tre/TreFormSubmission/@Url.ActionContext.RouteData.Values["id"]', false, 'formio', "/Tre/GetAllTres", disableNameField);
+    }
+
+</script>

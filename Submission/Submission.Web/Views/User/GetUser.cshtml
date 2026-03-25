@@ -1,0 +1,183 @@
+﻿@using FiveSafesTes.Core.Models.ViewModels
+@model FiveSafesTes.Core.Models.User
+@{
+    ViewData["Title"] = "User Name";
+    if (Model.Organisation == null)
+    { 
+        Model.Organisation = "No Organisation";
+    }
+    
+    if (Model.FullName == "" || Model.FullName == null)
+    {
+        Model.FullName = Model.Name;
+    }
+
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+<div class="d-flex align-items-center justify-content-between">
+    <div>
+        <h1 class="fs-3 mb-0">@Model.FullName</h1>
+        <p class="text-muted mb-0">@Model.Organisation</p>
+    </div>
+
+    @if (User.IsInRole("dare-control-admin"))
+    {
+        <a href="@Url.Action("SaveUserForm", "User",new{userId=@Model.Id})" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
+    }
+        
+</div>
+<div class="mt-4">
+<ul class="nav nav-underline border-bottom" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <a href="#about" class="nav-link text-dark active" id="about" data-bs-toggle="tab" data-bs-target="#tre" role="tab" aria-controls="TRE" aria-selected="true">About</a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="#projects" class="nav-link text-dark" id="projects" data-bs-toggle="tab" data-bs-target="#projects-tab" role="tab" aria-controls="projects" aria-selected="false">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Projects</span>
+                <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Projects.Count</span>
+            </div>
+        </a>
+    </li>
+    <li class="nav-item" role="presentation">
+        <a href="#submissions" class="nav-link text-dark" id="submissions" data-bs-toggle="tab" data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
+            <div class="d-flex justify-content-between align-items-center">
+                <span>Submissions</span>
+                <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Where(x => x.Parent == null).ToList().Count</span>
+            </div>
+        </a>
+    </li>
+</ul>
+
+
+<div class="tab-content py-5" id="myTabContent">
+    <div class="tab-pane fade show active" id="tre" role="tabpanel" aria-labelledby="tre">
+        <div class="row">
+            <div class="col-md-6">
+                <p class="mb-0">
+                            @{
+                                if (Model.Biography == null)
+                                {
+                                    Model.Biography = "User has not written a description";
+                                }
+                            }
+                            @Model.Biography
+                </p>
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
+        <div class="row">
+            <div class="col-12">
+
+                        @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.Submissions.Where(x => x.Parent == null).ToList(), UseParent = false})
+
+                
+                  
+            </div>
+        </div>
+    </div>
+    <div class="tab-pane fade" id="projects-tab" role="tabpanel" aria-labelledby="projects">
+        @if (User.IsInRole("dare-control-admin"))
+        {
+            <div class="mt-2 mb-2 align-items-md-end">
+                <button type="button" class="btn btn-sm btn-primary mb-3" id="addProject"><i class="fa fa-plus me-2"></i>Add User To A Project</button>
+            </div>
+        }
+        <div class="row">
+            <div class="col-xl-8 col-lg-10">
+                <div class="table-responsive">
+                    <table id="projectList" class="table table-striped no-head">
+                        <caption>List of Projects</caption>
+                        <thead><tr><th>Project</th></tr></thead>
+                        <tbody>
+                        @foreach (var project in Model.Projects)
+                        {
+                            <tr>
+                                <td class="card mb-2 p-3 bg-white shadow-sm border-1">
+
+                                    <div class="d-flex align-items-center justify-content-between mb-3">
+                                        <div>
+                                            <a href="@Url.Action("GetProject", "Project", new { id = project.Id })">
+                                                <h2 class="mb-0 fw-bold hover-underline fs-5">
+                                                    @project.Name
+                                                </h2>
+                                            </a>
+                                            <p class="text-muted font-monospace small mb-0">#@project.Id</p>
+                                        </div>
+                                        <div>
+                                            @if (User.IsInRole("dare-control-admin"))
+                                            {
+                                                <a href="@Url.Action("RemoveProjectfromUser", "User", new { UserId = Model.Id, ProjectId = @project.Id })" class="btn btn-sm btn-outline-primary">
+                                                    <span class="small"><i class="fa fa-user-alt-slash me-2"></i>Remove user from project</span>
+                                                </a>
+                                                <a href="@Url.Action("SaveProjectForm", "Project", new { ProjectId = @project.Id })" class="btn btn-sm btn-outline-primary ms-2"><span class="small">Edit</span></a>
+                                            }
+                                        </div>
+                                    </div>
+                                    <div class="">
+                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                            @project.Submissions.Count Submissions
+                                        </a>
+                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                            @project.Users.Count People
+                                        </a>
+                                        <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                                            @project.Tres.Count TREs
+                                        </a>
+                                    </div>
+                                    <p class="my-4">
+                                        @project.ProjectDescription
+                                    </p>
+                                    <p class="text-muted fs-7 mb-0">
+                                        Last Updated: @project.StartDate <span class="mx-2"></span>End Date: @project.EndDate
+                                    </p>
+                                </td>
+                            </tr>
+                        }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</div>
+</div>
+
+
+<div class="modal fade bd-user-modal-lg" tabindex="-1" role="dialog" aria-labelledby="myLargeModalLabel" aria-hidden="true" id="projectModal">
+    <div class="modal-dialog modal-md">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h1 class="modal-title fs-5" id="exampleModalLabel">Add @Model.Name to a project</h1>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <div class="row">
+                    <div class="col-12">
+                        <div class="table-responsive my-2">
+                            <table class="table" id="ProjectList">
+                                <caption>List of Projects</caption>
+                                @foreach (var project in ViewBag.ProjectItems)
+                                {
+                                    <tr>
+                                        <td class="text-center"><input type="checkbox" value="@project.Value" id="@project.Value" name="selectedProject"/></td>
+                                        <td class="fw-bold">@project.Text</td>
+                                    </tr>
+                                }
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+                <button type="button" class="btn btn-sm btn-primary" onclick="SaveProjectList(@Model.Id)">Add</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+

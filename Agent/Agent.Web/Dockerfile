@@ -30,7 +30,7 @@ WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "Agent.Web.dll"]
 
-COPY Agent/rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
+COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
 
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
 	update-ca-certificates
