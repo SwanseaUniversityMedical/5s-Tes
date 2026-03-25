@@ -12,6 +12,7 @@ const baseURL = betterAuthUrl;
 export const auth = betterAuth({
   baseURL,
   basePath: "/api/auth",
+  trustedOrigins: [baseURL],
   user: {
     // add additional field (roles) to the user object
     additionalFields: {
@@ -35,6 +36,7 @@ export const auth = betterAuth({
           clientSecret: keycloakClientSecret,
           // URL to fetch the provider's OAuth 2.0/OIDC configuration and auto-discover the endpoints for auth
           discoveryUrl: `${getKeycloakIssuer()}/.well-known/openid-configuration`,
+          redirectURI: `${baseURL}/api/auth/callback/keycloak`,
           scopes: ["openid"],
           mapProfileToUser: async (profile) => {
             return {
