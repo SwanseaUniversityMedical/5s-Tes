@@ -154,7 +154,7 @@ builder.Services.AddAuthentication(options =>
         options.Audience = submissionKeyCloakSettings.ClientId;          
         options.MetadataAddress = submissionKeyCloakSettings.MetadataAddress;
 
-        options.RequireHttpsMetadata = false; // dev only
+        options.RequireHttpsMetadata = submissionKeyCloakSettings.RequireHttpsMetadata;
         options.IncludeErrorDetails = true;
 
         options.TokenValidationParameters = TVP;
