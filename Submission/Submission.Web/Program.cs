@@ -288,7 +288,7 @@ builder.Services.AddAuthentication(options =>
                 };
                 //options.MetadataAddress = submissionKeyCloakSettings.MetadataAddress;
                 Log.Information("{Function} Keycloak Settings Auth {Auth}, Client {Client}, Secret {Secret}, Meta {Meta}", "Main", submissionKeyCloakSettings.Authority, submissionKeyCloakSettings.ClientId, submissionKeyCloakSettings.ClientSecret, submissionKeyCloakSettings.MetadataAddress);
-                options.RequireHttpsMetadata = false;
+                options.RequireHttpsMetadata = submissionKeyCloakSettings.RequireHttpsMetadata;
                 options.SaveTokens = true;
                 options.Scope.Add("openid");
                 options.Scope.Add("profile");
