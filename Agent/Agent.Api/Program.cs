@@ -216,7 +216,7 @@ builder.Services.AddAuthentication(options =>
 
         options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
 
-        options.RequireHttpsMetadata = false; // dev only
+        options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata; 
         options.IncludeErrorDetails = true;
 
         options.TokenValidationParameters = TVP;
@@ -261,7 +261,6 @@ app.UseSwaggerUI(c =>
     c.EnableValidator(null);
     c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{environment.ApplicationName} v1");
     c.OAuthClientId(treKeyCloakSettings.ClientId);
-    c.OAuthClientSecret(treKeyCloakSettings.ClientSecret);
     c.OAuthAppName(treKeyCloakSettings.ClientId);
 });
 if (app.Environment.IsDevelopment())
@@ -359,8 +358,7 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
 
 void AddServices(WebApplicationBuilder builder)
 {
-    ServicePointManager.ServerCertificateValidationCallback +=
-        (sender, cert, chain, sslPolicyErrors) => true;
+    // Keep default TLS certificate validation behavior; configure per-client handlers only when needed.
     builder.Services.AddHttpClient();
 
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle

@@ -176,7 +176,7 @@ try
             // For testing we disable https (should be true for production)
             options.RemoteSignOutPath = treKeyCloakSettings.RemoteSignOutPath;
             options.SignedOutRedirectUri = treKeyCloakSettings.SignedOutRedirectUri;
-            options.RequireHttpsMetadata = false;
+            options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata;
             options.GetClaimsFromUserInfoEndpoint = true;
             options.Scope.Add("openid");
             options.Scope.Add("profile");

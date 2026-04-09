@@ -36,6 +36,8 @@ namespace FiveSafesTes.Core.Models.Settings
         public string ValidIssuer { get; set; }
 
         public string ValidAudience { get; set; }
+        
+        public bool RequireHttpsMetadata { get; set; }
 
         public HttpClientHandler getProxyHandler {
             get
