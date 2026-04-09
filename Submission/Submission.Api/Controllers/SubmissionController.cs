@@ -184,7 +184,9 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var allSubmissions = _DbContext.Submissions.ToList();
+                var allSubmissions = _DbContext.Submissions
+                    .AsNoTracking()
+                    .ToList();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
                 return allSubmissions;
@@ -219,7 +221,12 @@ namespace Submission.Api.Controllers
             try
             {
 
-                var submission = _DbContext.Submissions.First(x => x.Id == submissionId);
+                var submission = _DbContext.Submissions
+                    .AsNoTracking()
+                    .Include(x => x.Project)
+                    .Include(x => x.SubmittedBy)
+                    .Include(x => x.Parent)
+                    .First(x => x.Id == submissionId);
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
                 return submission;
@@ -423,6 +430,30 @@ namespace Submission.Api.Controllers
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "SaveSubmissionFiles");
+                throw;
+            }
+        }
+
+        [HttpGet("GetSubmissionsForCurrentUser")]
+        public List<FiveSafesTes.Core.Models.Submission> GetSubmissionsForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+
+                var submissions = _DbContext.Submissions
+                    .AsNoTracking()
+                    .Include(x => x.Project)
+                    .Include(x => x.SubmittedBy)
+                    .Where(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername)
+                    .OrderByDescending(x => x.StartTime)
+                    .ToList();
+
+                return submissions;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetSubmissionsForCurrentUser");
                 throw;
             }
         }
