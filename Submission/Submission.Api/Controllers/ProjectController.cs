@@ -413,6 +413,7 @@ namespace Submission.Api.Controllers
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
 
                 var allProjects = _DbContext.Projects
+                    .AsNoTracking()
                     .ToList();
 
 
@@ -426,6 +427,30 @@ namespace Submission.Api.Controllers
             }
 
 
+        }
+
+        [HttpGet("GetProjectsForCurrentUser")]
+        public List<Project> GetProjectsForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+
+                var userProjects = _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                    .Include(x => x.Users)
+                    .Include(x => x.Tres)
+                    .Include(x => x.Submissions)
+                    .ToList();
+
+                return userProjects;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
+                throw;
+            }
         }
 
 
