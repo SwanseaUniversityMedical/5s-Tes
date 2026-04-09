@@ -5,6 +5,7 @@ using Zeebe.Client;
 using System.Reflection;
 using Zeebe.Client.Accelerator.Extensions;
 using Credentials.Camunda.Services;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = GetConfiguration();
@@ -19,7 +20,11 @@ Serilog.ILogger CreateSerilogLogger(IConfiguration configuration)
 {
     var seqServerUrl = configuration["Serilog:SeqServerUrl"];
     var seqApiKey = configuration["Serilog:SeqApiKey"];
-
+    var logLevelValue = configuration["Serilog:MinimumLevel:Default"];
+    var logLevel = Enum.TryParse<LogEventLevel>(logLevelValue, true, out var parsedLevel)
+      ? parsedLevel
+      : LogEventLevel.Information;
+    
     if (seqServerUrl == null)
     {
         Log.Error("seqServerUrl is null");
@@ -27,7 +32,7 @@ Serilog.ILogger CreateSerilogLogger(IConfiguration configuration)
     }
 
     return new LoggerConfiguration()
-    .MinimumLevel.Verbose()
+      .MinimumLevel.Is(logLevel)
     .Enrich.WithProperty("ApplicationContext", AppName)
     .Enrich.FromLogContext()
     .WriteTo.Console()

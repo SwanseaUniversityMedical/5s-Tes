@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.DataProtection;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -387,9 +388,13 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 {
     var seqServerUrl = configuration["Serilog:SeqServerUrl"];
     var seqApiKey = configuration["Serilog:SeqApiKey"];
+    var logLevelValue = configuration["Serilog:MinimumLevel:Default"];
+    var logLevel = Enum.TryParse<LogEventLevel>(logLevelValue, true, out var parsedLevel)
+      ? parsedLevel
+      : LogEventLevel.Information;
 
     return new LoggerConfiguration()
-        .MinimumLevel.Verbose()
+        .MinimumLevel.Is(logLevel)
         .Enrich.WithProperty("ApplicationContext", environment.ApplicationName)
         .Enrich.FromLogContext()
         .WriteTo.Console()
