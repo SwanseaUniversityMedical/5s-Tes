@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Serilog;
 using Submission.Web.Models;
@@ -24,7 +25,7 @@ namespace Submission.Web.Controllers
             _UIName = uIName;
         }
 
-        public IActionResult Index()
+        public async Task<IActionResult> Index()
         {
             ViewBag.getAllProj = 0;
             ViewBag.getAllSubs = 0;
@@ -35,20 +36,14 @@ namespace Submission.Web.Controllers
 
             try
             {
-                var getAllProj = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects").Result;
-                ViewBag.getAllProj = getAllProj.Count;
-
-
-                var getAllSubs = _clientHelper
-                    .CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions").Result
-                    .Where(x => x.Parent == null).ToList();
-                ViewBag.getAllSubs = getAllSubs.Count;
-
-                var getAllUsers = _clientHelper.CallAPIWithoutModel<List<User>>("/api/User/GetAllUsers").Result;
-                ViewBag.getAllUsers = getAllUsers.Count;
-
-                var getAllTres = _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Tre/GetAllTres").Result;
-                ViewBag.getAllTres = getAllTres.Count;
+                var counts = await _clientHelper.CallAPIWithoutModel<DashboardCounts>("/api/Metrics/GetPublicCounts");
+                if (counts != null)
+                {
+                    ViewBag.getAllProj = counts.ProjectCount;
+                    ViewBag.getAllSubs = counts.SubmissionCount;
+                    ViewBag.getAllUsers = counts.UserCount;
+                    ViewBag.getAllTres = counts.TreCount;
+                }
             }
             catch (Exception e)
             {
@@ -67,9 +62,9 @@ namespace Submission.Web.Controllers
         }
 
         [HttpPost]
-        public IActionResult SearchView(string searchString)
+        public async Task<IActionResult> SearchView(string searchString)
         {
-            List<Project> results = SearchData(searchString);
+            List<Project> results = await SearchData(searchString);
 
             {
                 if (results != null)
@@ -88,13 +83,18 @@ namespace Submission.Web.Controllers
         }
 
         //private helpers
-        private List<Project> SearchData(string searchString)
+        private async Task<List<Project>> SearchData(string searchString)
         {
             try
             {
                 var paramlist = new Dictionary<string, string>();
                 paramlist.Add("searchString", searchString);
-                var results = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetSearchData/", paramlist).Result.ToList();
+                var results = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetSearchData/", paramlist);
+                if (results == null)
+                {
+                    return new List<Project>();
+                }
+
                 return results;
             }
             catch (Exception ex)
@@ -106,73 +106,44 @@ namespace Submission.Web.Controllers
        
 
         [Authorize]
-        public IActionResult LoggedInUser()
+        public async Task<IActionResult> LoggedInUser()
         {
             if(User.Identity.IsAuthenticated == false) {
                 return RedirectToAction("Index", "Home");
             }
 
-            // This var is always in lower case/case-insensitive because we are getting it from KeyCloak 
-            var preferedUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            
-            var getAllProj = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects").Result;
-            ViewBag.getAllProj = getAllProj;
+            var countsTask = _clientHelper.CallAPIWithoutModel<DashboardCounts>("/api/Metrics/GetCurrentUserCounts");
+            var userProjectsTask = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetProjectsForCurrentUser");
+            var userSubmissionsTask = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetSubmissionsForCurrentUser");
 
-            var getAllSubs = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions").Result.Where(x => x.Parent == null).ToList();
-            ViewBag.getAllSubs = getAllSubs.Count;
+            await Task.WhenAll(countsTask, userProjectsTask, userSubmissionsTask);
 
-            var getAllUsers = _clientHelper.CallAPIWithoutModel<List<User>>("/api/User/GetAllUsers").Result;
-            ViewBag.getAllUsers = getAllUsers.Count;
+            var counts = countsTask.Result;
+            var userProjects = userProjectsTask.Result ?? new List<Project>();
+            var userSubmissions = userSubmissionsTask.Result ?? new List<FiveSafesTes.Core.Models.Submission>();
 
-            var getAllTres = _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Tre/GetAllTres").Result;
-            ViewBag.getAllTres = getAllTres.Count;
-
-            var userOnProjList = new List<User>();
-            var userOnProjListProj = new List<Project>();
-            var projectList = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects").Result.ToList();
-            foreach (var proj in projectList)
+            if (counts != null)
             {
-                foreach (var user in proj.Users)
-                {
-                    // Making sure that the username getting from the DB is lowered/case-insensitive as well as username from KeyCloak
-                    var loweredUserName = user.Name.ToLower();
-                    if (loweredUserName == preferedUsername)
-                    {
-                        userOnProjListProj.Add(proj);
-
-                        userOnProjList.Add(user);
-                    }
-                }
+                ViewBag.getAllProj = counts.ProjectCount;
+                ViewBag.getAllSubs = counts.SubmissionCount;
+                ViewBag.getAllUsers = counts.UserCount;
+                ViewBag.getAllTres = counts.TreCount;
+                ViewBag.userOnProjectCount = counts.UserOnProjectCount;
+                ViewBag.userWroteSubCount = counts.UserWroteSubmissionCount;
             }
-            var userOnProjectsCount = userOnProjList.ToList().Count;
-            ViewBag.userOnProjectCount = userOnProjectsCount;
-
-            var userWroteSubList = new List<User>();
-            var userWroteSubListSub = new List<FiveSafesTes.Core.Models.Submission>();
-            var subList = getAllSubs;
-            foreach (var sub in subList)
+            else
             {
-
-                    if (sub.SubmittedBy.Name == preferedUsername)
-                {
-                    userWroteSubListSub.Add(sub);
-                    userWroteSubList.Add(sub.SubmittedBy);
-                
-                }
-
+                ViewBag.userOnProjectCount = 0;
+                ViewBag.userWroteSubCount = 0;
             }
-            var userWroteSubCount = userWroteSubList.ToList().Count;
-            var distintProj = userOnProjListProj.Distinct();
-            var distinctSub = userWroteSubListSub.Distinct();
-            ViewBag.userWroteSubCount = userWroteSubCount;
 
             var userModel = new User
             {
                 Name = User.Identity.Name,
 
-                Projects = distintProj.ToList(),
+                Projects = userProjects,
 
-                Submissions = distinctSub.ToList(),
+                Submissions = userSubmissions,
         };
             
             return View(userModel);
