@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 using Submission.Api.Services.Contract;
@@ -123,12 +124,10 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                List<UserGetProjectModel> allUsers = new List<UserGetProjectModel>();
-                foreach (var user in _DbContext.Users)
-                {
-
-                    allUsers.Add(new UserGetProjectModel(user));
-                }
+                List<UserGetProjectModel> allUsers = _DbContext.Users
+                    .AsNoTracking()
+                    .Select(user => new UserGetProjectModel(user))
+                    .ToList();
 
                 Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
                 return allUsers;
@@ -146,7 +145,9 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var allUsers = _DbContext.Users.ToList();
+                var allUsers = _DbContext.Users
+                    .AsNoTracking()
+                    .ToList();
 
                 
             
