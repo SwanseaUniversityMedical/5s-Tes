@@ -412,31 +412,7 @@ namespace Submission.Api.Controllers
             {
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
 
-                var allProjects = _DbContext.Projects
-                    .AsNoTracking()
-                    .Select(x => new Project
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
-                        ProjectDescription = x.ProjectDescription,
-                        Users = x.Users.Select(u => new User
-                        {
-                            Id = u.Id
-                        }).ToList(),
-                        Tres = x.Tres.Select(t => new Tre
-                        {
-                            Id = t.Id
-                        }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            ParentId = s.ParentId,
-                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
-                        }).ToList()
-                    })
-                    .ToList();
+                var allProjects = _DbContext.Projects.ToList();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
@@ -460,6 +436,7 @@ namespace Submission.Api.Controllers
 
                 var userProjects = _DbContext.Projects
                     .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                    .Distinct()
                     .ToList();
 
                 return userProjects;
