@@ -724,44 +724,27 @@ namespace Submission.Api.Controllers
                 //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
                 //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
-
+                
                 List<Project> searchResults = _DbContext.Projects
-                    .AsNoTracking()
 
-                    .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
+                  .Include(c => c.Users)
+
+                  .Include(c => c.Submissions)
+
+                  .Include(c => c.Tres)
+
+                  .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
 
-                                c.Users.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+                              c.Users.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
 
-                                c.Tres.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+                              c.Tres.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
 
-                                c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
+                              c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
 
-                    )
-                    .Select(x => new Project
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        Users = x.Users.Select(u => new User
-                        {
-                            Id = u.Id,
-                            Name = u.Name,
-                            FullName = u.FullName
-                        }).ToList(),
-                        Tres = x.Tres.Select(t => new Tre
-                        {
-                            Id = t.Id,
-                            Name = t.Name
-                        }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            TesName = s.TesName,
-                            ParentId = s.ParentId,
-                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
-                        }).ToList()
-                    })
-                    .ToList();
+                  )
+
+                  .ToList();
                 Log.Information("{Function} Search Data retrieved successfully", "GetSearchData");
                 return searchResults.ToList();
             }
