@@ -18,7 +18,9 @@ namespace Submission.Api.Controllers
         {
             _dbContext = dbContext;
         }
-
+        
+        // TODO: confirm with team if we want to keep this endpoint public or not.
+        // It is currently used on the homepage to show counts of projects, submissions, users and tres, but it does not contain any sensitive information.
         [AllowAnonymous]
         [HttpGet("GetPublicCounts")]
         public async Task<DashboardCounts> GetPublicCounts()
@@ -26,7 +28,7 @@ namespace Submission.Api.Controllers
             try
             {
                 var projectCount = await _dbContext.Projects.AsNoTracking().CountAsync();
-                var submissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
+                var submissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.Parent == null);
                 var userCount = await _dbContext.Users.AsNoTracking().CountAsync();
                 var treCount = await _dbContext.Tres.AsNoTracking().CountAsync();
 
@@ -41,38 +43,6 @@ namespace Submission.Api.Controllers
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "GetPublicCounts");
-                throw;
-            }
-        }
-
-        [Authorize]
-        [HttpGet("GetCurrentUserCounts")]
-        public async Task<DashboardCounts> GetCurrentUserCounts()
-        {
-            try
-            {
-                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
-
-                var projectCount = await _dbContext.Projects.AsNoTracking().CountAsync();
-                var submissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
-                var userCount = await _dbContext.Users.AsNoTracking().CountAsync();
-                var treCount = await _dbContext.Tres.AsNoTracking().CountAsync();
-                var userOnProjectCount = await _dbContext.Projects.AsNoTracking().CountAsync(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername));
-                var userWroteSubmissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername);
-
-                return new DashboardCounts
-                {
-                    ProjectCount = projectCount,
-                    SubmissionCount = submissionCount,
-                    UserCount = userCount,
-                    TreCount = treCount,
-                    UserOnProjectCount = userOnProjectCount,
-                    UserWroteSubmissionCount = userWroteSubmissionCount,
-                };
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetCurrentUserCounts");
                 throw;
             }
         }
