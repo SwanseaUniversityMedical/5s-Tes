@@ -111,41 +111,24 @@ namespace Submission.Web.Controllers
             if(User.Identity.IsAuthenticated == false) {
                 return RedirectToAction("Index", "Home");
             }
-
-            var countsTask = _clientHelper.CallAPIWithoutModel<DashboardCounts>("/api/Metrics/GetCurrentUserCounts");
+            
             var userProjectsTask = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetProjectsForCurrentUser");
             var userSubmissionsTask = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetSubmissionsForCurrentUser");
 
-            await Task.WhenAll(countsTask, userProjectsTask, userSubmissionsTask);
-
-            var counts = countsTask.Result;
+            await Task.WhenAll(userProjectsTask, userSubmissionsTask);
+            
             var userProjects = userProjectsTask.Result ?? new List<Project>();
             var userSubmissions = userSubmissionsTask.Result ?? new List<FiveSafesTes.Core.Models.Submission>();
 
-            if (counts != null)
-            {
-                ViewBag.getAllProj = counts.ProjectCount;
-                ViewBag.getAllSubs = counts.SubmissionCount;
-                ViewBag.getAllUsers = counts.UserCount;
-                ViewBag.getAllTres = counts.TreCount;
-                ViewBag.userOnProjectCount = counts.UserOnProjectCount;
-                ViewBag.userWroteSubCount = counts.UserWroteSubmissionCount;
-            }
-            else
-            {
-                ViewBag.userOnProjectCount = 0;
-                ViewBag.userWroteSubCount = 0;
-            }
+            ViewBag.userOnProjectCount = userProjects.Count;
+            ViewBag.userWroteSubCount = userSubmissions.Count(x => x.Parent == null);
 
             var userModel = new User
             {
                 Name = User.Identity.Name,
-
                 Projects = userProjects,
-
                 Submissions = userSubmissions,
-        };
-            
+            };
             return View(userModel);
         }
 
