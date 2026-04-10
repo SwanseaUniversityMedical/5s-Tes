@@ -458,25 +458,7 @@ namespace Submission.Api.Controllers
 
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
 
-                var allProjects = _DbContext.Projects
-                    .AsNoTracking()
-                    .Where(p => p.Tres.Any(t => t.Id == tre.Id))
-                    .Select(x => new Project
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
-                        ProjectDescription = x.ProjectDescription,
-                        Users = x.Users.Select(u => new User { Id = u.Id }).ToList(),
-                        Tres = x.Tres.Select(t => new Tre { Id = t.Id }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            ParentId = s.ParentId
-                        }).ToList()
-                    })
-                    .ToList();
+                var allProjects = tre.Projects;
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
                 return allProjects;
