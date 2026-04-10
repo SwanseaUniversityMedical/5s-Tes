@@ -459,32 +459,7 @@ namespace Submission.Api.Controllers
                 var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
 
                 var userProjects = _DbContext.Projects
-                    .AsNoTracking()
                     .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
-                    .Select(x => new Project
-                    {
-                        Id = x.Id,
-                        Name = x.Name,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
-                        Users = x.Users.Select(u => new User
-                        {
-                            Id = u.Id,
-                            Name = u.Name,
-                            FullName = u.FullName
-                        }).ToList(),
-                        Tres = x.Tres.Select(t => new Tre
-                        {
-                            Id = t.Id,
-                            Name = t.Name
-                        }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            ParentId = s.ParentId,
-                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
-                        }).ToList()
-                    })
                     .ToList();
 
                 return userProjects;
