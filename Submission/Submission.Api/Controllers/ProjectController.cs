@@ -387,7 +387,50 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var returned = _DbContext.Projects.Find(projectId);
+                var returned = _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(x => x.Id == projectId)
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        FormData = x.FormData,
+                        Name = x.Name,
+                        Display = x.Display,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        ProjectDescription = x.ProjectDescription,
+                        ProjectOwner = x.ProjectOwner,
+                        ProjectContact = x.ProjectContact,
+                        MarkAsEmbargoed = x.MarkAsEmbargoed,
+                        SubmissionBucket = x.SubmissionBucket,
+                        OutputBucket = x.OutputBucket,
+                        Users = x.Users.Select(u => new User
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName,
+                            Email = u.Email,
+                            FormData = u.FormData
+                        }).ToList(),
+                        Tres = x.Tres.Select(t => new Tre
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                            LastHeartBeatReceived = t.LastHeartBeatReceived,
+                            About = t.About,
+                            FormData = t.FormData
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            TesName = s.TesName,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime
+                        }).ToList()
+                    })
+                    .FirstOrDefault();
                 if (returned == null)
                 {
                     return null;
@@ -414,6 +457,28 @@ namespace Submission.Api.Controllers
 
                 var allProjects = _DbContext.Projects
                     .AsNoTracking()
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        ProjectDescription = x.ProjectDescription,
+                        Users = x.Users.Select(u => new User
+                        {
+                            Id = u.Id
+                        }).ToList(),
+                        Tres = x.Tres.Select(t => new Tre
+                        {
+                            Id = t.Id
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
+                        }).ToList()
+                    })
                     .ToList();
 
 
@@ -439,9 +504,30 @@ namespace Submission.Api.Controllers
                 var userProjects = _DbContext.Projects
                     .AsNoTracking()
                     .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
-                    .Include(x => x.Users)
-                    .Include(x => x.Tres)
-                    .Include(x => x.Submissions)
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        Users = x.Users.Select(u => new User
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName
+                        }).ToList(),
+                        Tres = x.Tres.Select(t => new Tre
+                        {
+                            Id = t.Id,
+                            Name = t.Name
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
+                        }).ToList()
+                    })
                     .ToList();
 
                 return userProjects;
@@ -463,7 +549,25 @@ namespace Submission.Api.Controllers
 
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
 
-                var allProjects = tre.Projects;
+                var allProjects = _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(p => p.Tres.Any(t => t.Id == tre.Id))
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        ProjectDescription = x.ProjectDescription,
+                        Users = x.Users.Select(u => new User { Id = u.Id }).ToList(),
+                        Tres = x.Tres.Select(t => new Tre { Id = t.Id }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId
+                        }).ToList()
+                    })
+                    .ToList();
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
                 return allProjects;
@@ -582,7 +686,19 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                List<Tre> tres = _DbContext.Projects.Where(p => p.Id == projectId).SelectMany(p => p.Tres).ToList();
+                List<Tre> tres = _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(p => p.Id == projectId)
+                    .SelectMany(p => p.Tres)
+                    .Select(t => new Tre
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        LastHeartBeatReceived = t.LastHeartBeatReceived,
+                        About = t.About,
+                        FormData = t.FormData
+                    })
+                    .ToList();
 
                 return tres;
             }
@@ -719,12 +835,7 @@ namespace Submission.Api.Controllers
                 string normalizedSearchString = $"%{searchString.Trim()}%";
 
                 List<Project> searchResults = _DbContext.Projects
-
-                    .Include(c => c.Users)
-
-                    .Include(c => c.Submissions)
-
-                    .Include(c => c.Tres)
+                    .AsNoTracking()
 
                     .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
@@ -736,7 +847,29 @@ namespace Submission.Api.Controllers
                                 c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
 
                     )
-
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        Users = x.Users.Select(u => new User
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName
+                        }).ToList(),
+                        Tres = x.Tres.Select(t => new Tre
+                        {
+                            Id = t.Id,
+                            Name = t.Name
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            TesName = s.TesName,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
+                        }).ToList()
+                    })
                     .ToList();
                 Log.Information("{Function} Search Data retrieved successfully", "GetSearchData");
                 return searchResults.ToList();

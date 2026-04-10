@@ -88,7 +88,19 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                List<Tre> treslist = _DbContext.Projects.Where(p => p.Id == projectId).SelectMany(p => p.Tres).ToList();
+                List<Tre> treslist = _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(p => p.Id == projectId)
+                    .SelectMany(p => p.Tres)
+                    .Select(t => new Tre
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        LastHeartBeatReceived = t.LastHeartBeatReceived,
+                        About = t.About,
+                        FormData = t.FormData
+                    })
+                    .ToList();
                 return treslist;
             }
             catch (Exception ex)
@@ -130,6 +142,16 @@ namespace Submission.Api.Controllers
                 var accessToken = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
                 var allTres = _DbContext.Tres
                     .AsNoTracking()
+                    .Select(t => new Tre
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        LastHeartBeatReceived = t.LastHeartBeatReceived,
+                        About = t.About,
+                        FormData = t.FormData,
+                        Projects = t.Projects.Select(p => new Project { Id = p.Id }).ToList(),
+                        Submissions = t.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission { Id = s.Id }).ToList()
+                    })
                     .ToList();
 
                 
@@ -151,7 +173,54 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var returned = _DbContext.Tres.Find(treId);
+                var returned = _DbContext.Tres
+                    .AsNoTracking()
+                    .Where(x => x.Id == treId)
+                    .Select(t => new Tre
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        LastHeartBeatReceived = t.LastHeartBeatReceived,
+                        About = t.About,
+                        FormData = t.FormData,
+                        Projects = t.Projects.Select(p => new Project
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            Users = p.Users.Select(u => new User { Id = u.Id }).ToList(),
+                            Tres = p.Tres.Select(tr => new Tre { Id = tr.Id }).ToList(),
+                            Submissions = p.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                            {
+                                Id = s.Id,
+                                ParentId = s.ParentId
+                            }).ToList()
+                        }).ToList(),
+                        Submissions = t.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value },
+                            TesName = s.TesName,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            Project = s.Project == null ? null : new Project
+                            {
+                                Id = s.Project.Id,
+                                Name = s.Project.Name,
+                                OutputBucket = s.Project.OutputBucket
+                            },
+                            SubmittedBy = s.SubmittedBy == null ? null : new User
+                            {
+                                Id = s.SubmittedBy.Id,
+                                Name = s.SubmittedBy.Name,
+                                FullName = s.SubmittedBy.FullName
+                            }
+                        }).ToList()
+                    })
+                    .FirstOrDefault();
                 if (returned == null)
                 {
                     return null;

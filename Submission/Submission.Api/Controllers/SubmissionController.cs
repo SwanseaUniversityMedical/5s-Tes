@@ -186,6 +186,27 @@ namespace Submission.Api.Controllers
             {
                 var allSubmissions = _DbContext.Submissions
                     .AsNoTracking()
+                    .Select(x => new FiveSafesTes.Core.Models.Submission
+                    {
+                        Id = x.Id,
+                        ParentId = x.ParentId,
+                        Status = x.Status,
+                        StartTime = x.StartTime,
+                        EndTime = x.EndTime,
+                        TesName = x.TesName,
+                        Project = new Project
+                        {
+                            Id = x.Project.Id,
+                            Name = x.Project.Name,
+                            OutputBucket = x.Project.OutputBucket
+                        },
+                        SubmittedBy = new User
+                        {
+                            Id = x.SubmittedBy.Id,
+                            Name = x.SubmittedBy.Name,
+                            FullName = x.SubmittedBy.FullName
+                        }
+                    })
                     .ToList();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
@@ -220,13 +241,133 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
                 var submission = _DbContext.Submissions
                     .AsNoTracking()
-                    .Include(x => x.Project)
-                    .Include(x => x.SubmittedBy)
-                    .Include(x => x.Parent)
-                    .First(x => x.Id == submissionId);
+                    .Where(x => x.Id == submissionId)
+                    .Select(x => new FiveSafesTes.Core.Models.Submission
+                    {
+                        Id = x.Id,
+                        ParentId = x.ParentId,
+                        TesId = x.TesId,
+                        SourceCrate = x.SourceCrate,
+                        TesName = x.TesName,
+                        TesJson = x.TesJson,
+                        FinalOutputFile = x.FinalOutputFile,
+                        DockerInputLocation = x.DockerInputLocation,
+                        LastStatusUpdate = x.LastStatusUpdate,
+                        StartTime = x.StartTime,
+                        EndTime = x.EndTime,
+                        Status = x.Status,
+                        StatusDescription = x.StatusDescription,
+                        QueryToken = x.QueryToken,
+                        Parent = x.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = x.ParentId.Value },
+                        Project = new Project
+                        {
+                            Id = x.Project.Id,
+                            Name = x.Project.Name,
+                            SubmissionBucket = x.Project.SubmissionBucket,
+                            OutputBucket = x.Project.OutputBucket
+                        },
+                        SubmittedBy = x.SubmittedBy == null ? null : new User
+                        {
+                            Id = x.SubmittedBy.Id,
+                            Name = x.SubmittedBy.Name,
+                            FullName = x.SubmittedBy.FullName,
+                            Email = x.SubmittedBy.Email
+                        }
+                    })
+                    .FirstOrDefault() ?? throw new Exception($"Submission {submissionId} not found");
+                    
+
+                var children = _DbContext.Submissions
+                    .AsNoTracking()
+                    .Where(c => c.ParentId == submissionId)
+                    .Select(c => new FiveSafesTes.Core.Models.Submission
+                    {
+                        Id = c.Id,
+                        ParentId = c.ParentId,
+                        TesName = c.TesName,
+                        StartTime = c.StartTime,
+                        EndTime = c.EndTime,
+                        LastStatusUpdate = c.LastStatusUpdate,
+                        Status = c.Status,
+                        StatusDescription = c.StatusDescription,
+                        Parent = c.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = c.ParentId.Value },
+                        Tre = c.Tre == null ? null : new Tre
+                        {
+                            Id = c.Tre.Id,
+                            Name = c.Tre.Name,
+                            LastHeartBeatReceived = c.Tre.LastHeartBeatReceived
+                        },
+                        Project = c.Project == null ? null : new Project
+                        {
+                            Id = c.Project.Id,
+                            Name = c.Project.Name,
+                            OutputBucket = c.Project.OutputBucket
+                        },
+                        SubmittedBy = c.SubmittedBy == null ? null : new User
+                        {
+                            Id = c.SubmittedBy.Id,
+                            Name = c.SubmittedBy.Name,
+                            FullName = c.SubmittedBy.FullName
+                        },
+                        HistoricStatuses = new List<HistoricStatus>()
+                    })
+                    .ToList();
+
+                var childIds = children.Select(c => c.Id).ToList();
+                if (childIds.Count > 0)
+                {
+                    var historicByChild = _DbContext.HistoricStatuses
+                        .AsNoTracking()
+                        .Where(h => childIds.Contains(h.Submission.Id))
+                        .Select(h => new
+                        {
+                            SubmissionId = h.Submission.Id,
+                            HistoricStatus = new HistoricStatus
+                            {
+                                Id = h.Id,
+                                Start = h.Start,
+                                End = h.End,
+                                Status = h.Status,
+                                StatusDescription = h.StatusDescription,
+                                IsCurrent = h.IsCurrent,
+                                IsStillRunning = h.IsStillRunning
+                            }
+                        })
+                        .ToList()
+                        .GroupBy(x => x.SubmissionId)
+                        .ToDictionary(g => g.Key, g => g.Select(x => x.HistoricStatus).OrderBy(x => x.Start).ToList());
+
+                    foreach (var child in children)
+                    {
+                        if (historicByChild.TryGetValue(child.Id, out var statuses))
+                        {
+                            child.HistoricStatuses = statuses;
+                        }
+                    }
+                }
+
+                submission.Children = children;
+var historicCount = children.Sum(c => c.HistoricStatuses?.Count ?? 0);
+Log.Information(
+    "{Function} submissionId={SubmissionId} parentFound={ParentFound} childCount={ChildCount} historicStatusCount={HistoricCount}",
+    "GetASubmission",
+    submissionId,
+    submission != null,
+    children.Count,
+    historicCount);
+
+foreach (var child in children)
+{
+    Log.Debug(
+        "{Function} childId={ChildId} tre={TreName} status={Status} historicCount={HistoricCount}",
+        "GetASubmission",
+        child.Id,
+        child.Tre?.Name ?? "null",
+        child.Status,
+        child.HistoricStatuses?.Count ?? 0);
+}
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
                 return submission;
@@ -443,9 +584,27 @@ namespace Submission.Api.Controllers
 
                 var submissions = _DbContext.Submissions
                     .AsNoTracking()
-                    .Include(x => x.Project)
-                    .Include(x => x.SubmittedBy)
                     .Where(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername)
+                    .Select(x => new FiveSafesTes.Core.Models.Submission
+                    {
+                        Id = x.Id,
+                        ParentId = x.ParentId,
+                        Status = x.Status,
+                        StartTime = x.StartTime,
+                        EndTime = x.EndTime,
+                        TesName = x.TesName,
+                        Project = new Project
+                        {
+                            Id = x.Project.Id,
+                            Name = x.Project.Name
+                        },
+                        SubmittedBy = new User
+                        {
+                            Id = x.SubmittedBy.Id,
+                            Name = x.SubmittedBy.Name,
+                            FullName = x.SubmittedBy.FullName
+                        }
+                    })
                     .OrderByDescending(x => x.StartTime)
                     .ToList();
 

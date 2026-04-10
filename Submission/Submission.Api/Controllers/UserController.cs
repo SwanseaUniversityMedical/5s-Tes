@@ -100,7 +100,57 @@ namespace Submission.Api.Controllers
 
             try
             {
-                var returned = _DbContext.Users.Find(userId);
+                var returned = _DbContext.Users
+                    .AsNoTracking()
+                    .Where(x => x.Id == userId)
+                    .Select(x => new User
+                    {
+                        Id = x.Id,
+                        FullName = x.FullName,
+                        Name = x.Name,
+                        Email = x.Email,
+                        FormData = x.FormData,
+                        Biography = x.Biography,
+                        Organisation = x.Organisation,
+                        Projects = x.Projects.Select(p => new Project
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            ProjectDescription = p.ProjectDescription,
+                            Users = p.Users.Select(u => new User { Id = u.Id }).ToList(),
+                            Tres = p.Tres.Select(t => new Tre { Id = t.Id }).ToList(),
+                            Submissions = p.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                            {
+                                Id = s.Id,
+                                ParentId = s.ParentId
+                            }).ToList()
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value },
+                            TesName = s.TesName,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            Project = new Project
+                            {
+                                Id = s.Project.Id,
+                                Name = s.Project.Name,
+                                OutputBucket = s.Project.OutputBucket
+                            },
+                            SubmittedBy = new User
+                            {
+                                Id = s.SubmittedBy.Id,
+                                Name = s.SubmittedBy.Name,
+                                FullName = s.SubmittedBy.FullName
+                            }
+                        }).ToList()
+                    })
+                    .FirstOrDefault();
                 if (returned == null)
                 {
                     return null;
@@ -147,6 +197,23 @@ namespace Submission.Api.Controllers
             {
                 var allUsers = _DbContext.Users
                     .AsNoTracking()
+                    .Select(x => new User
+                    {
+                        Id = x.Id,
+                        FullName = x.FullName,
+                        Name = x.Name,
+                        Email = x.Email,
+                        Projects = x.Projects.Select(p => new Project
+                        {
+                            Id = p.Id
+                        }).ToList(),
+                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
+                        }).ToList()
+                    })
                     .ToList();
 
                 
