@@ -59,7 +59,7 @@ namespace Submission.Web.Controllers
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
 
             var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions/").Result
-                .Where(x => x.ParentId == null).ToList();
+                .Where(x => x.Parent == null).ToList();
 
             return View(res);
         }
