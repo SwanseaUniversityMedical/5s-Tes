@@ -727,24 +727,24 @@ namespace Submission.Api.Controllers
                 
                 List<Project> searchResults = _DbContext.Projects
 
-                  .Include(c => c.Users)
+                    .Include(c => c.Users)
 
-                  .Include(c => c.Submissions)
+                    .Include(c => c.Submissions)
 
-                  .Include(c => c.Tres)
+                    .Include(c => c.Tres)
+                    
+                    .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
-                  .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
+                                  c.Users.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
 
-                              c.Users.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+                                  c.Tres.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
 
-                              c.Tres.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+                                  c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
 
-                              c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
+                    )
 
-                  )
-
-                  .ToList();
+                    .ToList();
                 Log.Information("{Function} Search Data retrieved successfully", "GetSearchData");
                 return searchResults.ToList();
             }
