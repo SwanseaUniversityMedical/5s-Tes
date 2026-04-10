@@ -185,28 +185,7 @@ namespace Submission.Api.Controllers
             try
             {
                 var allSubmissions = _DbContext.Submissions
-                    .AsNoTracking()
-                    .Select(x => new FiveSafesTes.Core.Models.Submission
-                    {
-                        Id = x.Id,
-                        ParentId = x.ParentId,
-                        Status = x.Status,
-                        StartTime = x.StartTime,
-                        EndTime = x.EndTime,
-                        TesName = x.TesName,
-                        Project = new Project
-                        {
-                            Id = x.Project.Id,
-                            Name = x.Project.Name,
-                            OutputBucket = x.Project.OutputBucket
-                        },
-                        SubmittedBy = new User
-                        {
-                            Id = x.SubmittedBy.Id,
-                            Name = x.SubmittedBy.Name,
-                            FullName = x.SubmittedBy.FullName
-                        }
-                    })
+                    .Distinct()
                     .ToList();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
@@ -457,29 +436,8 @@ namespace Submission.Api.Controllers
                 var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
 
                 var submissions = _DbContext.Submissions
-                    .AsNoTracking()
-                    .Where(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername)
-                    .Select(x => new FiveSafesTes.Core.Models.Submission
-                    {
-                        Id = x.Id,
-                        ParentId = x.ParentId,
-                        Status = x.Status,
-                        StartTime = x.StartTime,
-                        EndTime = x.EndTime,
-                        TesName = x.TesName,
-                        Project = new Project
-                        {
-                            Id = x.Project.Id,
-                            Name = x.Project.Name
-                        },
-                        SubmittedBy = new User
-                        {
-                            Id = x.SubmittedBy.Id,
-                            Name = x.SubmittedBy.Name,
-                            FullName = x.SubmittedBy.FullName
-                        }
-                    })
-                    .OrderByDescending(x => x.StartTime)
+                    .Where(s => s.SubmittedBy.Name.ToLower() == preferredUsername)
+                    .Distinct()
                     .ToList();
 
                 return submissions;
