@@ -25,19 +25,17 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var projectCountTask = _dbContext.Projects.AsNoTracking().CountAsync();
-                var submissionCountTask = _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
-                var userCountTask = _dbContext.Users.AsNoTracking().CountAsync();
-                var treCountTask = _dbContext.Tres.AsNoTracking().CountAsync();
-
-                await Task.WhenAll(projectCountTask, submissionCountTask, userCountTask, treCountTask);
+                var projectCount = await _dbContext.Projects.AsNoTracking().CountAsync();
+                var submissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
+                var userCount = await _dbContext.Users.AsNoTracking().CountAsync();
+                var treCount = await _dbContext.Tres.AsNoTracking().CountAsync();
 
                 return new DashboardCounts
                 {
-                    ProjectCount = projectCountTask.Result,
-                    SubmissionCount = submissionCountTask.Result,
-                    UserCount = userCountTask.Result,
-                    TreCount = treCountTask.Result,
+                    ProjectCount = projectCount,
+                    SubmissionCount = submissionCount,
+                    UserCount = userCount,
+                    TreCount = treCount,
                 };
             }
             catch (Exception ex)
@@ -55,23 +53,21 @@ namespace Submission.Api.Controllers
             {
                 var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
 
-                var projectCountTask = _dbContext.Projects.AsNoTracking().CountAsync();
-                var submissionCountTask = _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
-                var userCountTask = _dbContext.Users.AsNoTracking().CountAsync();
-                var treCountTask = _dbContext.Tres.AsNoTracking().CountAsync();
-                var userOnProjectCountTask = _dbContext.Projects.AsNoTracking().CountAsync(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername));
-                var userWroteSubmissionCountTask = _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername);
-
-                await Task.WhenAll(projectCountTask, submissionCountTask, userCountTask, treCountTask, userOnProjectCountTask, userWroteSubmissionCountTask);
+                var projectCount = await _dbContext.Projects.AsNoTracking().CountAsync();
+                var submissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null);
+                var userCount = await _dbContext.Users.AsNoTracking().CountAsync();
+                var treCount = await _dbContext.Tres.AsNoTracking().CountAsync();
+                var userOnProjectCount = await _dbContext.Projects.AsNoTracking().CountAsync(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername));
+                var userWroteSubmissionCount = await _dbContext.Submissions.AsNoTracking().CountAsync(x => x.ParentId == null && x.SubmittedBy != null && x.SubmittedBy.Name.ToLower() == preferredUsername);
 
                 return new DashboardCounts
                 {
-                    ProjectCount = projectCountTask.Result,
-                    SubmissionCount = submissionCountTask.Result,
-                    UserCount = userCountTask.Result,
-                    TreCount = treCountTask.Result,
-                    UserOnProjectCount = userOnProjectCountTask.Result,
-                    UserWroteSubmissionCount = userWroteSubmissionCountTask.Result,
+                    ProjectCount = projectCount,
+                    SubmissionCount = submissionCount,
+                    UserCount = userCount,
+                    TreCount = treCount,
+                    UserOnProjectCount = userOnProjectCount,
+                    UserWroteSubmissionCount = userWroteSubmissionCount,
                 };
             }
             catch (Exception ex)
