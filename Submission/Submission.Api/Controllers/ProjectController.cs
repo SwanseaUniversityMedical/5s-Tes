@@ -387,50 +387,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var returned = _DbContext.Projects
-                    .AsNoTracking()
-                    .Where(x => x.Id == projectId)
-                    .Select(x => new Project
-                    {
-                        Id = x.Id,
-                        FormData = x.FormData,
-                        Name = x.Name,
-                        Display = x.Display,
-                        StartDate = x.StartDate,
-                        EndDate = x.EndDate,
-                        ProjectDescription = x.ProjectDescription,
-                        ProjectOwner = x.ProjectOwner,
-                        ProjectContact = x.ProjectContact,
-                        MarkAsEmbargoed = x.MarkAsEmbargoed,
-                        SubmissionBucket = x.SubmissionBucket,
-                        OutputBucket = x.OutputBucket,
-                        Users = x.Users.Select(u => new User
-                        {
-                            Id = u.Id,
-                            Name = u.Name,
-                            FullName = u.FullName,
-                            Email = u.Email,
-                            FormData = u.FormData
-                        }).ToList(),
-                        Tres = x.Tres.Select(t => new Tre
-                        {
-                            Id = t.Id,
-                            Name = t.Name,
-                            LastHeartBeatReceived = t.LastHeartBeatReceived,
-                            About = t.About,
-                            FormData = t.FormData
-                        }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            ParentId = s.ParentId,
-                            TesName = s.TesName,
-                            Status = s.Status,
-                            StartTime = s.StartTime,
-                            EndTime = s.EndTime
-                        }).ToList()
-                    })
-                    .FirstOrDefault();
+                var returned = _DbContext.Projects.Find(projectId);
                 if (returned == null)
                 {
                     return null;
