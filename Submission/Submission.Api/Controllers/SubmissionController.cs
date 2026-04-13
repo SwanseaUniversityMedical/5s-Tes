@@ -184,9 +184,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var allSubmissions = _DbContext.Submissions
-                    .Distinct()
-                    .ToList();
+                var allSubmissions = _DbContext.Submissions.ToList();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
                 return allSubmissions;

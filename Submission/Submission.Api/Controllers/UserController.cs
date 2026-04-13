@@ -145,29 +145,8 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var allUsers = _DbContext.Users
-                    .AsNoTracking()
-                    .Select(x => new User
-                    {
-                        Id = x.Id,
-                        FullName = x.FullName,
-                        Name = x.Name,
-                        Email = x.Email,
-                        Projects = x.Projects.Select(p => new Project
-                        {
-                            Id = p.Id
-                        }).ToList(),
-                        Submissions = x.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission
-                        {
-                            Id = s.Id,
-                            ParentId = s.ParentId,
-                            Parent = s.ParentId == null ? null : new FiveSafesTes.Core.Models.Submission { Id = s.ParentId.Value }
-                        }).ToList()
-                    })
-                    .ToList();
-
-                
-            
+              var allUsers = _DbContext.Users.ToList();
+              
                Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
                 return allUsers;
             }

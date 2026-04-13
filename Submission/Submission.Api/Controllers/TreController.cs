@@ -88,19 +88,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                List<Tre> treslist = _DbContext.Projects
-                    .AsNoTracking()
-                    .Where(p => p.Id == projectId)
-                    .SelectMany(p => p.Tres)
-                    .Select(t => new Tre
-                    {
-                        Id = t.Id,
-                        Name = t.Name,
-                        LastHeartBeatReceived = t.LastHeartBeatReceived,
-                        About = t.About,
-                        FormData = t.FormData
-                    })
-                    .ToList();
+                List<Tre> treslist = _DbContext.Projects.Where(p => p.Id == projectId).SelectMany(p => p.Tres).ToList();
                 return treslist;
             }
             catch (Exception ex)
@@ -139,23 +127,8 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var accessToken = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
-                var allTres = _DbContext.Tres
-                    .AsNoTracking()
-                    .Select(t => new Tre
-                    {
-                        Id = t.Id,
-                        Name = t.Name,
-                        LastHeartBeatReceived = t.LastHeartBeatReceived,
-                        About = t.About,
-                        FormData = t.FormData,
-                        Projects = t.Projects.Select(p => new Project { Id = p.Id }).ToList(),
-                        Submissions = t.Submissions.Select(s => new FiveSafesTes.Core.Models.Submission { Id = s.Id }).ToList()
-                    })
-                    .ToList();
-
+                var allTres = _DbContext.Tres.ToList();
                 
-
                 Log.Information("{Function} Tres retrieved successfully", "GetAllTres");
                 return allTres;
             }
