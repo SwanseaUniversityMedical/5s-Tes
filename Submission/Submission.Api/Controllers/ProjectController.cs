@@ -428,6 +428,27 @@ namespace Submission.Api.Controllers
 
         }
 
+        [HttpGet("GetProjectsForCurrentUser")]
+        public List<Project> GetProjectsForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+
+                var userProjects = _DbContext.Projects
+                    .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                    .Distinct()
+                    .ToList();
+
+                return userProjects;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
+                throw;
+            }
+        }
+
 
         [HttpGet("GetAllProjectsForTre")]
         [Authorize(Roles = "dare-tre-admin")]
@@ -692,7 +713,6 @@ namespace Submission.Api.Controllers
                 //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
                 //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
-
                 List<Project> searchResults = _DbContext.Projects
 
                     .Include(c => c.Users)
@@ -700,7 +720,6 @@ namespace Submission.Api.Controllers
                     .Include(c => c.Submissions)
 
                     .Include(c => c.Tres)
-
                     .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
 

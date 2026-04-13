@@ -218,7 +218,6 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
                 var submission = _DbContext.Submissions.First(x => x.Id == submissionId);
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
@@ -423,6 +422,27 @@ namespace Submission.Api.Controllers
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "SaveSubmissionFiles");
+                throw;
+            }
+        }
+
+        [HttpGet("GetSubmissionsForCurrentUser")]
+        public List<FiveSafesTes.Core.Models.Submission> GetSubmissionsForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+
+                var submissions = _DbContext.Submissions
+                    .Where(s => s.SubmittedBy.Name.ToLower() == preferredUsername)
+                    .Distinct()
+                    .ToList();
+
+                return submissions;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetSubmissionsForCurrentUser");
                 throw;
             }
         }

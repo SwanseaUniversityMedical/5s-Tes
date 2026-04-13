@@ -5,6 +5,7 @@ using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 
@@ -103,11 +104,10 @@ namespace Submission.Api.Controllers
             try
             {
                 var accessToken = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
-                var allTres = new List<TreGetProjectModel>();
-                foreach ( var tre in _DbContext.Tres)
-                {
-                    allTres.Add(new TreGetProjectModel(tre, 0, false));
-                }
+                var allTres = _DbContext.Tres
+                    .AsNoTracking()
+                    .Select(tre => new TreGetProjectModel(tre, 0, false))
+                    .ToList();
 
                 Log.Information("{Function} Tres retrieved successfully", "GetAllTres");
                 return allTres;
@@ -127,11 +127,8 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var accessToken = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
                 var allTres = _DbContext.Tres.ToList();
-
                 
-
                 Log.Information("{Function} Tres retrieved successfully", "GetAllTres");
                 return allTres;
             }
