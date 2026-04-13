@@ -187,10 +187,11 @@ namespace Submission.Api.Controllers
                 if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
                 {
                     var summarySubmissions = _DbContext.Submissions
-                        .AsNoTracking()
+                        .AsNoTracking()  
                         .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionSummary
                         {
                             Id = s.Id,
+                            ParentId = s.Parent.Id,
                             TesName = s.TesName,
                             Status = s.Status,
                             StartTime = s.StartTime,
@@ -200,7 +201,6 @@ namespace Submission.Api.Controllers
                             SubmittedByName = s.SubmittedBy.Name,
                             SubmittedByFullName = s.SubmittedBy.FullName,
                         })
-                        .Where(s => s.ParentId == null) // Only include top-level submissions
                         .ToList();
 
                     Log.Information("{Function} Submission summaries retrieved successfully", "GetAllSubmissions");

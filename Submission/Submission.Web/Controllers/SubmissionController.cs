@@ -66,7 +66,8 @@ namespace Submission.Web.Controllers
             var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission.SubmissionSummary>>(
                     "/api/Submission/GetAllSubmissions/",
                     queryParams
-                ).Result.ToList();
+                ).Result
+                .Where(x => x.ParentId == null).ToList();
 
             return View(res);
         }
