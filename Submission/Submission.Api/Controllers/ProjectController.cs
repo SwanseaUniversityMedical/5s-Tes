@@ -406,18 +406,39 @@ namespace Submission.Api.Controllers
         }
 
         [HttpGet("GetAllProjects")]
-        public List<Project> GetAllProjects()
+        public IActionResult GetAllProjects(string? responseType = "full")
         {
             try
             {
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
+
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summaryProjects = _DbContext.Projects
+                        .AsNoTracking()
+                        .Select(p => new Project.ProjectSummary
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            ProjectDescription = p.ProjectDescription,
+                            SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                            UserCount = p.Users.Count(),
+                            TreCount = p.Tres.Count(),
+                        })
+                        .ToList();
+
+                    Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                    return Ok(summaryProjects);
+                }
 
                 var allProjects = _DbContext.Projects
                     .ToList();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
-                return allProjects;
+                return Ok(allProjects);
             }
             catch (Exception ex)
             {
