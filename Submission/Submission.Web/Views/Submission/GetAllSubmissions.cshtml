@@ -1,5 +1,6 @@
 ﻿@using FiveSafesTes.Core.Models.Enums
-@model List<FiveSafesTes.Core.Models.Submission>
+@using FiveSafesTes.Core.Models.Helpers
+@model List<FiveSafesTes.Core.Models.Submission.SubmissionSummary>
 @{
 	ViewData["Title"] = "Submissions";
 	var submissionCount = Model.Count;
@@ -40,13 +41,14 @@
 								if (overallStatus == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
 								{
 									var minio = @ViewBag.URLBucket;
+									var displayTime = TimeHelper.GetDisplayTime(submission.StartTime, submission.EndTime == DateTime.MinValue ? DateTime.UtcNow : submission.EndTime);
 									<h6 class="mb-0">
-										<a href="@minio/browser/@submission.GetProjectOutputBucket()" target="_blank" rel="noopener">
+										<a href="@minio/browser/@submission.ProjectOutputBucket" target="_blank" rel="noopener">
 											<span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
 												<i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
 												<span class="text-start">
 													<span class="mb-1">Completed</span>
-													<span class="font-monospace small d-block">@submission.GetTotalDisplayTime()</span>
+													<span class="font-monospace small d-block">@displayTime</span>
 													<span class="font-monospace small d-block"><span class="small">Click to View Output Bucket</span></span>
 												</span>
 											</span>
@@ -76,7 +78,7 @@
 								{
 
 									<h6 class="mb-0">
-										<span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: @submission.GetTotalDisplayTime()">
+										<span class="badge bg-primary rounded-pill d-inline-flex align-items-center" data-bs-toggle="tooltip" data-bs-title="Runtime: @TimeHelper.GetDisplayTime(submission.StartTime, submission.EndTime == DateTime.MinValue ? DateTime.UtcNow : submission.EndTime)">
 											<i class="fa-solid fa-circle-notch fa-spin fs-6 text-white me-2"></i>
 											<span>Running</span>
 										</span>
@@ -97,13 +99,13 @@
 
 						</td>
 						<td>
-							@submission.GetProjectName()
+							@submission.ProjectName
 						</td>
 						<td>
-							@submission.GetSubmitter()
+							@(string.IsNullOrEmpty(submission.SubmittedByName) ? submission.SubmittedByFullName : submission.SubmittedByName)
 						</td>
 						<td>
-							@submission.GetFormattedStartDate()
+							@submission.StartTime.ToString("yyyy/MM/dd HH:mm:ss")
 						</td>
 						<td>
 							<a href="@Url.Action("GetASubmission", "Submission", new { id = submission.Id })" class="btn btn-sm btn-outline-primary">

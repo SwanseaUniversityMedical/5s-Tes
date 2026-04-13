@@ -180,14 +180,37 @@ namespace Submission.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetAllSubmissions")]
-        public List<FiveSafesTes.Core.Models.Submission> GetAllSubmissions()
+        public IActionResult GetAllSubmissions(string? responseType = "full")
         {
             try
             {
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summarySubmissions = _DbContext.Submissions
+                        .AsNoTracking()
+                        .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionSummary
+                        {
+                            Id = s.Id,
+                            TesName = s.TesName,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            ProjectName = s.Project.Name,
+                            ProjectOutputBucket = s.Project.OutputBucket,
+                            SubmittedByName = s.SubmittedBy.Name,
+                            SubmittedByFullName = s.SubmittedBy.FullName,
+                        })
+                        .Where(s => s.ParentId == null) // Only include top-level submissions
+                        .ToList();
+
+                    Log.Information("{Function} Submission summaries retrieved successfully", "GetAllSubmissions");
+                    return Ok(summarySubmissions);
+                }
+
                 var allSubmissions = _DbContext.Submissions.ToList();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
-                return allSubmissions;
+                return Ok(allSubmissions);
             }
             catch (Exception ex)
             {

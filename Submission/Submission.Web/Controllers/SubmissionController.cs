@@ -58,8 +58,15 @@ namespace Submission.Web.Controllers
             ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
 
-            var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetAllSubmissions/").Result
-                .Where(x => x.Parent == null).ToList();
+            var queryParams = new Dictionary<string, string>
+            {
+                ["responseType"] = "summary",
+            };
+
+            var res = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission.SubmissionSummary>>(
+                    "/api/Submission/GetAllSubmissions/",
+                    queryParams
+                ).Result.ToList();
 
             return View(res);
         }

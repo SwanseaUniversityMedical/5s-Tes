@@ -49,35 +49,19 @@ namespace FiveSafesTes.Core.Models
         }
         
         
-        public string GetProjectOutputBucket()
-        {
-          var outputBucket = Project.OutputBucket;
-          return outputBucket;
-        }
-
-        
-        public string GetProjectName()
-        {
-          var projectName = Project.Name;
-          return projectName;
-        }
-        
-        
-        public string GetSubmitter()
-        {
-          var submitter = SubmittedBy?.Name;
-          if (string.IsNullOrEmpty(submitter))
-          {
-              submitter = SubmittedBy.FullName;
-          }
-          return submitter;
-        }
-        
         public class SubmissionSummary
         {
-            public int Id { get; set; }
-            public string TesName { get; set; }
-            public string Status { get; set; }
+          public int Id { get; set; }
+          public int? ParentId { get; set; }
+          public string TesName { get; set; }
+          public StatusType Status { get; set; }
+          public DateTime StartTime { get; set; }
+          public DateTime EndTime { get; set; }
+          public string? ProjectName { get; set; }
+          public string? ProjectOutputBucket { get; set; }
+          public string? SubmittedByName { get; set; }
+          public string? SubmittedByFullName { get; set; }
+        
         }
 
 
