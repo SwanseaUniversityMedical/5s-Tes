@@ -1,4 +1,5 @@
-﻿@model List<FiveSafesTes.Core.Models.Tre>
+﻿@using FiveSafesTes.Core.Models.Helpers
+@model List<FiveSafesTes.Core.Models.Tre.TreSummary>
 @{
 	ViewData["Title"] = "TREs";
 	var treCount = Model.Count;
@@ -15,7 +16,7 @@
 				<span>Create New TRE</span>
 			</a>
 		}
-	</div>
+	</div> 
 	<hr class="d-flex my-4">
 	<div class="row">
 		<div class="col-xl-8 offset-xl-2 col-lg-10 offset-lg-1">
@@ -46,12 +47,13 @@
 									</div>
 									<div class="">
 										<a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })#projects" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-											Used By @tre.Projects.Count Projects
+											Used By @tre.ProjectCount Projects
 										</a>
-										<a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-											Run @tre.Submissions.Count Submissions
-										</a>
-										@if (tre.IsOnline())
+                    <a href="@Url.Action("GetATre", "Tre", new { id = tre.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
+                      Run @tre.SubmissionCount Submissions
+                    </a>
+                    @*Use the same method to identify is Online of not in Models/Tre.cs*@  
+										@if ((DateTime.UtcNow - tre.LastHeartBeatReceived).TotalMinutes < 30)
 										{
 											<span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
 												<i class="fa-solid fa-check-circle me-1"></i> Online
@@ -65,7 +67,7 @@
 										}
 
 										<span class="badge  px-2 badge-sm text-dark rounded-pill m-0 ms-3">
-											<i class="fa-solid me-1"></i> last heartbeat was @tre.GetTotalDisplayTime() ago
+											<i class="fa-solid me-1"></i> last heartbeat was @TimeHelper.GetDisplayTime(tre.LastHeartBeatReceived, DateTime.UtcNow) ago
 										</span>
 
 									</div>
