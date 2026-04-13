@@ -41,7 +41,7 @@
 								{
 									var minio = @ViewBag.URLBucket;
 									<h6 class="mb-0">
-										<a href="@minio/browser/@submission.Project.OutputBucket" target="_blank" rel="noopener">
+										<a href="@minio/browser/@submission.GetProjectOutputBucket()" target="_blank" rel="noopener">
 											<span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @submission.EndTime">
 												<i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
 												<span class="text-start">
@@ -97,16 +97,10 @@
 
 						</td>
 						<td>
-							@submission.Project.Name
+							@submission.GetProjectName()
 						</td>
 						<td>
-							@{
-								if (submission.SubmittedBy.FullName == "" || submission.SubmittedBy.FullName == null)
-								{
-									submission.SubmittedBy.FullName = submission.SubmittedBy.Name;
-								}
-							}
-							@submission.SubmittedBy.FullName
+							@submission.GetSubmitter()
 						</td>
 						<td>
 							@submission.GetFormattedStartDate()
