@@ -19,8 +19,6 @@ namespace Submission.Api.Controllers
             _dbContext = dbContext;
         }
         
-        // TODO: confirm with team if we want to keep this endpoint public or not.
-        // It is currently used on the homepage to show counts of projects, submissions, users and tres, but it does not contain any sensitive information.
         [AllowAnonymous]
         [HttpGet("GetPublicCounts")]
         public async Task<DashboardCounts> GetPublicCounts()
