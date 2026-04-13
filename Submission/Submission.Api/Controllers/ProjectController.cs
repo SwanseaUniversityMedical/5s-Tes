@@ -412,7 +412,8 @@ namespace Submission.Api.Controllers
             {
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
 
-                var allProjects = _DbContext.Projects.ToList();
+                var allProjects = _DbContext.Projects
+                    .ToList();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
