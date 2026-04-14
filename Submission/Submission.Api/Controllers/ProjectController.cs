@@ -406,7 +406,7 @@ namespace Submission.Api.Controllers
         }
 
         [HttpGet("GetAllProjects")]
-        public IActionResult GetAllProjects(string? responseType = "full")
+        public async Task<IActionResult> GetAllProjects(string? responseType = "full")
         {
             try
             {
@@ -414,7 +414,7 @@ namespace Submission.Api.Controllers
 
                 if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
                 {
-                    var summaryProjects = _DbContext.Projects
+                    var summaryProjects = await _DbContext.Projects
                         .AsNoTracking()
                         .Select(p => new Project.ProjectSummary
                         {
@@ -427,14 +427,14 @@ namespace Submission.Api.Controllers
                             UserCount = p.Users.Count(),
                             TreCount = p.Tres.Count(),
                         })
-                        .ToList();
+                        .ToListAsync();
 
                     Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
                     return Ok(summaryProjects);
                 }
 
-                var allProjects = _DbContext.Projects
-                    .ToList();
+                var allProjects = await _DbContext.Projects
+                    .ToListAsync();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");

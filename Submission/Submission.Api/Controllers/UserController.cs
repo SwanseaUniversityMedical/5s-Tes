@@ -141,13 +141,13 @@ namespace Submission.Api.Controllers
 
         
         [HttpGet("GetAllUsers")]
-        public IActionResult GetAllUsers(string? responseType = "full")
+        public async Task<IActionResult> GetAllUsers(string? responseType = "full")
         {
             try
             {
               if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
               {
-                var summaryUsers = _DbContext.Users
+                var summaryUsers = await _DbContext.Users
                   .AsNoTracking()
                   .Select(u => new User.UserSummary()
                   {
@@ -157,13 +157,13 @@ namespace Submission.Api.Controllers
                     ProjectCount = u.Projects.Count,
                     SubmissionCount = u.Submissions.Count(s => s.Parent == null),
                   })
-                  .ToList();
+                  .ToListAsync();
 
                 Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
                 return Ok(summaryUsers);
               }
               
-              var allUsers = _DbContext.Users.ToList();
+              var allUsers = await _DbContext.Users.ToListAsync();
               
                Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
                 return Ok(allUsers);

@@ -180,13 +180,13 @@ namespace Submission.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetAllSubmissions")]
-        public IActionResult GetAllSubmissions(string? responseType = "full")
+        public async Task<IActionResult> GetAllSubmissions(string? responseType = "full")
         {
             try
             {
                 if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
                 {
-                    var summarySubmissions = _DbContext.Submissions
+                    var summarySubmissions = await _DbContext.Submissions
                         .AsNoTracking()  
                         .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionSummary
                         {
@@ -201,13 +201,13 @@ namespace Submission.Api.Controllers
                             SubmittedByName = s.SubmittedBy.Name,
                             SubmittedByFullName = s.SubmittedBy.FullName,
                         })
-                        .ToList();
+                        .ToListAsync();
 
                     Log.Information("{Function} Submission summaries retrieved successfully", "GetAllSubmissions");
                     return Ok(summarySubmissions);
                 }
 
-                var allSubmissions = _DbContext.Submissions.ToList();
+                var allSubmissions = await _DbContext.Submissions.ToListAsync();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
                 return Ok(allSubmissions);
