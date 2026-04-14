@@ -123,13 +123,13 @@ namespace Submission.Api.Controllers
 
 
         [HttpGet("GetAllTres")]
-        public IActionResult GetAllTres(string? responseType = "full")
+        public async Task<IActionResult> GetAllTres(string? responseType = "full")
         {
             try
             {
               if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
               {
-                var summaryTres = _DbContext.Tres
+                var summaryTres = await _DbContext.Tres
                   .AsNoTracking()
                   .Select(t => new Tre.TreSummary()
                   {
@@ -140,13 +140,13 @@ namespace Submission.Api.Controllers
                     ProjectCount = t.Projects.Count,
                     SubmissionCount = t.Submissions.Count(s => s.ParentId == null),
                   })
-                  .ToList();
+                  .ToListAsync();
 
                   Log.Information("{Function} TRE summaries retrieved successfully", "GetAllTres");
                   return Ok(summaryTres);
               }
 
-                var allTres = _DbContext.Tres.ToList();
+              var allTres = await _DbContext.Tres.ToListAsync();
                 
                 Log.Information("{Function} Tres retrieved successfully", "GetAllTres");
                 return Ok(allTres);
