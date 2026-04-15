@@ -141,14 +141,32 @@ namespace Submission.Api.Controllers
 
         
         [HttpGet("GetAllUsers")]
-        public List<User> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers(string? responseType = "full")
         {
             try
             {
-              var allUsers = _DbContext.Users.ToList();
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
+                var summaryUsers = await _DbContext.Users
+                  .AsNoTracking()
+                  .Select(u => new User.UserSummary()
+                  {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName,
+                    ProjectCount = u.Projects.Count,
+                    SubmissionCount = u.Submissions.Count(s => s.Parent == null),
+                  })
+                  .ToListAsync();
+
+                Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                return Ok(summaryUsers);
+              }
+              
+              var allUsers = await _DbContext.Users.ToListAsync();
               
                Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
-                return allUsers;
+                return Ok(allUsers);
             }
             catch (Exception ex)
             {

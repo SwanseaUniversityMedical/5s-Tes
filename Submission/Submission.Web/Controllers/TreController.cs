@@ -55,7 +55,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllTres()
         {
-            var tres = _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Tre/GetAllTres/").Result;
+            var queryParams = new Dictionary<string, string>
+            {
+              ["responseType"] = "summary",
+            };
+            var tres = _clientHelper.CallAPIWithoutModel<List<Tre.TreSummary>>("/api/Tre/GetAllTres/", queryParams).Result;
 
             return View(tres);
         }

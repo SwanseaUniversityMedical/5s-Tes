@@ -123,22 +123,39 @@ namespace Submission.Api.Controllers
 
 
         [HttpGet("GetAllTres")]
-        public async Task<List<Tre>> GetAllTres()
+        public async Task<IActionResult> GetAllTres(string? responseType = "full")
         {
-            try
+          try
+          {
+            if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
             {
-                var allTres = _DbContext.Tres.ToList();
-                
-                Log.Information("{Function} Tres retrieved successfully", "GetAllTres");
-                return allTres;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetAllTres");
-                throw;
+              var summaryTres = await _DbContext.Tres
+                .AsNoTracking()
+                .Select(t => new Tre.TreSummary()
+                {
+                  Id = t.Id,
+                  Name = t.Name,
+                  About = t.About,
+                  LastHeartBeatReceived = t.LastHeartBeatReceived,
+                  ProjectCount = t.Projects.Count,
+                  SubmissionCount = t.Submissions.Count(s => s.ParentId == null),
+                })
+                .ToListAsync();
+
+              Log.Information("{Function} TRE summaries retrieved successfully", nameof(GetAllTres));
+              return Ok(summaryTres);
             }
 
+            var allTres = await _DbContext.Tres.ToListAsync();
 
+            Log.Information("{Function} Tres retrieved successfully", nameof(GetAllTres));
+            return Ok(allTres);
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", nameof(GetAllTres));
+            throw;
+          }
         }
         
         [HttpGet("GetATre")]
@@ -160,8 +177,6 @@ namespace Submission.Api.Controllers
                 Log.Error(ex, "{Function} Crashed", "GetATre");
                 throw;
             }
-
-
         }
 
 

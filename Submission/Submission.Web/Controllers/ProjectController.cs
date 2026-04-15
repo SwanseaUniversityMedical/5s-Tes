@@ -202,7 +202,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllProjects()
         {
-            var projects = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects/").Result;
+            var queryParams = new Dictionary<string, string>
+            {
+                ["responseType"] = "summary",
+            };
+            var projects = _clientHelper.CallAPIWithoutModel<List<Project.ProjectSummary>>("/api/Project/GetAllProjects/", queryParams).Result;
             return View(projects);
         }
 
