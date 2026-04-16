@@ -59,6 +59,7 @@ AddServices(builder);
 
 //Add Dependancies
 AddDependencies(builder, configuration);
+AddVaultServices(builder, configuration);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -413,6 +414,24 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
 
 }
 
+void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager configuration)
+{
+  //Configure Vault settings
+  builder.Services.Configure<VaultSettings>(
+        configuration.GetSection("VaultSettings"));
+
+  // Register HttpClient for Vault service
+  builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>
+  {
+        var options = sp.GetRequiredService<IOptions<VaultSettings>>().Value;
+
+        client.BaseAddress = new Uri(options.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        client.DefaultRequestHeaders.Add("X-Vault-Token", options.Token);
+        client.DefaultRequestHeaders.Accept.Add(
+            new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+  });
+}
 
 /// <summary>
 /// Add Services
