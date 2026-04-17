@@ -27,7 +27,7 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
         Secret<SecretData> secret = await _vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_path, mountPoint: _mountPoint);
         IDictionary<string, object> data = secret.Data.Data;
 
-        Dictionary<string, string> newData = data.ToDictionary(k => k.Key, v => v.Value?.ToString());
+        Dictionary<string, string?> newData = data.ToDictionary(k => $"{nameof(Models.VaultConfigSettings)}:{k.Key}", v => v.Value?.ToString());
 
         // Do not reload if there are no changes to the values in vault.
         if (Data.Count == newData.Count && !Data.Except(newData).Any())

@@ -140,6 +140,10 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
+var VaultConfigSettings = new VaultConfigSettings();
+configuration.Bind(nameof(VaultConfigSettings), VaultConfigSettings);
+builder.Services.AddSingleton(VaultConfigSettings);
+
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
@@ -301,7 +305,8 @@ using (var scope = app.Services.CreateScope())
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
-    configuration.AddVault(vaultClient, "config", options.SecretEngine, TimeSpan.FromSeconds(30));
+    string configPath = configuration["VaultConfigSettings:VaultConfigPath"];
+    configuration.AddVault(vaultClient, configPath, options.SecretEngine, TimeSpan.FromSeconds(30));
 }
 
 
