@@ -75,7 +75,6 @@ public class VaultConfigurationSource : IConfigurationSource
 
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {
-        // note: this method is called automatically by the configuration builder
         return new VaultConfigurationProvider(Client, Path, MountPoint, ReloadInterval);
     }
 }
