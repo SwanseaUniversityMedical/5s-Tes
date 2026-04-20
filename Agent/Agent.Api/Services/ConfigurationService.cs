@@ -5,19 +5,20 @@ using Microsoft.Extensions.Options;
 using VaultSharp;
 using VaultSharp.V1.AuthMethods;
 using VaultSharp.V1.AuthMethods.Token;
+using static IdentityModel.ClaimComparer;
 
 namespace Agent.Api.Services;
 
 public class ConfigurationService : IConfigurationService
 {
     private readonly IVaultClient _vaultClient;
+
     public readonly VaultSettings _vaultSettings;
-    // IOptionsMonitor allows us to retrieve the most recent configuration values at runtime.
     public readonly IOptionsMonitor<VaultConfigSettings> _configSettings;  
 
-    public ConfigurationService(VaultSettings vaultSettings, IOptionsMonitor<VaultConfigSettings> configSettings)
+    public ConfigurationService(IOptions<VaultSettings> vaultSettings, IOptionsMonitor<VaultConfigSettings> configSettings)
     {
-        _vaultSettings = vaultSettings;
+        _vaultSettings = vaultSettings?.Value ?? throw new ArgumentNullException(nameof(vaultSettings));
         _configSettings = configSettings;
 
         IAuthMethodInfo authMethod = new TokenAuthMethodInfo(_vaultSettings.Token);

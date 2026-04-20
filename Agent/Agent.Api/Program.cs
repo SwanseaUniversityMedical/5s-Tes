@@ -140,10 +140,6 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
-var VaultSettings = new VaultSettings();
-configuration.Bind(nameof(VaultSettings), VaultSettings);
-builder.Services.AddSingleton(VaultSettings);
-
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
