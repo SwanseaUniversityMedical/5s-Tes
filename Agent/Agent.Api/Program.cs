@@ -144,6 +144,10 @@ var VaultConfigSettings = new VaultConfigSettings();
 configuration.Bind(nameof(VaultConfigSettings), VaultConfigSettings);
 builder.Services.AddSingleton(VaultConfigSettings);
 
+var VaultSettings = new VaultSettings();
+configuration.Bind(nameof(VaultSettings), VaultSettings);
+builder.Services.AddSingleton(VaultSettings);
+
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
@@ -172,6 +176,7 @@ builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 
 var TVP = new TokenValidationParameters
 {
@@ -305,8 +310,7 @@ using (var scope = app.Services.CreateScope())
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
-    string configPath = configuration["VaultConfigSettings:VaultConfigPath"];
-    configuration.AddVault(vaultClient, configPath, options.SecretEngine, TimeSpan.FromSeconds(30));
+    configuration.AddVault(vaultClient, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromSeconds(30));
 }
 
 
