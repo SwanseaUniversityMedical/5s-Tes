@@ -14,6 +14,7 @@ public class ConfigurationService : IConfigurationService
     private readonly IVaultClient _vaultClient;
 
     public readonly VaultSettings _vaultSettings;
+    // IOptionsMonitor used to retrieve latest values from vault at runtime.
     public readonly IOptionsMonitor<VaultConfigSettings> _configSettings;  
 
     public ConfigurationService(IOptions<VaultSettings> vaultSettings, IOptionsMonitor<VaultConfigSettings> configSettings)
