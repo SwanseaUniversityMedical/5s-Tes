@@ -140,10 +140,6 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
-var VaultConfigSettings = new VaultConfigSettings();
-configuration.Bind(nameof(VaultConfigSettings), VaultConfigSettings);
-builder.Services.AddSingleton(VaultConfigSettings);
-
 var VaultSettings = new VaultSettings();
 configuration.Bind(nameof(VaultSettings), VaultSettings);
 builder.Services.AddSingleton(VaultSettings);
@@ -364,6 +360,8 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
     //Configure Vault settings
     builder.Services.Configure<VaultSettings>(
         configuration.GetSection("VaultSettings"));
+
+    builder.Services.Configure<VaultConfigSettings>(configuration.GetSection("VaultConfigSettings"));
 
     // Register HttpClient for Vault service
     builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>

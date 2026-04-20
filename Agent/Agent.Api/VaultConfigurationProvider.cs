@@ -30,7 +30,7 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
         Dictionary<string, string?> newData = data.ToDictionary(k => $"{nameof(Models.VaultConfigSettings)}:{k.Key}", v => v.Value?.ToString());
 
         // Do not reload if there are no changes to the values in vault.
-        if (Data.Count == newData.Count && !Data.Except(newData).Any())
+        if (!Data.SequenceEqual(newData))
         {
             Data = newData;
             OnReload();
