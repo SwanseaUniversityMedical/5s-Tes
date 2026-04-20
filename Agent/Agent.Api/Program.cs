@@ -30,6 +30,9 @@ using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Serilog.Events;
+using VaultSharp;
+using VaultSharp.V1.AuthMethods;
+using VaultSharp.V1.AuthMethods.Token;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -165,6 +168,7 @@ builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 
 var TVP = new TokenValidationParameters
 {
@@ -292,6 +296,13 @@ using (var scope = app.Services.CreateScope())
         initialiser.SeedAllInOneData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
+
+    var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
+    IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
+    var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
+    IVaultClient vaultClient = new VaultClient(vaultClientSettings);
+
+    configuration.AddVault(vaultClient, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromSeconds(30));
 }
 
 
@@ -345,6 +356,8 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
     //Configure Vault settings
     builder.Services.Configure<VaultSettings>(
         configuration.GetSection("VaultSettings"));
+
+    builder.Services.Configure<VaultConfigSettings>(configuration.GetSection("VaultConfigSettings"));
 
     // Register HttpClient for Vault service
     builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>

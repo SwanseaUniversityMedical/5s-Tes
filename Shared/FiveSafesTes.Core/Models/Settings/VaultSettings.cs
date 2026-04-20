@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -14,5 +14,6 @@ namespace FiveSafesTes.Core.Models.Settings
         public string SecretEngine { get; set; } = "secret"; // KV v2 engine name
         public bool EnableRetry { get; set; } = true;
         public int MaxRetryAttempts { get; set; } = 3;
+        public string VaultConfigPath { get; set; } = "config";
     }
 }
