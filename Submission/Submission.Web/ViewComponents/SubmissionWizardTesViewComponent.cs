@@ -54,7 +54,7 @@ namespace Submission.Web.ViewComponents
                 ProjectName = project.Name,
                 SelectTresOptions = project.Tres.Select(x => x.Name).ToList(),
                 TreRadios = treInfoList,
-                Submissions = project.Submissions.ToList(),
+                Submissions = project.Submissions.Where(x => x.Parent == null).ToList(),
                 UserItemList = userItems,
                 TreItemList = treItems
             };

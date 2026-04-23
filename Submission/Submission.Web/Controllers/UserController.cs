@@ -55,8 +55,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllUsers()
         {
-
-            var result = _clientHelper.CallAPIWithoutModel<List<User>>("/api/User/GetAllUsers/").Result;
+          var queryParams = new Dictionary<string, string>
+          {
+            ["responseType"] = "summary",
+          };
+            var result = _clientHelper.CallAPIWithoutModel<List<User.UserSummary>>("/api/User/GetAllUsers/", queryParams).Result;
 
             return View(result);
         }

@@ -406,18 +406,39 @@ namespace Submission.Api.Controllers
         }
 
         [HttpGet("GetAllProjects")]
-        public List<Project> GetAllProjects()
+        public async Task<IActionResult> GetAllProjects(string? responseType = "full")
         {
             try
             {
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
 
-                var allProjects = _DbContext.Projects
-                    .ToList();
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summaryProjects = await _DbContext.Projects
+                        .AsNoTracking()
+                        .Select(p => new Project.ProjectSummary
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            ProjectDescription = p.ProjectDescription,
+                            SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                            UserCount = p.Users.Count(),
+                            TreCount = p.Tres.Count(),
+                        })
+                        .ToListAsync();
+
+                    Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                    return Ok(summaryProjects);
+                }
+
+                var allProjects = await _DbContext.Projects
+                    .ToListAsync();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
-                return allProjects;
+                return Ok(allProjects);
             }
             catch (Exception ex)
             {
@@ -426,6 +447,27 @@ namespace Submission.Api.Controllers
             }
 
 
+        }
+
+        [HttpGet("GetProjectsForCurrentUser")]
+        public List<Project> GetProjectsForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+
+                var userProjects = _DbContext.Projects
+                    .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                    .Distinct()
+                    .ToList();
+
+                return userProjects;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
+                throw;
+            }
         }
 
 
@@ -692,7 +734,6 @@ namespace Submission.Api.Controllers
                 //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
                 //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
-
                 List<Project> searchResults = _DbContext.Projects
 
                     .Include(c => c.Users)
@@ -700,7 +741,6 @@ namespace Submission.Api.Controllers
                     .Include(c => c.Submissions)
 
                     .Include(c => c.Tres)
-
                     .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
 
 

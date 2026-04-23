@@ -35,7 +35,7 @@ Serilog.ILogger CreateSerilogLogger(IConfiguration configuration)
       .MinimumLevel.Is(logLevel)
     .Enrich.WithProperty("ApplicationContext", AppName)
     .Enrich.FromLogContext()
-    .WriteTo.Console()
+    .WriteTo.Console(restrictedToMinimumLevel: logLevel)
     .WriteTo.Seq(seqServerUrl, apiKey: seqApiKey)
     .ReadFrom.Configuration(configuration)
     .CreateLogger();

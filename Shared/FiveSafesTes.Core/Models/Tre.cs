@@ -40,5 +40,14 @@ namespace FiveSafesTes.Core.Models
             return data;
         }
 
+        public class TreSummary
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int SubmissionCount { get; set; }
+            public int ProjectCount { get; set; }
+            public DateTime LastHeartBeatReceived { get; set; }
+            public string About { get; set; }
+        }
     }
 }

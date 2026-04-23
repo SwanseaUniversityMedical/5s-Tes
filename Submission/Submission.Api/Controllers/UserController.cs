@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Authorization;
 using Serilog;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.ViewModels;
+using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 using Submission.Api.Services.Contract;
@@ -123,12 +124,10 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                List<UserGetProjectModel> allUsers = new List<UserGetProjectModel>();
-                foreach (var user in _DbContext.Users)
-                {
-
-                    allUsers.Add(new UserGetProjectModel(user));
-                }
+                List<UserGetProjectModel> allUsers = _DbContext.Users
+                    .AsNoTracking()
+                    .Select(user => new UserGetProjectModel(user))
+                    .ToList();
 
                 Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
                 return allUsers;
@@ -142,16 +141,32 @@ namespace Submission.Api.Controllers
 
         
         [HttpGet("GetAllUsers")]
-        public List<User> GetAllUsers()
+        public async Task<IActionResult> GetAllUsers(string? responseType = "full")
         {
             try
             {
-                var allUsers = _DbContext.Users.ToList();
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
+                var summaryUsers = await _DbContext.Users
+                  .AsNoTracking()
+                  .Select(u => new User.UserSummary()
+                  {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName,
+                    ProjectCount = u.Projects.Count,
+                    SubmissionCount = u.Submissions.Count(s => s.Parent == null),
+                  })
+                  .ToListAsync();
 
-                
-            
+                Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                return Ok(summaryUsers);
+              }
+              
+              var allUsers = await _DbContext.Users.ToListAsync();
+              
                Log.Information("{Function} Users retrieved successfully", "GetAllUsers");
-                return allUsers;
+                return Ok(allUsers);
             }
             catch (Exception ex)
             {

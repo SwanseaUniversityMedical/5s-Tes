@@ -324,7 +324,7 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
         .MinimumLevel.Is(logLevel)
         .Enrich.WithProperty("ApplicationContext", environment.ApplicationName)
         .Enrich.FromLogContext()
-        .WriteTo.Console()
+        .WriteTo.Console(restrictedToMinimumLevel: logLevel)
         .WriteTo.Seq(seqServerUrl, apiKey: seqApiKey)
         .ReadFrom.Configuration(configuration)
         .CreateLogger();

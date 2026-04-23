@@ -47,14 +47,22 @@ namespace FiveSafesTes.Core.Models
             var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
             return date;
         }
-
-        public string GetCurrentStatusDisplayTime()
+        
+        
+        public class SubmissionSummary
         {
-            var end = EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : EndTime;
-           
-            return TimeHelper.GetDisplayTime(LastStatusUpdate, end);
+          public int Id { get; set; }
+          public int? ParentId { get; set; }
+          public string TesName { get; set; }
+          public StatusType Status { get; set; }
+          public DateTime StartTime { get; set; }
+          public DateTime EndTime { get; set; }
+          public string? ProjectName { get; set; }
+          public string? ProjectOutputBucket { get; set; }
+          public string? SubmittedByName { get; set; }
+          public string? SubmittedByFullName { get; set; }
+        
         }
-
 
 
     }
