@@ -419,8 +419,7 @@ app.MapHub<SignalRService>("/signalRHub",
 //Hangfire
 var jobSettings = new JobSettings();
 configuration.Bind(nameof(JobSettings), jobSettings);
-var extHangfire = configuration["EnableExternalHangfire"];
-
+var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
 if (extHangfire != null && extHangfire.ToLower() == "true")
 {
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
@@ -437,8 +436,8 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                 {
                     new BasicAuthAuthorizationUser
                     {
-                        Login = "admin",
-                        PasswordClear = "password123",
+                        Login = configuration["Hangfire:Username"],
+                        PasswordClear = configuration["Hangfire:Password"],
                     },
                 },
             }),
