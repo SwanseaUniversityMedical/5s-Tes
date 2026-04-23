@@ -1,3 +1,4 @@
+using Serilog;
 using VaultSharp;
 using VaultSharp.V1.Commons;
 
@@ -24,16 +25,23 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
 
     private async Task LoadAsync()
     {
-        Secret<SecretData> secret = await _vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_path, mountPoint: _mountPoint);
-        IDictionary<string, object> data = secret.Data.Data;
-
-        Dictionary<string, string?> newData = data.ToDictionary(k => $"{nameof(Models.VaultConfigSettings)}:{k.Key}", v => v.Value?.ToString());
-
-        // Do not reload if there are no changes to the values in vault.
-        if (!Data.SequenceEqual(newData))
+        try
         {
-            Data = newData;
-            OnReload();
+            Secret<SecretData> secret = await _vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_path, mountPoint: _mountPoint);
+            IDictionary<string, object> data = secret.Data.Data;
+
+            Dictionary<string, string?> newData = data.ToDictionary(k => k.Key, v => v.Value?.ToString());
+
+            // Do not reload if there are no changes to the values in vault.
+            if (!Data.SequenceEqual(newData))
+            {
+                Data = newData;
+                OnReload();
+            }
+        }
+        catch (Exception ex)
+        {
+            Log.Error("VaultConfigurationProvider:LoadAsync - " + ex.Message);
         }
     }
 

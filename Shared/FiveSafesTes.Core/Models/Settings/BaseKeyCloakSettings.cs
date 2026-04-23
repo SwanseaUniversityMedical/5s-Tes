@@ -1,6 +1,7 @@
-﻿using System.Runtime;
+using System.Runtime;
 using System.Net;
 using Serilog;
+using System.Text.Json.Serialization;
 
 namespace FiveSafesTes.Core.Models.Settings
 {
@@ -39,6 +40,7 @@ namespace FiveSafesTes.Core.Models.Settings
         
         public bool RequireHttpsMetadata { get; set; }
 
+        [JsonIgnore]
         public HttpClientHandler getProxyHandler {
             get
             {

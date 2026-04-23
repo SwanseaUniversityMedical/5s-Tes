@@ -1,7 +1,8 @@
-﻿using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
+using Microsoft.Extensions.Options;
 
 namespace Agent.Api.Services
 {
@@ -11,9 +12,11 @@ namespace Agent.Api.Services
 
         public DareClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
-            IEncDecHelper encDec, SubmissionKeyCloakSettings settings) : base(httpClientFactory, httpContextAccessor,
+            IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings) : base(httpClientFactory, httpContextAccessor,
             config["DareAPISettings:Address"], false)
         {
+            SubmissionKeyCloakSettings settings = keycloakSettings.CurrentValue;
+
             CredDb = db;
             _keycloakTokenHelper = new KeycloakTokenHelper(settings.BaseUrl, settings.ClientId, settings.ClientSecret, settings.Proxy, settings.ProxyAddresURL, settings.KeycloakDemoMode);
 

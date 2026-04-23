@@ -4,7 +4,7 @@ namespace Agent.Api.Services;
 
 public interface IConfigurationService
 {
-    Dictionary<string, object>? DeserializeConfigJsonToDictionary(string json);
-    VaultConfigSettings? DeserializeConfigJson(string json);
+    VaultConfigDTO? DeserializeConfigJson(string json);
     Task AddConfigurationToVault(string json);
+    void ObserveConfig();
 }

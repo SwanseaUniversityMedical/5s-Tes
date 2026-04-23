@@ -103,10 +103,12 @@ configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSetting
 dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(dataEgressKeyCloakSettings);
 
-var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
+/*var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
 configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
 submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(submissionKeyCloakSettings);
+builder.Services.AddSingleton(submissionKeyCloakSettings);*/
+
+builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
 
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
