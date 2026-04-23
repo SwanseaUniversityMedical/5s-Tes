@@ -1,4 +1,4 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -8,6 +8,8 @@ using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
+using Submission.Api.Services.Contract;
+using FiveSafesTes.Core.Services;
 
 namespace Submission.Api.Controllers
 {
@@ -19,13 +21,18 @@ namespace Submission.Api.Controllers
     {
         private readonly ApplicationDbContext _DbContext;
         protected readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly IVaultCredentialsService _vaultCredentialsService;
 
 
-        public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor)
+        public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor,
+            IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService)
         {
 
             _DbContext = applicationDbContext;
-            _httpContextAccessor= httpContextAccessor;
+            _httpContextAccessor = httpContextAccessor;
+            _keycloakAdminService = keycloakAdminService;
+            _vaultCredentialsService = vaultCredentialsService;
 
         }     
 
@@ -74,6 +81,33 @@ namespace Submission.Api.Controllers
                 }
                 await _DbContext.SaveChangesAsync();
                 await ControllerHelpers.AddAuditLog(logtype, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
+
+                if (logtype == LogType.AddTre && string.IsNullOrEmpty(tre.KeycloakClientId))
+                {
+                    try
+                    {
+                        var (clientUuid, clientId, clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
+
+                        tre.KeycloakClientId = clientId;
+                        await _DbContext.SaveChangesAsync();
+
+                        await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLower()}/keycloak",
+                            new Dictionary<string, object>
+                            {
+                                { "clientId", clientId },
+                                { "clientSecret", clientSecret },
+                                { "clientUuid", clientUuid }
+                            });
+
+                        Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
+                            "SaveTre", clientId, tre.Name);
+                    }
+                    catch (Exception serviceAccountEx)
+                    {
+                        Log.Error(serviceAccountEx, "{Function} Failed to create service account for TRE {TreName}. TRE was saved but service account needs manual setup.",
+                            "SaveTre", tre.Name);
+                    }
+                }
 
                 return Ok(tre); 
             }

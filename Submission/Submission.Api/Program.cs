@@ -408,6 +408,7 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
     builder.Services.AddScoped<IKeycloakMinioUserService, KeycloakMinioUserService>();
     builder.Services.AddScoped<IKeycloakTokenApiHelper, KeycloakTokenApiHelper>();
     builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+    builder.Services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
     builder.Services.AddScoped<IDareEmailService, DareEmailService>();
     
 
