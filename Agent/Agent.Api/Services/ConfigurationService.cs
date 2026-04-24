@@ -4,6 +4,7 @@ using System.Text.Json.Serialization;
 using Agent.Api.Models;
 using FiveSafesTes.Core.Models.Settings;
 using Microsoft.Extensions.Options;
+using Serilog;
 using VaultSharp;
 using VaultSharp.V1.AuthMethods;
 using VaultSharp.V1.AuthMethods.Token;
@@ -12,7 +13,7 @@ namespace Agent.Api.Services;
 
 public class ConfigurationService : IConfigurationService
 {
-    private readonly IVaultClient _vaultClient;
+    private readonly VaultClient _vaultClient;
 
     public readonly VaultSettings _vaultSettings;
     // IOptionsMonitor used to retrieve latest values from vault at runtime.
@@ -27,7 +28,7 @@ public class ConfigurationService : IConfigurationService
 
         IAuthMethodInfo authMethod = new TokenAuthMethodInfo(_vaultSettings.Token);
         VaultClientSettings vaultClientSettings = new(_vaultSettings.BaseUrl, authMethod);
-        _vaultClient = new VaultClient(vaultClientSettings);
+        _vaultClient = new(vaultClientSettings);
     }
 
     /// <summary>
@@ -62,7 +63,7 @@ public class ConfigurationService : IConfigurationService
         }
         else
         {
-            // invalid json format
+            Log.Error("ConfigurationService:AddConfigurationToVault - Invalid JSON format");
         }
     }
 
@@ -95,7 +96,7 @@ public class ConfigurationService : IConfigurationService
 
         foreach (PropertyInfo property in settingsObj.GetType().GetProperties())
         {
-            // Ignore values with the JsonIgnore attribute.
+            // Ignore properties with the JsonIgnore attribute.
             if (Attribute.IsDefined(property, typeof(JsonIgnoreAttribute))) continue;
 
             object? value = property.GetValue(settingsObj);
