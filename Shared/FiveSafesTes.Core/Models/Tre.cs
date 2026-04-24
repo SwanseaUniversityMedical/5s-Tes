@@ -1,4 +1,4 @@
-﻿using FiveSafesTes.Core.Models.Helpers;
+using FiveSafesTes.Core.Models.Helpers;
 
 namespace FiveSafesTes.Core.Models
 {
@@ -10,6 +10,7 @@ namespace FiveSafesTes.Core.Models
 
         public DateTime LastHeartBeatReceived { get; set; }
         public string AdminUsername { get; set; }
+        public string? KeycloakClientId { get; set; }
 
         public string About {  get; set; }
         public string FormData { get; set; }
