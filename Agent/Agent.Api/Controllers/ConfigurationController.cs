@@ -1,4 +1,6 @@
+using Agent.Api.Models;
 using Agent.Api.Services;
+using Google.Protobuf.WellKnownTypes;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Agent.Api.Controllers;
@@ -17,7 +19,8 @@ public class ConfigurationController : Controller
     [HttpPost("AddConfigurationToVault/{json}")]
     public async Task AddConfigurationToVault(string json)
     {
-        await _configurationService.AddConfigurationToVault(json);
+        string decoded = Uri.UnescapeDataString(json); // TEMP - we'll use stringcontent when we're actually doing this
+        await _configurationService.AddConfigurationToVault(decoded, nameof(VaultConfigSettings));
     }
 
     [HttpPost("ObserveConfig")]
