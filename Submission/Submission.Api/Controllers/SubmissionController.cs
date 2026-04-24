@@ -452,7 +452,7 @@ namespace Submission.Api.Controllers
         [AllowAnonymous]
         [HttpGet("GetChildSubmissionIdByParentAndTre")]
         [SwaggerOperation("GetChildSubmissionIdByParentAndTre")]
-        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID of the child submission for the given parent and TRE name")]
+        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID of the child submission for the given ID of the parent Submission and TRE name")]
         [SwaggerResponse(statusCode: 404, description: "No matching child submission found")]
         public async Task<IActionResult> GetChildSubmissionIdByParentAndTre(int parentSubmissionId, string treName)
         {
