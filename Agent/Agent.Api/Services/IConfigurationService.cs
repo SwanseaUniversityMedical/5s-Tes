@@ -1,5 +1,3 @@
-using Agent.Api.Models;
-
 namespace Agent.Api.Services;
 
 public interface IConfigurationService

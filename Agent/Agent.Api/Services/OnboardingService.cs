@@ -19,6 +19,9 @@ public class OnboardingService : IOnboardingService
         _vaultConfigSettings = configSettings;
     }
 
+    /// <summary>
+    /// Retrieve the submission layer OpenID configuration and add the appropriate values to Vault.
+    /// </summary>
     public async Task AddKeycloakSettingsToVault()
     {
         if (!string.IsNullOrEmpty(_vaultConfigSettings.CurrentValue.SubmissionURL))
