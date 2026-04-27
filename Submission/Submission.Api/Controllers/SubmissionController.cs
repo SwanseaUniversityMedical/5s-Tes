@@ -450,29 +450,38 @@ namespace Submission.Api.Controllers
         }
 
         [AllowAnonymous]
-        [HttpGet("GetChildSubmissionIdByParentAndTre")]
-        [SwaggerOperation("GetChildSubmissionIdByParentAndTre")]
-        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID of the child submission for the given ID of the parent Submission and TRE name")]
+        [HttpGet("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerOperation("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID and status of the child submission for the given ID of the parent Submission and TRE name")]
         [SwaggerResponse(statusCode: 404, description: "No matching child submission found")]
-        public async Task<IActionResult> GetChildSubmissionIdByParentAndTre(int parentSubmissionId, string treName)
+        public async Task<IActionResult> GetChildSubmissionInfoByParentAndTre(int parentSubmissionId, string treName)
         {
             try
             {
-                var childId = await _DbContext.Submissions
-                    .AsNoTracking()
-                    .Where(s => s.Parent != null && s.Parent.Id == parentSubmissionId && s.Tre != null && s.Tre.Name == treName)
-                    .Select(s => (int?)s.Id)
-                    .FirstOrDefaultAsync();
-
-                if (childId == null)
+              var child = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(s => s.Parent != null 
+                            && s.Parent.Id == parentSubmissionId 
+                            && s.Tre != null 
+                            && s.Tre.Name == treName)
+                .Select(s => new 
                 {
-                    Log.Warning("{Function} No child submission found for parentId={ParentId}, treName={TreName}",
-                        "GetChildSubmissionIdByParentAndTre", parentSubmissionId, treName);
-                    return NotFound();
-                }
+                  s.Id,
+                  s.Status
+                })
+                .FirstOrDefaultAsync();
 
-                Log.Information("{Function} Child submission found: {ChildId}", "GetChildSubmissionIdByParentAndTre", childId);
-                return Ok(childId);
+              if (child == null)
+              {
+                Log.Warning("{Function} No child submission found for parentId={ParentId}, treName={TreName}",
+                  "GetChildSubmissionIdByParentAndTre", parentSubmissionId, treName);
+                return NotFound();
+              }
+
+              Log.Information("{Function} Child submission found: {ChildId}", 
+                "GetChildSubmissionIdByParentAndTre", child.Id);
+
+              return Ok(child);
             }
             catch (Exception ex)
             {
