@@ -4,12 +4,14 @@ using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 using Submission.Api.Services.Contract;
 using FiveSafesTes.Core.Services;
+using System.Text;
 
 namespace Submission.Api.Controllers
 {
@@ -23,16 +25,24 @@ namespace Submission.Api.Controllers
         protected readonly IHttpContextAccessor _httpContextAccessor;
         private readonly IKeycloakAdminService _keycloakAdminService;
         private readonly IVaultCredentialsService _vaultCredentialsService;
+        private readonly IOnboardingJwtService _onboardingJwtService;
+        private readonly SubmissionKeyCloakSettings _keycloakSettings;
+        private readonly IConfiguration _configuration;
 
 
         public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor,
-            IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService)
+            IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService,
+            IOnboardingJwtService onboardingJwtService, SubmissionKeyCloakSettings keycloakSettings,
+            IConfiguration configuration)
         {
 
             _DbContext = applicationDbContext;
             _httpContextAccessor = httpContextAccessor;
             _keycloakAdminService = keycloakAdminService;
             _vaultCredentialsService = vaultCredentialsService;
+            _onboardingJwtService = onboardingJwtService;
+            _keycloakSettings = keycloakSettings;
+            _configuration = configuration;
 
         }     
 
@@ -196,6 +206,59 @@ namespace Submission.Api.Controllers
             }
 
 
+        }
+
+        [HttpGet("DownloadConfig/{treId}")]
+        public IActionResult DownloadConfig(int treId)
+        {
+            try
+            {
+                var tre = _DbContext.Tres.Find(treId);
+                if (tre == null)
+                {
+                    return NotFound($"TRE with id {treId} not found");
+                }
+
+                var username = (from x in User.Claims
+                                where x.Type == "preferred_username"
+                                select x.Value).FirstOrDefault();
+                var isSuperAdmin = User.IsInRole("dare-control-admin");
+                var isTreAdmin = !string.IsNullOrEmpty(username) &&
+                                 !string.IsNullOrEmpty(tre.AdminUsername) &&
+                                 string.Equals(tre.AdminUsername, username, StringComparison.OrdinalIgnoreCase);
+
+                if (!isSuperAdmin && !isTreAdmin)
+                {
+                    Log.Warning("{Function} User {User} is not authorised to download config for TRE {TreName}",
+                        "DownloadConfig", username, tre.Name);
+                    return Forbid();
+                }
+
+                var jwt = _onboardingJwtService.GenerateOnboardingJwt(tre);
+
+                var config = new TreOnboardingConfig
+                {
+                    TREId = tre.Id,
+                    TREName = tre.Name,
+                    SubmissionURL = _configuration["SubmissionApiUrl"] ?? string.Empty,
+                    KeycloakRealmSettingURL = _keycloakSettings.MetadataAddress,
+                    JWT = jwt
+                };
+
+                var json = JsonConvert.SerializeObject(config, Formatting.Indented);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                var fileName = $"tre-onboarding-{tre.Name.ToLower()}.json";
+
+                Log.Information("{Function} Config generated for TRE {TreName} by user {User}",
+                    "DownloadConfig", tre.Name, username);
+
+                return File(bytes, "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "DownloadConfig");
+                return StatusCode(500, "An internal server error occurred");
+            }
         }
 
 

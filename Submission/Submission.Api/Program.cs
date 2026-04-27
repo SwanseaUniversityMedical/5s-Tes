@@ -93,6 +93,10 @@ var minioSettings = new MinioSettings();
 configuration.Bind(nameof(MinioSettings), minioSettings);
 builder.Services.AddSingleton(minioSettings);
 
+var onboardingJwtSettings = new OnboardingJwtSettings();
+configuration.GetSection("OnboardingJwt").Bind(onboardingJwtSettings);
+builder.Services.AddSingleton(onboardingJwtSettings);
+
 
 var emailSettings = new EmailSettings();
 configuration.Bind(nameof(emailSettings), emailSettings);
@@ -409,6 +413,7 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
     builder.Services.AddScoped<IKeycloakTokenApiHelper, KeycloakTokenApiHelper>();
     builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
     builder.Services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
+    builder.Services.AddScoped<IOnboardingJwtService, OnboardingJwtService>();
     builder.Services.AddScoped<IDareEmailService, DareEmailService>();
     
 
