@@ -24,11 +24,11 @@ public class OnboardingService : IOnboardingService
     /// </summary>
     public async Task AddKeycloakSettingsToVault()
     {
-        if (!string.IsNullOrEmpty(_vaultConfigSettings.CurrentValue.SubmissionURL))
+        if (!string.IsNullOrEmpty(_vaultConfigSettings.CurrentValue.KeycloakRealmSettingURL))
         {
             try
             {
-                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(_vaultConfigSettings.CurrentValue.SubmissionURL, new OpenIdConnectConfigurationRetriever());
+                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(_vaultConfigSettings.CurrentValue.KeycloakRealmSettingURL, new OpenIdConnectConfigurationRetriever());
                 OpenIdConnectConfiguration config = await configManager.GetConfigurationAsync();
 
                 var keycloakConfig = new
@@ -46,7 +46,7 @@ public class OnboardingService : IOnboardingService
         }
         else
         {
-            Log.Error("OnboardingService:AddKeycloakSettingsToVault - Submission URL is missing.");
+            Log.Error("OnboardingService:AddKeycloakSettingsToVault - Realm Config URL is missing.");
         }
     }
 }
