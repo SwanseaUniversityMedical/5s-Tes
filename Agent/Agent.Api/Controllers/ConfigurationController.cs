@@ -20,10 +20,4 @@ public class ConfigurationController : Controller
     {
         await _configurationService.AddConfigurationToVault(json, nameof(VaultConfigSettings));
     }
-
-    [HttpPost("ObserveConfig")]
-    public async Task ObserveConfig()
-    {
-        _configurationService.ObserveConfig();
-    }
 }

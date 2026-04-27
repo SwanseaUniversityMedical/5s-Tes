@@ -87,10 +87,4 @@ public class ConfigurationService : IConfigurationService
             return null;
         }
     }
-
-    public void ObserveConfig()
-    {
-        var x = _keycloakSettings;
-        var y = _configSettings;
-    }
 }
