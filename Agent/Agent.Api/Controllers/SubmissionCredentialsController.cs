@@ -1,4 +1,4 @@
-﻿using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
@@ -6,6 +6,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Agent.Api.Controllers
 {
@@ -19,8 +20,10 @@ namespace Agent.Api.Controllers
         private readonly IEncDecHelper _encDecHelper;
         private readonly KeycloakTokenHelper _keycloakTokenHelper;
 
-        public SubmissionCredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, SubmissionKeyCloakSettings keycloakSettings)
+        public SubmissionCredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings)
         {
+            SubmissionKeyCloakSettings keycloakSettings = settings.CurrentValue;
+
             _encDecHelper = encDec;
             _DbContext = applicationDbContext;
             _keycloakTokenHelper = new KeycloakTokenHelper(keycloakSettings.BaseUrl, keycloakSettings.ClientId,

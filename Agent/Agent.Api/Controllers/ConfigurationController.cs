@@ -1,3 +1,4 @@
+using Agent.Api.Models;
 using Agent.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 
@@ -14,9 +15,9 @@ public class ConfigurationController : Controller
         _configurationService = configService;
     }
 
-    [HttpPost("AddConfigurationToVault/{json}")]
-    public async Task AddConfigurationToVault(string json)
+    [HttpPost("AddConfigurationToVault")]
+    public async Task AddConfigurationToVault([FromBody] string json)
     {
-        await _configurationService.AddConfigurationToVault(json);
+        await _configurationService.AddConfigurationToVault(json, nameof(VaultConfigSettings));
     }
 }

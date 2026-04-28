@@ -103,10 +103,7 @@ configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSetting
 dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(dataEgressKeyCloakSettings);
 
-var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
-configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
-submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(submissionKeyCloakSettings);
+builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
 
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
@@ -169,6 +166,7 @@ builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 
 var TVP = new TokenValidationParameters
 {
@@ -297,6 +295,7 @@ using (var scope = app.Services.CreateScope())
     }
     credDb.Database.Migrate();
 
+    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
