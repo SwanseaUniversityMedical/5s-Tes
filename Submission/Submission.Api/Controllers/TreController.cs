@@ -205,6 +205,7 @@ namespace Submission.Api.Controllers
 
         }
 
+        [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("DownloadConfig/{treId}")]
         public async Task<IActionResult> DownloadConfig(int treId)
         {
