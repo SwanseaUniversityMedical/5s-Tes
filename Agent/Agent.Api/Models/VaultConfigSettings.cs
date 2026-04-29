@@ -7,4 +7,5 @@ public class VaultConfigSettings
     public string SubmissionURL { get; set; }
     public string KeycloakRealmSettingURL { get; set; }
     public string JWT { get; set; }
+    public bool IsConfigurationImported { get; set; }
 }

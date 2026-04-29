@@ -1,4 +1,17 @@
+using System.Net;
+using System.Reflection;
+using Agent.Api;
+using Agent.Api.Constants;
+using Agent.Api.Models;
+using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Services;
+using Agent.Api.Services.SignalR;
+using Credentials.Models.DbContexts;
 using EasyNetQ;
+using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Rabbit;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Dashboard.BasicAuthorization;
@@ -15,24 +28,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Serilog;
-using System.Net;
-using Zeebe.Client.Accelerator.Extensions;
-using System.Reflection;
-using Agent.Api;
-using Agent.Api.Constants;
-using Agent.Api.Models;
-using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services;
-using Agent.Api.Services.SignalR;
-using Credentials.Models.DbContexts;
-using FiveSafesTes.Core.Models.Settings;
-using FiveSafesTes.Core.Models.ViewModels;
-using FiveSafesTes.Core.Rabbit;
-using FiveSafesTes.Core.Services;
 using Serilog.Events;
 using VaultSharp;
 using VaultSharp.V1.AuthMethods;
 using VaultSharp.V1.AuthMethods.Token;
+using Zeebe.Client.Accelerator.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -137,6 +137,11 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
+//For hangfire
+var jobSettings = new JobSettings();
+configuration.Bind(nameof(JobSettings), jobSettings);
+builder.Services.AddSingleton(jobSettings);
+
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
@@ -162,6 +167,7 @@ builder.Services.AddScoped<IDareSyncHelper, DareSyncHelper>();
 builder.Services.AddScoped<ISubmissionHelper, SubmissionHelper>();
 builder.Services.AddScoped<IDoSyncWork, DoSyncWork>();
 builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
+builder.Services.AddScoped<IDoHealthCheckWork, DoHealthCheckWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
@@ -428,9 +434,6 @@ app.MapHub<SignalRService>("/signalRHub",
         options => { options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling; })
     .RequireCors(MyAllowSpecificOrigins);
 
-//Hangfire
-var jobSettings = new JobSettings();
-configuration.Bind(nameof(JobSettings), jobSettings);
 var extHangfire = configuration["EnableExternalHangfire"];
 
 if (extHangfire != null && extHangfire.ToLower() == "true")
@@ -463,14 +466,19 @@ else
     app.UseHangfireDashboard();
 }
 
+string healthCheckJobName = jobSettings.HealthCheckJobName;
+if (jobSettings.healthCheckSchedule == 0)
+    RecurringJob.RemoveIfExists(healthCheckJobName);
+else
+    RecurringJob.AddOrUpdate<IDoHealthCheckWork>(healthCheckJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.healthCheckSchedule));
 
-const string syncJobName = "Sync Projects and Membership";
+string syncJobName = jobSettings.SyncJobName;
 if (jobSettings.syncSchedule == 0)
     RecurringJob.RemoveIfExists(syncJobName);
 else
     RecurringJob.AddOrUpdate<IDoSyncWork>(syncJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.syncSchedule));
 
-const string scanJobName = "Sync Submissions";
+string scanJobName = jobSettings.ScanJobName;
 
 if (jobSettings.scanSchedule == 0)
     RecurringJob.RemoveIfExists(scanJobName);
