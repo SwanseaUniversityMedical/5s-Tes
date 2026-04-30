@@ -449,6 +449,47 @@ namespace Submission.Api.Controllers
             }
         }
 
+        [AllowAnonymous]
+        [HttpGet("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerOperation("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID and status of the child submission for the given ID of the parent Submission and TRE name")]
+        [SwaggerResponse(statusCode: 404, description: "No matching child submission found")]
+        public async Task<IActionResult> GetChildSubmissionInfoByParentAndTre(int parentSubmissionId, string treName)
+        {
+            try
+            {
+              var child = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(s => s.Parent != null 
+                            && s.Parent.Id == parentSubmissionId 
+                            && s.Tre != null 
+                            && s.Tre.Name == treName)
+                .Select(s => new 
+                {
+                  s.Id,
+                  s.Status
+                })
+                .FirstOrDefaultAsync();
+
+              if (child == null)
+              {
+                Log.Warning("{Function} No child submission found for parentId={ParentId}, treName={TreName}",
+                  "GetChildSubmissionIdByParentAndTre", parentSubmissionId, treName);
+                return NotFound();
+              }
+
+              Log.Information("{Function} Child submission found: {ChildId}", 
+                "GetChildSubmissionIdByParentAndTre", child.Id);
+
+              return Ok(child);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetChildSubmissionIdByParentAndTre");
+                throw;
+            }
+        }
+
         [HttpGet("GetSubmissionsForCurrentUser")]
         public List<FiveSafesTes.Core.Models.Submission> GetSubmissionsForCurrentUser()
         {
