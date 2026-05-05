@@ -4,5 +4,6 @@ namespace Submission.Api.Services.Contract
     {
         Task<(string clientUuid, string clientId, string clientSecret)> CreateServiceAccountAsync(string treName);
         Task<bool> DeleteServiceAccountAsync(string clientUuid);
+        Task<string> GetServiceAccountTokenAsync(string clientId, string clientSecret);
     }
 }
