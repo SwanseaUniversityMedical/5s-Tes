@@ -1,4 +1,4 @@
-﻿
+
 
 using System.ComponentModel.DataAnnotations;
 using System.Numerics;
@@ -234,5 +234,9 @@ namespace FiveSafesTes.Core.Models.Enums
         }
     }
 
-
+    public enum HealthStatus
+    {
+      Failed = 0,
+      Succeed = 1
+    }
 }
