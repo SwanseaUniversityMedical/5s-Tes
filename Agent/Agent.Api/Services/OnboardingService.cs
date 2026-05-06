@@ -106,9 +106,4 @@ public class OnboardingService : IOnboardingService
             RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(_jobSettings.scanSchedule));
         }
     }
-
-    public async Task CheckConfig()
-    {
-        var config = _onboardingConfig;
-    }
 }

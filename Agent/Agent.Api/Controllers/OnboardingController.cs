@@ -32,10 +32,4 @@ public class OnboardingController : Controller
 
         return Ok();
     }
-
-    [HttpPost("CheckConfig")]
-    public async Task CheckConfig()
-    {
-        await _onboardingService.CheckConfig();
-    }
 }
