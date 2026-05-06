@@ -42,9 +42,7 @@ public class OnboardingService : IOnboardingService
         await _vaultConfigProvider.LoadAsync();
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
-        // Log into submission layer
-        HttpResponseMessage response = await _clientHelper.CallAPI("/api/Onboarding/RetrieveCredentials", null);
-        if (!response.IsSuccessStatusCode) Log.Error("Failed to log into submission layer");
+        // TODO Log into submission layer with JWT
 
         RestartHangfireJobs();
     }
