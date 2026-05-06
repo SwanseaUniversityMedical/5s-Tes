@@ -55,7 +55,7 @@ namespace Agent.Api
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
-        private readonly IOptionsMonitor<VaultConfigSettings> _configSettings;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -75,7 +75,7 @@ namespace Agent.Api
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
             IConfiguration config,
-            IOptionsMonitor<VaultConfigSettings> configSettings
+            IOptionsMonitor<TreOnboardingConfig> configSettings
 
         )
         {
@@ -107,7 +107,7 @@ namespace Agent.Api
             _vaultService = vaultService;
 
             _config = config;
-            _configSettings = configSettings;
+            _onboardingConfig = configSettings;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -444,7 +444,7 @@ namespace Agent.Api
         // Method executed upon hangfire job
         public async Task Execute()
         {
-            if (!_configSettings.CurrentValue.IsConfigurationImported) return;
+            if (!_onboardingConfig.CurrentValue.IsConfigurationImported) return;
 
             Log.Information("{Function} DoAgentWork running", "Execute");
             // control use of dependency injection

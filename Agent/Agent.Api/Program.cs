@@ -362,7 +362,7 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
     builder.Services.Configure<VaultSettings>(
         configuration.GetSection("VaultSettings"));
 
-    builder.Services.Configure<VaultConfigSettings>(configuration.GetSection("VaultConfigSettings"));
+    builder.Services.Configure<TreOnboardingConfig>(configuration.GetSection("TreOnboardingConfig"));
 
     // Register HttpClient for Vault service
     builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>

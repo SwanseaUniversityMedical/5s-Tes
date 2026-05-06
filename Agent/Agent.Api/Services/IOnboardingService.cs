@@ -2,5 +2,6 @@ namespace Agent.Api.Services;
 
 public interface IOnboardingService
 {
-    Task AddKeycloakSettingsToVault();
+    Task UploadJsonConfig(IFormFile file);
+    Task CheckConfig();
 }

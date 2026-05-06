@@ -6,7 +6,7 @@ namespace Agent.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
-public class OnboardingController
+public class OnboardingController : Controller
 {
     private readonly IOnboardingService _onboardingService;
 
@@ -15,9 +15,27 @@ public class OnboardingController
         _onboardingService = onboardingService;
     }
 
-    [HttpPost("AddKeycloakSettingsToVault")]
-    public async Task AddKeycloakSettingsToVault()
+    [HttpPost("UploadJsonConfig")]
+    public async Task<IActionResult> UploadJsonConfig(IFormFile file)
     {
-        await _onboardingService.AddKeycloakSettingsToVault();
+        if (file == null || file.Length == 0)
+        {
+            return BadRequest("No file uploaded.");
+        }
+
+        if (!Path.GetExtension(file.FileName).Equals(".json", StringComparison.CurrentCultureIgnoreCase))
+        {
+            return BadRequest("Configuration must be in JSON format.");
+        }
+
+        await _onboardingService.UploadJsonConfig(file);
+
+        return Ok();
+    }
+
+    [HttpPost("CheckConfig")]
+    public async Task CheckConfig()
+    {
+        await _onboardingService.CheckConfig();
     }
 }
