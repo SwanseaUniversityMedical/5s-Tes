@@ -1,4 +1,4 @@
-using FiveSafesTes.Core.Models;
+﻿using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Submission.Api.Repositories.DbContexts
@@ -31,15 +31,8 @@ namespace Submission.Api.Repositories.DbContexts
 
         public DbSet<MembershipTreDecision> MembershipTreDecisions { get; set; }
 
-        public DbSet<UsedOnboardingJti> UsedOnboardingJtis { get; set; }
 
-        protected override void OnModelCreating(ModelBuilder modelBuilder)
-        {
-            base.OnModelCreating(modelBuilder);
-            modelBuilder.Entity<UsedOnboardingJti>(b =>
-            {
-                b.HasIndex(x => x.Jti).IsUnique();
-            });
-        }
+
+
     }
 }

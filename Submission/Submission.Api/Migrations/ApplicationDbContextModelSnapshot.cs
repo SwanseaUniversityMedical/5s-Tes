@@ -357,32 +357,6 @@ namespace Submission.Api.Migrations
                     b.ToTable("Tres");
                 });
 
-            modelBuilder.Entity("FiveSafesTes.Core.Models.UsedOnboardingJti", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("Jti")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("TreId")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("UsedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("Jti")
-                        .IsUnique();
-
-                    b.ToTable("UsedOnboardingJtis");
-                });
-
             modelBuilder.Entity("FiveSafesTes.Core.Models.User", b =>
                 {
                     b.Property<int>("Id")
