@@ -61,12 +61,14 @@ public class OnboardingService : IOnboardingService
                 ConfigurationManager<OpenIdConnectConfiguration> configManager = new(keycloakSettingsURL, new OpenIdConnectConfigurationRetriever());
                 OpenIdConnectConfiguration config = await configManager.GetConfigurationAsync();
 
-                var keycloakConfig = new
+                // Extract desired values from the retrieved OpenId configuration...
+                object keycloakConfig = new
                 {
                     Authority = config.Issuer,
                     BaseUrl = config.Issuer
                 };
 
+                // ... then add them to vault.
                 await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(keycloakConfig), nameof(SubmissionKeyCloakSettings));
             }
             catch (Exception ex)

@@ -67,6 +67,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             }
         }
 
+        // Log health status for submission layer in the database.
         Status healthStatus = new()
         {
             Product = "Submission",
@@ -125,6 +126,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             }
         }
 
+        // Log health status for TES engine in the database.
         Status healthStatus = new()
         {
             Product = "TES Engine",
@@ -139,6 +141,9 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         return isHealthy;
     }
 
+    /// <summary>
+    /// If a connection is unhealthy, we stop our hangfire jobs so that they are not trying to hit unreachable endpoints repeatedly.
+    /// </summary>
     private void KillHangfireJobs()
     {
         RecurringJob.RemoveIfExists(_jobSettings.SyncJobName);
