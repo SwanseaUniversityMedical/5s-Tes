@@ -1,4 +1,4 @@
-﻿using Agent.Api.Models;
+using Agent.Api.Models;
 using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
 
@@ -37,5 +37,6 @@ namespace Agent.Api.Repositories.DbContexts
 
         public DbSet<ProjectAcount> ProjectAcount { get; set; }
 
+        public DbSet<Status> Status { get; set; }
     }
 }
