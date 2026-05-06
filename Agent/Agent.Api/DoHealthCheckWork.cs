@@ -1,6 +1,7 @@
 using System.Net;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
+using FiveSafesTes.Core.Models.Enums;
 using Hangfire;
 
 namespace Agent.Api;
@@ -29,8 +30,8 @@ public class DoHealthCheckWork : IDoHealthCheckWork
 
     public async Task Execute()
     {
-        bool isSyncHealthy = DoSyncHealthCheck();
-        if (isSyncHealthy) DoAgentHealthCheck();
+        DoSyncHealthCheck();
+        DoAgentHealthCheck();
     }
 
     /// <summary>
@@ -66,7 +67,15 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             }
         }
 
-        // add message, thingy and timestamp to database here
+        Status healthStatus = new()
+        {
+            Product = "Submission",
+            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            Reason = message,
+            DateTime = DateTime.UtcNow
+        };
+
+        _dbContext.Status.Add(healthStatus);
 
         if (!isHealthy) KillHangfireJobs();
         return isHealthy;
@@ -116,7 +125,15 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             }
         }
 
-        // add message, thingy and timestamp to database here
+        Status healthStatus = new()
+        {
+            Product = "TES Engine",
+            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            Reason = message,
+            DateTime = DateTime.UtcNow
+        };
+
+        _dbContext.Status.Add(healthStatus);
 
         if (!isHealthy) KillHangfireJobs();
         return isHealthy;

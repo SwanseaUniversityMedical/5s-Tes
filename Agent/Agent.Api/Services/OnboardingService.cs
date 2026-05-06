@@ -1,6 +1,7 @@
 using System.Text.Json;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
@@ -13,10 +14,12 @@ public class OnboardingService : IOnboardingService
 {
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
+    private readonly IDareClientHelper _clientHelper;
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
 
-    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, JobSettings jobSettings)
+    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings,
+        IDareClientHelper clientHelper, JobSettings jobSettings)
     {
         _configurationService = configService;
         _onboardingConfig = configSettings;
@@ -38,6 +41,10 @@ public class OnboardingService : IOnboardingService
         // Update configuration immediately
         await _vaultConfigProvider.LoadAsync();
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
+
+        // Log into submission layer
+        HttpResponseMessage response = await _clientHelper.CallAPI("/api/Onboarding/RetrieveCredentials", null);
+        if (!response.IsSuccessStatusCode) Log.Error("Failed to log into submission layer");
 
         RestartHangfireJobs();
     }
