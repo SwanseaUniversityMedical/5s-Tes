@@ -24,6 +24,7 @@ public class OnboardingService : IOnboardingService
         _configurationService = configService;
         _onboardingConfig = configSettings;
         _jobSettings = jobSettings;
+        _clientHelper = clientHelper;
         _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
     }
 
