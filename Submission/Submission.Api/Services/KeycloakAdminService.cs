@@ -58,6 +58,35 @@ namespace Submission.Api.Services
             return false;
         }
 
+        public async Task<string> GetServiceAccountTokenAsync(string clientId, string clientSecret)
+        {
+            var baseUrl = GetKeycloakBaseUrl();
+            var realm = _keycloakSettings.Realm;
+            var url = $"{baseUrl}/realms/{realm}/protocol/openid-connect/token";
+
+            using var client = new HttpClient(_keycloakSettings.getProxyHandler);
+            var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
+            {
+                { "client_id", clientId },
+                { "client_secret", clientSecret },
+                { "grant_type", "client_credentials" }
+            });
+
+            var response = await client.PostAsync(url, tokenRequest);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Error("{Function} Failed to get service account token for {ClientId}. Status: {Status}, Response: {Response}",
+                    "GetServiceAccountTokenAsync", clientId, response.StatusCode, content);
+                throw new Exception($"Failed to get Keycloak service account token: {response.StatusCode}");
+            }
+
+            var tokenResponse = JObject.Parse(content);
+            return tokenResponse["access_token"]?.ToString()
+                ?? throw new Exception("Service account token response did not contain access_token");
+        }
+
         private async Task<string> GetAdminTokenAsync()
         {
             var baseUrl = GetKeycloakBaseUrl();
