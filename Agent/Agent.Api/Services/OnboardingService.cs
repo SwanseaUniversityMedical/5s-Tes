@@ -1,3 +1,4 @@
+using System.Net.Http.Headers;
 using System.Text.Json;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
@@ -43,7 +44,7 @@ public class OnboardingService : IOnboardingService
         await _vaultConfigProvider.LoadAsync();
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
-        // TODO Log into submission layer with JWT
+        await LogIntoSubmissionLayer();
 
         RestartHangfireJobs();
     }
@@ -78,6 +79,37 @@ public class OnboardingService : IOnboardingService
         else
         {
             Log.Error("OnboardingService:AddKeycloakSettingsToVault - Realm Config URL is missing.");
+        }
+    }
+
+    /// <summary>
+    /// Log into the submission layer using the JWT and add the retrieved credentials to vault.
+    /// </summary>
+    private async Task LogIntoSubmissionLayer()
+    {
+        HttpClient httpClient = new();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _onboardingConfig.CurrentValue.JWT);
+
+        HttpResponseMessage response = await httpClient.PostAsync($"{_onboardingConfig.CurrentValue.SubmissionURL}/api/Onboarding/RetrieveCredentials", null);
+
+        if (response.IsSuccessStatusCode)
+        {
+            OnboardingCredentialsResponse? credentials = await response.Content.ReadFromJsonAsync<OnboardingCredentialsResponse>();
+
+            if (credentials != null)
+            {
+                object vaultCredentials = new
+                {
+                    credentials.ClientId,
+                    credentials.ClientSecret
+                };
+
+                await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
+            }
+        }
+        else
+        {
+            Log.Error("OnboardingService:LogIntoSubmissionlayer - " + response.StatusCode);
         }
     }
 
