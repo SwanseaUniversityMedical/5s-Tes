@@ -15,12 +15,12 @@ public class OnboardingService : IOnboardingService
 {
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
-    private readonly IDareClientHelper _clientHelper;
+    private readonly IDareClientWithoutTokenHelper _clientHelper;
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
 
     public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings,
-        IDareClientHelper clientHelper, JobSettings jobSettings)
+        IDareClientWithoutTokenHelper clientHelper, JobSettings jobSettings)
     {
         _configurationService = configService;
         _onboardingConfig = configSettings;
