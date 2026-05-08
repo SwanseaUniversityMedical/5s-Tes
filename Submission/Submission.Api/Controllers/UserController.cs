@@ -91,31 +91,68 @@ namespace Submission.Api.Controllers
 
         
         [HttpGet("GetUser")]
-        public User? GetUser(int userId)
+        public async Task<IActionResult> GetUser(int userId)
         {
             if (!ModelState.IsValid) // SonarQube security
             {
-                return null;
+                return BadRequest();
             }
 
             try
             {
-                var returned = _DbContext.Users.Find(userId);
+                var returned = await _DbContext.Users
+                    .AsNoTracking()
+                    .Where(u => u.Id == userId)
+                    .Select(u => new
+                    {
+                        u.Id,
+                        u.Name,
+                        u.FullName,
+                        u.Email,
+                        u.Biography,
+                        u.Organisation,
+                        u.FormData,
+                        Projects = u.Projects.Select(p => new
+                        {
+                            p.Id,
+                            p.Name,
+                            p.StartDate,
+                            p.EndDate,
+                            p.ProjectDescription,
+                            Submissions = p.Submissions.Select(s => new { s.Id }),
+                            Users = p.Users.Select(usr => new { usr.Id }),
+                            Tres = p.Tres.Select(tr => new { tr.Id }),
+                        }),
+                        Submissions = u.Submissions
+                            .Where(s => s.Parent == null)
+                            .Select(s => new
+                            {
+                                s.Id,
+                                s.TesName,
+                                s.Status,
+                                s.StartTime,
+                                s.EndTime,
+                                s.ParentId,
+                                Project = new { s.Project.Id, s.Project.Name },
+                                SubmittedBy = new { s.SubmittedBy.Id, s.SubmittedBy.Name },
+                            }),
+                    })
+                    .FirstOrDefaultAsync();
+
                 if (returned == null)
                 {
-                    return null;
+                    Log.Warning("{Function} User {UserId} not found", "GetUser", userId);
+                    return NotFound();
                 }
-                
+
                 Log.Information("{Function} User retrieved successfully", "GetUser");
-                return returned;
+                return Ok(returned);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "GetUser");
                 throw;
             }
-
-            
         }
 
         

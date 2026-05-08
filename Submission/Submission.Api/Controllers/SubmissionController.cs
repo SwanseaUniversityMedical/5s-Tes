@@ -237,14 +237,76 @@ namespace Submission.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetASubmission/{submissionId}")]
-        public FiveSafesTes.Core.Models.Submission GetASubmission(int submissionId)
+        public async Task<IActionResult> GetASubmission(int submissionId)
         {
             try
             {
-                var submission = _DbContext.Submissions.First(x => x.Id == submissionId);
+                var submission = await _DbContext.Submissions
+                    .AsNoTracking()
+                    .Where(x => x.Id == submissionId)
+                    .Select(s => new
+                    {
+                        s.Id,
+                        s.TesId,
+                        s.TesName,
+                        s.TesJson,
+                        s.Status,
+                        s.StatusDescription,
+                        s.StartTime,
+                        s.EndTime,
+                        s.LastStatusUpdate,
+                        s.ParentId,
+                        s.SourceCrate,
+                        s.DockerInputLocation,
+                        s.FinalOutputFile,
+                        s.QueryToken,
+                        Project = new
+                        {
+                            s.Project.Id,
+                            s.Project.Name,
+                            s.Project.SubmissionBucket,
+                            s.Project.OutputBucket,
+                        },
+                        SubmittedBy = new
+                        {
+                            s.SubmittedBy.Id,
+                            s.SubmittedBy.Name,
+                            s.SubmittedBy.FullName,
+                        },
+                        Children = s.Children.Select(c => new
+                        {
+                            c.Id,
+                            c.TesName,
+                            c.Status,
+                            c.StartTime,
+                            c.EndTime,
+                            c.LastStatusUpdate,
+                            c.ParentId,
+                            c.SourceCrate,
+                            c.DockerInputLocation,
+                            Tre = c.Tre == null
+                                ? new { Id = 0, Name = (string?)null, LastHeartBeatReceived = (DateTime?)null }
+                                : new { Id = c.Tre.Id, Name = (string?)c.Tre.Name, LastHeartBeatReceived = (DateTime?)c.Tre.LastHeartBeatReceived },
+                            HistoricStatuses = c.HistoricStatuses.Select(h => new
+                            {
+                                h.Id,
+                                h.Start,
+                                h.End,
+                                h.Status,
+                                h.StatusDescription,
+                            }).ToList(),
+                        }).ToList(),
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (submission == null)
+                {
+                    Log.Warning("{Function} Submission {SubmissionId} not found", "GetASubmission", submissionId);
+                    return NotFound();
+                }
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
-                return submission;
+                return Ok(submission);
             }
             catch (Exception ex)
             {

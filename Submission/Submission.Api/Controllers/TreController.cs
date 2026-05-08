@@ -159,18 +159,54 @@ namespace Submission.Api.Controllers
         }
         
         [HttpGet("GetATre")]
-        public Tre? GetATre(int treId)
+        public async Task<IActionResult> GetATre(int treId)
         {
             try
             {
-                var returned = _DbContext.Tres.Find(treId);
+                var returned = await _DbContext.Tres
+                    .AsNoTracking()
+                    .Where(t => t.Id == treId)
+                    .Select(t => new
+                    {
+                        t.Id,
+                        t.Name,
+                        t.About,
+                        t.FormData,
+                        t.AdminUsername,
+                        t.LastHeartBeatReceived,
+                        Projects = t.Projects.Select(p => new
+                        {
+                            p.Id,
+                            p.Name,
+                            p.StartDate,
+                            p.EndDate,
+                            Submissions = p.Submissions.Select(s => new { s.Id }),
+                            Users = p.Users.Select(u => new { u.Id }),
+                            Tres = p.Tres.Select(tr => new { tr.Id }),
+                        }),
+                        Submissions = t.Submissions.Select(s => new
+                        {
+                            s.Id,
+                            s.TesName,
+                            s.Status,
+                            s.StartTime,
+                            s.EndTime,
+                            s.ParentId,
+                            Parent = new { Id = s.ParentId ?? 0 },
+                            Project = new { s.Project.Id, s.Project.Name },
+                            SubmittedBy = new { s.SubmittedBy.Id, s.SubmittedBy.Name },
+                        }),
+                    })
+                    .FirstOrDefaultAsync();
+
                 if (returned == null)
                 {
-                    return null;
+                    Log.Warning("{Function} TRE {TreId} not found", "GetATre", treId);
+                    return NotFound();
                 }
 
-                Log.Information("{Function} Project retrieved successfully", "GetATre");
-                return returned;
+                Log.Information("{Function} TRE retrieved successfully", "GetATre");
+                return Ok(returned);
             }
             catch (Exception ex)
             {
