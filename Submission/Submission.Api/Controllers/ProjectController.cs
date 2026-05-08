@@ -383,26 +383,57 @@ namespace Submission.Api.Controllers
         }
         
         [HttpGet("GetProject")]
-        public Project? GetProject(int projectId)
+        public async Task<IActionResult> GetProject(int projectId)
         {
             try
             {
-                var returned = _DbContext.Projects.Find(projectId);
+                var returned = await _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(p => p.Id == projectId)
+                    .Select(p => new
+                    {
+                        p.Id,
+                        p.Name,
+                        p.Display,
+                        p.FormData,
+                        p.StartDate,
+                        p.EndDate,
+                        p.ProjectDescription,
+                        p.ProjectOwner,
+                        p.ProjectContact,
+                        p.MarkAsEmbargoed,
+                        p.SubmissionBucket,
+                        p.OutputBucket,
+                        Tres = p.Tres.Select(t => new { t.Id, t.Name }),
+                        Users = p.Users.Select(u => new { u.Id, u.Name, u.FullName, u.Email }),
+                        Submissions = p.Submissions.Select(s => new
+                        {
+                            s.Id,
+                            s.Status,
+                            s.StartTime,
+                            s.EndTime,
+                            s.TesName,
+                            s.ParentId,
+                            HasParent = s.ParentId != null,
+                            SubmittedByName = s.SubmittedBy != null ? s.SubmittedBy.Name : null,
+                        }),
+                    })
+                    .FirstOrDefaultAsync();
+
                 if (returned == null)
                 {
-                    return null;
+                    Log.Warning("{Function} Project {ProjectId} not found", "GetProject", projectId);
+                    return NotFound();
                 }
 
                 Log.Information("{Function} Project retrieved successfully", "GetProject");
-                return returned;
+                return Ok(returned);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "GetProject");
                 throw;
             }
-
-
         }
 
         [HttpGet("GetAllProjects")]
