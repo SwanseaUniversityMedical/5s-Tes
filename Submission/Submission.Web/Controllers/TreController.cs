@@ -5,6 +5,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Newtonsoft.Json;
+using System.Security.Claims;
 
 namespace Submission.Web.Controllers
 {
@@ -74,6 +75,37 @@ namespace Submission.Web.Controllers
                 "/api/Tre/GetATre/", paramlist).Result;
 
             return View(Tre);
+        }
+
+        [HttpGet]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<IActionResult> DownloadConfig(int treId)
+        {
+            if (!ModelState.IsValid) // SonarQube security
+            {
+                return View("/");
+            }
+
+            var paramlist = new Dictionary<string, string> { { "treId", treId.ToString() } };
+            var tre = await _clientHelper.CallAPIWithoutModel<Tre?>("/api/Tre/GetATre/", paramlist);
+            if (tre == null)
+            {
+                return NotFound($"TRE with id {treId} not found");
+            }
+
+            var username = User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value;
+            var isTreAdmin = !string.IsNullOrEmpty(username) &&
+                             !string.IsNullOrEmpty(tre.AdminUsername) &&
+                             string.Equals(tre.AdminUsername, username, StringComparison.OrdinalIgnoreCase);
+
+            if (!isTreAdmin)
+            {
+                return Forbid();
+            }
+
+            var bytes = await _clientHelper.CallAPIToGetFile($"/api/Tre/DownloadConfig/{treId}");
+            var fileName = $"tre-onboarding-{tre.Name.ToLowerInvariant()}.json";
+            return File(bytes, "application/json", fileName);
         }
 
 
