@@ -236,7 +236,7 @@ namespace FiveSafesTes.Core.Models.Enums
 
     public enum HealthStatus
     {
-      Failed = 0,
-      Succeed = 1
+        Failed = 0,
+        Succeed = 1
     }
 }

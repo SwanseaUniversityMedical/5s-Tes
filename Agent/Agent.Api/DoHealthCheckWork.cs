@@ -68,7 +68,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         }
 
         // Log health status for submission layer in the database.
-        Status healthStatus = new()
+        HealthCheckStatus healthStatus = new()
         {
             Product = "Submission",
             HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
@@ -76,7 +76,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             DateTime = DateTime.UtcNow
         };
 
-        _dbContext.Status.Add(healthStatus);
+        _dbContext.HealthCheckStatus.Add(healthStatus);
 
         if (!isHealthy) KillHangfireJobs();
         return isHealthy;
@@ -127,7 +127,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         }
 
         // Log health status for TES engine in the database.
-        Status healthStatus = new()
+        HealthCheckStatus healthStatus = new()
         {
             Product = "TES Engine",
             HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
@@ -135,7 +135,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             DateTime = DateTime.UtcNow
         };
 
-        _dbContext.Status.Add(healthStatus);
+        _dbContext.HealthCheckStatus.Add(healthStatus);
 
         if (!isHealthy) KillHangfireJobs();
         return isHealthy;
