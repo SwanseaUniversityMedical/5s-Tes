@@ -7,13 +7,13 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Agent.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class addstatus : Migration
+    public partial class healthCheckStatus : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.CreateTable(
-                name: "Status",
+                name: "HealthCheckStatus",
                 columns: table => new
                 {
                     Id = table.Column<int>(type: "integer", nullable: false)
@@ -25,7 +25,7 @@ namespace Agent.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Status", x => x.Id);
+                    table.PrimaryKey("PK_HealthCheckStatus", x => x.Id);
                 });
         }
 
@@ -33,7 +33,7 @@ namespace Agent.Api.Migrations
         protected override void Down(MigrationBuilder migrationBuilder)
         {
             migrationBuilder.DropTable(
-                name: "Status");
+                name: "HealthCheckStatus");
         }
     }
 }
