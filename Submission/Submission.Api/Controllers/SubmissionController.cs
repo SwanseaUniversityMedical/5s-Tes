@@ -74,18 +74,23 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetRequestCancelSubsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetRequestCancelSubsForTre()
+        public virtual async Task<IActionResult> GetRequestCancelSubsForTre()
         {
+          var usersName = User.Claims.First(x => x.Type == "preferred_username").Value;
+          var tre = await _DbContext.Tres
+            .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == usersName.ToLower());
+          if (tre == null) throw new Exception($"User {usersName} doesn't have a tre");
 
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+          tre.LastHeartBeatReceived = DateTime.UtcNow;
+          await _DbContext.SaveChangesAsync();
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
+          var results = await _DbContext.Submissions
+            .AsNoTracking()
+            .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                      && x.Status == StatusType.RequestCancellation)
+            .ToListAsync();
 
-
-            return StatusCode(200, results);
+          return StatusCode(200, results);
         }
 
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]

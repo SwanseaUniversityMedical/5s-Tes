@@ -473,13 +473,16 @@ namespace Submission.Api.Controllers
 
         [HttpGet("GetAllProjectsForTre")]
         [Authorize(Roles = "dare-tre-admin")]
-        public List<Project> GetAllProjectsForTre()
+        public async Task<List<Project>> GetAllProjectsForTre()
         {
             try
             {
 
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+              var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
+              var tre = await _DbContext.Tres.Include(tre => tre.Projects)
+                .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
+              if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
+              
                 var allProjects = tre.Projects;
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
@@ -491,48 +494,46 @@ namespace Submission.Api.Controllers
                 throw;
             }
 
-
         }
-
-        
-
-
         [HttpPost("SyncTreProjectDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
+        public async Task<BoolReturn> SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
         {
             try
             {
                 Log.Information("SyncTreProjectDecisions called with  " + decisions.Count);
 
                 var result = new BoolReturn();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+                var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
+                var tre = await _DbContext.Tres
+                  .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
+                if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
+                
                 foreach (var item in decisions)
                 {
                     Log.Information("SyncTreProjectDecisions item > ProjectId  " + item.ProjectId  + " Decision  > " + item.Decision);
 
-                    var dbproj = _DbContext.Projects.FirstOrDefault(x => x.Id == item.ProjectId);
+                    var dbproj = await _DbContext.Projects.FirstOrDefaultAsync(x => x.Id == item.ProjectId);
                     if (dbproj == null)
                     {
                         Log.Error($"no Projects with ID of {item.ProjectId}");
                         continue;
                     }
-                    var tredecision = _DbContext.ProjectTreDecisions.FirstOrDefault(x => x.SubmissionProj == dbproj && x.Tre == tre);
-                    if (tredecision == null)
+                    var treDecision = await _DbContext.ProjectTreDecisions.FirstOrDefaultAsync(x => x.SubmissionProj == dbproj && x.Tre == tre);
+                    if (treDecision == null)
                     {
                         Log.Information("SyncTreProjectDecisions add new  tredecision " + decisions.Count);
 
-                        tredecision = new ProjectTreDecision()
+                        treDecision = new ProjectTreDecision()
                         {
                             SubmissionProj = dbproj,
                             Tre = tre,
                         };
-                        _DbContext.ProjectTreDecisions.Add(tredecision);
+                        _DbContext.ProjectTreDecisions.Add(treDecision);
                     }
-                    tredecision.Decision = item.Decision;
+                    treDecision.Decision = item.Decision;
                 }
-                _DbContext.SaveChanges();
+                await _DbContext.SaveChangesAsync();
 
 
                 result.Result = true;
