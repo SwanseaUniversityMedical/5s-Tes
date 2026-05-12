@@ -48,19 +48,25 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetWaitingSubmissionsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetWaitingSubmissionsForTre()
+        public virtual async Task<IActionResult> GetWaitingSubmissionsForTre()
         {
+          var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
+          var tre = await _DbContext.Tres
+            .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
+          if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
 
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+          tre.LastHeartBeatReceived = DateTime.UtcNow;
+          await _DbContext.SaveChangesAsync();
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.WaitingForAgentToTransfer).ToList();
+          var results = await _DbContext.Submissions
+            .AsNoTracking()
+            .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                      && x.Status == StatusType.WaitingForAgentToTransfer)
+            .ToListAsync();
 
-
-            return StatusCode(200, results);
+          return StatusCode(200, results);
         }
+        
 
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]
         [HttpGet]
@@ -319,10 +325,6 @@ namespace Submission.Api.Controllers
                 StatusType.PackagingApprovedResults,
                 StatusType.Complete,
                 StatusType.Failure,
-
-
-
-
 
             };
             Dictionary<int, List<StatusType>> stage3Dict = new Dictionary<int, List<StatusType>>();
