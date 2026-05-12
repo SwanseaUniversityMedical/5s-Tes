@@ -50,23 +50,21 @@ namespace Submission.Api.Controllers
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
         public virtual async Task<IActionResult> GetWaitingSubmissionsForTre()
         {
-          var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
-          var tre = await _DbContext.Tres
+          var userName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
+          var tre = await _DbContext.Tres.Include(tre => tre.Submissions)
             .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
           if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
-
+          
           tre.LastHeartBeatReceived = DateTime.UtcNow;
           await _DbContext.SaveChangesAsync();
-
-          var results = await _DbContext.Submissions
-            .AsNoTracking()
+        
+          var results =  tre.Submissions
             .Where(x => x.Tre != null && x.Tre.Id == tre.Id
                                       && x.Status == StatusType.WaitingForAgentToTransfer)
-            .ToListAsync();
-
+            .ToList();
+        
           return StatusCode(200, results);
         }
-        
 
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]
         [HttpGet]
