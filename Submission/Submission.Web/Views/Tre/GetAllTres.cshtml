@@ -2,6 +2,7 @@
 @{
 	ViewData["Title"] = "TREs";
 	var treCount = Model.Count;
+	var username = User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value;
 
 
 }
@@ -41,6 +42,10 @@
 										@if (User.IsInRole("dare-control-admin"))
 										{
 											<a href="@Url.Action("SaveATre", "Tre", new { treId = tre.Id })" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
+										}
+										@if (User.IsInRole("dare-tre-admin") && !string.IsNullOrEmpty(username) && string.Equals(tre.AdminUsername, username, StringComparison.OrdinalIgnoreCase))
+										{
+											<a href="@Url.Action("DownloadConfig", "Tre", new { treId = tre.Id })" class="btn btn-sm btn-primary ms-2"><span class="small">Download config</span></a>
 										}
 
 									</div>

@@ -2,6 +2,10 @@
 @model FiveSafesTes.Core.Models.Tre
 @{
     ViewData["Title"] = @Model.Name;
+    var username = User.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value;
+    var isTreAdmin = !string.IsNullOrEmpty(username) &&
+                     !string.IsNullOrEmpty(Model.AdminUsername) &&
+                     string.Equals(Model.AdminUsername, username, StringComparison.OrdinalIgnoreCase);
 
 
 }
@@ -10,10 +14,16 @@
         <div>
             <h1 class="fs-3 mb-0">@Model.Name</h1>
         </div>
-        @if (User.IsInRole("dare-control-admin"))
-        {
-            <a href="@Url.Action("SaveATre", "Tre", new { treId = Model.Id })" class="btn btn-sm btn-outline-primary"><span class="small">Edit</span></a>
-        }
+        <div class="d-flex align-items-center">
+            @if (User.IsInRole("dare-control-admin"))
+            {
+                <a href="@Url.Action("SaveATre", "Tre", new { treId = Model.Id })" class="btn btn-sm btn-outline-primary me-2"><span class="small">Edit</span></a>
+            }
+            @if (User.IsInRole("dare-tre-admin") && isTreAdmin)
+            {
+                <a href="@Url.Action("DownloadConfig", "Tre", new { treId = Model.Id })" class="btn btn-sm btn-primary"><span class="small">Download config</span></a>
+            }
+        </div>
     </div>
     <div class="mt-4">
         <ul class="nav nav-underline border-bottom" id="myTab" role="tablist">
@@ -46,6 +56,10 @@
                         <p class="mb-0">
                             @Model.About
                             Last heartbeat Received: @Model.LastHeartBeatReceived
+                            @if (!string.IsNullOrEmpty(Model.KeycloakClientId) && User.IsInRole("dare-control-admin"))
+                            {
+                                <span class="d-block mt-2 text-muted small">Service account client id: @Model.KeycloakClientId</span>
+                            }
                             @if (Model.IsOnline())
                             {
                                 <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
