@@ -15,17 +15,14 @@ namespace Submission.Api.Services
     public class ConsumeInternalMessageService : BackgroundService
     {
         private readonly IBus _bus;
-        private readonly ApplicationDbContext _dbContext;
+        private readonly IServiceScopeFactory _serviceScopeFactory;
         private readonly MinioSettings _minioSettings;
-        private readonly IMinioHelper _minioHelper;
 
-        public ConsumeInternalMessageService(IBus bus, IServiceProvider serviceProvider)
+        public ConsumeInternalMessageService(IBus bus, IServiceScopeFactory serviceScopeFactory, MinioSettings minioSettings)
         {
             _bus = bus;
-            _dbContext = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<ApplicationDbContext>();
-            _minioSettings = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<MinioSettings>();
-            _minioHelper = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IMinioHelper>();; 
-
+            _serviceScopeFactory = serviceScopeFactory;
+            _minioSettings = minioSettings;
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -57,20 +54,18 @@ namespace Submission.Api.Services
         {
             try
             {
-                var sub = _dbContext.Submissions.First(s => s.Id == message.Body);
+                using var scope = _serviceScopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+                var minioHelper = scope.ServiceProvider.GetRequiredService<IMinioHelper>();
+
+                var sub = dbContext.Submissions.First(s => s.Id == message.Body);
 
                 try
                 {
-                    
-              
-
-               
-                
-
-                var messageMQ = new MQFetchFile();
-                messageMQ.OriginalUrl = sub.DockerInputLocation;
-                messageMQ.Url = sub.SourceCrate;
-                messageMQ.BucketName = sub.Project.SubmissionBucket;
+                    var messageMQ = new MQFetchFile();
+                    messageMQ.OriginalUrl = sub.DockerInputLocation;
+                    messageMQ.Url = sub.SourceCrate;
+                    messageMQ.BucketName = sub.Project.SubmissionBucket;
 
                     Uri uri = null;
 
@@ -85,15 +80,13 @@ namespace Submission.Api.Services
                     Log.Information("{Function} Crate loc {Crate}", "Process", sub.DockerInputLocation);
                     if (uri != null)
                     {
-                        
                         string fileName = Path.GetFileName(uri.LocalPath);
                         Log.Information("{Function} Full file loc {File}, Incoming URL {URL}, our minio {Minio}", "Process", fileName, uri.Scheme.ToLower() + "://" + uri.Host.ToLower() + ":" + uri.Port, _minioSettings.AdminConsole.ToLower());
                         messageMQ.Key = fileName;
                         if (uri.Scheme.ToLower() + "://" + uri.Host.ToLower() + ":" + uri.Port != _minioSettings.AdminConsole.ToLower())
                         {
                             Log.Information("{Function} Copying external", "Process");
-                            _minioHelper.RabbitExternalObject(messageMQ);
-
+                            minioHelper.RabbitExternalObject(messageMQ);
 
                             var minioEndpoint = new MinioEndpoint()
                             {
@@ -105,78 +98,72 @@ namespace Submission.Api.Services
                             Log.Information("{Function} New url {URL}", "Process", messageMQ.Url);
                         }
                     }
-                   
 
                     UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.SubmissionWaitingForCrateFormatCheck, "");
-                if (ValidateCreate(sub))
-                {
-                    UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.SubmissionCrateValidated, "");
-                }
-                else
-                {
-                    UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.SubmissionCrateValidationFailed, "");
-                    UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.Failed, "");
-                }
-
-                var dbproj = sub.Project;
-                var tesTask = JsonConvert.DeserializeObject<TesTask>(sub.TesJson);
-
-                var trestr = tesTask.Tags.Where(x => x.Key.ToLower() == "tres").Select(x => x.Value).FirstOrDefault();
-                List<string> tres = new List<string>();
-                if (!string.IsNullOrWhiteSpace(trestr))
-                {
-                    tres = trestr.Split('|').Select(x => x.ToLower()).ToList();
-                }
-
-
-                var dbtres = new List<Tre>();
-
-                if (tres.Count == 0)
-                {
-                    dbtres = dbproj.Tres;
-                }
-                else
-                {
-                    foreach (var tre in tres)
+                    if (ValidateCreate(sub))
                     {
-                        dbtres.Add(dbproj.Tres.First(x => x.Name.ToLower() == tre.ToLower()));
+                        UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.SubmissionCrateValidated, "");
                     }
-                }
-                UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.WaitingForChildSubsToComplete, "");
-
-                foreach (var tre in dbtres)
-                {
-                    _dbContext.Add(new FiveSafesTes.Core.Models.Submission()
+                    else
                     {
-                        DockerInputLocation = messageMQ.Url,
-                        Project = dbproj,
-                        StartTime = DateTime.Now.ToUniversalTime(),
-                        Status = StatusType.WaitingForAgentToTransfer,
-                        LastStatusUpdate = DateTime.Now.ToUniversalTime(),
-                        SubmittedBy = sub.SubmittedBy,
-                        Parent = sub,
-                        TesId = tesTask.Id,
-                        TesJson = sub.TesJson,
-                        Tre = tre,
-                        TesName = tesTask.Name,
-                        SourceCrate = tesTask.Executors.First().Image,
-                    });
+                        UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.SubmissionCrateValidationFailed, "");
+                        UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.Failed, "");
+                    }
 
-                }
+                    var dbproj = sub.Project;
+                    var tesTask = JsonConvert.DeserializeObject<TesTask>(sub.TesJson);
 
-                _dbContext.SaveChanges();
-                Log.Information("{Function} Processed sub for {id}", "Process", message.Body);
+                    var trestr = tesTask.Tags.Where(x => x.Key.ToLower() == "tres").Select(x => x.Value).FirstOrDefault();
+                    List<string> tres = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(trestr))
+                    {
+                        tres = trestr.Split('|').Select(x => x.ToLower()).ToList();
+                    }
+
+                    var dbtres = new List<Tre>();
+
+                    if (tres.Count == 0)
+                    {
+                        dbtres = dbproj.Tres;
+                    }
+                    else
+                    {
+                        foreach (var tre in tres)
+                        {
+                            dbtres.Add(dbproj.Tres.First(x => x.Name.ToLower() == tre.ToLower()));
+                        }
+                    }
+                    UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.WaitingForChildSubsToComplete, "");
+
+                    foreach (var tre in dbtres)
+                    {
+                        dbContext.Add(new FiveSafesTes.Core.Models.Submission()
+                        {
+                            DockerInputLocation = messageMQ.Url,
+                            Project = dbproj,
+                            StartTime = DateTime.Now.ToUniversalTime(),
+                            Status = StatusType.WaitingForAgentToTransfer,
+                            LastStatusUpdate = DateTime.Now.ToUniversalTime(),
+                            SubmittedBy = sub.SubmittedBy,
+                            Parent = sub,
+                            TesId = tesTask.Id,
+                            TesJson = sub.TesJson,
+                            Tre = tre,
+                            TesName = tesTask.Name,
+                            SourceCrate = tesTask.Executors.First().Image,
+                        });
+                    }
+
+                    dbContext.SaveChanges();
+                    Log.Information("{Function} Processed sub for {id}", "Process", message.Body);
                 }
                 catch (Exception e)
                 {
                     UpdateSubmissionStatus.UpdateStatusNoSave(sub, StatusType.Failed, e.Message);
-                    _dbContext.SaveChanges();
+                    dbContext.SaveChanges();
 
-                    
-                    
                     throw;
                 }
-
             }
             catch (Exception ex)
             {
