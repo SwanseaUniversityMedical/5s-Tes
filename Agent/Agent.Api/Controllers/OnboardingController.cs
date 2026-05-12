@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace Agent.Api.Controllers;
 
 [ApiController]
-[Authorize]
+[Authorize(Roles = "dare-tre-admin")]
 [Route("api/[controller]")]
 public class OnboardingController : Controller
 {
