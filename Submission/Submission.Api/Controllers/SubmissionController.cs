@@ -218,22 +218,7 @@ namespace Submission.Api.Controllers
                 throw;
             }
         }
-
-        [AllowAnonymous]
-        [HttpGet("TestSubRabbitSendRemoveBeforeDeploy")]
-        public void TestSubRabbitSendRemoveBeforeDeploy(int id)
-        {
-            try { 
-            var exch = _rabbit.Advanced.ExchangeDeclare(ExchangeConstants.Submission, "topic");
-
-            _rabbit.Advanced.Publish(exch, RoutingConstants.ProcessSub, false, new Message<int>(id));
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "TestSubRabbitSendBeforeDeploy");
-                throw;
-            }
-        }
+        
 
         [AllowAnonymous]
         [HttpGet("GetASubmission/{submissionId}")]
