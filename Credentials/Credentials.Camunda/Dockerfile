@@ -18,10 +18,10 @@ USER app
 FROM mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
-COPY ["Credentials/Credentials.Camunda/Credentials.Camunda.csproj", "Credentials/Credentials.Camunda/"]
+COPY ["Credentials.Camunda.csproj", "Credentials/Credentials.Camunda/"]
 RUN dotnet restore "Credentials/Credentials.Camunda/Credentials.Camunda.csproj"
-COPY . .
 WORKDIR "/src/Credentials/Credentials.Camunda"
+COPY . .
 RUN dotnet build "Credentials.Camunda.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish

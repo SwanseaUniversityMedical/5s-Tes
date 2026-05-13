@@ -145,8 +145,8 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
       release-info: ${{ needs.containers.outputs.release-info }}
       cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Credentials/Credentials.Camunda/Dockerfile
-      build-context: .
+      build-file: Dockerfile
+      build-context: Credentials/Credentials.Camunda
       platforms: "linux/amd64,linux/arm64"
     secrets:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
