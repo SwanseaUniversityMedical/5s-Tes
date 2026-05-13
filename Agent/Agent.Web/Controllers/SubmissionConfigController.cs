@@ -7,11 +7,11 @@ using Microsoft.AspNetCore.Mvc;
 namespace Agent.Web.Controllers;
 
 [Authorize(Roles = "dare-tre-admin")]
-public class DeploymentController : Controller
+public class SubmissionConfigController : Controller
 {
     private readonly ITREClientHelper _clientHelper;
 
-    public DeploymentController (ITREClientHelper client)
+    public SubmissionConfigController (ITREClientHelper client)
     {
         _clientHelper = client;
     }
