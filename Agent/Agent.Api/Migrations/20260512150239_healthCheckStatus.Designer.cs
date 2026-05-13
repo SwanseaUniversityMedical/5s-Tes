@@ -12,8 +12,8 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace Agent.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260505124844_add-status")]
-    partial class addstatus
+    [Migration("20260512150239_healthCheckStatus")]
+    partial class healthCheckStatus
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -27,6 +27,33 @@ namespace Agent.Api.Migrations
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
+
+            modelBuilder.Entity("Agent.Api.Models.HealthCheckStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("HealthStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Product")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HealthCheckStatus");
+                });
 
             modelBuilder.Entity("Agent.Api.Models.ProjectAcount", b =>
                 {
@@ -75,33 +102,6 @@ namespace Agent.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DataToRoles");
-                });
-
-            modelBuilder.Entity("Agent.Api.Models.Status", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("HealthStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Product")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Status");
                 });
 
             modelBuilder.Entity("Agent.Api.Repositories.GeneratedRole", b =>

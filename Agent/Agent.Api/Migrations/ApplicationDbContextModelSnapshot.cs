@@ -25,6 +25,33 @@ namespace Agent.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Agent.Api.Models.HealthCheckStatus", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("DateTime")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("HealthStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("Product")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("HealthCheckStatus");
+                });
+
             modelBuilder.Entity("Agent.Api.Models.ProjectAcount", b =>
                 {
                     b.Property<int>("Id")
@@ -72,33 +99,6 @@ namespace Agent.Api.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("DataToRoles");
-                });
-
-            modelBuilder.Entity("Agent.Api.Models.Status", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("DateTime")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("HealthStatus")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Product")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<string>("Reason")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.HasKey("Id");
-
-                    b.ToTable("Status");
                 });
 
             modelBuilder.Entity("Agent.Api.Repositories.GeneratedRole", b =>

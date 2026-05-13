@@ -260,7 +260,8 @@ namespace Submission.Api.Controllers
                     TREName = tre.Name,
                     SubmissionURL = _configuration["SubmissionApiUrl"] ?? string.Empty,
                     KeycloakRealmSettingURL = _keycloakSettings.MetadataAddress,
-                    JWT = serviceAccountJwt
+                    JWT = serviceAccountJwt,
+                    IsConfigurationImported = true
                 };
 
                 var json = JsonConvert.SerializeObject(config, Formatting.Indented);

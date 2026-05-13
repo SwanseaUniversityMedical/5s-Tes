@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Agent.Api.Models;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.Extensions.Options;
 using Serilog;
 using VaultSharp;
@@ -16,13 +17,13 @@ public class ConfigurationService : IConfigurationService
 
     public readonly VaultSettings _vaultSettings;
     // IOptionsMonitor used to retrieve latest values from vault at runtime.
-    public readonly IOptionsMonitor<VaultConfigSettings> _configSettings;  
+    public readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;  
     public readonly IOptionsMonitor<SubmissionKeyCloakSettings> _keycloakSettings;  
 
-    public ConfigurationService(IOptions<VaultSettings> vaultSettings, IOptionsMonitor<VaultConfigSettings> configSettings, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings)
+    public ConfigurationService(IOptions<VaultSettings> vaultSettings, IOptionsMonitor<TreOnboardingConfig> configSettings, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings)
     {
         _vaultSettings = vaultSettings?.Value ?? throw new ArgumentNullException(nameof(vaultSettings));
-        _configSettings = configSettings;
+        _onboardingConfig = configSettings;
         _keycloakSettings = keycloakSettings;
 
         IAuthMethodInfo authMethod = new TokenAuthMethodInfo(_vaultSettings.Token);
@@ -56,7 +57,7 @@ public class ConfigurationService : IConfigurationService
             // As vault is versioned, we must merge our existing data with our new data manually.
             Dictionary<string, object> mergedConfig = new(existingConfig);
 
-            foreach (var kvp in config)
+            foreach (KeyValuePair<string, object> kvp in config)
             {
                 string key = $"{prefix}:{kvp.Key}";
                 mergedConfig[key] = kvp.Value;

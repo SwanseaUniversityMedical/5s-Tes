@@ -19,6 +19,7 @@ using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.FeatureManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -54,6 +55,7 @@ namespace Agent.Api
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -72,7 +74,9 @@ namespace Agent.Api
             IHttpClientFactory httpClientFactory,
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
-            IConfiguration config
+            IConfiguration config,
+            IOptionsMonitor<TreOnboardingConfig> configSettings
+
         )
         {
             _serviceProvider = serviceProvider;
@@ -103,6 +107,7 @@ namespace Agent.Api
             _vaultService = vaultService;
 
             _config = config;
+            _onboardingConfig = configSettings;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -439,6 +444,8 @@ namespace Agent.Api
         // Method executed upon hangfire job
         public async Task Execute()
         {
+            if (!_onboardingConfig.CurrentValue.IsConfigurationImported) return;
+
             Log.Information("{Function} DoAgentWork running", "Execute");
             // control use of dependency injection
             using (var scope = _serviceProvider.CreateScope())

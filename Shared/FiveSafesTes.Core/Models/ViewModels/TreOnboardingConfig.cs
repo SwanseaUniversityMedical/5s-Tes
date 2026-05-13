@@ -13,5 +13,6 @@ namespace FiveSafesTes.Core.Models.ViewModels
         public string SubmissionURL { get; set; } = string.Empty;
         public string KeycloakRealmSettingURL { get; set; } = string.Empty;
         public string JWT { get; set; } = string.Empty;
+        public bool IsConfigurationImported { get; set; }
     }
 }

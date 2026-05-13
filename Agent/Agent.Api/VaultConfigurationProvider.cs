@@ -23,7 +23,7 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
         _timer = new Timer(async _ => await LoadAsync(), null, reloadInterval, reloadInterval);
     }
 
-    private async Task LoadAsync()
+    public async Task LoadAsync()
     {
         try
         {
