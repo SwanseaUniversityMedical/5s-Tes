@@ -19,10 +19,10 @@ FROM mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["Credentials/Credentials.Camunda/Credentials.Camunda.csproj", "Credentials/Credentials.Camunda/"]
-COPY ["Credentials/Credentials.Models/Credentials.Models.csproj", "Credentials/Credentials.Modesl/"]
+COPY ["Credentials/Credentials.Models/Credentials.Models.csproj", "Credentials/Credentials.Models/"]
 COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.Core/"]
 RUN dotnet restore "Credentials/Credentials.Camunda/Credentials.Camunda.csproj"
-COPY ["Credentials/Credentials.Models/", "Credentials/Credentials.Modesl/"]
+COPY ["Credentials/Credentials.Models/", "Credentials/Credentials.Models/"]
 COPY ["Shared/FiveSafesTes.Core/", "Shared/FiveSafesTes.Core/"]
 RUN ls -lahR .
 WORKDIR "/src/Credentials/Credentials.Camunda"
