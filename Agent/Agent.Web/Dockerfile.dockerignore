@@ -2,6 +2,7 @@
 *
 
 # Allow specific directories
+!rootca.pem
 !Agent/Agent.Web/
 !Shared/FiveSafesTes.Core/
 
