@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authentication;
 using System.Text.RegularExpressions;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
+using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.EntityFrameworkCore;
@@ -356,30 +357,93 @@ namespace Submission.Api.Controllers
 
         }
 
-        
-        [HttpGet("GetProjectUI")]
-        public SubmissionGetProjectModel? GetProjectUI(int projectId)
+        [HttpGet("GetProjectDetails")]
+        public async Task<ActionResult<Project.ProjectDetailsDto>> GetProjectDetails(int projectId)
         {
-            try
-            {
-                var returned = _DbContext.Projects.Find(projectId);
-                if (returned == null)
+            var project = await _DbContext.Projects
+                .AsNoTracking()
+                .Where(p => p.Id == projectId)
+                .Select(p => new Project.ProjectDetailsDto()
                 {
-                    return null;
-                }
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    ProjectOwner = p.ProjectOwner,
+                    ProjectContact = p.ProjectContact,
+                    SubmissionBucket = p.SubmissionBucket,
+                    OutputBucket = p.OutputBucket,
 
-                Log.Information("{Function} Project retrieved successfully", "GetProject");
-                var Users = _DbContext.Users.ToList();
-                _DbContext.Tres.ToList();
-                return new SubmissionGetProjectModel(returned, _DbContext.Users, _DbContext.Tres);
-            }
-            catch (Exception ex)
+                    Users = p.Users
+                        .Select(u => new Project.ProjectUserDto()
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName
+                        })
+                        .ToList(),
+
+                    Tres = p.Tres
+                        .Select(t => new Project.ProjectTreDto()
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                            Decision = t.ProjectTreDecisions
+                                .Where(d => d.SubmissionProj != null && d.SubmissionProj.Id == projectId)
+                                .OrderByDescending(d => d.Id)
+                                .Select(d => d.Decision)
+                                .FirstOrDefault()
+                        })
+                        .ToList(),
+
+                    Submissions = p.Submissions
+                        .Select(s => new Project.ProjectSubmissionDto()
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            HasParent = s.ParentId != null,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            TesName = s.TesName,
+                            ProjectName = p.Name,
+                            SubmittedByName = s.SubmittedBy.Name
+                        })
+                        .ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (project == null)
             {
-                Log.Error(ex, "{Function} Crashed", "GetProject");
-                throw;
+                return NotFound();
             }
 
+            var projectUserIds = project.Users.Select(u => u.Id).ToHashSet();
+            var projectTreIds = project.Tres.Select(t => t.Id).ToHashSet();
 
+            project.UsersNotInProject = await _DbContext.Users
+                .AsNoTracking()
+                .Where(u => !projectUserIds.Contains(u.Id))
+                .Select(u => new Project.ProjectUserDto()
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName
+                })
+                .ToListAsync();
+
+            project.TresNotInProject = await _DbContext.Tres
+                .AsNoTracking()
+                .Where(t => !projectTreIds.Contains(t.Id))
+                .Select(t => new Project.ProjectTreDto()
+                {
+                    Id = t.Id,
+                    Name = t.Name
+                })
+                .ToListAsync();
+
+            return Ok(project);
         }
         
         [HttpGet("GetProject")]
