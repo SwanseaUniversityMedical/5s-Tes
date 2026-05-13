@@ -1,5 +1,6 @@
 ﻿
 using FiveSafesTes.Core.Models.Enums;
+using FiveSafesTes.Core.Models.Helpers;
 
 namespace FiveSafesTes.Core.Models
 {
@@ -88,6 +89,19 @@ namespace FiveSafesTes.Core.Models
           public string TesName { get; set; } = string.Empty;
           public string ProjectName { get; set; } = string.Empty;
           public string? SubmittedByName { get; set; }
+          
+          public string GetFormattedStartDate()
+          {
+            var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
+            return date;
+          }
+
+          public string GetTotalDisplayTime()
+          {
+            var end = EndTime == DateTime.MinValue ? (DateTime.Now).ToUniversalTime() : EndTime;
+            var data = TimeHelper.GetDisplayTime(StartTime, end);
+            return data;
+          }
         }
     }
 
