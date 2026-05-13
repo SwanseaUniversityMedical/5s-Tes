@@ -1,5 +1,5 @@
 ﻿@using FiveSafesTes.Core.Models.ViewModels
-@model FiveSafesTes.Core.Models.Tre
+@model FiveSafesTes.Core.Models.Tre.TreDetailsDto
 @{
     ViewData["Title"] = @Model.Name;
 
@@ -64,7 +64,7 @@
             </div>
             <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
                 <div class="row">
-                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.Submissions.ToList(), UseParent = true})
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.Submissions.ToList(), UseParent = true})
                 </div>
             </div>
             <div class="tab-pane fade" id="projects-tab" role="tabpanel" aria-labelledby="projects">
@@ -94,13 +94,13 @@
                                                     </div>
                                                     <div class="">
                                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                            @project.Submissions.Count Submissions
+                                                            @project.SubmissionCount Submissions
                                                         </a>
                                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                            @project.Users.Count People
+                                                            @project.UserCount People
                                                         </a>
                                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                            @project.Tres.Count TREs
+                                                            @project.TreCount TREs
                                                         </a>
                                                     </div>
                                                     <p class="my-4">
