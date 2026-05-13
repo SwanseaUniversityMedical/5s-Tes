@@ -41,7 +41,7 @@ builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
         options.SerializerSettings.PreserveReferencesHandling = PreserveReferencesHandling.Objects;
     }
 ); ;
-builder.Services.AddDbContext<ApplicationDbContext>(options => options
+builder.Services.AddDbContextPool<ApplicationDbContext>(options => options
     .UseLazyLoadingProxies(true)
     .UseNpgsql(
     builder.Configuration.GetConnectionString("DefaultConnection")
@@ -465,12 +465,6 @@ async void AddServices(WebApplicationBuilder builder)
       }
     );
 
-    if (!string.IsNullOrEmpty(configuration.GetConnectionString("DefaultConnection")))
-    {
-        builder.Services.AddDbContext<ApplicationDbContext>(options => options.UseNpgsql(
-          builder.Configuration.GetConnectionString("DefaultConnection")
-      ));
-    }
 }
 
 //for SignalR
