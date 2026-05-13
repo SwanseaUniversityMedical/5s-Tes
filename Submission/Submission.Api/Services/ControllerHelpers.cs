@@ -1,13 +1,14 @@
 ﻿using System.Security.Claims;
 using FiveSafesTes.Core.Models;
 using Microsoft.AspNetCore.Authentication;
+using Microsoft.EntityFrameworkCore;
 using Serilog;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services.Contract;
 
 namespace Submission.Api.Services
 {
-    public class ControllerHelpers
+    public class ControllerHelpers(ApplicationDbContext dbContext)
     {
 
         public static async Task AddUserToMinioBucket(User user, Project project,
@@ -23,21 +24,16 @@ namespace Submission.Api.Services
 
             await keycloakMinioUserService.SetMinioUserAttribute(accessToken, user.Name.ToString(), attributeName,
                 project.OutputBucket.ToLower() + "_policy");
-            
-
-
 
         }
 
 
-        public static Tre? GetUserTre(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
+        public async Task<Tre> GetUserTre(ClaimsPrincipal loggedInUser)
         {
-            var usersName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = dbContext.Tres.FirstOrDefault(x => x.AdminUsername.ToLower() == usersName.ToLower());
-            if (tre == null)
-            {
-                throw new Exception("User " + usersName + " doesn't have a tre");
-            }
+            var userName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
+            var tre = await dbContext.Tres.Include(tre => tre.Submissions)
+              .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
+            if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
 
             return tre;
         }

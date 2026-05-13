@@ -29,8 +29,9 @@ namespace Submission.Api.Controllers
         private readonly IMinioHelper _minioHelper;
         private readonly IKeycloakMinioUserService _keycloakMinioUserService;
         protected readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ControllerHelpers _controllerHelpers;
 
-        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IHttpContextAccessor httpContextAccessor)
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IHttpContextAccessor httpContextAccessor, ControllerHelpers controllerHelpers)
         {
 
             _DbContext = applicationDbContext;
@@ -38,6 +39,7 @@ namespace Submission.Api.Controllers
             _minioHelper = minioHelper;
             _keycloakMinioUserService = keycloakMinioUserService;
             _httpContextAccessor = httpContextAccessor;
+            _controllerHelpers = controllerHelpers;
         }
 
         [Authorize(Roles = "dare-control-admin")]
@@ -477,12 +479,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
-              var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
-              var tre = await _DbContext.Tres.Include(tre => tre.Projects)
-                .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
-              if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
-              
+                var tre = await _controllerHelpers.GetUserTre(User);
                 var allProjects = tre.Projects;
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
@@ -504,10 +501,7 @@ namespace Submission.Api.Controllers
                 Log.Information("SyncTreProjectDecisions called with  " + decisions.Count);
 
                 var result = new BoolReturn();
-                var userName = User.Claims.First(x => x.Type == "preferred_username").Value;
-                var tre = await _DbContext.Tres
-                  .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
-                if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
+                var tre = await _controllerHelpers.GetUserTre(User);
                 
                 foreach (var item in decisions)
                 {
@@ -551,7 +545,7 @@ namespace Submission.Api.Controllers
 
         [HttpPost("SyncTreMembershipDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
+        public async Task<BoolReturn> SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
             var aresult = new BoolReturn();
             aresult.Result = true;
@@ -560,7 +554,7 @@ namespace Submission.Api.Controllers
             {
                 var result = new BoolReturn();
                 var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var tre = await _controllerHelpers.GetUserTre(User);
 
                 foreach (var item in decisions)
                 {

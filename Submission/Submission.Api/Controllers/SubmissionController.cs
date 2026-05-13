@@ -30,15 +30,15 @@ namespace Submission.Api.Controllers
         private readonly IBus _rabbit;
         private readonly IMinioHelper _minioHelper;
         private readonly IDareEmailService _IDareEmailService;
+        private readonly ControllerHelpers _controllerHelpers;
 
-        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService)
+        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService, ControllerHelpers controllerHelpers)
         {
             _DbContext = repository;
             _rabbit = rabbit;
             _minioHelper = minioHelper;
             _IDareEmailService = IDareEmailService;
-
-
+            _controllerHelpers = controllerHelpers;
         }
         
         
@@ -50,10 +50,7 @@ namespace Submission.Api.Controllers
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
         public virtual async Task<IActionResult> GetWaitingSubmissionsForTre()
         {
-          var userName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-          var tre = await _DbContext.Tres.Include(tre => tre.Submissions)
-            .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
-          if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
+          var tre = await _controllerHelpers.GetUserTre(User);
           
           tre.LastHeartBeatReceived = DateTime.UtcNow;
           await _DbContext.SaveChangesAsync();
@@ -74,10 +71,7 @@ namespace Submission.Api.Controllers
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
         public virtual async Task<IActionResult> GetRequestCancelSubsForTre()
         {
-          var usersName = User.Claims.First(x => x.Type == "preferred_username").Value;
-          var tre = await _DbContext.Tres
-            .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == usersName.ToLower());
-          if (tre == null) throw new Exception($"User {usersName} doesn't have a tre");
+          var tre = await _controllerHelpers.GetUserTre(User);
 
           tre.LastHeartBeatReceived = DateTime.UtcNow;
           await _DbContext.SaveChangesAsync();
@@ -108,11 +102,9 @@ namespace Submission.Api.Controllers
             return StatusCode(200, new APIReturn() { ReturnType = ReturnType.voidReturn });
         }
 
-        private FiveSafesTes.Core.Models.Submission UpdateStatusForTreGuts(string subId, StatusType statusType, string? description)
+        private async Task<FiveSafesTes.Core.Models.Submission> UpdateStatusForTreGuts(string subId, StatusType statusType, string? description)
         {
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+            var tre = await _controllerHelpers.GetUserTre(User);
 
             var sub = _DbContext.Submissions.FirstOrDefault(x => x.Id == int.Parse(subId) && x.Tre == tre);
             if (sub == null)
@@ -165,7 +157,7 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("CloseSubmissionForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(APIReturn), description: "")]
-        public IActionResult CloseSubmissionForTre(string subId, StatusType statusType, string? finalFile, string? description)
+        public async Task<IActionResult> CloseSubmissionForTre(string subId, StatusType statusType, string? finalFile, string? description)
         {
             if (!UpdateSubmissionStatus.SubCompleteTypes.Contains(statusType) && statusType != StatusType.Failure)
             {
@@ -178,7 +170,7 @@ namespace Submission.Api.Controllers
                 _DbContext.SaveChanges();
                 statusType = StatusType.Failed;
             }
-            var sub = UpdateStatusForTreGuts(subId, statusType, description);
+            var sub = await UpdateStatusForTreGuts(subId, statusType, description);
             sub.FinalOutputFile = finalFile;
             _DbContext.SaveChanges();
             
