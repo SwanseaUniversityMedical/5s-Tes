@@ -356,7 +356,10 @@ namespace Submission.Api.Controllers
 
 
         }
-
+        
+        
+      
+          
         [HttpGet("GetProjectDetails")]
         public async Task<ActionResult<Project.ProjectDetailsDto>> GetProjectDetails(int projectId)
         {
@@ -445,7 +448,30 @@ namespace Submission.Api.Controllers
 
             return Ok(project);
         }
-        
+
+        [HttpGet("GetProjectUI")]
+        public SubmissionGetProjectModel? GetProjectUI(int projectId)
+        {
+          try
+          {
+            var returned = _DbContext.Projects.Find(projectId);
+            if (returned == null)
+            {
+              return null;
+            }
+
+            Log.Information("{Function} Project retrieved successfully", "GetProject");
+            var Users = _DbContext.Users.ToList();
+            _DbContext.Tres.ToList();
+            return new SubmissionGetProjectModel(returned, _DbContext.Users, _DbContext.Tres);
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", "GetProject");
+            throw;
+          }
+        }
+
         [HttpGet("GetProject")]
         public Project? GetProject(int projectId)
         {
