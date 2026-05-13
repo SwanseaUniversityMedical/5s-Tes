@@ -22,7 +22,7 @@ COPY ["Credentials/Credentials.Camunda/Credentials.Camunda.csproj", "Credentials
 COPY ["Credentials/Credentials.Models/Credentials.Models.csproj", "Credentials/Credentials.Models/"]
 COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.Core/"]
 RUN dotnet restore "Credentials/Credentials.Camunda/Credentials.Camunda.csproj"
-COPY ["Credentials/Credentials.Models/", "Credentials/Credentials.Models/"]
+COPY ["Credentials/", "Credentials/"]
 COPY ["Shared/FiveSafesTes.Core/", "Shared/FiveSafesTes.Core/"]
 RUN ls -lahR .
 WORKDIR "/src/Credentials/Credentials.Camunda"
