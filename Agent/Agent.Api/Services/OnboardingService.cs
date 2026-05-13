@@ -2,7 +2,6 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
-using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
