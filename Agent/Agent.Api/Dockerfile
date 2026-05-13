@@ -6,6 +6,7 @@ COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.
 RUN dotnet restore "Agent/Agent.Api/Agent.Api.csproj"
 
 COPY ["Agent/Agent.Api/", "Agent/Agent.Api/"]
+COPY ["Credentials/Credentials.Models/", "Credentials/Credentials.Models/"]
 COPY ["Shared/FiveSafesTes.Core/", "Shared/FiveSafesTes.Core/"]
 WORKDIR "/src/Agent/Agent.Api"
 RUN dotnet publish "Agent.Api.csproj" \
