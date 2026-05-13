@@ -16,18 +16,14 @@ RUN dotnet publish "Agent.Web.csproj" \
     /p:UseAppHost=false
 
 FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+USER root
 COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
 	update-ca-certificates
 
-RUN useradd -m -u 1001 -s /bin/bash app
 USER app
-ENV HOME=/home/app
-ENV USER=app
-
 EXPOSE 8080
 EXPOSE 443
-
 WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Agent.Web.dll"]

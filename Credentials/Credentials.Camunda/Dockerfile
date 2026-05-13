@@ -25,14 +25,9 @@ RUN apt-get update && apt-get install -y wget curl && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-RUN useradd -m -u 1001 -s /bin/bash app
 USER app
-ENV HOME=/home/app
-ENV USER=app
-
 EXPOSE 8080
 EXPOSE 8081
-
 WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
 ENTRYPOINT ["dotnet", "Credentials.Camunda.dll"]
