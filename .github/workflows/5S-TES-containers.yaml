@@ -74,27 +74,27 @@ jobs:
 #      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
 #      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
 #      registry-token: ${{ secrets.HARBOR_TOKEN }}
-#
-#  agent-api-container:
-#    needs: containers
-#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-#    with:
-#      job-name: agent-api-container
-#      comment-pr: "true"
-#      comment-release: "true"
-#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-#      registry-user: ${{ vars.HARBOR_USER }}
-#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_API }}
-#      release-info: ${{ needs.containers.outputs.release-info }}
-#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-#      build-file: Agent/Agent.Api/Dockerfile
-#      build-context: .
-#      platforms: "linux/amd64,linux/arm64"
-#    secrets:
-#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-#      registry-token: ${{ secrets.HARBOR_TOKEN }}
-#
+
+  agent-api-container:
+    needs: containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    with:
+      job-name: agent-api-container
+      comment-pr: "true"
+      comment-release: "true"
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+      registry-user: ${{ vars.HARBOR_USER }}
+      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_API }}
+      release-info: ${{ needs.containers.outputs.release-info }}
+      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+      build-file: Agent/Agent.Api/Dockerfile
+      build-context: .
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+      registry-token: ${{ secrets.HARBOR_TOKEN }}
+
   agent-ui-container:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers

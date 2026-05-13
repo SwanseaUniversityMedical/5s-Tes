@@ -2,8 +2,9 @@
 *
 
 # Allow specific directories
-!Agent/Agent.Web/
+!Agent/Agent.Api/
 !Shared/FiveSafesTes.Core/
+!Credentials/Credentials.Models/
 
 # Ignore specific things that were allowed above
 **/.dockerignore
