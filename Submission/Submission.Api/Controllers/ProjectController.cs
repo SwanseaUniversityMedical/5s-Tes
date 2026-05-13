@@ -405,7 +405,7 @@ namespace Submission.Api.Controllers
                         {
                             Id = s.Id,
                             ParentId = s.ParentId,
-                            HasParent = s.ParentId != null,
+                            HasParent = s.Parent != null,
                             Status = s.Status,
                             StartTime = s.StartTime,
                             EndTime = s.EndTime,
