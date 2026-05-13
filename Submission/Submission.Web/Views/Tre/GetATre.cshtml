@@ -64,7 +64,7 @@
             </div>
             <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
                 <div class="row">
-                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.Submissions.ToList(), UseParent = true})
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.Submissions.Where(x => x.HasParent == false).ToList(), UseParent = false})
                 </div>
             </div>
             <div class="tab-pane fade" id="projects-tab" role="tabpanel" aria-labelledby="projects">
