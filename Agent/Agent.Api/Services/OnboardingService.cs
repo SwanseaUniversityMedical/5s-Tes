@@ -37,8 +37,8 @@ public class OnboardingService : IOnboardingService
 
         await _configurationService.AddConfigurationToVault(json, nameof(TreOnboardingConfig));
 
-        // Update configuration immediately
-        await _vaultConfigProvider.LoadAsync();
+        // Update configuration immediately - we must bypass the check to see if config has been uploaded or the method will stop too soon.
+        await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
         await LogIntoSubmissionLayer();
@@ -84,6 +84,12 @@ public class OnboardingService : IOnboardingService
     /// </summary>
     private async Task LogIntoSubmissionLayer()
     {
+        if (string.IsNullOrEmpty(_onboardingConfig.CurrentValue.SubmissionURL))
+        {
+            Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
+            return;
+        }
+
         HttpClient httpClient = new();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _onboardingConfig.CurrentValue.JWT);
 

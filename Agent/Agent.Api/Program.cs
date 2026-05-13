@@ -307,7 +307,7 @@ using (var scope = app.Services.CreateScope())
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
-    configuration.AddVault(vaultClient, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromSeconds(30));
+    configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromSeconds(30));
 }
 
 
