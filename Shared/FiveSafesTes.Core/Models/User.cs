@@ -23,5 +23,17 @@
             public int SubmissionCount { get; set; }
             public int ProjectCount { get; set; }
         }
+
+        public class UserDetailsDto
+        {
+            public int Id { get; set; }
+            public string? FullName { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public string? Biography { get; set; }
+            public string? Organisation { get; set; }
+            public List<Project.ProjectSummary> Projects { get; set; } = [];
+            public List<Project.ProjectSummary> ProjectsNotInUser { get; set; } = [];
+            public List<Project.ProjectSubmissionDto> Submissions { get; set; } = [];
+        }
     }
 }

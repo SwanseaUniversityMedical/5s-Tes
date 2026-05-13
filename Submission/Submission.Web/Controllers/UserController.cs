@@ -73,15 +73,17 @@ namespace Submission.Web.Controllers
                 return View("/");
             }
 
-            var projects = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects/").Result;            
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("userId", id.ToString());
-            var result = _clientHelper.CallAPIWithoutModel<User?>(
-                "/api/User/GetUser/", paramlist).Result;
+            var result = _clientHelper.CallAPIWithoutModel<User.UserDetailsDto>(
+                "/api/User/GetUserDetails/", paramlist).Result;
 
-            var projectItems2 = projects.Where(p => !result.Projects.Select(x => x.Id).Contains(p.Id)).ToList();          
+            if (result == null)
+            {
+                return NotFound();
+            }
 
-            var projectItems = projectItems2
+            var projectItems = result.ProjectsNotInUser
                 .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
                 .ToList();
            
