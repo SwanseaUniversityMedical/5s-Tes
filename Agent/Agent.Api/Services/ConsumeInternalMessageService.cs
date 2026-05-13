@@ -61,7 +61,7 @@ namespace Agent.Api.Services
       {
         var outcome = message.Body;
         var submission = _dareHelper
-          .CallAPIWithoutModel<Submission>($"/api/Submission/GetASubmission/{outcome.SubId}")
+          .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{outcome.SubId}")
           .Result;
         var sourceBucket = _subHelper.GetOutputBucketGuts(outcome.SubId, false, false);
 

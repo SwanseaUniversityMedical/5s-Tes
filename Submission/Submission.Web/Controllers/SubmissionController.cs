@@ -80,15 +80,14 @@ namespace Submission.Web.Controllers
                 return BadRequest("Invalid model state");
             }
 
-            var res = _clientHelper.CallAPIWithoutModel<FiveSafesTes.Core.Models.Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{id}").Result;
+            var res = _clientHelper.CallAPIWithoutModel<FiveSafesTes.Core.Models.Submission.SubmissionDetailsDto>
+              ($"/api/Submission/GetASubmission/{id}").Result;
 
             if (res == null)
             {
                 return NotFound();
             }
 
-            var minio = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint").Result;
-            ViewBag.minioendpoint = minio?.Url;
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
 
             var model = new SubmissionInfo()

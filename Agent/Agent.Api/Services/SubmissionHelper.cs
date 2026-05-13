@@ -95,7 +95,7 @@ namespace Agent.Api.Services
             try
             {
                 var submission = _dareHelper
-                    .CallAPIWithoutModel<Submission>($"/api/Submission/GetASubmission/{subId}")
+                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}")
                     .Result;
 
                 string? outputBucket = "";
@@ -140,7 +140,7 @@ namespace Agent.Api.Services
                 Log.Information("{Function} Getting Bucket info", "GetOutputBucketInfo");
                 var i = 1;
                 var submission = _dareHelper
-                    .CallAPIWithoutModel<Submission>($"/api/Submission/GetASubmission/{subId}")
+                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}")
                     .Result;
 
                 var bucket = _dbContext.Projects
