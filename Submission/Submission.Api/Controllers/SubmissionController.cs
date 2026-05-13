@@ -56,20 +56,8 @@ namespace Submission.Api.Controllers
           await _DbContext.SaveChangesAsync();
           
           var results = tre.Submissions
-            .Where(x => x.Status == StatusType.WaitingForAgentToTransfer)
-            .Select(x => new FiveSafesTes.Core.Models.Submission.SubmissionForTre
-            {
-              Id = x.Id,
-              TesJson = x.TesJson,
-              TesId = x.TesId,
-              TesName = x.TesName,
-              ProjectId = x.Project.Id,
-              ProjectName = x.Project.Name,
-              ProjectSubmissionBucket = x.Project.SubmissionBucket,
-              SubmittedById = x.SubmittedBy.Id,
-              SubmittedByName = x.SubmittedBy.Name
-            })
-            .ToList();
+              .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                        && x.Status == StatusType.WaitingForAgentToTransfer).ToList();
         
           return StatusCode(200, results);
         }
@@ -86,21 +74,9 @@ namespace Submission.Api.Controllers
 
           tre.LastHeartBeatReceived = DateTime.UtcNow;
           await _DbContext.SaveChangesAsync();
-          
           var results = tre.Submissions
-            .Where(x => x.Status == StatusType.RequestCancellation)
-            .Select(x => new FiveSafesTes.Core.Models.Submission.SubmissionForTre
-            {
-              Id = x.Id,
-              TesJson = x.TesJson,
-              TesId = x.TesId,
-              TesName = x.TesName,
-              ProjectId = x.Project.Id,
-              ProjectName = x.Project.Name,
-              ProjectSubmissionBucket = x.Project.SubmissionBucket,
-              SubmittedById = x.SubmittedBy.Id,
-              SubmittedByName = x.SubmittedBy.Name
-            })
+            .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                      && x.Status == StatusType.RequestCancellation)
             .ToList();
 
           return StatusCode(200, results);

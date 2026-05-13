@@ -63,20 +63,6 @@ namespace FiveSafesTes.Core.Models
           public string? SubmittedByFullName { get; set; }
         
         }
-        public class SubmissionForTre
-        {
-          public int Id { get; set; }
-          public string? TesJson { get; set; }
-          public string? TesId { get; set; }
-          public string TesName { get; set; } = string.Empty;
-          public int ProjectId { get; set; }
-          public string ProjectName { get; set; } = string.Empty;
-          public string? ProjectSubmissionBucket { get; set; }
-          public int SubmittedById { get; set; }
-          public string SubmittedByName { get; set; } = string.Empty;
-        }
-
-
 
     }
 
