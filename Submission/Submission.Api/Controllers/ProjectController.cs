@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Authentication;
 using System.Text.RegularExpressions;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
-using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.EntityFrameworkCore;
