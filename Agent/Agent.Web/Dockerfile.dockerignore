@@ -1,0 +1,6 @@
+# Ignore everything
+*
+
+# Allow specific directories
+!Agent/Agent.Web/
+!Shared/
