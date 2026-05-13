@@ -39,107 +39,107 @@ jobs:
       job-name: containers
       release-tag-format: 'v${version}-5S-TES-containers'   
   
-  submission-api-container:
-    needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-    with:
-      job-name: submission-api-container
-      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-      registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_API }}
-      release-info: ${{ needs.containers.outputs.release-info }}
-      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Submission/Submission.Api/Dockerfile
-      build-context: .
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-      registry-token: ${{ secrets.HARBOR_TOKEN }}
+#  submission-api-container:
+#    needs: containers
+#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+#    with:
+#      job-name: submission-api-container
+#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+#      registry-user: ${{ vars.HARBOR_USER }}
+#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_API }}
+#      release-info: ${{ needs.containers.outputs.release-info }}
+#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+#      build-file: Submission/Submission.Api/Dockerfile
+#      build-context: .
+#      platforms: "linux/amd64,linux/arm64"
+#    secrets:
+#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+#      registry-token: ${{ secrets.HARBOR_TOKEN }}
+#
+#  submission-ui-container:
+#    needs: containers
+#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+#    with:
+#      job-name: submission-ui-container
+#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+#      registry-user: ${{ vars.HARBOR_USER }}
+#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_UI }}
+#      release-info: ${{ needs.containers.outputs.release-info }}
+#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+#      build-file: Submission/Submission.Web/Dockerfile
+#      build-context: .
+#      platforms: "linux/amd64,linux/arm64"
+#    secrets:
+#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+#      registry-token: ${{ secrets.HARBOR_TOKEN }}
+#
+#  agent-api-container:
+#    needs: containers
+#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+#    with:
+#      job-name: agent-api-container
+#      comment-pr: "true"
+#      comment-release: "true"
+#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+#      registry-user: ${{ vars.HARBOR_USER }}
+#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_API }}
+#      release-info: ${{ needs.containers.outputs.release-info }}
+#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+#      build-file: Agent/Agent.Api/Dockerfile
+#      build-context: .
+#      platforms: "linux/amd64,linux/arm64"
+#    secrets:
+#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+#      registry-token: ${{ secrets.HARBOR_TOKEN }}
+#
+#  agent-ui-container:
+#    needs: containers
+#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+#    with:
+#      job-name: agent-ui-container
+#      comment-pr: "true"
+#      comment-release: "true"
+#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+#      registry-user: ${{ vars.HARBOR_USER }}
+#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_UI }}
+#      release-info: ${{ needs.containers.outputs.release-info }}
+#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+#      build-file: Agent/Agent.Web/Dockerfile
+#      build-context: .
+#      platforms: "linux/amd64,linux/arm64"
+#    secrets:
+#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+#      registry-token: ${{ secrets.HARBOR_TOKEN }}
+#
+#  agent-web-container:
+#    needs: containers
+#    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+#    with:
+#      job-name: agent-web-container
+#      comment-pr: "true"
+#      comment-release: "true"
+#      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+#      registry-user: ${{ vars.HARBOR_USER }}
+#      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
+#      release-info: ${{ needs.containers.outputs.release-info }}
+#      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+#      build-file: Agent/agent-web/Dockerfile
+#      build-context: Agent/agent-web
+#      platforms: "linux/amd64,linux/arm64"
+#    secrets:
+#      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+#      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+#      registry-token: ${{ secrets.HARBOR_TOKEN }}
 
-  submission-ui-container:
+  credentials-camunda-container-amd64:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
     with:
-      job-name: submission-ui-container
-      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-      registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_UI }}
-      release-info: ${{ needs.containers.outputs.release-info }}
-      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Submission/Submission.Web/Dockerfile
-      build-context: .
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-      registry-token: ${{ secrets.HARBOR_TOKEN }}
-  
-  agent-api-container:
-    needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-    with:
-      job-name: agent-api-container
-      comment-pr: "true"
-      comment-release: "true"
-      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-      registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_API }}
-      release-info: ${{ needs.containers.outputs.release-info }}
-      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Agent/Agent.Api/Dockerfile
-      build-context: .
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-      registry-token: ${{ secrets.HARBOR_TOKEN }}
-      
-  agent-ui-container:
-    needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-    with:
-      job-name: agent-ui-container
-      comment-pr: "true"
-      comment-release: "true"
-      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-      registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_UI }}
-      release-info: ${{ needs.containers.outputs.release-info }}
-      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Agent/Agent.Web/Dockerfile
-      build-context: .
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-      registry-token: ${{ secrets.HARBOR_TOKEN }}
-
-  agent-web-container:
-    needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-    with:
-      job-name: agent-web-container
-      comment-pr: "true"
-      comment-release: "true"
-      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
-      registry-user: ${{ vars.HARBOR_USER }}
-      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
-      release-info: ${{ needs.containers.outputs.release-info }}
-      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
-      build-file: Agent/agent-web/Dockerfile
-      build-context: Agent/agent-web
-      platforms: "linux/amd64,linux/arm64"
-    secrets:
-      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
-      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
-      registry-token: ${{ secrets.HARBOR_TOKEN }}
-  
-  credentials-camunda-container:
-    needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
-    with:
-      job-name: credentials-camunda-container
+      job-name: credentials-camunda-container-amd64
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
       registry-user: ${{ vars.HARBOR_USER }}
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
@@ -147,7 +147,24 @@ jobs:
       cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
       build-file: Credentials/Credentials.Camunda/Dockerfile
       build-context: .
-      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
+      cosign-password: ${{ secrets.COSIGN_PASSWORD }}
+      registry-token: ${{ secrets.HARBOR_TOKEN }}
+
+  credentials-camunda-container-arm64:
+    needs: containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    with:
+      job-name: credentials-camunda-container-arm64
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+      registry-user: ${{ vars.HARBOR_USER }}
+      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
+      release-info: ${{ needs.containers.outputs.release-info }}
+      cosign-public-key: ${{ vars.COSIGN_PUBLIC_KEY }}
+      build-file: Credentials/Credentials.Camunda/arm64.Dockerfile
+      build-context: .
+      platforms: "linux/arm64"
     secrets:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       cosign-password: ${{ secrets.COSIGN_PASSWORD }}
