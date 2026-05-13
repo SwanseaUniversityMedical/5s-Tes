@@ -31,7 +31,7 @@ namespace Submission.Api.Services
         public async Task<Tre> GetUserTre(ClaimsPrincipal loggedInUser)
         {
             var userName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = await dbContext.Tres.Include(tre => tre.Submissions)
+            var tre = await dbContext.Tres
               .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower());
             if (tre == null) throw new Exception($"User {userName} doesn't have a tre");
 
