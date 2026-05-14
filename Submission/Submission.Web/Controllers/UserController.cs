@@ -75,8 +75,9 @@ namespace Submission.Web.Controllers
 
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("userId", id.ToString());
+            paramlist.Add("responseType", "summary");
             var result = _clientHelper.CallAPIWithoutModel<User.UserDetailsDto>(
-                "/api/User/GetUserDetails/", paramlist).Result;
+                "/api/User/GetUser/", paramlist).Result;
 
             if (result == null)
             {

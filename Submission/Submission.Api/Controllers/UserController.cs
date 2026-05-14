@@ -118,8 +118,8 @@ namespace Submission.Api.Controllers
             
         }
 
-        [HttpGet("GetUserDetails")]
-        public async Task<ActionResult<User.UserDetailsDto>> GetUserDetails(int userId)
+        [HttpGet("GetUser")]
+        public async Task<IActionResult> GetUser(int userId, string? responseType = "full")
         {
             if (!ModelState.IsValid) // SonarQube security
             {
@@ -128,58 +128,21 @@ namespace Submission.Api.Controllers
 
             try
             {
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
                 var user = await _DbContext.Users
-                    .AsNoTracking()
-                    .Where(u => u.Id == userId)
-                    .Select(u => new User.UserDetailsDto
-                    {
-                        Id = u.Id,
-                        Name = u.Name,
-                        FullName = u.FullName,
-                        Biography = u.Biography,
-                        Organisation = u.Organisation,
-                        Projects = u.Projects
-                            .Select(p => new Project.ProjectSummary
-                            {
-                                Id = p.Id,
-                                Name = p.Name,
-                                StartDate = p.StartDate,
-                                EndDate = p.EndDate,
-                                ProjectDescription = p.ProjectDescription,
-                                SubmissionCount = p.Submissions.Count(s => s.ParentId == null),
-                                UserCount = p.Users.Count(),
-                                TreCount = p.Tres.Count()
-                            })
-                            .ToList(),
-                        Submissions = u.Submissions
-                            .Select(s => new Project.ProjectSubmissionDto
-                            {
-                                Id = s.Id,
-                                ParentId = s.ParentId,
-                                HasParent = s.Parent != null,
-                                Status = s.Status,
-                                StartTime = s.StartTime,
-                                EndTime = s.EndTime,
-                                TesName = s.TesName,
-                                ProjectName = s.Project.Name,
-                                SubmittedByName = s.SubmittedBy.Name
-                            })
-                            .ToList()
-                    })
-                    .FirstOrDefaultAsync();
-
-                if (user == null)
-                {
-                    return NotFound();
-                }
-
-                var userProjectIds = user.Projects.Select(p => p.Id).ToHashSet();
-
-                user.ProjectsNotInUser = await _DbContext.Projects
-                    .AsNoTracking()
-                    .Where(p => !userProjectIds.Contains(p.Id))
-                    .Select(p => new Project.ProjectSummary
-                    {
+                  .AsNoTracking()
+                  .Where(u => u.Id == userId)
+                  .Select(u => new User.UserDetailsDto
+                  {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName,
+                    Biography = u.Biography,
+                    Organisation = u.Organisation,
+                    Projects = u.Projects
+                      .Select(p => new Project.ProjectSummary
+                      {
                         Id = p.Id,
                         Name = p.Name,
                         StartDate = p.StartDate,
@@ -188,16 +151,66 @@ namespace Submission.Api.Controllers
                         SubmissionCount = p.Submissions.Count(s => s.ParentId == null),
                         UserCount = p.Users.Count(),
                         TreCount = p.Tres.Count()
-                    })
-                    .ToListAsync();
+                      })
+                      .ToList(),
+                    Submissions = u.Submissions
+                      .Select(s => new Project.ProjectSubmissionDto
+                      {
+                        Id = s.Id,
+                        ParentId = s.ParentId,
+                        HasParent = s.Parent != null,
+                        Status = s.Status,
+                        StartTime = s.StartTime,
+                        EndTime = s.EndTime,
+                        TesName = s.TesName,
+                        ProjectName = s.Project.Name,
+                        SubmittedByName = s.SubmittedBy.Name
+                      })
+                      .ToList()
+                  })
+                  .FirstOrDefaultAsync();
 
-                Log.Information("{Function} User details retrieved successfully", nameof(GetUserDetails));
+                if (user == null)
+                {
+                  return NotFound();
+                }
+
+                var userProjectIds = user.Projects.Select(p => p.Id).ToHashSet();
+
+                user.ProjectsNotInUser = await _DbContext.Projects
+                  .AsNoTracking()
+                  .Where(p => !userProjectIds.Contains(p.Id))
+                  .Select(p => new Project.ProjectSummary
+                  {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                    UserCount = p.Users.Count(),
+                    TreCount = p.Tres.Count()
+                  })
+                  .ToListAsync();
+
+                Log.Information("{Function} User details retrieved successfully", nameof(GetUser));
                 return Ok(user);
+              }
+              
+              var fullUser = _DbContext.Users.Find(userId);
+              if (fullUser == null)
+              {
+                return null;
+              }
+                
+              Log.Information("{Function} User retrieved successfully", nameof(GetUser));
+              return Ok(fullUser);
             }
+            
             catch (Exception ex)
             {
-                Log.Error(ex, "{Function} Crashed", nameof(GetUserDetails));
-                throw;
+              Log.Error(ex, "{Function} Crashed", nameof(GetUser));
+              throw;
             }
         }
 
