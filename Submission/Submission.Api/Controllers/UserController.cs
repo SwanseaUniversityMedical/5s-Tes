@@ -90,34 +90,7 @@ namespace Submission.Api.Controllers
         }
 
         
-        [HttpGet("GetUser")]
-        public User? GetUser(int userId)
-        {
-            if (!ModelState.IsValid) // SonarQube security
-            {
-                return null;
-            }
-
-            try
-            {
-                var returned = _DbContext.Users.Find(userId);
-                if (returned == null)
-                {
-                    return null;
-                }
-                
-                Log.Information("{Function} User retrieved successfully", "GetUser");
-                return returned;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetUser");
-                throw;
-            }
-
-            
-        }
-
+      
         [HttpGet("GetUser")]
         public async Task<IActionResult> GetUser(int userId, string? responseType = "full")
         {
