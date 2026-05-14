@@ -182,7 +182,7 @@ namespace Submission.Api.Controllers
                         StartDate = p.StartDate,
                         EndDate = p.EndDate,
                         ProjectDescription = p.ProjectDescription,
-                        SubmissionCount = p.Submissions.Count(s => s.ParentId == null),
+                        SubmissionCount = p.Submissions.Count(s => s.Parent == null),
                         UserCount = p.Users.Count(),
                         TreCount = p.Tres.Count()
                       })
