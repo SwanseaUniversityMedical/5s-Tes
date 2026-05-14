@@ -1,6 +1,12 @@
-﻿# MAKE SURE YOU UPDATE THE Dockerfile.dockerignore
-#       FOR EACH Dockerfile IN THIS REPO!
+# Ignore everything
+*
 
+# Allow specific directories
+!rootca.pem
+!Submission/Submission.Api/
+!Shared/FiveSafesTes.Core/
+
+# Ignore specific things that were allowed above
 **/.dockerignore
 **/.env
 **/.git
