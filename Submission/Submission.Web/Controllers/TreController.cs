@@ -74,8 +74,9 @@ namespace Submission.Web.Controllers
 
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("treId", id.ToString());
+            paramlist.Add("responseType", "summary");
             var Tre = _clientHelper.CallAPIWithoutModel<Tre.TreDetailsDto>(
-                "/api/Tre/GetATreDetails/", paramlist).Result;
+                "/api/Tre/GetATre/", paramlist).Result;
 
             if (Tre == null)
             {
