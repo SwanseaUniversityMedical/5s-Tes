@@ -60,8 +60,12 @@ namespace Agent.Api.Services
       try
       {
         var outcome = message.Body;
+        var queryParams = new Dictionary<string, string>
+        {
+          ["responseType"] = "summary",
+        };
         var submission = _dareHelper
-          .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{outcome.SubId}")
+          .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{outcome.SubId}", queryParams)
           .Result;
         var sourceBucket = _subHelper.GetOutputBucketGuts(outcome.SubId, false, false);
 

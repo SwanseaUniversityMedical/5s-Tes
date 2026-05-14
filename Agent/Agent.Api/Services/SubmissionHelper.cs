@@ -94,8 +94,12 @@ namespace Agent.Api.Services
         {
             try
             {
+                var queryParams = new Dictionary<string, string>
+                {
+                  ["responseType"] = "summary",
+                };
                 var submission = _dareHelper
-                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}")
+                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}",  queryParams)
                     .Result;
 
                 string? outputBucket = "";
@@ -139,8 +143,12 @@ namespace Agent.Api.Services
             {
                 Log.Information("{Function} Getting Bucket info", "GetOutputBucketInfo");
                 var i = 1;
+                var queryParams = new Dictionary<string, string>
+                {
+                  ["responseType"] = "summary",
+                };
                 var submission = _dareHelper
-                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}")
+                    .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{subId}", queryParams)
                     .Result;
 
                 var bucket = _dbContext.Projects

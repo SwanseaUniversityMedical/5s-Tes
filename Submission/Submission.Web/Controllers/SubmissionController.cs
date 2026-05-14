@@ -79,9 +79,12 @@ namespace Submission.Web.Controllers
             {
                 return BadRequest("Invalid model state");
             }
-
+            var queryParams = new Dictionary<string, string>
+            {
+              ["responseType"] = "summary",
+            };
             var res = _clientHelper.CallAPIWithoutModel<FiveSafesTes.Core.Models.Submission.SubmissionDetailsDto>
-              ($"/api/Submission/GetASubmission/{id}").Result;
+              ($"/api/Submission/GetASubmission/{id}", queryParams).Result;
 
             if (res == null)
             {
