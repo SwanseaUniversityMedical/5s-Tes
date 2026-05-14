@@ -216,7 +216,7 @@ namespace Submission.Api.Controllers
               var fullTre = _DbContext.Tres.Find(treId);
               if (fullTre == null)
               {
-                return null;
+                return NotFound();
               }
 
               Log.Information("{Function} TRE retrieved successfully", nameof(GetATre));

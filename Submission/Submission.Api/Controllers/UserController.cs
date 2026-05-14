@@ -200,7 +200,7 @@ namespace Submission.Api.Controllers
               var fullUser = _DbContext.Users.Find(userId);
               if (fullUser == null)
               {
-                return null;
+                return NotFound();
               }
                 
               Log.Information("{Function} User retrieved successfully", nameof(GetUser));
