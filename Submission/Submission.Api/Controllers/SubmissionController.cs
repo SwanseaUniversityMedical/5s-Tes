@@ -222,14 +222,79 @@ namespace Submission.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetASubmission/{submissionId}")]
-        public FiveSafesTes.Core.Models.Submission GetASubmission(int submissionId)
+        public async Task<IActionResult> GetASubmission(int submissionId, string ? responseType = "full")
         {
             try
             {
-                var submission = _DbContext.Submissions.First(x => x.Id == submissionId);
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
+                var submission = await _DbContext.Submissions
+                  .AsNoTracking()
+                  .Where(x => x.Id == submissionId)
+                  .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionDetailsDto
+                  {
+                    Id = s.Id,
+                    TesId = s.TesId,
+                    TesName = s.TesName,
+                    TesJson = s.TesJson,
+                    Status = s.Status,
+                    LastStatusUpdate = s.LastStatusUpdate,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    Project = new FiveSafesTes.Core.Models.Submission.ProjectLinkDto
+                    {
+                      Id = s.Project.Id,
+                      Name = s.Project.Name,
+                      SubmissionBucket = s.Project.SubmissionBucket,
+                      OutputBucket = s.Project.OutputBucket
+                    },
+                    SubmittedBy = new FiveSafesTes.Core.Models.Submission.UserLinkDto
+                    {
+                      Id = s.SubmittedBy.Id,
+                      Name = s.SubmittedBy.Name,
+                      FullName = s.SubmittedBy.FullName
+                    },
+                    Children = s.Children
+                      .Select(child => new FiveSafesTes.Core.Models.Submission.SubmissionChildDto
+                      {
+                        Id = child.Id,
+                        Status = child.Status,
+                        LastStatusUpdate = child.LastStatusUpdate,
+                        StartTime = child.StartTime,
+                        EndTime = child.EndTime,
+                        Tre = child.Tre == null
+                          ? null
+                          : new FiveSafesTes.Core.Models.Submission.TreLinkDto
+                          {
+                            Id = child.Tre.Id,
+                            Name = child.Tre.Name,
+                            LastHeartBeatReceived = child.Tre.LastHeartBeatReceived
+                          },
+                        HistoricStatuses = child.HistoricStatuses
+                          .Select(status => new FiveSafesTes.Core.Models.Submission.SubmissionHistoricStatusDto
+                          {
+                            Start = status.Start,
+                            End = status.End,
+                            Status = status.Status
+                          })
+                          .ToList()
+                      })
+                      .ToList()
+                  })
+                  .FirstOrDefaultAsync();
+
+                if (submission == null)
+                {
+                  return NotFound();
+                }
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
-                return submission;
+                return Ok(submission);
+              }
+              
+              var fullSubmission = _DbContext.Submissions.First(x => x.Id == submissionId);
+              Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
+              return Ok(fullSubmission);
             }
             catch (Exception ex)
             {
