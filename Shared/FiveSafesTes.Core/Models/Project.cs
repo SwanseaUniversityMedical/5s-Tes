@@ -1,4 +1,7 @@
 ﻿
+using FiveSafesTes.Core.Models.Enums;
+using FiveSafesTes.Core.Models.Helpers;
+
 namespace FiveSafesTes.Core.Models
 {
     public class Project : BaseModel
@@ -41,6 +44,65 @@ namespace FiveSafesTes.Core.Models
             public int TreCount { get; set; }
         }
 
+        
+        public class ProjectDetailsDto
+        {
+          public int Id { get; set; }
+          public string Name { get; set; } = string.Empty;
+          public DateTime StartDate { get; set; }
+          public DateTime EndDate { get; set; }
+          public string? ProjectDescription { get; set; }
+          public string? ProjectOwner { get; set; }
+          public string? ProjectContact { get; set; }
+          public string? SubmissionBucket { get; set; }
+          public string? OutputBucket { get; set; }
+
+          public List<ProjectUserDto> Users { get; set; } = [];
+          public List<ProjectUserDto> UsersNotInProject { get; set; } = [];
+          public List<ProjectTreDto> Tres { get; set; } = [];
+          public List<ProjectTreDto> TresNotInProject { get; set; } = [];
+          public List<ProjectSubmissionDto> Submissions { get; set; } = [];
+        }
+
+        public class ProjectUserDto
+        {
+          public int Id { get; set; }
+          public string? Name { get; set; }
+          public string? FullName { get; set; }
+        }
+
+        public class ProjectTreDto
+        {
+          public int Id { get; set; }
+          public string Name { get; set; } = string.Empty;
+          public Decision Decision { get; set; }
+        }
+
+        public class ProjectSubmissionDto
+        {
+          public int Id { get; set; }
+          public int? ParentId { get; set; }
+          public bool HasParent { get; set; }
+          public StatusType Status { get; set; }
+          public DateTime StartTime { get; set; }
+          public DateTime EndTime { get; set; }
+          public string TesName { get; set; } = string.Empty;
+          public string ProjectName { get; set; } = string.Empty;
+          public string? SubmittedByName { get; set; }
+          
+          public string GetFormattedStartDate()
+          {
+            var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
+            return date;
+          }
+
+          public string GetTotalDisplayTime()
+          {
+            var end = EndTime == DateTime.MinValue ? (DateTime.Now).ToUniversalTime() : EndTime;
+            var data = TimeHelper.GetDisplayTime(StartTime, end);
+            return data;
+          }
+        }
     }
 
 

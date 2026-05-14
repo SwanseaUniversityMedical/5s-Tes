@@ -207,7 +207,7 @@
                                                 </span>
                                             </span>
 
-                                            @if (child.Tre.IsOnline())
+                                            @if (child.Tre?.IsOnline() == true)
                                             {
                                                 <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
                                                     <i class="fa-solid fa-check-circle me-1"></i> Online
@@ -239,7 +239,7 @@
                                                         var validstats = child.HistoricStatuses.Where(x => stage.statusTypeList.Contains(x.Status)).ToList();
                                                         if (stage.stagesDict.ContainsKey(Model.Stages.StageInfos.Count) && stage.stageNumber == Model.Stages.StageInfos.Count && stage.statusTypeList.Contains(child.Status))
                                                         {
-                                                            validstats.Add(new FiveSafesTes.Core.Models.HistoricStatus() { Start = child.StartTime, Status = child.Status });
+                                                            validstats.Add(new FiveSafesTes.Core.Models.Submission.SubmissionHistoricStatusDto() { Start = child.StartTime, Status = child.Status });
                                                             validstats = validstats.OrderBy(x => x.Start).ToList();
                                                         }
                                                     <td class="col">
@@ -336,7 +336,7 @@
                                                     var validstats = child.HistoricStatuses.Where(x => stage.statusTypeList.Contains(x.Status)).ToList();
                                                     if (stage.stagesDict.ContainsKey(stageNum) && stage.stageNumber == stageNum && stage.statusTypeList.Contains(child.Status))
                                                     {
-                                                        validstats.Add(new FiveSafesTes.Core.Models.HistoricStatus() { Start = child.LastStatusUpdate, Status = child.Status, End = child.EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : child.EndTime, IsCurrent = true, IsStillRunning = child.EndTime == DateTime.MinValue });
+                                                        validstats.Add(new FiveSafesTes.Core.Models.Submission.SubmissionHistoricStatusDto() { Start = child.LastStatusUpdate, Status = child.Status, End = child.EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : child.EndTime, IsCurrent = true, IsStillRunning = child.EndTime == DateTime.MinValue });
                                                         validstats = validstats.OrderBy(x => x.Start).ToList();
                                                     }
                                                 <td class="col">
