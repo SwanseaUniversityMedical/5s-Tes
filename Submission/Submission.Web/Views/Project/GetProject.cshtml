@@ -1,4 +1,4 @@
-﻿@using FiveSafesTes.Core.Models.ViewModels
+@using FiveSafesTes.Core.Models.ViewModels
 @using Microsoft.Extensions.Configuration
 @model FiveSafesTes.Core.Models.Project.ProjectDetailsDto
 @{
@@ -31,7 +31,7 @@
                    data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
                     <div class="d-flex justify-content-between align-items-center">
                         <span>Submissions</span>
-                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count(s => s.HasParent == false)</span>
                     </div>
                 </a>
             </li>
@@ -285,7 +285,7 @@
                                             <td>
                                                 <input type="checkbox" value="@user.Id" id="@user.Id"
                                                        name="selectedUser" class="form-check-input me-20"/>
-                                                @user.FullName
+                                                @user.Name
                                             </td>
                                         </tr>
                                     }
