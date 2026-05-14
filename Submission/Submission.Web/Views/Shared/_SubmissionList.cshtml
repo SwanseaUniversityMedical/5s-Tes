@@ -99,10 +99,10 @@
                 }
 
             }
-            @if (Model.SubmissionsGetProjectModel != null)
+            @if (Model.SubmissionsDTO != null)
             {
           
-            @foreach (var submission in Model.SubmissionsGetProjectModel)
+            @foreach (var submission in Model.SubmissionsDTO)
             {
                 var linkid = submission.Id;
                 if (Model.UseParent)

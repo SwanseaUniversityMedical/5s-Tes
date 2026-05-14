@@ -1,6 +1,6 @@
 ﻿@using FiveSafesTes.Core.Models.ViewModels
 @using Microsoft.Extensions.Configuration
-@model FiveSafesTes.Core.Models.ViewModels.ProjectUserTre
+@model FiveSafesTes.Core.Models.Project.ProjectDetailsDto
 @{
     string pageName = Model.Name;
 
@@ -31,7 +31,7 @@
                    data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
                     <div class="d-flex justify-content-between align-items-center">
                         <span>Submissions</span>
-                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count</span>
+                        <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Count(s => s.HasParent == false)</span>
                     </div>
                 </a>
             </li>
@@ -150,7 +150,7 @@
                     </div>
                 }
 				<div class="hideProjectNameColumn">
-                    @await Html.PartialAsync("_SubmissionList", new SubmissionList() { SubmissionsGetProjectModel = Model.Submissions.Where(x => x.HasParent == false).ToList(), UseParent = false })
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList() { SubmissionsDTO = Model.Submissions.Where(x => x.HasParent == false).ToList(), UseParent = false })
                 </div>
                 
             </div>
@@ -207,29 +207,29 @@
                                         var doesNotHaveDecision = true;
                                     }
                                     <span class="d-flex align-items-center">
-                                        @if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)
+                                        @if (tre.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)
                                         {
                                             doesNotHaveDecision = false;
                                             <span
                                                 class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 me-3">
-                                                <i class="fa-solid fa-check-circle me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                                <i class="fa-solid fa-check-circle me-1"></i> @tre.Decision.ToString()
                                             </span>
                                         }
-                                        else if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Undecided)
+                                        else if (tre.Decision == FiveSafesTes.Core.Models.Enums.Decision.Undecided)
                                         {
                                             doesNotHaveDecision = false;
 
                                             <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 me-3">
-                                                <i class="fa-solid fa-circle-notch fa-spin me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                                <i class="fa-solid fa-circle-notch fa-spin me-1"></i> @tre.Decision.ToString()
                                             </span>
                                         }
-                                        else if (tre.ProjectTreDecision.Decision == FiveSafesTes.Core.Models.Enums.Decision.Rejected)
+                                        else if (tre.Decision == FiveSafesTes.Core.Models.Enums.Decision.Rejected)
                                         {
                                             doesNotHaveDecision = false;
 
                                             <span
                                                 class="badge  px-2 badge-sm bg-danger text-light rounded-pill m-0 me-3">
-                                                <i class="fa-solid fa-close me-1"></i> @tre.ProjectTreDecision.Decision.ToString()
+                                                <i class="fa-solid fa-close me-1"></i> @tre.Decision.ToString()
                                             </span>
                                         }
 
@@ -268,24 +268,24 @@
             <div class="modal-body">
                 <div class="row">
                     <div class="col-12">
-                        @if (Model.UserItemList == null || !Model.UserItemList.Any())
+                        @if (Model.UsersNotInProject == null || !Model.UsersNotInProject.Any())
                         {
                             <div class="alert alert-info">
                                 <i class="fa fa-info-circle me-2"></i>
-                                No users available to add. All users may already be members of this project.
+                                No users available to add. All users may already be members of this project or you may need to add a new user using their KeyCloak username.
                             </div>
                         }
                         else
                         {
                             <div class="table-responsive">
                                 <table class="table" id="UserList">
-                                    @foreach (var user in Model.UserItemList)
+                                    @foreach (var user in Model.UsersNotInProject)
                                     {
                                         <tr>
                                             <td>
-                                                <input type="checkbox" value="@user.Value" id="@user.Value"
+                                                <input type="checkbox" value="@user.Id" id="@user.Id"
                                                        name="selectedUser" class="form-check-input me-20"/>
-                                                @user.Text
+                                                @user.Name
                                             </td>
                                         </tr>
                                     }
@@ -316,17 +316,28 @@
                     <div class="col-12">
                         <div class="table-responsive">
                             <table class="table " id="TreList">
-                                <caption>List of Tres on Project</caption>
-                                @foreach (var tre in Model.TreItemList)
+                              <caption>List of Tres on Project</caption>
+                              @if (Model.TresNotInProject == null || !Model.TresNotInProject.Any())
+                              {
+                                <div class="alert alert-info">
+                                  <i class="fa fa-info-circle me-2"></i>
+                                  No TRES available to add. All TREs may already be added to this project or you may need to add a new TRE.
+                                </div>
+                              }
+                              else
+                              {
+                                @foreach (var tre in Model.TresNotInProject)
                                 {
-                                    <tr>
-                                        <td>
-                                            <input type="checkbox" value="@tre.Value" id="Tre_@tre.Value"
-                                                   name="selectedTre" class="form-check-input me-2"/>
-                                            @tre.Text
-                                        </td>
-                                    </tr>
+                                  <tr>
+                                    <td>
+                                      <input type="checkbox" value="@tre.Id" id="Tre_@tre.Id"
+                                             name="selectedTre" class="form-check-input me-2"/>
+                                      @tre.Name
+                                    </td>
+                                  </tr>
                                 }
+                              }
+                               
                             </table>
                         </div>
                     </div>
