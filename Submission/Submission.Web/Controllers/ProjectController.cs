@@ -101,20 +101,12 @@ namespace Submission.Web.Controllers
 
           var paramlist = new Dictionary<string, string>();
           paramlist.Add("projectId", id.ToString());
-          var project = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
-            "/api/Project/GetProjectUI/", paramlist).Result;
+          var project = _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+            "/api/Project/GetProjectDetails/", paramlist).Result;
+          
+          ViewBag.UserCanDoSubmissions = IsUserOnProjectDetails(project);
 
-
-          ViewBag.UserCanDoSubmissions = IsUserOnProject(project);
-
-          var projectView = new ProjectUserTre()
-          {
-            Id = project.Id,
-            Name = project.Name,
-            Submissions = project.Submissions.Where(x => x.HasParent == false).ToList(),
-          };
-
-          return View(projectView);
+          return View(project);
         }
         
         public IActionResult SubmissionProjectGraphQL(int id)

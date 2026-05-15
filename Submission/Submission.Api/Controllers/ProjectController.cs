@@ -393,6 +393,7 @@ namespace Submission.Api.Controllers
                         {
                             Id = t.Id,
                             Name = t.Name,
+                            LastHeartBeatReceived = t.LastHeartBeatReceived,
                             Decision = t.ProjectTreDecisions
                                 .Where(d => d.SubmissionProj != null && d.SubmissionProj.Id == projectId)
                                 .OrderByDescending(d => d.Id)
