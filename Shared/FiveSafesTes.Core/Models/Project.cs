@@ -75,7 +75,12 @@ namespace FiveSafesTes.Core.Models
         {
           public int Id { get; set; }
           public string Name { get; set; } = string.Empty;
+          public DateTime LastHeartBeatReceived { get; set; }
           public Decision Decision { get; set; }
+          public bool IsOnline()
+          {
+            return (DateTime.UtcNow - LastHeartBeatReceived).TotalMinutes < 30;
+          }
         }
 
         public class ProjectSubmissionDto
@@ -104,12 +109,5 @@ namespace FiveSafesTes.Core.Models
           }
         }
     }
-
-
-
-    public class ProjectListModel
-    {
-        public List<Project> Projects { get; set; }
-
-    }
+  
 }
