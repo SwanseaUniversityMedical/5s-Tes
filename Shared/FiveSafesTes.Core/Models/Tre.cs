@@ -49,7 +49,8 @@ namespace FiveSafesTes.Core.Models
             public int ProjectCount { get; set; }
             public DateTime LastHeartBeatReceived { get; set; }
             public string About { get; set; }
-        }
+            public string AdminUsername { get; set; }
+    }
 
         public class TreDetailsDto
         {
@@ -59,6 +60,8 @@ namespace FiveSafesTes.Core.Models
             public string? About { get; set; }
             public List<Project.ProjectSummary> Projects { get; set; } = [];
             public List<Project.ProjectSubmissionDto> Submissions { get; set; } = [];
+            public string AdminUsername { get; set; }
+            public string? KeycloakClientId { get; set; }
 
             public bool IsOnline()
             {
