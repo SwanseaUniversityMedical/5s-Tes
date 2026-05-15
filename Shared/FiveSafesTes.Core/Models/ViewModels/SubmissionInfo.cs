@@ -14,7 +14,7 @@ namespace FiveSafesTes.Core.Models.ViewModels
             return $"Submission ID: {Submission.Id.ToString()}";
         }
 
-        public Submission Submission { get; set; }
+        public Submission.SubmissionDetailsDto Submission { get; set; }
         public Stages Stages { get; set; }
 
 

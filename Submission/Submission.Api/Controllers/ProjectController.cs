@@ -355,33 +355,123 @@ namespace Submission.Api.Controllers
 
 
         }
-
         
+        
+      
+          
+        [HttpGet("GetProjectDetails")]
+        public async Task<ActionResult<Project.ProjectDetailsDto>> GetProjectDetails(int projectId)
+        {
+            var project = await _DbContext.Projects
+                .AsNoTracking()
+                .Where(p => p.Id == projectId)
+                .Select(p => new Project.ProjectDetailsDto()
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    ProjectOwner = p.ProjectOwner,
+                    ProjectContact = p.ProjectContact,
+                    SubmissionBucket = p.SubmissionBucket,
+                    OutputBucket = p.OutputBucket,
+
+                    Users = p.Users
+                        .Select(u => new Project.ProjectUserDto()
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName
+                        })
+                        .ToList(),
+
+                    Tres = p.Tres
+                        .Select(t => new Project.ProjectTreDto()
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                            LastHeartBeatReceived = t.LastHeartBeatReceived,
+                            Decision = t.ProjectTreDecisions
+                                .Where(d => d.SubmissionProj != null && d.SubmissionProj.Id == projectId)
+                                .OrderByDescending(d => d.Id)
+                                .Select(d => d.Decision)
+                                .FirstOrDefault()
+                        })
+                        .ToList(),
+
+                    Submissions = p.Submissions
+                        .Select(s => new Project.ProjectSubmissionDto()
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            HasParent = s.Parent != null,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            TesName = s.TesName,
+                            ProjectName = p.Name,
+                            SubmittedByName = s.SubmittedBy.Name
+                        })
+                        .ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (project == null)
+            {
+                return NotFound();
+            }
+
+            var projectUserIds = project.Users.Select(u => u.Id).ToHashSet();
+            var projectTreIds = project.Tres.Select(t => t.Id).ToHashSet();
+
+            project.UsersNotInProject = await _DbContext.Users
+                .AsNoTracking()
+                .Where(u => !projectUserIds.Contains(u.Id))
+                .Select(u => new Project.ProjectUserDto()
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName
+                })
+                .ToListAsync();
+
+            project.TresNotInProject = await _DbContext.Tres
+                .AsNoTracking()
+                .Where(t => !projectTreIds.Contains(t.Id))
+                .Select(t => new Project.ProjectTreDto()
+                {
+                    Id = t.Id,
+                    Name = t.Name
+                })
+                .ToListAsync();
+
+            return Ok(project);
+        }
+
         [HttpGet("GetProjectUI")]
         public SubmissionGetProjectModel? GetProjectUI(int projectId)
         {
-            try
+          try
+          {
+            var returned = _DbContext.Projects.Find(projectId);
+            if (returned == null)
             {
-                var returned = _DbContext.Projects.Find(projectId);
-                if (returned == null)
-                {
-                    return null;
-                }
-
-                Log.Information("{Function} Project retrieved successfully", "GetProject");
-                var Users = _DbContext.Users.ToList();
-                _DbContext.Tres.ToList();
-                return new SubmissionGetProjectModel(returned, _DbContext.Users, _DbContext.Tres);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetProject");
-                throw;
+              return null;
             }
 
-
+            Log.Information("{Function} Project retrieved successfully", "GetProject");
+            var Users = _DbContext.Users.ToList();
+            _DbContext.Tres.ToList();
+            return new SubmissionGetProjectModel(returned, _DbContext.Users, _DbContext.Tres);
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", "GetProject");
+            throw;
+          }
         }
-        
+
         [HttpGet("GetProject")]
         public Project? GetProject(int projectId)
         {
@@ -406,18 +496,39 @@ namespace Submission.Api.Controllers
         }
 
         [HttpGet("GetAllProjects")]
-        public List<Project> GetAllProjects()
+        public async Task<IActionResult> GetAllProjects(string? responseType = "full")
         {
             try
             {
                 //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
 
-                var allProjects = _DbContext.Projects
-                    .ToList();
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summaryProjects = await _DbContext.Projects
+                        .AsNoTracking()
+                        .Select(p => new Project.ProjectSummary
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            ProjectDescription = p.ProjectDescription,
+                            SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                            UserCount = p.Users.Count(),
+                            TreCount = p.Tres.Count(),
+                        })
+                        .ToListAsync();
+
+                    Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                    return Ok(summaryProjects);
+                }
+
+                var allProjects = await _DbContext.Projects
+                    .ToListAsync();
 
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
-                return allProjects;
+                return Ok(allProjects);
             }
             catch (Exception ex)
             {

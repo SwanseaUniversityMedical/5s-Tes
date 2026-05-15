@@ -55,8 +55,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllUsers()
         {
-
-            var result = _clientHelper.CallAPIWithoutModel<List<User>>("/api/User/GetAllUsers/").Result;
+          var queryParams = new Dictionary<string, string>
+          {
+            ["responseType"] = "summary",
+          };
+            var result = _clientHelper.CallAPIWithoutModel<List<User.UserSummary>>("/api/User/GetAllUsers/", queryParams).Result;
 
             return View(result);
         }
@@ -70,15 +73,18 @@ namespace Submission.Web.Controllers
                 return View("/");
             }
 
-            var projects = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects/").Result;            
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("userId", id.ToString());
-            var result = _clientHelper.CallAPIWithoutModel<User?>(
+            paramlist.Add("responseType", "summary");
+            var result = _clientHelper.CallAPIWithoutModel<User.UserDetailsDto>(
                 "/api/User/GetUser/", paramlist).Result;
 
-            var projectItems2 = projects.Where(p => !result.Projects.Select(x => x.Id).Contains(p.Id)).ToList();          
+            if (result == null)
+            {
+                return NotFound();
+            }
 
-            var projectItems = projectItems2
+            var projectItems = result.ProjectsNotInUser
                 .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
                 .ToList();
            
