@@ -41,7 +41,7 @@ jobs:
   
   submission-api-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: submission-api-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
@@ -59,7 +59,7 @@ jobs:
 
   submission-ui-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: submission-ui-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
@@ -77,7 +77,7 @@ jobs:
 
   agent-api-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: agent-api-container
       comment-pr: "true"
@@ -97,7 +97,7 @@ jobs:
 
   agent-ui-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: agent-ui-container
       comment-pr: "true"
@@ -117,7 +117,7 @@ jobs:
 
   agent-web-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: agent-web-container
       comment-pr: "true"
@@ -137,7 +137,7 @@ jobs:
 
   credentials-camunda-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.2.0-bulk-containers
     with:
       job-name: credentials-camunda-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
