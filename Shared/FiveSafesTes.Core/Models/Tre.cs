@@ -41,5 +41,29 @@ namespace FiveSafesTes.Core.Models
             return data;
         }
 
+        public class TreSummary
+        {
+            public int Id { get; set; }
+            public string Name { get; set; }
+            public int SubmissionCount { get; set; }
+            public int ProjectCount { get; set; }
+            public DateTime LastHeartBeatReceived { get; set; }
+            public string About { get; set; }
+        }
+
+        public class TreDetailsDto
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public DateTime LastHeartBeatReceived { get; set; }
+            public string? About { get; set; }
+            public List<Project.ProjectSummary> Projects { get; set; } = [];
+            public List<Project.ProjectSubmissionDto> Submissions { get; set; } = [];
+
+            public bool IsOnline()
+            {
+                return (DateTime.UtcNow - LastHeartBeatReceived).TotalMinutes < 30;
+            }
+        }
     }
 }
