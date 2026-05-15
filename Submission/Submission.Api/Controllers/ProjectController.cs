@@ -29,8 +29,9 @@ namespace Submission.Api.Controllers
         private readonly IMinioHelper _minioHelper;
         private readonly IKeycloakMinioUserService _keycloakMinioUserService;
         protected readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ControllerHelpers _controllerHelpers;
 
-        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IHttpContextAccessor httpContextAccessor)
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IHttpContextAccessor httpContextAccessor, ControllerHelpers controllerHelpers)
         {
 
             _DbContext = applicationDbContext;
@@ -38,6 +39,7 @@ namespace Submission.Api.Controllers
             _minioHelper = minioHelper;
             _keycloakMinioUserService = keycloakMinioUserService;
             _httpContextAccessor = httpContextAccessor;
+            _controllerHelpers = controllerHelpers;
         }
 
         [Authorize(Roles = "dare-control-admin")]
@@ -563,13 +565,11 @@ namespace Submission.Api.Controllers
 
         [HttpGet("GetAllProjectsForTre")]
         [Authorize(Roles = "dare-tre-admin")]
-        public List<Project> GetAllProjectsForTre()
+        public async Task<List<Project>> GetAllProjectsForTre()
         {
             try
             {
-
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+                var tre = await _controllerHelpers.GetUserTre(User);
                 var allProjects = tre.Projects;
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
@@ -581,48 +581,43 @@ namespace Submission.Api.Controllers
                 throw;
             }
 
-
         }
-
-        
-
-
         [HttpPost("SyncTreProjectDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
+        public async Task<BoolReturn> SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
         {
             try
             {
                 Log.Information("SyncTreProjectDecisions called with  " + decisions.Count);
 
                 var result = new BoolReturn();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+                var tre = await _controllerHelpers.GetUserTre(User);
+                
                 foreach (var item in decisions)
                 {
                     Log.Information("SyncTreProjectDecisions item > ProjectId  " + item.ProjectId  + " Decision  > " + item.Decision);
 
-                    var dbproj = _DbContext.Projects.FirstOrDefault(x => x.Id == item.ProjectId);
+                    var dbproj = await _DbContext.Projects.FirstOrDefaultAsync(x => x.Id == item.ProjectId);
                     if (dbproj == null)
                     {
                         Log.Error($"no Projects with ID of {item.ProjectId}");
                         continue;
                     }
-                    var tredecision = _DbContext.ProjectTreDecisions.FirstOrDefault(x => x.SubmissionProj == dbproj && x.Tre == tre);
-                    if (tredecision == null)
+                    var treDecision = await _DbContext.ProjectTreDecisions.FirstOrDefaultAsync(x => x.SubmissionProj == dbproj && x.Tre == tre);
+                    if (treDecision == null)
                     {
                         Log.Information("SyncTreProjectDecisions add new  tredecision " + decisions.Count);
 
-                        tredecision = new ProjectTreDecision()
+                        treDecision = new ProjectTreDecision()
                         {
                             SubmissionProj = dbproj,
                             Tre = tre,
                         };
-                        _DbContext.ProjectTreDecisions.Add(tredecision);
+                        _DbContext.ProjectTreDecisions.Add(treDecision);
                     }
-                    tredecision.Decision = item.Decision;
+                    treDecision.Decision = item.Decision;
                 }
-                _DbContext.SaveChanges();
+                await _DbContext.SaveChangesAsync();
 
 
                 result.Result = true;
@@ -640,7 +635,7 @@ namespace Submission.Api.Controllers
 
         [HttpPost("SyncTreMembershipDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
+        public async Task<BoolReturn> SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
             var aresult = new BoolReturn();
             aresult.Result = true;
@@ -649,7 +644,7 @@ namespace Submission.Api.Controllers
             {
                 var result = new BoolReturn();
                 var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var tre = await _controllerHelpers.GetUserTre(User);
 
                 foreach (var item in decisions)
                 {
