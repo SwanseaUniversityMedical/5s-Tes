@@ -1,0 +1,49 @@
+@using FiveSafesTes.Core.Models.ViewModels
+@model JsonConfigUploadResponse
+@{
+    ViewData["Title"] = "Submission Configuration";
+}
+
+
+<div class="container-lg p-4">
+    <h3>Upload Submission Configuration File</h3>
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> 
+        <b>How to download the JSON configuration for your TRE.</b>
+        <br/>
+        <ul>
+            <li>A submission admin will create a TRE and an account to manage it.</li>
+            <li>These credentials will be shared with you. Use them to log into the submission layer.</li>
+            <li>Navigate to the TREs tab. This TRE should be listed alongside a button that allows you to download its JSON configuration file.</li>
+            <li>Please download this file and upload it below.</li>
+        </ul>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
+
+            @{
+                if (Model != null && !string.IsNullOrEmpty(Model.Message))
+                {
+                    if (Model.Success)
+                    {
+                        <div class="alert alert-info">
+                            @Model.Message
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="modal-header bg-danger text-white">
+                            @Model.Message
+                        </div>
+                        <br/>
+                    }
+                }
+            }
+
+            <form asp-controller="SubmissionConfig" asp-action="UploadJsonConfig" method="post" enctype="multipart/form-data">
+                <input type="file" name="file" />
+                <button type="submit">Upload</button>
+            </form>
+        </div>
+    </div>
+</div>

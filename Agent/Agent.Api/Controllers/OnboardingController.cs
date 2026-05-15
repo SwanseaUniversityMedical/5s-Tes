@@ -1,5 +1,6 @@
 
 using Agent.Api.Services;
+using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,20 +19,32 @@ public class OnboardingController : Controller
     }
 
     [HttpPost("UploadJsonConfig")]
-    public async Task<IActionResult> UploadJsonConfig(IFormFile file)
+    public async Task<JsonConfigUploadResponse> UploadJsonConfig(IFormFile file)
     {
         if (file == null || file.Length == 0)
         {
-            return BadRequest("No file uploaded.");
+            return new() 
+            { 
+                Success = false,
+                Message = "No file uploaded!"
+            };
         }
 
         if (!Path.GetExtension(file.FileName).Equals(".json", StringComparison.CurrentCultureIgnoreCase))
         {
-            return BadRequest("Configuration must be in JSON format.");
+            return new()
+            {
+                Success = false,
+                Message = "Configuration must be in JSON Format!"
+            };
         }
 
         await _onboardingService.UploadJsonConfig(file);
 
-        return Ok();
+        return new()
+        {
+            Success = true,
+            Message = "File uploaded successfully."
+        };
     }
 }
