@@ -1,3 +1,5 @@
+using FiveSafesTes.Core.Models.ViewModels;
+using Microsoft.Extensions.Options;
 using Serilog;
 using VaultSharp;
 using VaultSharp.V1.Commons;
@@ -7,15 +9,17 @@ namespace Agent.Api;
 public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
 {
     private readonly Timer _timer;
+    private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IVaultClient _vaultClient;
     private readonly string _path;
     private readonly string _mountPoint;
 
-    public VaultConfigurationProvider(IVaultClient vaultClient, string path, string mountPoint, TimeSpan reloadInterval)
+    public VaultConfigurationProvider(IVaultClient vaultClient, IServiceProvider serviceProvider, string path, string mountPoint, TimeSpan reloadInterval)
     {
         _vaultClient = vaultClient;
         _path = path;
         _mountPoint = mountPoint;
+        _onboardingConfig = serviceProvider.GetRequiredService<IOptionsMonitor<TreOnboardingConfig>>();
 
         Load();
 
@@ -23,8 +27,20 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
         _timer = new Timer(async _ => await LoadAsync(), null, reloadInterval, reloadInterval);
     }
 
-    public async Task LoadAsync()
+    /// <summary>
+    /// Reload the configuration to apply any changes to values in Vault.
+    /// </summary>
+    /// <param name="bypassConfigCheck">When true, allows the loading to proceed irrespective of whether config has been uploaded to Vault.</param>
+    public async Task LoadAsync(bool bypassConfigCheck = false)
     {
+        // Onboarding configuration can never be true until config is reloaded, so we need a way of bypassing this check when we're uploading the config.
+        if (!_onboardingConfig.CurrentValue.IsConfigurationImported && !bypassConfigCheck)
+        {
+            // Don't try to read configuration values from vault before the config has been uploaded.
+            Log.Warning("VaultConfigurationProvider:LoadAsync - Configuration not yet set");
+            return;
+        }
+
         try
         {
             Secret<SecretData> secret = await _vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_path, mountPoint: _mountPoint);
@@ -61,14 +77,15 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
 /// </summary>
 public static class VaultConfigurationExtensions
 {
-    public static IConfigurationBuilder AddVault(this IConfigurationBuilder builder, IVaultClient client, string path, string mountPoint, TimeSpan reloadInterval)
+    public static IConfigurationBuilder AddVault(this IConfigurationBuilder builder, IVaultClient client, IServiceProvider serviceProvider, string path, string mountPoint, TimeSpan reloadInterval)
     {
         return builder.Add(new VaultConfigurationSource
         {
             Client = client,
             Path = path,
             MountPoint = mountPoint,
-            ReloadInterval = reloadInterval
+            ReloadInterval = reloadInterval,
+            ServiceProvider = serviceProvider
         });
     }
 }
@@ -76,6 +93,7 @@ public static class VaultConfigurationExtensions
 public class VaultConfigurationSource : IConfigurationSource
 {
     public IVaultClient Client { get; set; }
+    public IServiceProvider ServiceProvider { get; set; }
     public string Path { get; set; }
     public string MountPoint { get; set; }
     public TimeSpan ReloadInterval { get; set; }
@@ -83,6 +101,6 @@ public class VaultConfigurationSource : IConfigurationSource
 
     public IConfigurationProvider Build(IConfigurationBuilder builder)
     {
-        return new VaultConfigurationProvider(Client, Path, MountPoint, ReloadInterval);
+        return new VaultConfigurationProvider(Client, ServiceProvider, Path, MountPoint, ReloadInterval);
     }
 }
