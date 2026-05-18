@@ -83,17 +83,6 @@ builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
 
 builder.Services.AddMvc().AddViewComponentsAsServices();
 
-builder.Services.Configure<CookiePolicyOptions>(options =>
-{
-    options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
-    options.OnAppendCookie = cookieContext =>
-        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-    options.OnDeleteCookie = cookieContext =>
-        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-});
-
-
-
 builder.Services.AddAuthorization(options =>
 {
    
@@ -387,22 +376,31 @@ else
 
     app.UseStaticFiles();
 
-    //This is a biggy. If having issues with keycloak DISABLE THIS
-    if (configuration["sslcookies"] == "true")
-    {
-        Log.Information("Enabling Secure SSL Cookies");
-        app.UseCookiePolicy(new CookiePolicyOptions
-        {
-            Secure = CookieSecurePolicy.Always
-        });
-    }
-    else
-    {
-        Log.Information("Disabling Secure SSL Cookies");
-        app.UseCookiePolicy();
-    }
+  //This is a biggy. If having issues with keycloak DISABLE THIS
+  var secureSslCookies = configuration["sslcookies"] == "true";
 
-    app.UseRouting();
+  Log.Information(
+      secureSslCookies ? "Enabling Secure SSL Cookies" : "Disabling Secure SSL Cookies"
+  );
+
+  app.UseCookiePolicy(new CookiePolicyOptions
+  {
+    Secure = secureSslCookies
+          ? CookieSecurePolicy.Always
+          : CookieSecurePolicy.None,
+
+    MinimumSameSitePolicy = secureSslCookies
+          ? SameSiteMode.None
+          : SameSiteMode.Lax,
+
+    OnAppendCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
+
+    OnDeleteCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies)
+  });
+
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
@@ -444,17 +442,29 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 
 #region SameSite Cookie Issue - https://community.auth0.com/t/correlation-failed-unknown-location-error-on-chrome-but-not-in-safari/40013/7
 
-void CheckSameSite(HttpContext httpContext, CookieOptions options)
+void CheckSameSite(HttpContext httpContext, CookieOptions options, bool secureSslCookies)
 {
+  if (!secureSslCookies)
+  {
+    // Non-HTTPS/dev deployments: do not mark cookies as Secure,
+    // otherwise browsers will not send OIDC correlation/nonce cookies back over HTTP.
+    options.Secure = false;
     if (options.SameSite == SameSiteMode.None)
     {
-        var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
+      options.SameSite = SameSiteMode.Lax;
+    }
+    return;
+  }
+
+  if (options.SameSite == SameSiteMode.None)
+  {
+    var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
         //configure cookie policy to omit samesite=none when request is not https
         if (!httpContext.Request.IsHttps || DisallowsSameSiteNone(userAgent))
         {
             options.SameSite = SameSiteMode.Unspecified;
         }
-    }
+  }
 }
 
 
