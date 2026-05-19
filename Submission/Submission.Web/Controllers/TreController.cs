@@ -56,7 +56,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllTres()
         {
-            var tres = _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Tre/GetAllTres/").Result;
+            var queryParams = new Dictionary<string, string>
+            {
+              ["responseType"] = "summary",
+            };
+            var tres = _clientHelper.CallAPIWithoutModel<List<Tre.TreSummary>>("/api/Tre/GetAllTres/", queryParams).Result;
 
             return View(tres);
         }
@@ -71,8 +75,14 @@ namespace Submission.Web.Controllers
 
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("treId", id.ToString());
-            var Tre = _clientHelper.CallAPIWithoutModel<Tre?>(
+            paramlist.Add("responseType", "summary");
+            var Tre = _clientHelper.CallAPIWithoutModel<Tre.TreDetailsDto>(
                 "/api/Tre/GetATre/", paramlist).Result;
+
+            if (Tre == null)
+            {
+                return NotFound();
+            }
 
             return View(Tre);
         }

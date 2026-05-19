@@ -74,7 +74,7 @@ jobs:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       cosign-password: ${{ secrets.COSIGN_PASSWORD }}
       registry-token: ${{ secrets.HARBOR_TOKEN }}
-  
+
   agent-api-container:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
@@ -94,7 +94,7 @@ jobs:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       cosign-password: ${{ secrets.COSIGN_PASSWORD }}
       registry-token: ${{ secrets.HARBOR_TOKEN }}
-      
+
   agent-ui-container:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
@@ -134,7 +134,7 @@ jobs:
       cosign-private-key: ${{ secrets.COSIGN_PRIVATE_KEY }}
       cosign-password: ${{ secrets.COSIGN_PASSWORD }}
       registry-token: ${{ secrets.HARBOR_TOKEN }}
-  
+
   credentials-camunda-container:
     needs: containers
     uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v2.1.0-bulk-containers
