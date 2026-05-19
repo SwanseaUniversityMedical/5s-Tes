@@ -1,4 +1,4 @@
-﻿using IdentityModel.Client;
+using IdentityModel.Client;
 using Newtonsoft.Json;
 using Serilog;
 using System;
@@ -44,6 +44,13 @@ namespace FiveSafesTes.Core.Services
                 UserName = username,
                 Password = password
             });
+
+            /*var tokenResponse = await client.RequestClientCredentialsTokenAsync(new ClientCredentialsTokenRequest
+            {
+                Address = disco.TokenEndpoint,
+                ClientId = clientId,
+                ClientSecret = clientSecret
+            });*/
 
 
             if (tokenResponse.IsError)

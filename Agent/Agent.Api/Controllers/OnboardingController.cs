@@ -7,15 +7,17 @@ using Microsoft.AspNetCore.Mvc;
 namespace Agent.Api.Controllers;
 
 [ApiController]
-[Authorize(Roles = "dare-tre-admin")]
+//[Authorize(Roles = "dare-tre-admin")]
 [Route("api/[controller]")]
 public class OnboardingController : Controller
 {
+    private readonly IServiceProvider _serviceProvider;
     private readonly IOnboardingService _onboardingService;
 
-    public OnboardingController(IOnboardingService onboardingService)
+    public OnboardingController(IServiceProvider serviceProvider, IOnboardingService onboardingService)
     {
         _onboardingService = onboardingService;
+        _serviceProvider = serviceProvider;
     }
 
     [HttpPost("UploadJsonConfig")]
@@ -46,5 +48,15 @@ public class OnboardingController : Controller
             Success = true,
             Message = "File uploaded successfully."
         };
+    }
+
+    [HttpPost("TestSync")]
+    public void TestSync()
+    {
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
+            var result = dareSyncHelper.SyncSubmissionWithTre().Result;
+        }
     }
 }
