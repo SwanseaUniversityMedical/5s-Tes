@@ -1,7 +1,10 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Agent.Api.Repositories.DbContexts;
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
@@ -14,15 +17,20 @@ public class OnboardingService : IOnboardingService
 {
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
+    private readonly IEncDecHelper _encDecHelper;
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
+    private readonly ApplicationDbContext _dbContext;
 
-    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, JobSettings jobSettings)
+    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
+        JobSettings jobSettings, ApplicationDbContext applicationDbContext, IEncDecHelper encDec)
     {
         _configurationService = configService;
         _onboardingConfig = configSettings;
         _jobSettings = jobSettings;
         _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+        _dbContext = applicationDbContext;
+        _encDecHelper = encDec;
     }
 
     /// <summary>
@@ -38,9 +46,19 @@ public class OnboardingService : IOnboardingService
 
         // Update configuration immediately - we must bypass the check to see if config has been uploaded or the method will stop too soon.
         await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
-        await LogIntoSubmissionLayer();
+        KeycloakCredentials creds = await LogIntoSubmissionLayer();
+
+        // Update configuration again to apply new vault changes
+        await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+
+        if (creds != null)
+        {
+            _dbContext.KeycloakCredentials.Add(creds);
+            _dbContext.SaveChanges();
+        }
 
         RestartHangfireJobs();
     }
@@ -81,12 +99,12 @@ public class OnboardingService : IOnboardingService
     /// <summary>
     /// Log into the submission layer using the JWT and add the retrieved credentials to vault.
     /// </summary>
-    private async Task LogIntoSubmissionLayer()
+    private async Task<KeycloakCredentials> LogIntoSubmissionLayer()
     {
         if (string.IsNullOrEmpty(_onboardingConfig.CurrentValue.SubmissionURL))
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
-            return;
+            return null;
         }
 
         HttpClient httpClient = new();
@@ -107,11 +125,22 @@ public class OnboardingService : IOnboardingService
                 };
 
                 await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
+
+                return new()
+                {
+                    UserName = credentials.ClientId,
+                    PasswordEnc = _encDecHelper.Encrypt(credentials.ClientSecret),
+                    ConfirmPassword = _encDecHelper.Encrypt(credentials.ClientSecret),
+                    CredentialType = CredentialType.Submission
+                };
             }
+
+            return null;
         }
         else
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - " + response.StatusCode);
+            return null;
         }
     }
 
