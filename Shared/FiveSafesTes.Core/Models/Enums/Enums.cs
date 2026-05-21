@@ -239,4 +239,10 @@ namespace FiveSafesTes.Core.Models.Enums
         Failed = 0,
         Succeed = 1
     }
+
+    public enum ConfigInputMethod
+    {
+        Manual = 0,
+        Upload = 1
+    }
 }

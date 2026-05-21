@@ -1,5 +1,6 @@
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
 using Microsoft.Extensions.Options;
@@ -8,23 +9,24 @@ namespace Agent.Api.Services
 {
     public class DareClientWithoutTokenHelper : BaseClientHelper, IDareClientWithoutTokenHelper
     {
-        public ApplicationDbContext CredDb { get; set; }
+        private readonly SubmissionKeyCloakSettings _keycloakSettings;
 
         public DareClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
             IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings) : base(httpClientFactory, httpContextAccessor,
             config["DareAPISettings:Address"], false)
         {
-            SubmissionKeyCloakSettings settings = keycloakSettings.CurrentValue;
+            _keycloakSettings = keycloakSettings.CurrentValue;
 
-            CredDb = db;
-            _keycloakTokenHelper = new KeycloakTokenHelper(settings.BaseUrl, settings.ClientId, settings.ClientSecret, settings.Proxy, settings.ProxyAddresURL, settings.KeycloakDemoMode);
+            bool useServiceAccount = _keycloakSettings.ConfigInputMethod == ConfigInputMethod.Upload;
+
+            _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId, _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode, useServiceAccount);
 
             var creds = db.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Submission);
-            if (creds != null)
+            if (CheckCredsAreAvailable())
             {
-                _username = creds.UserName;
-                _password = encDec.Decrypt(creds.PasswordEnc);
+                _username = _keycloakSettings.Username;
+                _password = encDec.Decrypt(_keycloakSettings.PasswordEnc);
                 _requiredRole = "dare-tre-admin";
             }
             //Log.Information("{Function} Creds are there? {Creds} with username {Username}, Password {Password} and role {Role}", "DareClientWithoutTokenHelper", _username, _password, _requiredRole);
@@ -32,7 +34,7 @@ namespace Agent.Api.Services
 
         public bool CheckCredsAreAvailable()
         {
-            return CredDb.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission);
+            return !string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc);
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services.SignalR;
@@ -253,7 +253,7 @@ namespace Agent.Api.Services
 
         public List<Submission>? GetWaitingSubmissionForTre()
         {
-            if (_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission))
+            if (_dareHelper.CheckCredsAreAvailable())
             {
                 var result =
                     _dareHelper.CallAPIWithoutModel<List<Submission>>("/api/Submission/GetWaitingSubmissionsForTre")
@@ -268,7 +268,7 @@ namespace Agent.Api.Services
 
         public List<Submission>? GetRequestCancelSubsForTre()
         {
-            if (_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission))
+            if (_dareHelper.CheckCredsAreAvailable())
             {
                 var result =
                     _dareHelper.CallAPIWithoutModel<List<Submission>>("/api/Submission/GetRequestCancelSubsForTre")

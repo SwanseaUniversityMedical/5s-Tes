@@ -2,6 +2,7 @@ using System.Net.Http.Headers;
 using System.Text.Json;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
@@ -18,19 +19,19 @@ public class OnboardingService : IOnboardingService
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
     private readonly IEncDecHelper _encDecHelper;
+    private readonly IServiceProvider _serviceProvider;
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
-    private readonly ApplicationDbContext _dbContext;
 
     public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
-        JobSettings jobSettings, ApplicationDbContext applicationDbContext, IEncDecHelper encDec)
+        JobSettings jobSettings, IEncDecHelper encDec, IServiceProvider serviceProvider)
     {
         _configurationService = configService;
         _onboardingConfig = configSettings;
         _jobSettings = jobSettings;
         _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
-        _dbContext = applicationDbContext;
         _encDecHelper = encDec;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -49,17 +50,12 @@ public class OnboardingService : IOnboardingService
 
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
-        KeycloakCredentials creds = await LogIntoSubmissionLayer();
+        await LogIntoSubmissionLayer();
 
         // Update configuration again to apply new vault changes
         await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
 
-        if (creds != null)
-        {
-            _dbContext.KeycloakCredentials.Add(creds);
-            _dbContext.SaveChanges();
-        }
-
+        SyncWithSubmission();
         RestartHangfireJobs();
     }
 
@@ -99,12 +95,11 @@ public class OnboardingService : IOnboardingService
     /// <summary>
     /// Log into the submission layer using the JWT and add the retrieved credentials to vault.
     /// </summary>
-    private async Task<KeycloakCredentials> LogIntoSubmissionLayer()
+    private async Task LogIntoSubmissionLayer()
     {
         if (string.IsNullOrEmpty(_onboardingConfig.CurrentValue.SubmissionURL))
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
-            return null;
         }
 
         HttpClient httpClient = new();
@@ -121,26 +116,18 @@ public class OnboardingService : IOnboardingService
                 object vaultCredentials = new
                 {
                     credentials.ClientId,
-                    credentials.ClientSecret
+                    credentials.ClientSecret,
+                    Username = credentials.ClientId,
+                    PasswordEnc = _encDecHelper.Encrypt(credentials.ClientSecret),
+                    ConfigInputMethod = ConfigInputMethod.Upload
                 };
 
                 await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
-
-                return new()
-                {
-                    UserName = credentials.ClientId,
-                    PasswordEnc = _encDecHelper.Encrypt(credentials.ClientSecret),
-                    ConfirmPassword = _encDecHelper.Encrypt(credentials.ClientSecret),
-                    CredentialType = CredentialType.Submission
-                };
             }
-
-            return null;
         }
         else
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - " + response.StatusCode);
-            return null;
         }
     }
 
@@ -168,6 +155,15 @@ public class OnboardingService : IOnboardingService
         else
         {
             RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(_jobSettings.scanSchedule));
+        }
+    }
+
+    public void SyncWithSubmission()
+    {
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
+            var result = dareSyncHelper.SyncSubmissionWithTre().Result;
         }
     }
 }
