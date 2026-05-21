@@ -47,6 +47,24 @@ namespace Submission.Web.Controllers
 
             return false;
         }
+        
+        private bool IsUserOnProjectDetails(Project.ProjectDetailsDto proj)
+        {
+          if (User.IsInRole("dare-control-admin"))
+          {
+            return true;
+          }
+
+          var usersName = "";
+          usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).FirstOrDefault();
+          if (!string.IsNullOrWhiteSpace(usersName) &&
+              (from x in proj.Users where x.Name.ToLower().Trim() == usersName.ToLower().Trim() select x).Any())
+          {
+            return true;
+          }
+
+          return false;
+        }
 
         [HttpGet]
         public async Task<IActionResult> GetProject(int id)
@@ -55,70 +73,18 @@ namespace Submission.Web.Controllers
             {
                 return View("/");
             }
-
-            var minioEndpoint = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint");
+          
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("projectId", id.ToString());
-            var projectawait = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
-                "/api/Project/GetProjectUI/", paramlist);
-
-            Stopwatch stopwatch = new Stopwatch();
-            stopwatch.Start();
-            await projectawait;
-            //Log.Error("projectawait took ElapsedMilliseconds" + stopwatch.ElapsedMilliseconds);
-            await minioEndpoint;
-            //Log.Error("minioEndpoint took ElapsedMilliseconds" + stopwatch.ElapsedMilliseconds);
-            stopwatch.Stop();
-            var project = projectawait.Result;
-
-            var userItems2 = project.UsersNotInProject;
-            var treItems2 = project.TresNotInProject;
-
-            var userItems = userItems2
-                .Select(p => new SelectListItem
-                {
-                    Value = p.Id.ToString(),
-                    Text = !string.IsNullOrWhiteSpace(p.FullName)
-                        ? p.FullName
-                        : (!string.IsNullOrWhiteSpace(p.Name) ? p.Name : $"[id:{p.Id}]")
-                })
-                .ToList();
-
-            var tres = _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Tre/GetAllTres/").Result;
-
-            // Process TRE names for display
-            var treItems = treItems2
-                .Select(p => new SelectListItem { Value = p.Id.ToString(), Text = p.Name })
-                .ToList();
-
-
-            ViewBag.UserCanDoSubmissions = IsUserOnProject(project);
-
-            ViewBag.minioendpoint = minioEndpoint.Result.Url;
+            
+            var project = await _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+                "/api/Project/GetProjectDetails/", paramlist);
+          
+          
+            ViewBag.UserCanDoSubmissions = IsUserOnProjectDetails(project);
             ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
-
-            var projectView = new ProjectUserTre()
-            {
-                Id = project.Id,
-                FormData = project.FormData,
-                Name = project.Name,
-                Users = project.Users,
-                StartDate = project.StartDate,
-                EndDate = project.EndDate,
-                ProjectDescription = project.ProjectDescription,
-                ProjectContact = project.ProjectContact,
-                ProjectOwner = project.ProjectOwner,
-                Tres = project.Tres,
-                SubmissionBucket = project.SubmissionBucket,
-                OutputBucket = project.OutputBucket,
-                MinioEndpoint = minioEndpoint.Result.Url,
-                Submissions = project.Submissions.Where(x => x.HasParent == false).ToList(),
-                UserItemList = userItems,
-                TreItemList = treItems
-            };
-
-            //Log.Error("View(projectView) took ElapsedMilliseconds" + stopwatch.ElapsedMilliseconds);
-            return View(projectView);
+            
+            return View(project);
         }
 
         public IActionResult SubmissionProjectTes(int id)
@@ -135,20 +101,12 @@ namespace Submission.Web.Controllers
 
           var paramlist = new Dictionary<string, string>();
           paramlist.Add("projectId", id.ToString());
-          var project = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
-            "/api/Project/GetProjectUI/", paramlist).Result;
+          var project = _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+            "/api/Project/GetProjectDetails/", paramlist).Result;
+          
+          ViewBag.UserCanDoSubmissions = IsUserOnProjectDetails(project);
 
-
-          ViewBag.UserCanDoSubmissions = IsUserOnProject(project);
-
-          var projectView = new ProjectUserTre()
-          {
-            Id = project.Id,
-            Name = project.Name,
-            Submissions = project.Submissions.Where(x => x.HasParent == false).ToList(),
-          };
-
-          return View(projectView);
+          return View(project);
         }
         
         public IActionResult SubmissionProjectGraphQL(int id)
@@ -202,7 +160,11 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllProjects()
         {
-            var projects = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects/").Result;
+            var queryParams = new Dictionary<string, string>
+            {
+                ["responseType"] = "summary",
+            };
+            var projects = _clientHelper.CallAPIWithoutModel<List<Project.ProjectSummary>>("/api/Project/GetAllProjects/", queryParams).Result;
             return View(projects);
         }
 

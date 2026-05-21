@@ -40,17 +40,21 @@
 
 
 
-<partial name="../Shared/_ProjectNav" />
 
 @using (Html.BeginForm("", "", FormMethod.Post, new { enctype = "multipart/form-data", id = "frmSQLWizardV2" }))
 {
     @Html.HiddenFor(x => x.ProjectId)
     
-    <h1 class="fs-4 mt-5">TES Wizard</h1>
+    <h1 class="fs-4">
+      TES Wizard for project 
+      <a asp-action="GetProject" asp-route-id="@Model.ProjectId">
+        @Model.ProjectName
+      </a>
+    </h1>
     
     <!-- Mode Selection -->
-    <fieldset class="mode-selection">
-      <legend class="form-label fw-bold mb-3">
+    <fieldset class="mode-selection mt-3">
+      <legend class="form-label fw-bold mb-3 ">
         <i class="fa-solid fa-gear me-2"></i>Select Submission Mode
       </legend>
         <div class="form-check mb-2">

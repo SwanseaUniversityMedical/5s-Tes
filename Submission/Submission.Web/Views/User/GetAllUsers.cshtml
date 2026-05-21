@@ -1,4 +1,4 @@
-﻿@model List<FiveSafesTes.Core.Models.User>
+﻿@model List<FiveSafesTes.Core.Models.User.UserSummary>
 @{
     ViewData["Title"] = "People";
     var usersCount = Model.Count;
@@ -47,11 +47,11 @@
                                 </div>
                                 <div class="">
                                     <a href="@Url.Action("GetUser", "User", new { id = user.Id })#projects" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                        @user.Projects.Count Projects
+                                        @user.ProjectCount Projects
                                     </a>
                                    
                                     <a href="@Url.Action("GetUser", "User", new { id = user.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                        @user.Submissions.Where(x => x.Parent == null).ToList().Count Submissions
+                                        @user.SubmissionCount Submissions
                                     </a>
                                 </div>
                             </td>

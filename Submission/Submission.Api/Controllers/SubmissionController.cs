@@ -180,14 +180,37 @@ namespace Submission.Api.Controllers
 
         [AllowAnonymous]
         [HttpGet("GetAllSubmissions")]
-        public List<FiveSafesTes.Core.Models.Submission> GetAllSubmissions()
+        public async Task<IActionResult> GetAllSubmissions(string? responseType = "full")
         {
             try
             {
-                var allSubmissions = _DbContext.Submissions.ToList();
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summarySubmissions = await _DbContext.Submissions
+                        .AsNoTracking()  
+                        .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionSummary
+                        {
+                            Id = s.Id,
+                            ParentId = s.Parent.Id,
+                            TesName = s.TesName,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            ProjectName = s.Project.Name,
+                            ProjectOutputBucket = s.Project.OutputBucket,
+                            SubmittedByName = s.SubmittedBy.Name,
+                            SubmittedByFullName = s.SubmittedBy.FullName,
+                        })
+                        .ToListAsync();
+
+                    Log.Information("{Function} Submission summaries retrieved successfully", "GetAllSubmissions");
+                    return Ok(summarySubmissions);
+                }
+
+                var allSubmissions = await _DbContext.Submissions.ToListAsync();
 
                 Log.Information("{Function} Submissions retrieved successfully", "GetAllSubmissions");
-                return allSubmissions;
+                return Ok(allSubmissions);
             }
             catch (Exception ex)
             {
@@ -195,33 +218,83 @@ namespace Submission.Api.Controllers
                 throw;
             }
         }
-
-        [AllowAnonymous]
-        [HttpGet("TestSubRabbitSendRemoveBeforeDeploy")]
-        public void TestSubRabbitSendRemoveBeforeDeploy(int id)
-        {
-            try { 
-            var exch = _rabbit.Advanced.ExchangeDeclare(ExchangeConstants.Submission, "topic");
-
-            _rabbit.Advanced.Publish(exch, RoutingConstants.ProcessSub, false, new Message<int>(id));
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "TestSubRabbitSendBeforeDeploy");
-                throw;
-            }
-        }
+        
 
         [AllowAnonymous]
         [HttpGet("GetASubmission/{submissionId}")]
-        public FiveSafesTes.Core.Models.Submission GetASubmission(int submissionId)
+        public async Task<IActionResult> GetASubmission(int submissionId, string ? responseType = "full")
         {
             try
             {
-                var submission = _DbContext.Submissions.First(x => x.Id == submissionId);
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
+                var submission = await _DbContext.Submissions
+                  .AsNoTracking()
+                  .Where(x => x.Id == submissionId)
+                  .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionDetailsDto
+                  {
+                    Id = s.Id,
+                    TesId = s.TesId,
+                    TesName = s.TesName,
+                    TesJson = s.TesJson,
+                    Status = s.Status,
+                    LastStatusUpdate = s.LastStatusUpdate,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    Project = new FiveSafesTes.Core.Models.Submission.ProjectLinkDto
+                    {
+                      Id = s.Project.Id,
+                      Name = s.Project.Name,
+                      SubmissionBucket = s.Project.SubmissionBucket,
+                      OutputBucket = s.Project.OutputBucket
+                    },
+                    SubmittedBy = new FiveSafesTes.Core.Models.Submission.UserLinkDto
+                    {
+                      Id = s.SubmittedBy.Id,
+                      Name = s.SubmittedBy.Name,
+                      FullName = s.SubmittedBy.FullName
+                    },
+                    Children = s.Children
+                      .Select(child => new FiveSafesTes.Core.Models.Submission.SubmissionChildDto
+                      {
+                        Id = child.Id,
+                        Status = child.Status,
+                        LastStatusUpdate = child.LastStatusUpdate,
+                        StartTime = child.StartTime,
+                        EndTime = child.EndTime,
+                        Tre = child.Tre == null
+                          ? null
+                          : new FiveSafesTes.Core.Models.Submission.TreLinkDto
+                          {
+                            Id = child.Tre.Id,
+                            Name = child.Tre.Name,
+                            LastHeartBeatReceived = child.Tre.LastHeartBeatReceived
+                          },
+                        HistoricStatuses = child.HistoricStatuses
+                          .Select(status => new FiveSafesTes.Core.Models.Submission.SubmissionHistoricStatusDto
+                          {
+                            Start = status.Start,
+                            End = status.End,
+                            Status = status.Status
+                          })
+                          .ToList()
+                      })
+                      .ToList()
+                  })
+                  .FirstOrDefaultAsync();
+
+                if (submission == null)
+                {
+                  return NotFound();
+                }
 
                 Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
-                return submission;
+                return Ok(submission);
+              }
+              
+              var fullSubmission = _DbContext.Submissions.First(x => x.Id == submissionId);
+              Log.Information("{Function} Submission retrieved successfully", "GetASubmission");
+              return Ok(fullSubmission);
             }
             catch (Exception ex)
             {
@@ -422,6 +495,47 @@ namespace Submission.Api.Controllers
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "SaveSubmissionFiles");
+                throw;
+            }
+        }
+
+        [AllowAnonymous]
+        [HttpGet("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerOperation("GetChildSubmissionInfoByParentAndTre")]
+        [SwaggerResponse(statusCode: 200, type: typeof(int), description: "The ID and status of the child submission for the given ID of the parent Submission and TRE name")]
+        [SwaggerResponse(statusCode: 404, description: "No matching child submission found")]
+        public async Task<IActionResult> GetChildSubmissionInfoByParentAndTre(int parentSubmissionId, string treName)
+        {
+            try
+            {
+              var child = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(s => s.Parent != null 
+                            && s.Parent.Id == parentSubmissionId 
+                            && s.Tre != null 
+                            && s.Tre.Name == treName)
+                .Select(s => new 
+                {
+                  s.Id,
+                  s.Status
+                })
+                .FirstOrDefaultAsync();
+
+              if (child == null)
+              {
+                Log.Warning("{Function} No child submission found for parentId={ParentId}, treName={TreName}",
+                  "GetChildSubmissionIdByParentAndTre", parentSubmissionId, treName);
+                return NotFound();
+              }
+
+              Log.Information("{Function} Child submission found: {ChildId}", 
+                "GetChildSubmissionIdByParentAndTre", child.Id);
+
+              return Ok(child);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetChildSubmissionIdByParentAndTre");
                 throw;
             }
         }

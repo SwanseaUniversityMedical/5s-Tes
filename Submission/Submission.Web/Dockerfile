@@ -1,30 +1,29 @@
-#See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
-WORKDIR /app
-EXPOSE 8080
-EXPOSE 443
-
-FROM mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
 WORKDIR /src
 COPY ["Submission/Submission.Web/Submission.Web.csproj", "Submission/Submission.Web/"]
 COPY ["Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj", "Shared/FiveSafesTes.Core/"]
 RUN dotnet restore "Submission/Submission.Web/Submission.Web.csproj"
-RUN dotnet restore "Shared/FiveSafesTes.Core/FiveSafesTes.Core.csproj"
 
-COPY . .
+COPY ["Submission/Submission.Web/", "Submission/Submission.Web/"]
+COPY ["Shared/FiveSafesTes.Core/", "Shared/FiveSafesTes.Core/"]
 WORKDIR "/src/Submission/Submission.Web"
-RUN dotnet build "Submission.Web.csproj"   -c Release -o /app/build
+RUN dotnet publish "Submission.Web.csproj" \
+    -c Release \
+    -o /app/publish \
+    --no-restore \
+    --self-contained=false \
+    /p:UseAppHost=false
 
-FROM build AS publish
-RUN dotnet publish "Submission.Web.csproj" -c Release -o /app/publish /p:UseAppHost=false
-
-FROM base AS final
-WORKDIR /app
-COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "Submission.Web.dll"]
-
+FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+USER root
 COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
-
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
 	update-ca-certificates
+
+USER app
+EXPOSE 8080
+EXPOSE 443
+WORKDIR /app
+COPY --chown=app:app --from=build /app/publish .
+ENTRYPOINT ["dotnet", "Submission.Web.dll"]
