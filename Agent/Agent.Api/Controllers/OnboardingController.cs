@@ -1,5 +1,6 @@
 
 using Agent.Api.Services;
+using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -46,5 +47,12 @@ public class OnboardingController : Controller
             Success = true,
             Message = "File uploaded successfully."
         };
+    }
+
+    [HttpPost("ReviveHangfireJobs")]
+    public async Task<BoolReturn> ReviveHangfireJobs()
+    {
+        _onboardingService.RestartHangfireJobs();
+        return new() { Result = true };
     }
 }

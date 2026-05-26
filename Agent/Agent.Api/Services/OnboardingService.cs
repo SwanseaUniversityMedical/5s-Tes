@@ -119,7 +119,7 @@ public class OnboardingService : IOnboardingService
     /// The health check hangfire job kills the other jobs if the connection to the API is unhealthy.
     /// These jobs are revived when new config is uploaded, as the updated values can fix previous connection issues.
     /// </summary>
-    private void RestartHangfireJobs()
+    public void RestartHangfireJobs()
     {
         string syncJobName = _jobSettings.SyncJobName;
         if (_jobSettings.syncSchedule == 0)
