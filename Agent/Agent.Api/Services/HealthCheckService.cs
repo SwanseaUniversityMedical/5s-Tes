@@ -19,7 +19,7 @@ namespace Agent.Api.Services
 
         public List<HealthCheckStatus> GetHealthCheckData()
         {
-            return _applicationDbContext.HealthCheckStatus.All();
+            return _applicationDbContext.HealthCheckStatus.ToList();
         }
     }
 }

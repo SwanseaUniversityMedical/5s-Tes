@@ -14,15 +14,15 @@ namespace Agent.Api.Controllers
         public readonly ApplicationDbContext _DbContext;
         public readonly IHealthCheckService _HealthCheckService;
 
-        public HealthCheckController()
+        public HealthCheckController(HealthCheckService healthCheckService)
         {
-
+            _HealthCheckService = healthCheckService;
         }
 
         [HttpPost("GetHealthCheckData")]
-        public async Task<HealthCheckStatus> GetHealthCheckData()
+        public List<HealthCheckStatus> GetHealthCheckData()
         {
-            var healthCheckData = await _HealthCheckService.GetHealthCheckData();
+            var healthCheckData = _HealthCheckService.GetHealthCheckData();
             return healthCheckData;
         }
     }
