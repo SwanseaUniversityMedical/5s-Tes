@@ -19,8 +19,10 @@ namespace Agent.Api.Services
             _keycloakSettings = keycloakSettings.CurrentValue;
 
             bool useServiceAccount = _keycloakSettings.ConfigInputMethod == ConfigInputMethod.Upload;
+            var keycloakDemoMode = _keycloakSettings.KeycloakDemoMode
+                || string.Equals(config["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
 
-            _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId, _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode, useServiceAccount);
+            _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId, _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode, useServiceAccount);
 
             var creds = db.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Submission);
             if (CheckCredsAreAvailable())

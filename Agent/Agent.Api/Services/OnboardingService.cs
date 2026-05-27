@@ -18,6 +18,7 @@ public class OnboardingService : IOnboardingService
 {
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
+    private readonly IConfiguration _configuration;
     private readonly IEncDecHelper _encDecHelper;
     private readonly IServiceProvider _serviceProvider;
     private readonly JobSettings _jobSettings;
@@ -26,6 +27,7 @@ public class OnboardingService : IOnboardingService
     public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
         JobSettings jobSettings, IEncDecHelper encDec, IServiceProvider serviceProvider)
     {
+        _configuration = config;
         _configurationService = configService;
         _onboardingConfig = configSettings;
         _jobSettings = jobSettings;
@@ -68,14 +70,20 @@ public class OnboardingService : IOnboardingService
         {
             try
             {
-                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(keycloakSettingsURL, new OpenIdConnectConfigurationRetriever());
+                var keycloakDemoMode = string.Equals(_configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
+                var documentRetriever = new HttpDocumentRetriever { RequireHttps = !keycloakDemoMode };
+                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(
+                    keycloakSettingsURL,
+                    new OpenIdConnectConfigurationRetriever(),
+                    documentRetriever);
                 OpenIdConnectConfiguration config = await configManager.GetConfigurationAsync();
 
                 // Extract desired values from the retrieved OpenId configuration...
                 object keycloakConfig = new
                 {
                     Authority = config.Issuer,
-                    BaseUrl = config.Issuer
+                    BaseUrl = config.Issuer,
+                    KeycloakDemoMode = keycloakDemoMode
                 };
 
                 // ... then add them to vault.
