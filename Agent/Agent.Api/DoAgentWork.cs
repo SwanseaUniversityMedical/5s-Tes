@@ -7,6 +7,7 @@ using Agent.Api.Models;
 using Agent.Api.Repositories;
 using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
+using Amazon.Runtime;
 using Credentials.Models.DbContexts;
 using Credentials.Models.Models;
 using EasyNetQ;
@@ -21,6 +22,8 @@ using Hangfire;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.FeatureManagement;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
+using Sentry;
 using Serilog;
 
 namespace Agent.Api
@@ -972,45 +975,82 @@ namespace Agent.Api
             }
         }
 
-        private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
-        {
-            var payload = new
-            {
-                records = new[]
+
+    private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
+    {
+
+
+      HttpClientHandler handler = new HttpClientHandler();
+      handler.UseProxy = _TreKeyCloakSettings.Proxy;
+      if (_TreKeyCloakSettings.Proxy)
+      {
+        // Create an HttpClientHandler with proxy settings
+        handler.Proxy = new WebProxy(_TreKeyCloakSettings.ProxyAddresURL); // Replace with your proxy server URL
+
+      }
+      var url = $"{_TreKeyCloakSettings.Authority}/protocol/openid-connect/token";
+
+      using var client = new HttpClient(handler);
+      var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
                 {
-                    new
-                    {
-                        project = projectName,
-                        user = userId.ToString(),
-                        submissionId = submissionId.ToString()
-                    }
-                }
-            };
+                    { "client_id", _TreKeyCloakSettings.ClientId },
+                    { "client_secret", _TreKeyCloakSettings.ClientSecret },
+                    { "grant_type", "client_credentials" }
+                });
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+      var response = await client.PostAsync(url, tokenRequest);
+      var content = await response.Content.ReadAsStringAsync();
 
-            var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
+      if (!response.IsSuccessStatusCode)
+      {
+        Log.Error("{Function} Failed to get service account token for {ClientId}. Status: {Status}, Response: {Response}",
+            "GetServiceAccountTokenAsync", _TreKeyCloakSettings.ClientId, response.StatusCode, content);
+        throw new Exception($"Failed to get Keycloak service account token: {response.StatusCode}");
+      }
 
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
+      var tokenResponse = JObject.Parse(content);
 
-            var response = await httpClient.PostAsync(camundaWebhookUrl, content);
+      var settings = new JsonSerializerSettings();
+      settings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
 
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId,
-                    error);
-                throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
-            }
+      var payload = new
+      {
+        records = new[]
+           {
+                          new
+                          {
+                              project = projectName,
+                              user = userId.ToString(),
+                              submissionId = submissionId.ToString()
+                          }
+                      },
+        JWTToken = tokenResponse["access_token"].ToString()
+      };
 
-            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
-                submissionId);
-        }
+
+      var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload, settings);
+      var Newcontent = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+      var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
+
+      using var httpClient = new HttpClient();
+      httpClient.Timeout = TimeSpan.FromMinutes(2);
+
+      var Newresponse = await httpClient.PostAsync(camundaWebhookUrl, Newcontent);
+      if (!response.IsSuccessStatusCode)
+      {
+        var error = await response.Content.ReadAsStringAsync();
+        Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId,
+            error);
+        throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
+      }
+
+      Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
+          submissionId);
+    }
 
 
-        private async Task<Dictionary<string, Dictionary<string, object>>> WaitForAndFetchCredentialsAsync(
+    private async Task<Dictionary<string, Dictionary<string, object>>> WaitForAndFetchCredentialsAsync(
             int submissionId, TimeSpan? timeout = null)
         {
             var maxWaitTime = timeout ?? TimeSpan.FromMinutes(5);
