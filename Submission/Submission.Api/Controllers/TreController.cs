@@ -159,22 +159,73 @@ namespace Submission.Api.Controllers
         }
         
         [HttpGet("GetATre")]
-        public Tre? GetATre(int treId)
+        public async Task<IActionResult> GetATre(int treId, string? responseType = "full")
         {
             try
             {
-                var returned = _DbContext.Tres.Find(treId);
-                if (returned == null)
+              if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+              {
+                var tre = await _DbContext.Tres
+                  .AsNoTracking()
+                  .Where(t => t.Id == treId)
+                  .Select(t => new Tre.TreDetailsDto
+                  {
+                    Id = t.Id,
+                    Name = t.Name,
+                    About = t.About,
+                    LastHeartBeatReceived = t.LastHeartBeatReceived,
+                    Projects = t.Projects
+                      .Select(p => new Project.ProjectSummary
+                      {
+                        Id = p.Id,
+                        Name = p.Name,
+                        StartDate = p.StartDate,
+                        EndDate = p.EndDate,
+                        ProjectDescription = p.ProjectDescription,
+                        SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                        UserCount = p.Users.Count(),
+                        TreCount = p.Tres.Count()
+                      })
+                      .ToList(),
+                    Submissions = t.Submissions
+                      .Select(s => new Project.ProjectSubmissionDto
+                      {
+                        Id = s.Id,
+                        ParentId = s.ParentId,
+                        HasParent = s.ParentId != null,
+                        Status = s.Status,
+                        StartTime = s.StartTime,
+                        EndTime = s.EndTime,
+                        TesName = s.TesName,
+                        ProjectName = s.Project.Name,
+                        SubmittedByName = s.SubmittedBy.Name
+                      })
+                      .ToList()
+                  })
+                  .FirstOrDefaultAsync();
+
+                if (tre == null)
                 {
-                    return null;
+                  return NotFound();
                 }
 
-                Log.Information("{Function} Project retrieved successfully", "GetATre");
-                return returned;
+                Log.Information("{Function} TRE details retrieved successfully", nameof(GetATre));
+                return Ok(tre);
+              }
+              
+              var fullTre = _DbContext.Tres.Find(treId);
+              if (fullTre == null)
+              {
+                return NotFound();
+              }
+
+              Log.Information("{Function} TRE retrieved successfully", nameof(GetATre));
+              return Ok(fullTre);
+              
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "{Function} Crashed", "GetATre");
+                Log.Error(ex, "{Function} Crashed", nameof(GetATre));
                 throw;
             }
         }
