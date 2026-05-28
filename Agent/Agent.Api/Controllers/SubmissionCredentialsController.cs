@@ -78,11 +78,11 @@ namespace Agent.Api.Controllers
             object credsToSave = new
             {
                 Username = creds.UserName,
-                creds.PasswordEnc,
+                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc),
                 ConfigInputMethod = ConfigInputMethod.Manual
             };
 
-            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(creds), nameof(SubmissionKeyCloakSettings));
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(SubmissionKeyCloakSettings));
 
             // Reload config to apply updated credentials immediately.
             await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
