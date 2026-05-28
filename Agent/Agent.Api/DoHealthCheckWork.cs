@@ -139,7 +139,8 @@ public class DoHealthCheckWork : IDoHealthCheckWork
 
         _dbContext.HealthCheckStatus.Add(healthStatus);
 
-        if (!isHealthy) KillHangfireJobs();
+        // TODO uncomment when funnel server is ready
+        //if (!isHealthy) KillHangfireJobs();
         return isHealthy;
     }
 
