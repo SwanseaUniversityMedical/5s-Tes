@@ -24,12 +24,14 @@ namespace Submission.Api.Services
         {
             var clientId = GenerateClientId(treName);
             var adminToken = await GetAdminTokenAsync();
+            var serviceAccountRole = GetServiceAccountRole();
 
             var clientUuid = await CreateClientAsync(adminToken, clientId, treName);
             var clientSecret = await GetClientSecretAsync(adminToken, clientUuid);
+            await AssignRealmRoleToServiceAccountAsync(adminToken, clientUuid, clientId, serviceAccountRole);
 
-            Log.Information("{Function} Created service account {ClientId} for TRE {TreName}",
-                "CreateServiceAccountAsync", clientId, treName);
+            Log.Information("{Function} Created service account {ClientId} for TRE {TreName} with role {Role}",
+                "CreateServiceAccountAsync", clientId, treName, serviceAccountRole);
 
             return (clientUuid, clientId, clientSecret);
         }
@@ -192,6 +194,93 @@ namespace Submission.Api.Services
                 ?? throw new Exception($"Client {clientId} found but has no UUID");
         }
 
+        private async Task AssignRealmRoleToServiceAccountAsync(string adminToken, string clientUuid, string clientId, string roleName)
+        {
+            var serviceAccountUserId = await GetServiceAccountUserIdAsync(adminToken, clientUuid);
+            var role = await GetRealmRoleAsync(adminToken, roleName);
+            await AssignRealmRoleToUserAsync(adminToken, serviceAccountUserId, role);
+
+            Log.Information("{Function} Assigned realm role {Role} to service account for client {ClientId}",
+                "AssignRealmRoleToServiceAccountAsync", roleName, clientId);
+        }
+
+        private async Task<string> GetServiceAccountUserIdAsync(string adminToken, string clientUuid)
+        {
+            var baseUrl = GetKeycloakBaseUrl();
+            var realm = _keycloakSettings.Realm;
+
+            using var client = new HttpClient(_keycloakSettings.getProxyHandler);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var url = $"{baseUrl}/admin/realms/{realm}/clients/{clientUuid}/service-account-user";
+            var response = await client.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Error("{Function} Failed to get service account user for client {ClientUuid}. Status: {Status}, Response: {Response}",
+                    "GetServiceAccountUserIdAsync", clientUuid, response.StatusCode, content);
+                throw new Exception($"Failed to get Keycloak service account user: {response.StatusCode}");
+            }
+
+            var user = JObject.Parse(content);
+            return user["id"]?.ToString()
+                ?? throw new Exception($"Service account user for client {clientUuid} has no id");
+        }
+
+        private async Task<JObject> GetRealmRoleAsync(string adminToken, string roleName)
+        {
+            var baseUrl = GetKeycloakBaseUrl();
+            var realm = _keycloakSettings.Realm;
+
+            using var client = new HttpClient(_keycloakSettings.getProxyHandler);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+
+            var url = $"{baseUrl}/admin/realms/{realm}/roles/{roleName}";
+            var response = await client.GetAsync(url);
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Error("{Function} Realm role {Role} not found. Status: {Status}, Response: {Response}",
+                    "GetRealmRoleAsync", roleName, response.StatusCode, content);
+                throw new Exception($"Keycloak realm role '{roleName}' was not found: {response.StatusCode}");
+            }
+
+            return JObject.Parse(content);
+        }
+
+        private async Task AssignRealmRoleToUserAsync(string adminToken, string userId, JObject role)
+        {
+            var baseUrl = GetKeycloakBaseUrl();
+            var realm = _keycloakSettings.Realm;
+
+            using var client = new HttpClient(_keycloakSettings.getProxyHandler);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", adminToken);
+            client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+
+            var rolePayload = new[]
+            {
+                new
+                {
+                    id = role["id"]?.ToString(),
+                    name = role["name"]?.ToString()
+                }
+            };
+
+            var json = JsonConvert.SerializeObject(rolePayload);
+            var url = $"{baseUrl}/admin/realms/{realm}/users/{userId}/role-mappings/realm";
+            var response = await client.PostAsync(url, new StringContent(json, Encoding.UTF8, "application/json"));
+            var content = await response.Content.ReadAsStringAsync();
+
+            if (!response.IsSuccessStatusCode)
+            {
+                Log.Error("{Function} Failed to assign realm role to user {UserId}. Status: {Status}, Response: {Response}",
+                    "AssignRealmRoleToUserAsync", userId, response.StatusCode, content);
+                throw new Exception($"Failed to assign Keycloak realm role: {response.StatusCode}");
+            }
+        }
+
         private async Task<string> GetClientSecretAsync(string adminToken, string clientUuid)
         {
             var baseUrl = GetKeycloakBaseUrl();
@@ -214,6 +303,18 @@ namespace Submission.Api.Services
             var secretResponse = JObject.Parse(content);
             return secretResponse["value"]?.ToString()
                 ?? throw new Exception("Client secret response did not contain value");
+        }
+
+        private string GetServiceAccountRole()
+        {
+            var role = _configuration["KeycloakAdmin:ServiceAccountRole"];
+            if (string.IsNullOrWhiteSpace(role))
+            {
+                throw new InvalidOperationException(
+                    "KeycloakAdmin:ServiceAccountRole must be configured in appsettings or environment variables.");
+            }
+
+            return role;
         }
 
         private string GetKeycloakBaseUrl()

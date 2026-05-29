@@ -22,8 +22,8 @@ namespace Submission.Web.ViewComponents
         {
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("projectId", projectId.ToString());
-            var project = _clientHelper.CallAPIWithoutModel<Project?>(
-                "/api/Project/GetProject/", paramlist).Result;
+            var project = _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+                "/api/Project/GetProjectDetails/", paramlist).Result;
             var SelectTresOptions = project.Tres.ToList();
             List<TreInfo> treInfoList = new List<TreInfo>();
             foreach (var param in SelectTresOptions)
@@ -54,7 +54,6 @@ namespace Submission.Web.ViewComponents
                 ProjectName = project.Name,
                 SelectTresOptions = project.Tres.Select(x => x.Name).ToList(),
                 TreRadios = treInfoList,
-                Submissions = project.Submissions.Where(x => x.Parent == null).ToList(),
                 UserItemList = userItems,
                 TreItemList = treItems
             };

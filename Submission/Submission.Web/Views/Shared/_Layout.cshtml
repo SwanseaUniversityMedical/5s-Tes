@@ -641,7 +641,7 @@
                         setTimeout(function() {
                             var projectId = $('#frmSQLWizardV2 input[name="ProjectId"]').val();
                             window.location.href = "/Project/GetProject/" + projectId + "#submissions";
-                        }, 1500);
+                        }, 1000);
                     },
                     error: function (xhr, status, error) {
                         console.error('Submission failed:', xhr, status, error);

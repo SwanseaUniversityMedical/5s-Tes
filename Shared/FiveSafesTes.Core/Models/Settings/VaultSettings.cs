@@ -15,5 +15,6 @@ namespace FiveSafesTes.Core.Models.Settings
         public bool EnableRetry { get; set; } = true;
         public int MaxRetryAttempts { get; set; } = 3;
         public string VaultConfigPath { get; set; } = "config";
+        public int VaultConfigReloadInterval { get; set; } = 10;
     }
 }

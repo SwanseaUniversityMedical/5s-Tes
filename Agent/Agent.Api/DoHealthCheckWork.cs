@@ -32,6 +32,8 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     {
         DoSyncHealthCheck();
         DoAgentHealthCheck();
+
+        _dbContext.SaveChanges();
     }
 
     /// <summary>

@@ -1,5 +1,5 @@
 ﻿@using FiveSafesTes.Core.Models.ViewModels
-@model FiveSafesTes.Core.Models.User
+@model FiveSafesTes.Core.Models.User.UserDetailsDto
 @{
     ViewData["Title"] = "User Name";
     if (Model.Organisation == null)
@@ -44,7 +44,7 @@
         <a href="#submissions" class="nav-link text-dark" id="submissions" data-bs-toggle="tab" data-bs-target="#submissions-tab" role="tab" aria-controls="submissions" aria-selected="false">
             <div class="d-flex justify-content-between align-items-center">
                 <span>Submissions</span>
-                <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Where(x => x.Parent == null).ToList().Count</span>
+                <span class="badge bg-dark-blue rounded-pill ms-2">@Model.Submissions.Where(x => !x.HasParent).ToList().Count</span>
             </div>
         </a>
     </li>
@@ -71,7 +71,7 @@
         <div class="row">
             <div class="col-12">
 
-                        @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.Submissions.Where(x => x.Parent == null).ToList(), UseParent = false})
+                        @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.Submissions.Where(x => !x.HasParent).ToList(), UseParent = false})
 
                 
                   
@@ -118,13 +118,13 @@
                                     </div>
                                     <div class="">
                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                            @project.Submissions.Count Submissions
+                                            @project.SubmissionCount Submissions
                                         </a>
                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                            @project.Users.Count People
+                                            @project.UserCount People
                                         </a>
                                         <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                            @project.Tres.Count TREs
+                                            @project.TreCount TREs
                                         </a>
                                     </div>
                                     <p class="my-4">

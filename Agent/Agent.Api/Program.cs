@@ -307,7 +307,7 @@ using (var scope = app.Services.CreateScope())
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
-    configuration.AddVault(vaultClient, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromSeconds(30));
+    configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromMinutes(options.VaultConfigReloadInterval));
 }
 
 
@@ -434,7 +434,7 @@ app.MapHub<SignalRService>("/signalRHub",
         options => { options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling; })
     .RequireCors(MyAllowSpecificOrigins);
 
-var extHangfire = configuration["EnableExternalHangfire"];
+var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
 
 if (extHangfire != null && extHangfire.ToLower() == "true")
 {
@@ -452,8 +452,8 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                 {
                     new BasicAuthAuthorizationUser
                     {
-                        Login = "admin",
-                        PasswordClear = "password123",
+                        Login = configuration["Hangfire:Username"],
+                        PasswordClear = configuration["Hangfire:Password"],
                     },
                 },
             }),

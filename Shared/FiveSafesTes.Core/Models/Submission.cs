@@ -47,14 +47,101 @@ namespace FiveSafesTes.Core.Models
             var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
             return date;
         }
-
-        public string GetCurrentStatusDisplayTime()
+        
+        
+        public class SubmissionSummary
         {
-            var end = EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : EndTime;
-           
-            return TimeHelper.GetDisplayTime(LastStatusUpdate, end);
+          public int Id { get; set; }
+          public int? ParentId { get; set; }
+          public string TesName { get; set; }
+          public StatusType Status { get; set; }
+          public DateTime StartTime { get; set; }
+          public DateTime EndTime { get; set; }
+          public string? ProjectName { get; set; }
+          public string? ProjectOutputBucket { get; set; }
+          public string? SubmittedByName { get; set; }
+          public string? SubmittedByFullName { get; set; }
+        
         }
 
+        public class SubmissionDetailsDto
+        {
+            public int Id { get; set; }
+            public string? TesId { get; set; }
+            public string TesName { get; set; } = string.Empty;
+            public string? TesJson { get; set; }
+            public StatusType Status { get; set; }
+            public DateTime LastStatusUpdate { get; set; }
+            public DateTime StartTime { get; set; }
+            public DateTime EndTime { get; set; }
+            public ProjectLinkDto Project { get; set; } = new();
+            public UserLinkDto SubmittedBy { get; set; } = new();
+            public List<SubmissionChildDto> Children { get; set; } = [];
+
+            public string GetTotalDisplayTime()
+            {
+                var end = EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : EndTime;
+                return TimeHelper.GetDisplayTime(StartTime, end);
+            }
+        }
+
+        public class SubmissionChildDto
+        {
+            public int Id { get; set; }
+            public StatusType Status { get; set; }
+            public DateTime LastStatusUpdate { get; set; }
+            public DateTime StartTime { get; set; }
+            public DateTime EndTime { get; set; }
+            public TreLinkDto? Tre { get; set; }
+            public List<SubmissionHistoricStatusDto> HistoricStatuses { get; set; } = [];
+
+            public string GetTotalDisplayTime()
+            {
+                var end = EndTime == DateTime.MinValue ? DateTime.Now.ToUniversalTime() : EndTime;
+                return TimeHelper.GetDisplayTime(StartTime, end);
+            }
+        }
+
+        public class SubmissionHistoricStatusDto
+        {
+            public DateTime Start { get; set; }
+            public DateTime End { get; set; }
+            public StatusType Status { get; set; }
+            public bool IsCurrent { get; set; }
+            public bool IsStillRunning { get; set; }
+
+            public string GetDisplayRunTime()
+            {
+                return TimeHelper.GetDisplayTime(Start, End);
+            }
+        }
+
+        public class ProjectLinkDto
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public string? SubmissionBucket { get; set; }
+            public string? OutputBucket { get; set; }
+        }
+
+        public class UserLinkDto
+        {
+            public int Id { get; set; }
+            public string? Name { get; set; }
+            public string? FullName { get; set; }
+        }
+
+        public class TreLinkDto
+        {
+            public int Id { get; set; }
+            public string Name { get; set; } = string.Empty;
+            public DateTime LastHeartBeatReceived { get; set; }
+
+            public bool IsOnline()
+            {
+                return (DateTime.UtcNow - LastHeartBeatReceived).TotalMinutes < 30;
+            }
+        }
 
 
     }

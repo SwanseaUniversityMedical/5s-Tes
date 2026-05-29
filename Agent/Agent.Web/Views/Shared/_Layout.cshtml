@@ -1,4 +1,4 @@
-﻿@using Agent.Web.Models
+@using Agent.Web.Models
 @using Microsoft.Extensions.Configuration;
 @inject IConfiguration Configuration
 @inject UIName UIName
@@ -52,6 +52,9 @@
                         </li>
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Dmn" asp-action="Index">DMN Rules</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="SubmissionConfig" asp-action="Index">Submission Configuration</a>
                         </li>
                         <li class="mobile-account-nav">
                             <hr class="mobile-account-nav dropdown-divider" />
