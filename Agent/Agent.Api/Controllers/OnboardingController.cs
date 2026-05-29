@@ -1,5 +1,6 @@
 
 using Agent.Api.Services;
+using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -48,9 +49,10 @@ public class OnboardingController : Controller
         };
     }
 
-    [HttpPost("SyncWithSubmission")]
-    public void SyncWithSubmission()
+    [HttpPost("ReviveHangfireJobs")]
+    public async Task<BoolReturn> ReviveHangfireJobs()
     {
-        _onboardingService.SyncWithSubmission();
+        _onboardingService.RestartHangfireJobs();
+        return new() { Result = true };
     }
 }

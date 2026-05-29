@@ -28,6 +28,7 @@ namespace Agent.Api
 {
     public interface IDoAgentWork
     {
+        [AutomaticRetry(Attempts = 0)]
         Task Execute();
 
         Task CheckTES(string taskID, int subId, int projectId, int userId, string tesId, string outputBucket,

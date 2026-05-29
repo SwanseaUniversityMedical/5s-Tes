@@ -47,3 +47,15 @@
         </div>
     </div>
 </div>
+<div class="container-lg p-4">
+    <h3>Sync & Scan Jobs</h3>
+    <button id="hangfireRevivalBtn" class="btn btn-primary btn-sm d-flex align-items-center">
+        <span>Revive Hangfire Jobs</span>
+    </button>
+</div>
+
+<script>
+    document.getElementById("hangfireRevivalBtn").addEventListener("click", async function () {
+        const response = await fetch('/SubmissionConfig/ReviveHangfireJobs', { method: 'POST' });
+    });
+</script>
