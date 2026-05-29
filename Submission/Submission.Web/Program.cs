@@ -377,7 +377,7 @@ else
     app.UseStaticFiles();
 
   //This is a biggy. If having issues with keycloak DISABLE THIS
-  // If we could not parse the configuration value to a boolean, it needs to default to true. Otherwise, use the parsed value.
+  // If we fail to parse the configuration value, it needs to default to true. Otherwise, use the parsed value.
   bool secureSslCookies = !bool.TryParse(configuration["sslcookies"], out bool useSslCookies) || useSslCookies;
 
   Log.Information(
