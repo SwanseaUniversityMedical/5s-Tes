@@ -328,7 +328,7 @@ namespace Submission.Api.Controllers
                     TREId = tre.Id,
                     TREName = tre.Name,
                     SubmissionURL = _configuration["SubmissionApiUrl"] ?? string.Empty,
-                    KeycloakRealmSettingURL = _keycloakSettings.MetadataAddress,
+                    KeycloakRealmSettingURL = GetOnboardingKeycloakMetadataUrl(),
                     JWT = serviceAccountJwt,
                     IsConfigurationImported = true
                 };
@@ -347,6 +347,19 @@ namespace Submission.Api.Controllers
                 Log.Error(ex, "{Function} Crashed", "DownloadConfig");
                 return StatusCode(500, "An internal server error occurred");
             }
+        }
+
+        /// <summary>
+        /// Public OIDC discovery URL for TRE onboarding JSON, built from KeycloakFullURL.
+        /// </summary>
+        private string GetOnboardingKeycloakMetadataUrl()
+        {
+            var keycloakFullUrl = _configuration["KeycloakFullURL"]?.Trim().TrimEnd('/');
+            var realm = string.IsNullOrWhiteSpace(_keycloakSettings.Realm)
+                ? "Dare-Control"
+                : _keycloakSettings.Realm;
+
+            return $"{keycloakFullUrl}/realms/{realm}/.well-known/openid-configuration";
         }
     }
 }

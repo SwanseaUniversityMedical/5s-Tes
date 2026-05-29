@@ -336,7 +336,8 @@ try
     app.UseStaticFiles();
 
   //This is a biggy. If having issues with keycloak DISABLE THIS
-  var secureSslCookies = configuration["sslcookies"] == "true";
+  // If we fail to parse the configuration value, it needs to default to true. Otherwise, use the parsed value.
+  bool secureSslCookies = !bool.TryParse(configuration["sslcookies"], out bool useSslCookies) || useSslCookies;
 
   Log.Information(
       secureSslCookies ? "Enabling Secure SSL Cookies" : "Disabling Secure SSL Cookies"

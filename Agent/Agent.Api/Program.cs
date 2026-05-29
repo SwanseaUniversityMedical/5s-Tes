@@ -94,7 +94,7 @@ await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configur
 
 var treKeyCloakSettings = new TreKeyCloakSettings();
 configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
-var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
+var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
 treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(treKeyCloakSettings);
 
