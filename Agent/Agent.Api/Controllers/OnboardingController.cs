@@ -47,4 +47,10 @@ public class OnboardingController : Controller
             Message = "File uploaded successfully."
         };
     }
+
+    [HttpPost("SyncWithSubmission")]
+    public void SyncWithSubmission()
+    {
+        _onboardingService.SyncWithSubmission();
+    }
 }

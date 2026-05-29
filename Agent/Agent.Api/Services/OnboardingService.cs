@@ -1,7 +1,11 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
+using Agent.Api.Repositories.DbContexts;
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
@@ -14,15 +18,22 @@ public class OnboardingService : IOnboardingService
 {
     private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
     private readonly IConfigurationService _configurationService;
+    private readonly IConfiguration _configuration;
+    private readonly IEncDecHelper _encDecHelper;
+    private readonly IServiceProvider _serviceProvider;
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
 
-    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, JobSettings jobSettings)
+    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
+        JobSettings jobSettings, IEncDecHelper encDec, IServiceProvider serviceProvider)
     {
+        _configuration = config;
         _configurationService = configService;
         _onboardingConfig = configSettings;
         _jobSettings = jobSettings;
         _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+        _encDecHelper = encDec;
+        _serviceProvider = serviceProvider;
     }
 
     /// <summary>
@@ -38,10 +49,15 @@ public class OnboardingService : IOnboardingService
 
         // Update configuration immediately - we must bypass the check to see if config has been uploaded or the method will stop too soon.
         await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
         await LogIntoSubmissionLayer();
 
+        // Update configuration again to apply new vault changes
+        await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+
+        SyncWithSubmission();
         RestartHangfireJobs();
     }
 
@@ -54,14 +70,20 @@ public class OnboardingService : IOnboardingService
         {
             try
             {
-                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(keycloakSettingsURL, new OpenIdConnectConfigurationRetriever());
+                var keycloakDemoMode = string.Equals(_configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
+                var documentRetriever = new HttpDocumentRetriever { RequireHttps = !keycloakDemoMode };
+                ConfigurationManager<OpenIdConnectConfiguration> configManager = new(
+                    keycloakSettingsURL,
+                    new OpenIdConnectConfigurationRetriever(),
+                    documentRetriever);
                 OpenIdConnectConfiguration config = await configManager.GetConfigurationAsync();
 
                 // Extract desired values from the retrieved OpenId configuration...
                 object keycloakConfig = new
                 {
                     Authority = config.Issuer,
-                    BaseUrl = config.Issuer
+                    BaseUrl = config.Issuer,
+                    KeycloakDemoMode = keycloakDemoMode
                 };
 
                 // ... then add them to vault.
@@ -86,7 +108,6 @@ public class OnboardingService : IOnboardingService
         if (string.IsNullOrEmpty(_onboardingConfig.CurrentValue.SubmissionURL))
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
-            return;
         }
 
         HttpClient httpClient = new();
@@ -103,7 +124,10 @@ public class OnboardingService : IOnboardingService
                 object vaultCredentials = new
                 {
                     credentials.ClientId,
-                    credentials.ClientSecret
+                    credentials.ClientSecret,
+                    Username = credentials.ClientId,
+                    PasswordEnc = _encDecHelper.Encrypt(credentials.ClientSecret),
+                    ConfigInputMethod = ConfigInputMethod.Upload
                 };
 
                 await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
@@ -139,6 +163,15 @@ public class OnboardingService : IOnboardingService
         else
         {
             RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(_jobSettings.scanSchedule));
+        }
+    }
+
+    public void SyncWithSubmission()
+    {
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
+            var result = dareSyncHelper.SyncSubmissionWithTre().Result;
         }
     }
 }

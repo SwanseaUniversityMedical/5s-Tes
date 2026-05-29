@@ -1,19 +1,19 @@
-﻿using IdentityModel.Client;
-using Newtonsoft.Json;
-using Serilog;
 using System;
 using System.Collections.Generic;
 using System.IdentityModel.Tokens.Jwt;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using IdentityModel.Client;
+using Newtonsoft.Json;
+using Serilog;
 
 namespace FiveSafesTes.Core.Services
 {
     public class KeycloakCommon
     {
         public static async Task<(string token, string Errorstring)> GetTokenForUserGuts(string username, string password, string requiredRole, HttpClientHandler proxyHandler,
-            string keycloakBaseUrl, string clientId, string clientSecret, bool keycloakDemoMode)
+            string keycloakBaseUrl, string clientId, string clientSecret, bool keycloakDemoMode, bool isServiceAccount)
         {
 
             Log.Information("{Function} keycloakBaseUrl > {BaseUrl} , _keycloakDemoMode: {_keycloakDemoMode}" , "GetTokenForUserGuts", keycloakBaseUrl, keycloakDemoMode);
@@ -36,15 +36,28 @@ namespace FiveSafesTes.Core.Services
                 return ("", disco.Error);
             }
 
-            var tokenResponse = await client.RequestPasswordTokenAsync(new PasswordTokenRequest
-            {
-                Address = disco.TokenEndpoint,
-                ClientId = clientId,
-                ClientSecret = clientSecret,
-                UserName = username,
-                Password = password
-            });
+            IdentityModel.Client.TokenResponse tokenResponse;
 
+            if (!isServiceAccount)
+            {
+                tokenResponse = await client.RequestPasswordTokenAsync(new PasswordTokenRequest
+                {
+                    Address = disco.TokenEndpoint,
+                    ClientId = clientId,
+                    ClientSecret = clientSecret,
+                    UserName = username,
+                    Password = password
+                });
+            }
+            else
+            {
+                tokenResponse = await client.RequestClientCredentialsTokenAsync(new ClientCredentialsTokenRequest
+                {
+                    Address = disco.TokenEndpoint,
+                    ClientId = clientId,
+                    ClientSecret = clientSecret
+                });
+            }
 
             if (tokenResponse.IsError)
             {
