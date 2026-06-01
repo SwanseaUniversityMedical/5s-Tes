@@ -5,6 +5,7 @@ using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -82,7 +83,10 @@ namespace Agent.Api.Controllers
                 ConfigInputMethod = ConfigInputMethod.Manual
             };
 
+            object uploadDataToSave = new { IsConfigurationImported = true };
+
             await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(SubmissionKeyCloakSettings));
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
 
             // Reload config to apply updated credentials immediately.
             await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);

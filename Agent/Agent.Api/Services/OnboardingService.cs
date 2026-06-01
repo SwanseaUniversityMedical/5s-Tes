@@ -174,4 +174,19 @@ public class OnboardingService : IOnboardingService
             var result = dareSyncHelper.SyncSubmissionWithTre().Result;
         }
     }
+
+    public bool IsConfigurationUploaded()
+    {
+        return _onboardingConfig.CurrentValue.IsConfigurationImported;
+    }
+
+    public bool IsTRESynced()
+    {
+        return true;
+    }
+
+    public void ClearVaultKeycloakDetails()
+    {
+        _configurationService.RemoveConfigurationFromVault("", nameof(SubmissionKeyCloakSettings));
+    }
 }

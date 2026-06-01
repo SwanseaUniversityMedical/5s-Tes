@@ -1,4 +1,4 @@
-﻿using System.ComponentModel;
+using System.ComponentModel;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -34,5 +34,10 @@ namespace FiveSafesTes.Core.Models
         Egress = 2
     }
 
-    
+    public class SubmissionKeycloakCredentialDTO
+    {
+        public KeycloakCredentials Creds { get; set; }
+        public bool IsConfigurationUploaded { get; set; }
+        public bool IsSynced { get; set; }
+    }
 }

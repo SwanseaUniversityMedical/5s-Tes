@@ -1,6 +1,8 @@
-﻿using FiveSafesTes.Core.Models;
+using System.Net;
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Services;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace Agent.Web.Services
@@ -30,6 +32,18 @@ namespace Agent.Web.Services
                 credentials.Valid = false;
                 return credentials;
             }
+        }
+
+        public static async Task<bool> IsTRESynced(ITREClientHelper clientHelper)
+        {
+            BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsTRESynced");
+            return result.Result;
+        }
+
+        public static async Task<bool> IsConfigurationUploaded(ITREClientHelper clientHelper)
+        {
+            BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsConfigurationUploaded");
+            return result.Result;
         }
     }
 }

@@ -72,6 +72,11 @@ public class ConfigurationService : IConfigurationService
         }
     }
 
+    public async Task RemoveConfigurationFromVault(string json, string prefix)
+    {
+
+    }
+
     /// <summary>
     /// Deserialize our json configuration into the vault configuration model. 
     /// </summary>
