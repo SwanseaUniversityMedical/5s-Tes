@@ -23,18 +23,18 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
 
         Load();
 
-        // Check vault for changes in values at the given interval.
-        _timer = new Timer(async _ => await LoadAsync(), null, reloadInterval, reloadInterval);
+        // Check vault for changes in values at the given interval, but only once config is uploaded.
+        _timer = new Timer(async _ => await LoadAsync(requireImportedConfig: true), null, reloadInterval, reloadInterval);
     }
 
     /// <summary>
     /// Reload the configuration to apply any changes to values in Vault.
     /// </summary>
-    /// <param name="bypassConfigCheck">When true, allows the loading to proceed irrespective of whether config has been uploaded to Vault.</param>
-    public async Task LoadAsync(bool bypassConfigCheck = false)
+    /// <param name="requireImportedConfig">When false, allows the loading to proceed irrespective of whether config has been uploaded to Vault.</param>
+    public async Task LoadAsync(bool requireImportedConfig = false)
     {
-        // Onboarding configuration can never be true until config is reloaded, so we need a way of bypassing this check when we're uploading the config.
-        if (!_onboardingConfig.CurrentValue.IsConfigurationImported && !bypassConfigCheck)
+        // If we require config to be present for this load and it is absent, stop early.
+        if (!_onboardingConfig.CurrentValue.IsConfigurationImported && requireImportedConfig)
         {
             // Don't try to read configuration values from vault before the config has been uploaded.
             Log.Warning("VaultConfigurationProvider:LoadAsync - Configuration not yet set");

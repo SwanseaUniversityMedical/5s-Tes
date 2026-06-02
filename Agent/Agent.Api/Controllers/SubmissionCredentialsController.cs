@@ -89,7 +89,7 @@ namespace Agent.Api.Controllers
             await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
 
             // Reload config to apply updated credentials immediately.
-            await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+            await _vaultConfigProvider.LoadAsync();
 
             return creds;
         }
@@ -100,7 +100,7 @@ namespace Agent.Api.Controllers
         {
             // Wipe any previously uploaded keycloak settings from vault.
             await _configurationService.RemoveConfigurationFromVault(nameof(SubmissionKeyCloakSettings));
-            await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+            await _vaultConfigProvider.LoadAsync();
             return new() { Result = true };
         }
     }

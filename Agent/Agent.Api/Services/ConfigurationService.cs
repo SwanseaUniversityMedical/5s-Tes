@@ -72,6 +72,10 @@ public class ConfigurationService : IConfigurationService
         }
     }
 
+    /// <summary>
+    /// Removes all configuration values from vault for a given model.
+    /// </summary>
+    /// <param name="prefix">The name of the model containing the values we want to remove.</param>
     public async Task RemoveConfigurationFromVault(string prefix)
     {
         Dictionary<string, object> existingConfig;
