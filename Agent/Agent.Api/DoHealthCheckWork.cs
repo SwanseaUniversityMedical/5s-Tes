@@ -8,6 +8,7 @@ namespace Agent.Api;
 
 public interface IDoHealthCheckWork
 {
+    [AutomaticRetry(Attempts = 0)]
     Task Execute();
 }
 

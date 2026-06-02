@@ -32,4 +32,11 @@ public class SubmissionConfigController : Controller
 
         return RedirectToAction("Index", response);
     }
+
+    public async Task<IActionResult> ReviveHangfireJobs()
+    {
+        await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/ReviveHangfireJobs", httpMethod: HttpMethod.Post);
+
+        return Ok();
+    }
 }
