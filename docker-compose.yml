@@ -73,29 +73,6 @@ services:
     depends_on:
       - elasticsearch
 
-  operate: # https://docs.camunda.io/docs/self-managed/platform-deployment/docker/#operate
-    image: camunda/operate:${CAMUNDA_PLATFORM_VERSION}
-    container_name: operate
-    ports:
-      - "8081:8080"
-    environment: #http://localhost:8081/swagger-ui/index.html#/ProcessInstance/byKey_1
-      - CAMUNDA_OPERATE_ZEEBE_GATEWAYADDRESS=zeebe:26500
-      - CAMUNDA_OPERATE_ELASTICSEARCH_URL=http://elasticsearch:9200
-      - CAMUNDA_OPERATE_ZEEBEELASTICSEARCH_URL=http://elasticsearch:9200
-      - management.endpoints.web.exposure.include=health
-      - management.endpoint.health.probes.enabled=true     
-    healthcheck:
-      test: [ "CMD-SHELL", "wget -O - -q 'http://localhost:8080/actuator/health/readiness'" ]
-      interval: 30s
-      timeout: 1s
-      retries: 5
-      start_period: 30s
-    networks:
-      - camunda-platform
-    depends_on:
-      - zeebe
-      - elasticsearch
-
   connectors: # https://docs.camunda.io/docs/components/integration-framework/connectors/out-of-the-box-connectors/available-connectors-overview/
     image: camunda/connectors-bundle:${CAMUNDA_CONNECTORS_VERSION}
     container_name: connectors
@@ -104,9 +81,6 @@ services:
     environment:
       - ZEEBE_CLIENT_BROKER_GATEWAY-ADDRESS=zeebe:26500
       - ZEEBE_CLIENT_SECURITY_PLAINTEXT=true
-      - CAMUNDA_OPERATE_CLIENT_URL=http://operate:8080
-      - CAMUNDA_OPERATE_CLIENT_USERNAME=demo
-      - CAMUNDA_OPERATE_CLIENT_PASSWORD=demo
       - management.endpoints.web.exposure.include=health
       - management.endpoint.health.probes.enabled=true
     healthcheck:
@@ -120,8 +94,7 @@ services:
       - camunda-platform
     depends_on:
       - zeebe
-      - operate 
-  
+
   elasticsearch: # https://hub.docker.com/_/elasticsearch
     image: docker.elastic.co/elasticsearch/elasticsearch:${ELASTIC_VERSION}
     container_name: elasticsearch
@@ -149,6 +122,41 @@ services:
       - elastic:/usr/share/elasticsearch/data
     networks:
       - camunda-platform
+
+  kibana:
+    image: docker.elastic.co/kibana/kibana:${ELASTIC_VERSION}
+    container_name: kibana
+    ports:
+      - "5601:5601"
+    environment:
+      - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+      - SERVER_NAME=kibana
+      - XPACK_SECURITY_ENABLED=false
+      - XPACK_ENCRYPTEDSAVEDOBJECTS_ENCRYPTIONKEY=a7a6311933d3503b89bc2dbc36572c33a7a6311933d3503b89bc2dbc36572c33
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:5601/api/status | grep -q '\"level\":\"available\"'"]
+      interval: 30s
+      timeout: 10s
+      retries: 10
+      start_period: 120s
+    networks:
+      - camunda-platform
+    depends_on:
+      - elasticsearch
+
+  kibana-init:
+    image: curlimages/curl:8.6.0
+    container_name: kibana-init
+    volumes:
+      - ./kibana-provisioning:/init
+    entrypoint: ["/bin/sh", "/init/setup.sh"]
+    networks:
+      - camunda-platform
+    depends_on:
+      kibana:
+        condition: service_healthy
+    restart: "no"
+
   minio:
     image: quay.io/minio/minio
     mem_limit: 512M
