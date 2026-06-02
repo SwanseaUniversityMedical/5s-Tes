@@ -1,4 +1,4 @@
-using Agent.Api.Models;
+using FiveSafesTes.Core.Models;
 using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -14,7 +14,7 @@ namespace Agent.Api.Controllers
         public readonly ApplicationDbContext _DbContext;
         public readonly IHealthCheckService _HealthCheckService;
 
-        public HealthCheckController(HealthCheckService healthCheckService)
+        public HealthCheckController(IHealthCheckService healthCheckService)
         {
             _HealthCheckService = healthCheckService;
         }

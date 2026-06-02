@@ -1,5 +1,5 @@
 using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Models;
+using FiveSafesTes.Core.Models;
 
 namespace Agent.Api.Services
 {
