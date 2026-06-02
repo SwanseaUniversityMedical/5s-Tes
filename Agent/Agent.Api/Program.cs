@@ -94,7 +94,7 @@ await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configur
 
 var treKeyCloakSettings = new TreKeyCloakSettings();
 configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
-var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
+var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
 treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(treKeyCloakSettings);
 
@@ -152,8 +152,14 @@ builder.Services.AddHostedService<ConsumeInternalMessageService>();
 builder.Services.AddScoped<IDareClientWithoutTokenHelper, DareClientWithoutTokenHelper>();
 builder.Services.AddScoped<IDataEgressClientWithoutTokenHelper, DataEgressClientWithoutTokenHelper>();
 
+builder.Services.AddSingleton(new AutomaticRetryAttribute());
+
 string hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddHangfire(config => { config.UsePostgreSqlStorage(hangfireConnectionString); });
+builder.Services.AddHangfire((provider, config) => 
+{ 
+    config.UsePostgreSqlStorage(hangfireConnectionString);
+    config.UseFilter(provider.GetRequiredService<AutomaticRetryAttribute>());
+});
 
 builder.Services.AddHangfireServer();
 var encryptionSettings = new EncryptionSettings();

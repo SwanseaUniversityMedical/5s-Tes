@@ -1,12 +1,14 @@
 using Agent.Api.Models;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models.ViewModels;
+using Hangfire;
 using Microsoft.Extensions.Options;
 
 namespace Agent.Api
 {
     public interface IDoSyncWork
     {
+        [AutomaticRetry(Attempts = 0)]
         void Execute();
     }
 
