@@ -93,5 +93,15 @@ namespace Agent.Api.Controllers
 
             return creds;
         }
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpPost("WipeVaultCredentials")]
+        public async Task<BoolReturn> WipeVaultCredentials()
+        {
+            // Wipe any previously uploaded keycloak settings from vault.
+            await _configurationService.RemoveConfigurationFromVault(nameof(SubmissionKeyCloakSettings));
+            await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+            return new() { Result = true };
+        }
     }
 }

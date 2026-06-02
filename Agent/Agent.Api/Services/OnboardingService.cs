@@ -184,9 +184,4 @@ public class OnboardingService : IOnboardingService
     {
         return true;
     }
-
-    public void ClearVaultKeycloakDetails()
-    {
-        _configurationService.RemoveConfigurationFromVault("", nameof(SubmissionKeyCloakSettings));
-    }
 }

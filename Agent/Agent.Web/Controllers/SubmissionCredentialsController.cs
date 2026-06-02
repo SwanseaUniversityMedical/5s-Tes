@@ -43,6 +43,10 @@ namespace Agent.Web.Controllers
                 return View(credentials);
             }
 
+            // First we need to make sure we remove any existing submission credentials to avoid conflicting information.
+            await ControllerHelpers.WipeVaultCredentials(_clientHelper);
+
+            // Then we can update the credentials.
             credentials.Creds = await ControllerHelpers.UpdateCredentials("SubmissionCredentials", _clientHelper, ModelState, credentials.Creds);
             credentials.IsConfigurationUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
             credentials.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);

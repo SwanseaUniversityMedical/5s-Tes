@@ -45,5 +45,10 @@ namespace Agent.Web.Services
             BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsConfigurationUploaded");
             return result.Result;
         }
+
+        public static async Task WipeVaultCredentials(ITREClientHelper clientHelper)
+        {
+            await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/WipeVaultCredentials", httpMethod: HttpMethod.Post);
+        }
     }
 }

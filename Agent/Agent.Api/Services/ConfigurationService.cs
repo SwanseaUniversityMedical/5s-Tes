@@ -72,9 +72,37 @@ public class ConfigurationService : IConfigurationService
         }
     }
 
-    public async Task RemoveConfigurationFromVault(string json, string prefix)
+    public async Task RemoveConfigurationFromVault(string prefix)
     {
+        Dictionary<string, object> existingConfig;
 
+        try
+        {
+            Secret<SecretData> vaultData = await _vaultClient.V1.Secrets.KeyValue.V2.ReadSecretAsync(_vaultSettings.VaultConfigPath, mountPoint: _vaultSettings.SecretEngine);
+            existingConfig = vaultData.Data.Data.ToDictionary();
+        }
+        catch (Exception)
+        {
+            // We don't have any secrets at this location yet.
+            existingConfig = [];
+        }
+
+        // We should only keep the configuration with keys that do not start with the given prefix.
+        Dictionary<string, object> updatedConfig = new();
+
+        foreach (KeyValuePair<string, object> kvp in existingConfig)
+        {
+            if (!kvp.Key.StartsWith($"{prefix}:"))
+            {
+                updatedConfig[kvp.Key] = kvp.Value;
+            }
+            else
+            {
+                continue;
+            }
+        }
+
+        await _vaultClient.V1.Secrets.KeyValue.V2.WriteSecretAsync(_vaultSettings.VaultConfigPath, updatedConfig, mountPoint: _vaultSettings.SecretEngine);
     }
 
     /// <summary>

@@ -6,5 +6,4 @@ public interface IOnboardingService
     void RestartHangfireJobs();
     bool IsTRESynced();
     bool IsConfigurationUploaded();
-    void ClearVaultKeycloakDetails();
 }
