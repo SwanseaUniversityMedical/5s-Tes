@@ -3,7 +3,7 @@
 @model List<HealthCheckStatus>
 
 <div>
-    <div class="tab-pane" id="" role="statusTable" aria-labelledby="statuses">
-        @await Html.PartialAsync("statusTable", Model)
+    <div class="tab-pane" id="" role="tabpanel" aria-labelledby="statuses">
+        @await Html.PartialAsync("_StatusTable", Model)
     </div>
 </div>

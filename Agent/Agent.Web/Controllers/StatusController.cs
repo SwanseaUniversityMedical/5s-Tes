@@ -23,8 +23,8 @@ namespace Agent.Web.Controllers
         {
             try
             {
-                _logger.LogInformation("Status page loaded for user: {User}", User?.Identity?.Name);
-                return View();
+                _logger.LogInformation("Status page successfully loaded.");
+                return View("index");
             }
             catch (Exception ex)
             {
