@@ -7,15 +7,15 @@ namespace Agent.Web.Controllers
 {
     [Authorize]
     [Route("[controller]")]
-    public class HealthCheckController : Controller
+    public class StatusController : Controller
     {
-        private readonly ILogger<HealthCheckController> _logger;
+        private readonly ILogger<StatusController> _logger;
         private readonly ITREClientHelper _treClientHelper;
 
-        public HealthCheckController(ILogger<HomeController> logger, ITREClientHelper trehelper)
+        public StatusController(ILogger<StatusController> logger, ITREClientHelper trehelper)
         {
-          //_logger = logger;
-          _treClientHelper = trehelper;
+            _logger = logger;
+            _treClientHelper = trehelper;
         }
 
         [Route("GetHealthCheckData")]
