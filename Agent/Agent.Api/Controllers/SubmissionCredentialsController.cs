@@ -24,8 +24,9 @@ namespace Agent.Api.Controllers
         private readonly IConfigurationService _configurationService;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
         private readonly SubmissionKeyCloakSettings _keycloakSettings;
+        private readonly IDareClientWithoutTokenHelper _clientHelper;
 
-        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IConfigurationService configurationService)
+        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
         {
             _keycloakSettings = settings.CurrentValue;
 
@@ -34,6 +35,7 @@ namespace Agent.Api.Controllers
                 _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode);
             _configurationService = configurationService;
             _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+            _clientHelper = clientHelper;
         }
 
         [Authorize(Roles = "dare-tre-admin")]
@@ -76,6 +78,8 @@ namespace Agent.Api.Controllers
                 return creds;
             }
 
+            creds.Valid = true;
+
             object credsToSave = new
             {
                 Username = creds.UserName,
@@ -100,8 +104,22 @@ namespace Agent.Api.Controllers
         {
             // Wipe any previously uploaded keycloak settings from vault.
             await _configurationService.RemoveConfigurationFromVault(nameof(SubmissionKeyCloakSettings));
+
+            // We no longer have any config so set imported to false.
+            object uploadDataToSave = new { IsConfigurationImported = false };
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
+
+            // Reload config to reflect changes.
             await _vaultConfigProvider.LoadAsync();
             return new() { Result = true };
+        }
+
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("IsUserAssignedTRE")]
+        public async Task<BoolReturn> IsUserAssignedTRE()
+        {
+            return await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Tre/IsUserAssignedTRE");
         }
     }
 }

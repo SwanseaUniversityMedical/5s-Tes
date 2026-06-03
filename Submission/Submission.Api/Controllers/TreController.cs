@@ -12,6 +12,7 @@ using Submission.Api.Services;
 using Submission.Api.Services.Contract;
 using FiveSafesTes.Core.Services;
 using System.Text;
+using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 
 namespace Submission.Api.Controllers
 {
@@ -360,6 +361,13 @@ namespace Submission.Api.Controllers
                 : _keycloakSettings.Realm;
 
             return $"{keycloakFullUrl}/realms/{realm}/.well-known/openid-configuration";
+        }
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("IsUserAssignedTRE")]
+        public async Task<BoolReturn> IsUserAssignedTRE()
+        {
+            return new BoolReturn() { Result = ControllerHelpers.IsUserAssignedTRE(User, _DbContext) };
         }
     }
 }

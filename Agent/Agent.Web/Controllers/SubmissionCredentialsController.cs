@@ -48,18 +48,29 @@ namespace Agent.Web.Controllers
 
             // Then we can update the credentials.
             credentials.Creds = await ControllerHelpers.UpdateCredentials("SubmissionCredentials", _clientHelper, ModelState, credentials.Creds);
-            credentials.IsConfigurationUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
-            credentials.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
 
-            if (credentials.Creds.Valid)
+            // Ensure that the details are valid
+            if (credentials.Creds.Error || !credentials.Creds.Valid)
             {
-                return RedirectToAction("Index", "Home");
+                // Don't keep invalid credentials
+                await ControllerHelpers.WipeVaultCredentials(_clientHelper);
             }
             else
             {
-                return View(credentials);
+                credentials.IsConfigurationUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
+                credentials.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
+
+                // Ensure that the details belong to a user with a TRE
+                if (credentials.IsSynced && await ControllerHelpers.IsUserAssignedTRE(_clientHelper) == false)
+                {
+                    credentials.Creds.Valid = false;
+                    credentials.Creds.ErrorMessage = "User " + credentials.Creds.UserName + " doesn't have a TRE";
+                    // Don't keep invalid credentials
+                    await ControllerHelpers.WipeVaultCredentials(_clientHelper);
+                }
             }
-            
+
+            return View(credentials);
         }
 
     }

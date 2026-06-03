@@ -45,7 +45,9 @@ public class OnboardingController : Controller
         return new()
         {
             Success = true,
-            Message = "File uploaded successfully."
+            Message = "File uploaded successfully.",
+            IsUploaded = true,
+            IsSynced = _onboardingService.IsTRESynced()
         };
     }
 

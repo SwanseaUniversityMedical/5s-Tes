@@ -50,5 +50,11 @@ namespace Agent.Web.Services
         {
             await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/WipeVaultCredentials", httpMethod: HttpMethod.Post);
         }
+
+        public static async Task<bool> IsUserAssignedTRE(ITREClientHelper clientHelper)
+        {
+            BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/IsUserAssignedTRE");
+            return result.Result;
+        }
     }
 }
