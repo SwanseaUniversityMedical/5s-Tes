@@ -18,6 +18,21 @@ namespace Agent.Web.Controllers
             _treClientHelper = trehelper;
         }
 
+        [HttpGet]
+        public IActionResult Index()
+        {
+            try
+            {
+                _logger.LogInformation("Status page loaded for user: {User}", User?.Identity?.Name);
+                return View();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading Status page");
+                return View("Error");
+            }
+        }
+
         [Route("GetHealthCheckData")]
         public async Task<IActionResult> GetHealthCheckData()
         {
