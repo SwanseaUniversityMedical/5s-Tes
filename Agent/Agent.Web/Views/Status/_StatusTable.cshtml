@@ -3,6 +3,7 @@
 @model List<HealthCheckStatus>
 <div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
     <div>
+        <h3>Healthcheck Status</h3>
         <div class="d-flex align-items-center justify-content-between">
             <div>
                 <table id="statusTable" class="rounded-lg">
@@ -16,14 +17,14 @@
                         </tr>
                     </thead>
                     <tbody>
-                        @foreach (var status in ViewBag.Statuses)
+                        @foreach (var status in Model)
                         {
                             <tr>
                                 <td>@status.Id</td>
                                 <td>@status.Product</td>
                                 <td>@status.HealthStatus</td>
                                 <td>@status.Reason</td>
-                                <td>@status.Datetime?.ToString("dd/MM/yyyy")</td>
+                                <td>@status.DateTime.ToString("dd/MM/yyyy")</td>
                             </tr>
                         }
                     </tbody>
