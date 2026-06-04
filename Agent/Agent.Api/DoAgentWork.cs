@@ -974,39 +974,29 @@ namespace Agent.Api
 
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
         {
-            var payload = new
+            var payload = new[]
             {
-                records = new[]
-                {
-                    new
-                    {
-                        project = projectName,
-                        user = userId.ToString(),
-                        submissionId = submissionId.ToString()
-                    }
-                }
+                new { Project = projectName, User = userId.ToString(), SubmissionId = submissionId.ToString() }
             };
 
             var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
             var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-            var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
+            var url = _config["CredentialAPISettings:StartWebhookUrl"];
 
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(2);
 
-            var response = await httpClient.PostAsync(camundaWebhookUrl, content);
+            var response = await httpClient.PostAsync(url, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId,
-                    error);
-                throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
+                Log.Error("Camunda start credentials call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
+                throw new Exception($"Camunda start credentials call failed: {response.StatusCode}");
             }
 
-            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
-                submissionId);
+            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
 
@@ -1076,52 +1066,35 @@ namespace Agent.Api
 
         private async Task TriggerRevokeCredentialsAsync(int submissionId, string projectName, int user, int timer)
         {
-            var payload = new
+            var payload = new[]
             {
-                records = new[]
-                {
-                    new
-                    {
-                        submissionId = submissionId.ToString(),
-                        project = projectName,
-                        user = user.ToString(),
-                        timer = timer
-                    }
-                }
+                new { SubmissionId = submissionId.ToString(), Project = projectName, User = user.ToString(), Timer = timer }
             };
 
             var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
             var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-            // use the correct config key (matches appsettings: RevokeWebhookUrl)
-            var camundaWebhookUrl = _config["CredentialAPISettings:RevokeWebhookUrl"];
+            var url = _config["CredentialAPISettings:RevokeWebhookUrl"];
 
-            if (string.IsNullOrWhiteSpace(camundaWebhookUrl))
-            {
-                throw new InvalidOperationException(
-                    "Configuration 'CredentialAPISettings:RevokeWebhookUrl' is missing or empty.");
-            }
+            if (string.IsNullOrWhiteSpace(url))
+                throw new InvalidOperationException("Configuration 'CredentialAPISettings:RevokeWebhookUrl' is missing or empty.");
 
-            if (!Uri.TryCreate(camundaWebhookUrl, UriKind.Absolute, out var webhookUri))
-            {
-                throw new InvalidOperationException($"Invalid webhook URL in configuration: {camundaWebhookUrl}");
-            }
+            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+                throw new InvalidOperationException($"Invalid URL in configuration: {url}");
 
             using var httpClient = _httpClientFactory.CreateClient();
             httpClient.Timeout = TimeSpan.FromMinutes(2);
 
-            var response = await httpClient.PostAsync(webhookUri, content);
+            var response = await httpClient.PostAsync(uri, content);
 
             if (!response.IsSuccessStatusCode)
             {
                 var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda revoke webhook failed for submission {SubmissionId}. Error: {Error}", submissionId,
-                    error);
-                throw new Exception($"Camunda revoke webhook call failed: {response.StatusCode}");
+                Log.Error("Camunda revoke credentials call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
+                throw new Exception($"Camunda revoke credentials call failed: {response.StatusCode}");
             }
 
-            Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}",
-                submissionId);
+            Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
 

@@ -63,7 +63,7 @@ namespace Credentials.Models.Services
 
         public async Task PublishMessageAsync(string messageName, string correlationKey, object variables)
         {
-            var variablesJson = System.Text.Json.JsonSerializer.Serialize(variables);
+            var variablesJson = JsonSerializer.Serialize(variables);
 
             await _IZeebeClient.NewPublishMessageCommand()
                 .MessageName(messageName)
@@ -72,6 +72,19 @@ namespace Credentials.Models.Services
                 .Send();
 
             Console.WriteLine($"Published message: {messageName}");
+        }
+
+        public async Task CreateProcessInstanceAsync(string bpmnProcessId, object variables)
+        {
+            var variablesJson = JsonSerializer.Serialize(variables);
+
+            await _IZeebeClient.NewCreateProcessInstanceCommand()
+                .BpmnProcessId(bpmnProcessId)
+                .LatestVersion()
+                .Variables(variablesJson)
+                .Send();
+
+            Console.WriteLine($"Created process instance: {bpmnProcessId}");
         }
 
         private static IServiceProvider serviceProvider;
