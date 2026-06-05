@@ -1,35 +1,36 @@
 @using FiveSafesTes.Core.Models;
 
 @model List<HealthCheckStatus>
-<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
-    <div>
-        <h3>Healthcheck Status</h3>
-        <div class="d-flex align-items-center justify-content-between">
-            <div>
-                <table id="statusTable" class="rounded-lg">
-                    <thead>
-                        <tr>
-                            <th class="text-nowrap" style="width: 20%;">ID</th>
-                            <th class="text-nowrap" style="width: 20%;">Product</th>
-                            <th class="text-nowrap" style="width: 20%;">Health Status</th>
-                            <th class="text-nowrap" style="width: 20%;">Reason</th>
-                            <th class="text-nowrap" style="width: 20%;">Datetime</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var status in Model)
-                        {
+<div class="container-lg p-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            
+                <div class="table-responsive">
+                    <table id="statusTable" class="table table-hover">
+                        <thead class="bg-light">
                             <tr>
-                                <td>@status.Id</td>
-                                <td>@status.Product</td>
-                                <td>@status.HealthStatus</td>
-                                <td>@status.Reason</td>
-                                <td>@status.DateTime.ToString("dd/MM/yyyy")</td>
+                                <th>ID</th>
+                                <th>Product</th>
+                                <th>Health Status</th>
+                                <th>Reason</th>
+                                <th>Date</th>
                             </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
+                        </thead>
+                        <tbody>
+                            @foreach (var status in Model)
+                            {
+                                <tr>
+                                    <td>@status.Id</td>
+                                    <td>@status.Product</td>
+                                    <td>@status.HealthStatus</td>
+                                    <td>@status.Reason</td>
+                                    <td>@status.DateTime.ToString("dd/MM/yyyy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            
         </div>
     </div>
 </div>
