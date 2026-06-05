@@ -1,10 +1,12 @@
 using Credentials.Models.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Credentials.Camunda.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize(Roles = "dare-tre-admin")]
 public class CredentialsController : ControllerBase
 {
     private readonly IServicedZeebeClient _zeebeClient;
