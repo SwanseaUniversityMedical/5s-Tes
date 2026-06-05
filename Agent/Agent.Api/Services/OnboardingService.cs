@@ -194,8 +194,21 @@ public class OnboardingService : IOnboardingService
     /// <returns>Returns true if we are able to reach the submission layer.</returns>
     public bool IsTRESynced()
     {
-        using HttpClient client = new();
-        HttpResponseMessage response = client.GetAsync(submissionAddress + "/v1/get_test_tes").Result;
-        return response.IsSuccessStatusCode;
+        if (string.IsNullOrEmpty(submissionAddress))
+        {
+            return false;
+        }
+
+        try
+        {
+            using HttpClient client = new();
+            HttpResponseMessage response = client.GetAsync(submissionAddress + "/v1/get_test_tes").Result;
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "{Function} Could not reach Submission at {Url}", "IsTRESynced", submissionAddress);
+            return false;
+        }
     }
 }
