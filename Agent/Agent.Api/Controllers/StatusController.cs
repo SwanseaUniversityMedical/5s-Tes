@@ -19,7 +19,7 @@ namespace Agent.Api.Controllers
             _statusService = statusService;
         }
 
-        [HttpPost("GetHealthCheckData")]
+        [HttpGet("GetHealthCheckData")]
         public List<HealthCheckStatus> GetHealthCheckData()
         {
             var healthCheckData = _statusService.GetHealthCheckData();

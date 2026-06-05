@@ -24,7 +24,8 @@ namespace Agent.Web.Controllers
             try
             {
                 _logger.LogInformation("Status page successfully loaded.");
-                return View("index");
+                var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+                return View("index", data);
             }
             catch (Exception ex)
             {
@@ -36,7 +37,7 @@ namespace Agent.Web.Controllers
         [Route("GetHealthCheckData")]
         public async Task<IActionResult> GetHealthCheckData()
         {
-            var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("api/HealthCheck/GetHealthCheckData").Result;
+            var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
 
             return View(data);
         }
