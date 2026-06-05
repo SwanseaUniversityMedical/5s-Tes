@@ -9,14 +9,14 @@ until curl -sf -o /dev/null "$KIBANA_URL/api/status"; do
 done
 echo "Kibana is up. Importing dashboard..."
 
-# Create the data view for zeebe-record-*
+# Create the data view for zeebe-record_*
 curl -sf -X POST "$KIBANA_URL/api/data_views/data_view" \
   -H "Content-Type: application/json" \
   -H "kbn-xsrf: true" \
   -d '{
     "data_view": {
       "id": "zeebe-data-view",
-      "title": "zeebe-record-*",
+      "title": "zeebe-record_*",
       "name": "Zeebe Records",
       "timeFieldName": "timestamp"
     },
