@@ -54,9 +54,7 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllSubmissions()
         {
-            var minio = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint").Result;
-            ViewBag.minioendpoint = minio?.Url;
-            ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
+            ViewBag.URLBucket = _URLSettingsFrontEnd.S3BaseUrl + _URLSettingsFrontEnd.S3BucketPath;
 
             var queryParams = new Dictionary<string, string>
             {
@@ -91,7 +89,7 @@ namespace Submission.Web.Controllers
                 return NotFound();
             }
 
-            ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
+            ViewBag.URLBucket = _URLSettingsFrontEnd.S3BaseUrl + _URLSettingsFrontEnd.S3BucketPath;
 
             var model = new SubmissionInfo()
             {
