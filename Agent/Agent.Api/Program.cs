@@ -98,7 +98,11 @@ var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", 
 treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(treKeyCloakSettings);
 
-builder.Services.Configure<DataEgressKeyCloakSettings>(configuration.GetSection("DataEgressKeyCloakSettings"));
+var dataEgressKeyCloakSettings = new DataEgressKeyCloakSettings();
+configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSettings);
+dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
+builder.Services.AddSingleton(dataEgressKeyCloakSettings);
+
 builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
 
 var HasuraSettings = new HasuraSettings();
@@ -304,7 +308,6 @@ using (var scope = app.Services.CreateScope())
     credDb.Database.Migrate();
 
     scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
-    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
