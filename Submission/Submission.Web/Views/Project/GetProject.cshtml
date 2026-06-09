@@ -128,12 +128,6 @@
                                 var projectId = Model.Id;
                             }
                              <ul class="dropdown-menu" aria-labelledby="dropdownMenuButton1">
-                              @if (Configuration.GetValue<bool>("DemoMode"))
-                              {
-                                <li><a class="dropdown-item"
-                                       href="/Project/SubmissionProjectDemo/@projectId">Demo
-                                  TES Wizard</a></li>
-                              }
                                <li><a class="dropdown-item"
                                       href="/Project/SubmissionProjectTes/@projectId">TES Wizard</a></li>
                                <li><a class="dropdown-item"
