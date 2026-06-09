@@ -87,7 +87,7 @@ namespace Agent.Api.Controllers
             await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(DataEgressKeyCloakSettings));
 
             // Reload config to apply updated credentials immediately.
-            await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+            await _vaultConfigProvider.LoadAsync();
 
             return creds;
         }
