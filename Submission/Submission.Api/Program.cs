@@ -71,7 +71,8 @@ builder.Services.Configure<ForwardedHeadersOptions>(options =>
 });
 
 
-
+builder.Services.AddFeatureManagement(
+  builder.Configuration.GetSection("Features"));
 builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
 builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
 var bus =
