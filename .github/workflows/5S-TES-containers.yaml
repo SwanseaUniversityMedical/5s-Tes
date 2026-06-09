@@ -41,7 +41,7 @@ jobs:
   
   submission-api-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: submission-api-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
@@ -49,6 +49,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_API }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Submission/Submission.Api/Dockerfile
       build-context: .
       platforms: "linux/amd64,linux/arm64"
@@ -58,7 +59,7 @@ jobs:
 
   submission-ui-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: submission-ui-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
@@ -66,6 +67,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_SUBMISSION_UI }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Submission/Submission.Web/Dockerfile
       build-context: .
       platforms: "linux/amd64,linux/arm64"
@@ -75,7 +77,7 @@ jobs:
 
   agent-api-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: agent-api-container
       comment-pr: "true"
@@ -85,6 +87,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_API }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Agent/Agent.Api/Dockerfile
       build-context: .
       platforms: "linux/amd64,linux/arm64"
@@ -94,7 +97,7 @@ jobs:
 
   agent-ui-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: agent-ui-container
       comment-pr: "true"
@@ -104,6 +107,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_UI }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Agent/Agent.Web/Dockerfile
       build-context: .
       platforms: "linux/amd64,linux/arm64"
@@ -113,7 +117,7 @@ jobs:
 
   agent-web-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: agent-web-container
       comment-pr: "true"
@@ -123,6 +127,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_AGENT_WEB }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Agent/agent-web/Dockerfile
       build-context: Agent/agent-web
       platforms: "linux/amd64,linux/arm64"
@@ -132,7 +137,7 @@ jobs:
 
   credentials-camunda-container:
     needs: containers
-    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v3.0.0-bulk-containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
     with:
       job-name: credentials-camunda-container
       registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
@@ -140,6 +145,7 @@ jobs:
       registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_CREDENTIALS_CAMUNDA }}
       release-info: ${{ needs.containers.outputs.release-info }}
       notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
       build-file: Credentials/Credentials.Camunda/Dockerfile
       build-context: .
       platforms: "linux/amd64,linux/arm64"
