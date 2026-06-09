@@ -7,7 +7,6 @@
     <UserSecretsId>26cc2351-a8a9-4037-ae8c-6821a4c93bac</UserSecretsId>
     <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
     <DockerfileContext>..\..</DockerfileContext>
-    <DockerComposeProjectPath>..\..\docker-compose.dcproj</DockerComposeProjectPath>
   </PropertyGroup>
 
   <ItemGroup>
@@ -58,24 +57,6 @@
     <Content Update="wwwroot\formio\user.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <UpToDateCheckInput Remove="Views\Home\AdminPanel.cshtml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <_ContentIncludedByDefault Remove="Views\Home\AdminPanel.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Home\GetAUser.cshtml" />
-    <_ContentIncludedByDefault Remove="Views\Home\GetProject.cshtml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <UpToDateCheckInput Remove="Views\Home\GetAUser.cshtml" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <UpToDateCheckInput Remove="Views\Home\GetProject.cshtml" />
   </ItemGroup>
 
   <ItemGroup>
