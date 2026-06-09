@@ -22,7 +22,9 @@ using Microsoft.AspNetCore.Server.Kestrel.Core;
 using NETCore.MailKit.Extensions;
 using NETCore.MailKit.Infrastructure.Internal;
 using Microsoft.AspNetCore.DataProtection;
+using Microsoft.FeatureManagement;
 using Serilog.Events;
+using Submission.Api.Constants;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -79,7 +81,7 @@ await SetUpRabbitMQ.DoItSubmissionAsync(configuration["RabbitMQ:HostAddress"], c
 var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
 configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
 var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
-var demomode = configuration["DemoMode"].ToLower() == "true";
+
 submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(submissionKeyCloakSettings);
 
@@ -349,12 +351,13 @@ using (var scope = app.Services.CreateScope())
     var miniosettings = scope.ServiceProvider.GetRequiredService<MinioSettings>();
     var miniohelper = scope.ServiceProvider.GetRequiredService<IMinioHelper>();
     var userService = scope.ServiceProvider.GetRequiredService<IKeycloakMinioUserService>();
+    IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 
     db.Database.Migrate();
     var initialiser = new DataInitialiser(miniosettings, db, keytoken, userService, miniohelper);
-    if (demomode)
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
-        initialiser.SeedAllInOneData();
+        initialiser.SeedDemoData();
     }
 }
 
