@@ -82,7 +82,7 @@ namespace Submission.Web.Controllers
           
           
             ViewBag.UserCanDoSubmissions = IsUserOnProjectDetails(project);
-            ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
+            ViewBag.URLBucket = _URLSettingsFrontEnd.S3BaseUrl + _URLSettingsFrontEnd.S3BucketPath;
             
             return View(project);
         }
