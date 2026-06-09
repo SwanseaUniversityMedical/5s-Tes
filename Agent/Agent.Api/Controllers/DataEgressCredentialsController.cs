@@ -31,6 +31,7 @@ namespace Agent.Api.Controllers
         {
             _encDecHelper = encDec;
             _DbContext = applicationDbContext;
+            _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
                 _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode);
@@ -75,11 +76,12 @@ namespace Agent.Api.Controllers
                 return creds;
             }
 
+
+            // Serialize the username and password and add them to Vault.
             object credsToSave = new
             {
                 Username = creds.UserName,
-                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc),
-                ConfigInputMethod = ConfigInputMethod.Manual
+                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc)
             };
 
             await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(DataEgressKeyCloakSettings));
