@@ -1,9 +1,7 @@
 using System.Text.Json;
-using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
-using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -17,8 +15,6 @@ namespace Agent.Api.Controllers
     [ApiController]
     public class DataEgressCredentialsController : Controller
     {
-
-        private readonly ApplicationDbContext _DbContext;
         private readonly IEncDecHelper _encDecHelper;
         private readonly IConfigurationService _configurationService;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
@@ -26,11 +22,9 @@ namespace Agent.Api.Controllers
         public KeycloakTokenHelper _keycloakTokenHelper { get; set; }
         
 
-        public DataEgressCredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, IConfigurationService configService,
-            IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config)
+        public DataEgressCredentialsController(IEncDecHelper encDec, IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config)
         {
             _encDecHelper = encDec;
-            _DbContext = applicationDbContext;
             _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
