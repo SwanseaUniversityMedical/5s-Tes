@@ -34,6 +34,17 @@ namespace Agent.Api.Controllers
         }
 
         [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("AreCredentialsConfigured")]
+        public BoolReturn AreCredentialsConfigured()
+        {
+            return new BoolReturn
+            {
+                Result = !string.IsNullOrEmpty(_keycloakSettings.Username)
+                    && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc)
+            };
+        }
+
+        [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("CheckCredentialsAreValid")]
         public async Task<BoolReturn> CheckCredentialsAreValidAsync()
         {

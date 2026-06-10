@@ -46,6 +46,12 @@ namespace Agent.Web.Services
             return result.Result;
         }
 
+        public static async Task<bool> AreEgressCredentialsConfigured(ITREClientHelper clientHelper)
+        {
+            BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/DataEgressCredentials/AreCredentialsConfigured");
+            return result.Result;
+        }
+
         public static async Task WipeVaultCredentials(ITREClientHelper clientHelper)
         {
             await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/WipeVaultCredentials", httpMethod: HttpMethod.Post);
