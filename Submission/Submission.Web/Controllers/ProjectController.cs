@@ -133,30 +133,6 @@ namespace Submission.Web.Controllers
             return View(projectView);
         }
 
-        public IActionResult SubmissionProjectDemo(int id)
-        {
-            if (!ModelState.IsValid) // SonarQube security
-            {
-                return View("/");
-            }
-
-            var paramlist = new Dictionary<string, string>();
-            paramlist.Add("projectId", id.ToString());
-            var project = _clientHelper.CallAPIWithoutModel<SubmissionGetProjectModel>(
-                "/api/Project/GetProjectUI/", paramlist).Result;
-
-            ViewBag.UserCanDoSubmissions = IsUserOnProject(project);
-
-            var projectView = new ProjectUserTre()
-            {
-                Id = project.Id,
-                Name = project.Name,
-                Submissions = project.Submissions.Where(x => x.HasParent == false).ToList()
-            };
-
-            return View(projectView);
-        }
-
         [HttpGet]
         public IActionResult GetAllProjects()
         {
