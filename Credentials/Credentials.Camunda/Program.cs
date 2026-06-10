@@ -5,10 +5,6 @@ using System.Reflection;
 using Zeebe.Client.Accelerator.Extensions;
 using Credentials.Camunda.Services;
 using Serilog.Events;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.IdentityModel.Tokens;
-using FiveSafesTes.Core.Models.Settings;
-using Zeebe.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -56,43 +52,5 @@ builder.Services.AddHttpClient();
 builder.Services.AddBusinessServices(configuration);
 builder.Services.ConfigureCamunda(configuration);
 
-var treKeyCloakSettings = new TreKeyCloakSettings();
-configuration.GetSection("TreKeyCloakSettings").Bind(treKeyCloakSettings);
-builder.Services.AddSingleton(treKeyCloakSettings);
-
-var tvp = new TokenValidationParameters
-{
-    ValidateAudience = true,
-    ValidAudiences = treKeyCloakSettings.ValidAudiences?.Trim().Split(',').ToList(),
-    ValidIssuer = treKeyCloakSettings.Authority,
-    ValidateIssuerSigningKey = true,
-    ValidateIssuer = true,
-    ValidateLifetime = true
-};
-
-builder.Services.AddAuthentication(options =>
-{
-    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
-    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
-})
-.AddJwtBearer(options =>
-{
-    if (treKeyCloakSettings.Proxy)
-        options.BackchannelHttpHandler = treKeyCloakSettings.getProxyHandler;
-
-    options.Authority = treKeyCloakSettings.Authority;
-    options.Audience = treKeyCloakSettings.ClientId;
-    options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
-    options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata;
-    options.IncludeErrorDetails = true;
-    options.TokenValidationParameters = tvp;
-});
-
-builder.Services.AddAuthorization();
-builder.Services.AddControllers();
-
 var app = builder.Build();
-app.UseAuthentication();
-app.UseAuthorization();
-app.MapControllers();
 await app.RunAsync();
