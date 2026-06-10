@@ -12,6 +12,12 @@ namespace FiveSafesTes.Core.Services
 {
     public class KeycloakCommon
     {
+        /// <summary>
+        ///  use global env/config value for KeycloakDemoMode.
+        /// </summary>
+        public static bool ResolveKeycloakDemoMode(bool settingsValue, string? globalKeycloakDemoMode) =>
+            settingsValue || string.Equals(globalKeycloakDemoMode, "true", StringComparison.OrdinalIgnoreCase);
+
         public static async Task<(string token, string Errorstring)> GetTokenForUserGuts(string username, string password, string requiredRole, HttpClientHandler proxyHandler,
             string keycloakBaseUrl, string clientId, string clientSecret, bool keycloakDemoMode, bool isServiceAccount)
         {
