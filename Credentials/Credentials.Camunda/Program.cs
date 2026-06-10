@@ -3,6 +3,7 @@ using Credentials.Camunda.Extensions;
 using Credentials.Camunda.Settings;
 using System.Reflection;
 using Zeebe.Client.Accelerator.Extensions;
+using Zeebe.Client;
 using Credentials.Camunda.Services;
 using Serilog.Events;
 
