@@ -1,3 +1,4 @@
+using Agent.Web.Services;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
@@ -16,8 +17,10 @@ public class SubmissionConfigController : Controller
         _clientHelper = client;
     }
 
-    public IActionResult Index(JsonConfigUploadResponse response)
+    public async Task<IActionResult> Index(JsonConfigUploadResponse response)
     {
+        response.IsUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
+        response.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
         return View(response);
     }
 

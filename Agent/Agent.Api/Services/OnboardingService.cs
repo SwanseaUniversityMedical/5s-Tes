@@ -1,7 +1,5 @@
 using System.Net.Http.Headers;
 using System.Text.Json;
-using Agent.Api.Repositories.DbContexts;
-using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
@@ -24,6 +22,8 @@ public class OnboardingService : IOnboardingService
     private readonly JobSettings _jobSettings;
     private readonly VaultConfigurationProvider _vaultConfigProvider;
 
+    private readonly string submissionAddress;
+
     public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
         JobSettings jobSettings, IEncDecHelper encDec, IServiceProvider serviceProvider)
     {
@@ -34,6 +34,7 @@ public class OnboardingService : IOnboardingService
         _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
         _encDecHelper = encDec;
         _serviceProvider = serviceProvider;
+        submissionAddress = config["DareAPISettings:Address"];
     }
 
     /// <summary>
@@ -47,15 +48,15 @@ public class OnboardingService : IOnboardingService
 
         await _configurationService.AddConfigurationToVault(json, nameof(TreOnboardingConfig));
 
-        // Update configuration immediately - we must bypass the check to see if config has been uploaded or the method will stop too soon.
-        await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+        // Update configuration immediately
+        await _vaultConfigProvider.LoadAsync();
 
         await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
 
         await LogIntoSubmissionLayer();
 
         // Update configuration again to apply new vault changes
-        await _vaultConfigProvider.LoadAsync(bypassConfigCheck: true);
+        await _vaultConfigProvider.LoadAsync();
 
         SyncWithSubmission();
         RestartHangfireJobs();
@@ -166,12 +167,48 @@ public class OnboardingService : IOnboardingService
         }
     }
 
+    /// <summary>
+    /// Sync the submission layer with the TRE.
+    /// </summary>
     public void SyncWithSubmission()
     {
         using (var scope = _serviceProvider.CreateScope())
         {
             var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
             var result = dareSyncHelper.SyncSubmissionWithTre().Result;
+        }
+    }
+
+    /// <summary>
+    /// Determines whether we have uploaded our configuration.
+    /// </summary>
+    /// <returns>Returns true if config has been uploaded.</returns>
+    public bool IsConfigurationUploaded()
+    {
+        return _onboardingConfig.CurrentValue.IsConfigurationImported;
+    }
+
+    /// <summary>
+    /// Determines whether we are able to sync with the submission layer.
+    /// </summary>
+    /// <returns>Returns true if we are able to reach the submission layer.</returns>
+    public bool IsTRESynced()
+    {
+        if (string.IsNullOrEmpty(submissionAddress))
+        {
+            return false;
+        }
+
+        try
+        {
+            using HttpClient client = new();
+            HttpResponseMessage response = client.GetAsync(submissionAddress + "/v1/get_test_tes").Result;
+            return response.IsSuccessStatusCode;
+        }
+        catch (Exception ex)
+        {
+            Log.Debug(ex, "{Function} Could not reach Submission at {Url}", "IsTRESynced", submissionAddress);
+            return false;
         }
     }
 }

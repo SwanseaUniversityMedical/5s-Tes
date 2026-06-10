@@ -42,6 +42,21 @@ namespace Submission.Api.Services
             return tre;
         }
 
+        /// <summary>
+        /// Determine whether a user has a TRE without throwing an exception.
+        /// </summary>
+        public static bool IsUserAssignedTRE(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
+        {
+            try
+            {
+                Tre? tre = GetUserTre(loggedInUser, dbContext);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         public static async Task RemoveUserFromMinioBucket(User user, Project project,
             IHttpContextAccessor httpContextAccessor, string attributeName,

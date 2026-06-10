@@ -45,7 +45,9 @@ public class OnboardingController : Controller
         return new()
         {
             Success = true,
-            Message = "File uploaded successfully."
+            Message = "File uploaded successfully.",
+            IsUploaded = true,
+            IsSynced = _onboardingService.IsTRESynced()
         };
     }
 
@@ -54,5 +56,19 @@ public class OnboardingController : Controller
     {
         _onboardingService.RestartHangfireJobs();
         return new() { Result = true };
+    }
+
+    [HttpGet("IsTreSynced")]
+    public async Task<BoolReturn> IsTreSynced()
+    {
+        bool result = _onboardingService.IsTRESynced();
+        return new() { Result = result };
+    }
+
+    [HttpGet("IsConfigurationUploaded")]
+    public async Task<BoolReturn> IsConfigurationUploaded()
+    {
+        bool result = _onboardingService.IsConfigurationUploaded();
+        return new() { Result = result };
     }
 }
