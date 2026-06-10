@@ -790,14 +790,6 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
-                //List<Project> searchResults = _DbContext.Projects
-                //    .Include(c => c.Users)
-                //    .Include(c => c.Submissions)
-                //     .Include(c => c.Tres)
-                //    .Where(c => c.Name.ToLower().Contains(searchString.Trim().ToLower()) ||
-                //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
-                //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
                 List<Project> searchResults = _DbContext.Projects
 
@@ -829,8 +821,5 @@ namespace Submission.Api.Controllers
 
         }
 
-
-        //End
-        
     }
 }
