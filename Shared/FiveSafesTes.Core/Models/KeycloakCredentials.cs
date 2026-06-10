@@ -23,8 +23,10 @@ namespace FiveSafesTes.Core.Models
         public CredentialType CredentialType { get; set; }
 
         [NotMapped]
-        
         public bool Valid { get; set; }
+
+        [NotMapped]
+        public bool CredentialsConfigured { get; set; }
     }
 
     public enum CredentialType

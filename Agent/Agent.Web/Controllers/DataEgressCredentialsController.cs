@@ -21,8 +21,9 @@ namespace Agent.Web.Controllers
 
         public async Task<IActionResult> UpdateCredentialsAsync()
         {
-            ViewBag.IsEgressConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
-            return View(await ControllerHelpers.CheckCredentialsAreValid("DataEgressCredentials", _clientHelper));
+            var model = await ControllerHelpers.CheckCredentialsAreValid("DataEgressCredentials", _clientHelper);
+            model.CredentialsConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
+            return View(model);
         }
 
 
@@ -37,7 +38,8 @@ namespace Agent.Web.Controllers
             }
             credentials = await ControllerHelpers.UpdateCredentials("DataEgressCredentials", _clientHelper, ModelState,
                     credentials);
-            ViewBag.IsEgressConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
+
+            credentials.CredentialsConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
 
             if (credentials.Valid)
             {

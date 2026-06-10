@@ -9,11 +9,9 @@ namespace Agent.Web.Services
 {
     public class ControllerHelpers
     {
-        public static async Task<KeycloakCredentials> CheckCredentialsAreValid(string controller, ITREClientHelper _clientHelper)
+        public static async Task<KeycloakCredentials> CheckCredentialsAreValid(string controller, ITREClientHelper clientHelper)
         {
-            var valid = await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/" + controller+ "/CheckCredentialsAreValid");
-
-
+            var valid = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/" + controller + "/CheckCredentialsAreValid");
             return new KeycloakCredentials() { Valid = valid.Result };
         }
 

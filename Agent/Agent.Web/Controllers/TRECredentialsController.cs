@@ -17,8 +17,9 @@ namespace Agent.Web.Controllers
         [HttpGet]
         public async Task<IActionResult> UpdateCredentialsAsync()
         {
-            ViewBag.IsSubmissionConfigured = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
-            return View(await ControllerHelpers.CheckCredentialsAreValid("TRECredentials", _clientHelper));
+            var model = await ControllerHelpers.CheckCredentialsAreValid("TRECredentials", _clientHelper);
+            model.CredentialsConfigured = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
+            return View(model);
         }
         [HttpPost]
 
@@ -30,7 +31,7 @@ namespace Agent.Web.Controllers
             }
             credentials = await ControllerHelpers.UpdateCredentials("TRECredentials", _clientHelper, ModelState,
                     credentials);
-            ViewBag.IsSubmissionConfigured = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
+            credentials.CredentialsConfigured = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
 
             if (credentials.Valid)
             {
