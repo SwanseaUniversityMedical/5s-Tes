@@ -8,6 +8,7 @@ using Serilog.Events;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using FiveSafesTes.Core.Models.Settings;
+using Zeebe.Client;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = builder.Configuration;
@@ -50,7 +51,7 @@ builder.Services.AddZeebeBuilders();
 builder.Services.BootstrapZeebe(configuration.GetSection("ZeebeConfiguration"), typeof(Program).Assembly);
 
 builder.Services.Configure<LdapSettings>(configuration.GetSection("LdapSettings"));
-builder.Services.Configure<VaultSettings>(configuration.GetSection("VaultSettings"));
+builder.Services.Configure<Credentials.Camunda.Settings.VaultSettings>(configuration.GetSection("VaultSettings"));
 builder.Services.AddHttpClient();
 builder.Services.AddBusinessServices(configuration);
 builder.Services.ConfigureCamunda(configuration);

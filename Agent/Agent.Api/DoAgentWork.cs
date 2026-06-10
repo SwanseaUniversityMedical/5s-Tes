@@ -54,6 +54,7 @@ namespace Agent.Api
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
+        private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -72,7 +73,8 @@ namespace Agent.Api
             IHttpClientFactory httpClientFactory,
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
-            IConfiguration config
+            IConfiguration config,
+            Credentials.Models.Services.IServicedZeebeClient zeebeClient
         )
         {
             _serviceProvider = serviceProvider;
@@ -101,8 +103,8 @@ namespace Agent.Api
             _httpClientFactory = httpClientFactory;
             _credsDbContext = credsDbContext;
             _vaultService = vaultService;
-
             _config = config;
+            _zeebeClient = zeebeClient;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -974,28 +976,23 @@ namespace Agent.Api
 
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
         {
-            var payload = new[]
+            var variables = new Dictionary<string, object>
             {
-                new { Project = projectName, User = userId.ToString(), SubmissionId = submissionId.ToString() }
+                ["project"] = projectName,
+                ["user"] = userId.ToString(),
+                ["submissionId"] = submissionId.ToString(),
+                ["InputCollections"] = new List<Dictionary<string, object>>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["project"] = projectName,
+                        ["user"] = userId.ToString(),
+                        ["submissionId"] = submissionId.ToString()
+                    }
+                }
             };
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            var url = _config["CredentialAPISettings:StartWebhookUrl"];
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
-
-            var response = await httpClient.PostAsync(url, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda start credentials call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
-                throw new Exception($"Camunda start credentials call failed: {response.StatusCode}");
-            }
-
+            await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
             Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
@@ -1066,34 +1063,25 @@ namespace Agent.Api
 
         private async Task TriggerRevokeCredentialsAsync(int submissionId, string projectName, int user, int timer)
         {
-            var payload = new[]
+            var variables = new Dictionary<string, object>
             {
-                new { SubmissionId = submissionId.ToString(), Project = projectName, User = user.ToString(), Timer = timer }
+                ["submissionId"] = submissionId.ToString(),
+                ["project"] = projectName,
+                ["user"] = user.ToString(),
+                ["timer"] = timer,
+                ["InputCollections"] = new List<Dictionary<string, object>>
+                {
+                    new Dictionary<string, object>
+                    {
+                        ["submissionId"] = submissionId.ToString(),
+                        ["project"] = projectName,
+                        ["user"] = user.ToString(),
+                        ["timer"] = timer
+                    }
+                }
             };
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            var url = _config["CredentialAPISettings:RevokeWebhookUrl"];
-
-            if (string.IsNullOrWhiteSpace(url))
-                throw new InvalidOperationException("Configuration 'CredentialAPISettings:RevokeWebhookUrl' is missing or empty.");
-
-            if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
-                throw new InvalidOperationException($"Invalid URL in configuration: {url}");
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
-
-            var response = await httpClient.PostAsync(uri, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda revoke credentials call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
-                throw new Exception($"Camunda revoke credentials call failed: {response.StatusCode}");
-            }
-
+            await _zeebeClient.CreateProcessInstanceAsync("Credentials_Revoke", variables);
             Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 

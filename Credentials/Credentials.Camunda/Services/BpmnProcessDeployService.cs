@@ -20,16 +20,28 @@ namespace Credentials.Camunda.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
-            try
+            const int maxRetries = 10;
+            const int delaySeconds = 10;
+
+            for (int attempt = 1; attempt <= maxRetries; attempt++)
             {
-                using var scope = _scopeFactory.CreateScope();
-                var processModelService = scope.ServiceProvider.GetRequiredService<IProcessModelService>();
-                await processModelService.DeployProcessDefinitionAndDecisionModels();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex.ToString());
-                throw;
+                try
+                {
+                    using var scope = _scopeFactory.CreateScope();
+                    var processModelService = scope.ServiceProvider.GetRequiredService<IProcessModelService>();
+                    await processModelService.DeployProcessDefinitionAndDecisionModels();
+                    return;
+                }
+                catch (Exception ex) when (attempt < maxRetries)
+                {
+                    Log.Warning($"Zeebe not ready (attempt {attempt}/{maxRetries}), retrying in {delaySeconds}s: {ex.Message}");
+                    await Task.Delay(TimeSpan.FromSeconds(delaySeconds), cancellationToken);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex.ToString());
+                    throw;
+                }
             }
         }
 
