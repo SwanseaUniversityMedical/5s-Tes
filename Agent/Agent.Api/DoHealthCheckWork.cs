@@ -24,6 +24,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     private readonly IEncDecHelper _encDecHelper;
 
     private readonly string _submissionEndpoint;
+    private readonly IConfiguration _configuration;
 
     public DoHealthCheckWork(ApplicationDbContext dbContext, IConfiguration config, AgentSettings agentSettings, JobSettings jobSettings, 
         IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings, IEncDecHelper encDecHelper)
@@ -32,6 +33,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         _agentSettings = agentSettings;
         _jobSettings = jobSettings;
         _egressKeycloakSettings = egressKeycloakSettings;
+        _configuration = config;
 
         _submissionEndpoint = config["DareAPISettings:Address"];
         _encDecHelper = encDecHelper;
@@ -168,8 +170,9 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     private async Task DoEgressHealthCheck()
     {
         DataEgressKeyCloakSettings keycloakSettings = _egressKeycloakSettings.CurrentValue;
+        var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(keycloakSettings.KeycloakDemoMode, _configuration["KeycloakDemoMode"]);
         KeycloakTokenHelper keycloakTokenHelper = new (keycloakSettings.BaseUrl, keycloakSettings.ClientId,
-                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakSettings.KeycloakDemoMode);
+                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakDemoMode);
 
         // Attempt to connect to egress using current credentials
         var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, _encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");

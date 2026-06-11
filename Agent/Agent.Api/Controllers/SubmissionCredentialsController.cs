@@ -24,15 +24,18 @@ namespace Agent.Api.Controllers
         private readonly IConfigurationService _configurationService;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
         private readonly SubmissionKeyCloakSettings _keycloakSettings;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
         private readonly IDareClientWithoutTokenHelper _clientHelper;
 
-        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
+        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IOptionsMonitor<TreOnboardingConfig> onboardingConfig, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
         {
             _keycloakSettings = settings.CurrentValue;
+            _onboardingConfig = onboardingConfig;
 
             _encDecHelper = encDec;
+            var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
-                _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode);
+                _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode);
             _configurationService = configurationService;
             _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
             _clientHelper = clientHelper;
@@ -46,9 +49,15 @@ namespace Agent.Api.Controllers
             {
                 var result = new BoolReturn() { Result = false };
 
+                if (_onboardingConfig.CurrentValue.IsConfigurationImported
+                    || _keycloakSettings.ConfigInputMethod == ConfigInputMethod.Upload)
+                {
+                    result.Result = true;
+                    return result;
+                }
+
                 if (!string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc))
                 {
-
                     var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _encDecHelper.Decrypt(_keycloakSettings.PasswordEnc), "dare-tre-admin");
                     result.Result = !string.IsNullOrWhiteSpace(token.token);
                 }
