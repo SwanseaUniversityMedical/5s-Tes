@@ -6,6 +6,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
+using FiveSafesTes.Core.Models;
 
 namespace Agent.Api;
 
