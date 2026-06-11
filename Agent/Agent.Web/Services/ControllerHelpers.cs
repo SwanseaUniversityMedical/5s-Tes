@@ -9,11 +9,9 @@ namespace Agent.Web.Services
 {
     public class ControllerHelpers
     {
-        public static async Task<KeycloakCredentials> CheckCredentialsAreValid(string controller, ITREClientHelper _clientHelper)
+        public static async Task<KeycloakCredentials> CheckCredentialsAreValid(string controller, ITREClientHelper clientHelper)
         {
-            var valid = await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/" + controller+ "/CheckCredentialsAreValid");
-
-
+            var valid = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/" + controller + "/CheckCredentialsAreValid");
             return new KeycloakCredentials() { Valid = valid.Result };
         }
 
@@ -43,6 +41,12 @@ namespace Agent.Web.Services
         public static async Task<bool> IsConfigurationUploaded(ITREClientHelper clientHelper)
         {
             BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsConfigurationUploaded");
+            return result.Result;
+        }
+
+        public static async Task<bool> AreEgressCredentialsConfigured(ITREClientHelper clientHelper)
+        {
+            BoolReturn result = await clientHelper.CallAPIWithoutModel<BoolReturn>("/api/DataEgressCredentials/AreCredentialsConfigured");
             return result.Result;
         }
 

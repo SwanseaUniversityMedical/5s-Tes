@@ -25,8 +25,8 @@ namespace Agent.Web.Controllers
             bool configUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
             bool treSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
 
-            return View(new SubmissionKeycloakCredentialDTO() 
-            { 
+            return View(new SubmissionKeycloakCredentialDTO()
+            {
                 Creds = creds,
                 IsSynced = treSynced,
                 IsConfigurationUploaded = configUploaded
@@ -70,6 +70,7 @@ namespace Agent.Web.Controllers
                 }
             }
 
+            credentials.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
             return View(credentials);
         }
 

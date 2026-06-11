@@ -27,9 +27,21 @@ namespace Agent.Api.Controllers
             _encDecHelper = encDec;
             _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
+            var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
-                _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, _keycloakSettings.KeycloakDemoMode);
+                _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode);
             _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+        }
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("AreCredentialsConfigured")]
+        public BoolReturn AreCredentialsConfigured()
+        {
+            return new BoolReturn
+            {
+                Result = !string.IsNullOrEmpty(_keycloakSettings.Username)
+                    && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc)
+            };
         }
 
         [Authorize(Roles = "dare-tre-admin")]
