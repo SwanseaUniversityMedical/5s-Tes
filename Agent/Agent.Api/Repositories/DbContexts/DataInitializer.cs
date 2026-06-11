@@ -1,5 +1,10 @@
-﻿using FiveSafesTes.Core.Models;
+using System.Text.Json;
+using Agent.Api.Services;
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Enums;
+using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
+using Microsoft.Extensions.Options;
 using Serilog;
 
 namespace Agent.Api.Repositories.DbContexts
@@ -8,33 +13,39 @@ namespace Agent.Api.Repositories.DbContexts
     {
 
         private readonly ApplicationDbContext _dbContext;
+        private readonly IOptionsMonitor<SubmissionKeyCloakSettings> _submissionKeycloakSettings;
+        private readonly IOptionsMonitor<DataEgressKeyCloakSettings> _egressKeycloakSettings;
+        private readonly IConfigurationService _configurationService;
         public IEncDecHelper _encDecHelper { get; set; }
 
-        public DataInitaliser(ApplicationDbContext dbContext, IEncDecHelper encDec)
+        public DataInitaliser(ApplicationDbContext dbContext, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings,
+            IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings, IConfigurationService configService)
         {
 
             _dbContext = dbContext;
             _encDecHelper = encDec;
-
-
+            _submissionKeycloakSettings = submissionKeycloakSettings;
+            _egressKeycloakSettings = egressKeycloakSettings;
+            _configurationService = configService;
         }
 
-        public void SeedAllInOneData(string password)
+        public async Task SeedAllInOneData(string password)
         {
             
             try
             {
-                if (!_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission))
+                string submissionUsername = _submissionKeycloakSettings.CurrentValue.Username;
+                string submissionPassword = _submissionKeycloakSettings.CurrentValue.PasswordEnc;
+
+                if (string.IsNullOrEmpty(submissionUsername) || string.IsNullOrEmpty(submissionPassword))
                 {
-
-
-                    _dbContext.KeycloakCredentials.Add(new KeycloakCredentials()
+                    object credsToSave = new
                     {
-                        UserName = "accessfromtretosubmission",
-                        CredentialType = CredentialType.Submission,
+                        Username = "accessfromtretosubmission",
                         PasswordEnc = _encDecHelper.Encrypt(password)
-                    });
-                    _dbContext.SaveChanges();
+                    };
+
+                    await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(SubmissionKeyCloakSettings));
                 }
 
                 if (!_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Tre))
@@ -50,17 +61,18 @@ namespace Agent.Api.Repositories.DbContexts
                     _dbContext.SaveChanges();
                 }
 
-                if (!_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Egress))
+                string egressUsername = _egressKeycloakSettings.CurrentValue.Username;
+                string egressPassword = _egressKeycloakSettings.CurrentValue.PasswordEnc;
+
+                if (string.IsNullOrEmpty(egressUsername) || string.IsNullOrEmpty(egressPassword))
                 {
-
-
-                    _dbContext.KeycloakCredentials.Add(new KeycloakCredentials()
+                    object credsToSave = new
                     {
-                        UserName = "accessfromtretoegress",
-                        CredentialType = CredentialType.Egress,
+                        Username = "accessfromtretoegress",
                         PasswordEnc = _encDecHelper.Encrypt(password)
-                    });
-                    _dbContext.SaveChanges();
+                    };
+
+                    await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(DataEgressKeyCloakSettings));
                 }
             }
             catch (Exception e)

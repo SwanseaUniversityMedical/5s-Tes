@@ -293,18 +293,24 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var credDb = scope.ServiceProvider.GetRequiredService<CredentialsDbContext>();
     var encDec = scope.ServiceProvider.GetRequiredService<IEncDecHelper>();
+    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+
+    IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>();
+    submissionKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
+    IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>();
+    egressKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
     db.Database.Migrate();
-    var initialiser = new DataInitaliser(db, encDec);
+    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService);
     if (await featureManager.IsEnabledAsync(FeatureFlags.DemoAllInOne))
     {
         Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedAllInOneData(configuration["DemoModeDefaultP"]);
+        await initialiser.SeedAllInOneData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
 
-    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
-    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
