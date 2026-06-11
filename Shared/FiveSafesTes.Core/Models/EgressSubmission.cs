@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel.DataAnnotations;
-using System.Linq;
-using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+﻿
 using FiveSafesTes.Core.Models.Enums;
 
 namespace FiveSafesTes.Core.Models
@@ -26,35 +20,5 @@ namespace FiveSafesTes.Core.Models
 
         public string? Name { get; set; } 
         
-        public string GetMinioBucketUrl(string minioBaseUrl = "http://localhost:9003")
-        {
-            return string.IsNullOrEmpty(OutputBucket) 
-                ? "#" 
-                : $"{minioBaseUrl}/browser/{OutputBucket}";
-        }
-        
-        public string EgressStatusDisplay
-        {
-            get
-            {
-                var enumType = typeof(EgressStatus);
-                var memberInfo = enumType.GetMember(Status.ToString());
-                var displayAttribute = memberInfo.FirstOrDefault()?.GetCustomAttribute<DisplayAttribute>();
-
-                return displayAttribute?.Name ?? Status.ToString();
-            }
-        }
-
-        public string EgressID()
-        {
-            if (string.IsNullOrEmpty(tesId))
-            {
-                return SubmissionId;
-            }
-            else
-            {
-                return tesId;
-            }
-        }
     }
 }

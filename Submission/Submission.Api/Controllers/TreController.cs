@@ -180,7 +180,6 @@ namespace Submission.Api.Controllers
                   About = t.About,
                   LastHeartBeatReceived = t.LastHeartBeatReceived,
                   ProjectCount = t.Projects.Count,
-                  AdminUsername = t.AdminUsername,
                   SubmissionCount = t.Submissions.Count(s => s.ParentId == null),
                 })
                 .ToListAsync();
