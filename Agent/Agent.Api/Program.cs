@@ -293,24 +293,31 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var credDb = scope.ServiceProvider.GetRequiredService<CredentialsDbContext>();
     var encDec = scope.ServiceProvider.GetRequiredService<IEncDecHelper>();
-    IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
-    db.Database.Migrate();
-    var initialiser = new DataInitaliser(db, encDec);
-    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
-    {
-        Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
-    }
-    credDb.Database.Migrate();
+    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
 
-    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
-    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
+    IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>();
+    submissionKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
+    IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>();
+    egressKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
+    IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
+
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
     configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromMinutes(options.VaultConfigReloadInterval));
+
+    db.Database.Migrate();
+    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService, configuration);
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
+    {
+        Log.Information("Demo mode is on, seeding data...");
+        await initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
+    }
+    credDb.Database.Migrate();
 }
 
 

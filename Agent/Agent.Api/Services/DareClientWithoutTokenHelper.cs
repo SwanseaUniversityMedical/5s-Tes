@@ -23,7 +23,6 @@ namespace Agent.Api.Services
 
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId, _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode, useServiceAccount);
 
-            var creds = db.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Submission);
             if (CheckCredsAreAvailable())
             {
                 _username = _keycloakSettings.Username;
