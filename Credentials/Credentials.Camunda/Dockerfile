@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0.300 AS build
 
 WORKDIR /src
 COPY ["Credentials/Credentials.Camunda/Credentials.Camunda.csproj", "Credentials/Credentials.Camunda/"]
@@ -16,7 +16,7 @@ RUN dotnet publish "Credentials.Camunda.csproj" \
     --self-contained=false \
     /p:UseAppHost=false
 
-FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
 RUN apt-get update && apt-get install -y wget curl && \
     wget https://dl.min.io/client/mc/release/linux-amd64/mc && \
