@@ -58,7 +58,13 @@
             </button>
         </div>
     </div>
+    <div>
+        <div class="tab-pane" id="" role="tabpanel" aria-labelledby="statuses">
+            @await Html.PartialAsync("_StatusTable", Model.healthCheckStatus)
+        </div>
+    </div>
 </div>
+
 
 <script>
     document.getElementById("hangfireRevivalBtn").addEventListener("click", async function () {

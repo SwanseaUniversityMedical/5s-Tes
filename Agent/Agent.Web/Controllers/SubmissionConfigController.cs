@@ -1,3 +1,4 @@
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
@@ -18,7 +19,11 @@ public class SubmissionConfigController : Controller
 
     public IActionResult Index(JsonConfigUploadResponse response)
     {
-        return View(response);
+        var data = _clientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+        if (data != null) {
+          response.healthCheckStatus = data;
+        }
+    return View(response);
     }
 
     public async Task<IActionResult> UploadJsonConfig(IFormFile file)
