@@ -46,9 +46,8 @@ Log.Information("Submission.Web logging LastStatusUpdate.");
 var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
 configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
 var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
-var demomode = configuration["DemoMode"].ToLower() == "true";
-    submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-    builder.Services.AddSingleton(submissionKeyCloakSettings);
+submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
+builder.Services.AddSingleton(submissionKeyCloakSettings);
 
 var formIOSettings = new FormIOSettings();
 configuration.Bind(nameof(formIOSettings), formIOSettings);

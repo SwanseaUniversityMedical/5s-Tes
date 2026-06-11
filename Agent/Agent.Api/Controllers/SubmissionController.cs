@@ -206,38 +206,23 @@ namespace Agent.Api.Controllers
                     _subHelper.UpdateStatusForTre(review.SubId.ToString(), StatusType.DataOutApproved, "");
                 }
               
-                var bucket = _subHelper.GetOutputBucketGutsSub(review.SubId, true);                            
-
-                if (await _features.IsEnabledAsync(FeatureFlags.DemoAllInOne))
+                var bucket = _subHelper.GetOutputBucketGutsSub(review.SubId, true);
+                
+                Log.Information(
+                  $"EgressResults with review.OutputBucket > {review.OutputBucket} bucket.Bucket > {bucket.Bucket} ");
+                foreach (var file in review.FileResults)
                 {
-                    var exch = _rabbit.Advanced.ExchangeDeclare(ExchangeConstants.Tre, "topic");
-                    var outcome = new FinalOutcome()
-                    {
-                        File = review.FileResults.First().FileName,
-                        SubId = review.SubId
-                    };
-                    _rabbit.Advanced.Publish(exch, RoutingConstants.ProcessFinalOutput, false,
-                        new Message<FinalOutcome>(outcome));
-                }               
-                else
-                {
-                    Log.Information(
-                        $"EgressResults with review.OutputBucket > {review.OutputBucket} bucket.Bucket > {bucket.Bucket} ");
-                    foreach (var file in review.FileResults)
-                    {
-                        Log.Information(
-                            $"EgressResults with File.Approved > {file.Approved} File.FileName > {file.FileName} ");
-                        if (file.Approved)
-                        {
-                            var source = await _minioTreHelper.GetCopyObject(review.OutputBucket, file.FileName);
-                            var resultcopy =
-                                await _minioSubHelper.CopyObjectToDestination(bucket.Bucket, file.FileName, source);
-                        }
-                    }
-
-                    _subHelper.UpdateStatusForTre(review.SubId, StatusType.Completed, "");
+                  Log.Information(
+                    $"EgressResults with File.Approved > {file.Approved} File.FileName > {file.FileName} ");
+                  if (file.Approved)
+                  {
+                    var source = await _minioTreHelper.GetCopyObject(review.OutputBucket, file.FileName);
+                    var resultcopy =
+                      await _minioSubHelper.CopyObjectToDestination(bucket.Bucket, file.FileName, source);
+                  }
                 }
 
+                _subHelper.UpdateStatusForTre(review.SubId, StatusType.Completed, "");
 
                 return StatusCode(200, new BoolReturn() { Result = true });
             }
@@ -273,23 +258,6 @@ namespace Agent.Api.Controllers
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crash", "FinalOutcomeSubmission");
-                throw;
-            }
-        }       
-
-        [HttpPost("SimulateSubmissionProcessing")]
-        public IActionResult SimulateSubmissionProcessing(Submission sub)
-        {
-            try
-            {
-                //Update status of submission to "Sending to hutch"
-                _subHelper.SimulateSubmissionProcessing(sub);
-
-                return StatusCode(200);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crash", "SimulateSubmissionProcessing");
                 throw;
             }
         }
