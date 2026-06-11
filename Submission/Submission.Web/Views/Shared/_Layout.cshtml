@@ -831,50 +831,6 @@
                 });
             });
         });
-        
-        // Post method Demo Mode
-        $(document).ready(function () {
-            $('#frmMainDemo').submit(function (e) {
-                e.preventDefault();
-                debugger;
-
-                var executorData = [];
-                var treData = [];
-                var anyCheckboxSelected = false;
-
-                $('.col-md-6.mb-4 .form-check-input').each(function () {
-                    var name = $(this).siblings('input[type="hidden"]').val();
-                    var isSelected = $(this).prop('checked');
-
-                    if (isSelected) {
-                        anyCheckboxSelected = true;
-                    }
-
-                    treData.push({ Name: name, IsSelected: isSelected });
-                });
-
-                var formData = new FormData($(this)[0]);
-                
-
-                formData.append('SQL', "false");
-
-
-                $.ajax({
-                    url: '@Url.Action("SubmitDemoTes", "Submission")',
-                    type: 'POST',
-                    data: formData,
-                    contentType: false,
-                    processData: false,
-                    success: function (result) {
-                        window.location.href = "/Project/GetProject/" + this.data.get("ProjectId");
-                        console.log(result);
-                    },
-                    error: function (error) {
-                        console.log(error);
-                    }
-                });
-            });
-        });
     </script>
     <script src="/taginput/tagsinput.js"></script>
     @*<script>

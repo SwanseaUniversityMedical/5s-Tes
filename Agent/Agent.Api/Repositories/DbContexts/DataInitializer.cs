@@ -29,7 +29,7 @@ namespace Agent.Api.Repositories.DbContexts
             _configurationService = configService;
         }
 
-        public async Task SeedAllInOneData(string password)
+        public void SeedDemoData(string password)
         {
             
             try

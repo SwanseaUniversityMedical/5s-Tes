@@ -304,10 +304,10 @@ using (var scope = app.Services.CreateScope())
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
     db.Database.Migrate();
     var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService);
-    if (await featureManager.IsEnabledAsync(FeatureFlags.DemoAllInOne))
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
         Log.Information("Demo mode is on, seeding data...");
-        await initialiser.SeedAllInOneData(configuration["DemoModeDefaultP"]);
+        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
 
