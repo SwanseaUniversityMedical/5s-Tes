@@ -302,14 +302,6 @@ using (var scope = app.Services.CreateScope())
     egressKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
 
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
-    db.Database.Migrate();
-    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService);
-    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
-    {
-        Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
-    }
-    credDb.Database.Migrate();
 
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
@@ -317,6 +309,15 @@ using (var scope = app.Services.CreateScope())
     IVaultClient vaultClient = new VaultClient(vaultClientSettings);
 
     configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromMinutes(options.VaultConfigReloadInterval));
+
+    db.Database.Migrate();
+    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService, configuration);
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
+    {
+        Log.Information("Demo mode is on, seeding data...");
+        await initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
+    }
+    credDb.Database.Migrate();
 }
 
 

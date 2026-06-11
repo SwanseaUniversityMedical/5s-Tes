@@ -16,10 +16,11 @@ namespace Agent.Api.Repositories.DbContexts
         private readonly IOptionsMonitor<SubmissionKeyCloakSettings> _submissionKeycloakSettings;
         private readonly IOptionsMonitor<DataEgressKeyCloakSettings> _egressKeycloakSettings;
         private readonly IConfigurationService _configurationService;
+        private VaultConfigurationProvider _vaultConfigProvider;
         public IEncDecHelper _encDecHelper { get; set; }
 
         public DataInitaliser(ApplicationDbContext dbContext, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings,
-            IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings, IConfigurationService configService)
+            IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings, IConfigurationService configService, IConfiguration configuration)
         {
 
             _dbContext = dbContext;
@@ -27,9 +28,10 @@ namespace Agent.Api.Repositories.DbContexts
             _submissionKeycloakSettings = submissionKeycloakSettings;
             _egressKeycloakSettings = egressKeycloakSettings;
             _configurationService = configService;
+            _vaultConfigProvider = ((IConfigurationRoot)configuration).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
         }
 
-        public void SeedDemoData(string password)
+        public async Task SeedDemoData(string password)
         {
             
             try
@@ -74,6 +76,9 @@ namespace Agent.Api.Repositories.DbContexts
 
                     await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(DataEgressKeyCloakSettings));
                 }
+
+                // Refresh configuration with new values
+                await _vaultConfigProvider.LoadAsync();
             }
             catch (Exception e)
             {
