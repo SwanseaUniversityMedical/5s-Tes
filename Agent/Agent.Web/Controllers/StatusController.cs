@@ -1,0 +1,45 @@
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Services;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+
+namespace Agent.Web.Controllers
+{
+    [Authorize]
+    [Route("[controller]")]
+    public class StatusController : Controller
+    {
+        private readonly ILogger<StatusController> _logger;
+        private readonly ITREClientHelper _treClientHelper;
+
+        public StatusController(ILogger<StatusController> logger, ITREClientHelper trehelper)
+        {
+            _logger = logger;
+            _treClientHelper = trehelper;
+        }
+
+        [HttpGet]
+        public IActionResult Index()
+        {
+            try
+            {
+                _logger.LogInformation("Status page successfully loaded.");
+                var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+                return View("index", data);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading Status page");
+                return View("Error");
+            }
+        }
+
+        [Route("GetHealthCheckData")]
+        public async Task<IActionResult> GetHealthCheckData()
+        {
+            var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+
+            return View(data);
+        }
+    }
+}

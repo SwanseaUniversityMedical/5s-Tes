@@ -1,6 +1,6 @@
 using FiveSafesTes.Core.Models.Enums;
 
-namespace Agent.Api.Models
+namespace FiveSafesTes.Core.Models
 {
 
     public class HealthCheckStatus

@@ -175,6 +175,7 @@ builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationSer
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IStatusService, StatusService>();
 
 var TVP = new TokenValidationParameters
 {

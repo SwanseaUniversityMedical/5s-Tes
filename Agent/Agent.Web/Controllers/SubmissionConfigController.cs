@@ -1,3 +1,4 @@
+using FiveSafesTes.Core.Models;
 using Agent.Web.Services;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Models.ViewModels;
@@ -19,6 +20,10 @@ public class SubmissionConfigController : Controller
 
     public async Task<IActionResult> Index(JsonConfigUploadResponse response)
     {
+        var data = _clientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+        if (data != null) {
+          response.healthCheckStatus = data;
+        }
         response.IsUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
         response.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
         return View(response);

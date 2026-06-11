@@ -152,6 +152,9 @@
             ]
         });
         new DataTable('#memberList');
+        new DataTable('#statusTable', {
+            order: [[4, 'desc']]
+        });
         $('#launch-button').on('click', function () {
 
             $('#welcomeModal').modal('show');
