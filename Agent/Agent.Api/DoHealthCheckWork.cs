@@ -170,15 +170,24 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     private async Task DoEgressHealthCheck()
     {
         DataEgressKeyCloakSettings keycloakSettings = _egressKeycloakSettings.CurrentValue;
-        var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(keycloakSettings.KeycloakDemoMode, _configuration["KeycloakDemoMode"]);
-        KeycloakTokenHelper keycloakTokenHelper = new (keycloakSettings.BaseUrl, keycloakSettings.ClientId,
-                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakDemoMode);
 
-        // Attempt to connect to egress using current credentials
-        var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, _encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");
-
+        bool isHealthy = false;
         string message = "";
-        bool isHealthy = !string.IsNullOrWhiteSpace(token.token);
+
+        if (!string.IsNullOrEmpty(keycloakSettings.Username) && !string.IsNullOrEmpty(keycloakSettings.PasswordEnc))
+        {
+            var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(keycloakSettings.KeycloakDemoMode, _configuration["KeycloakDemoMode"]);
+            KeycloakTokenHelper keycloakTokenHelper = new(keycloakSettings.BaseUrl, keycloakSettings.ClientId,
+                    keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakDemoMode);
+
+            // Attempt to connect to egress using current credentials
+            var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, _encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");
+            isHealthy = !string.IsNullOrWhiteSpace(token.token);
+        }
+        else
+        {
+            message = "Missing Egress Credentials.";
+        }
 
         // Log health status for egress connection
         HealthCheckStatus healthStatus = new()
