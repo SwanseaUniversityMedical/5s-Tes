@@ -20,6 +20,28 @@
     </div>
     <div class="card shadow-sm">
         <div class="card-body">
+            @if (Model.IsSynced && Model.IsUploaded)
+            {
+                <span class="badge  px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                    <i class="fa-solid fa-check-circle me-1"></i> Configuration uploaded and synced
+                </span>
+            }
+            else if (Model.IsUploaded)
+            {
+                <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                    <i class="fa-solid fa-ban me-1"></i> Configuration uploaded but not yet synced
+                </span>
+            }
+            else
+            {
+                <span class="badge  px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                    <i class="fa-solid fa-ban me-1"></i> No configuration has been uploaded
+                </span>
+            }
+        </div>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body">
 
             @{
                 if (Model != null && !string.IsNullOrEmpty(Model.Message))

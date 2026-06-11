@@ -54,9 +54,7 @@ namespace Submission.Web.Controllers
         [HttpGet]
         public IActionResult GetAllSubmissions()
         {
-            var minio = _clientHelper.CallAPIWithoutModel<MinioEndpoint>("/api/Project/GetMinioEndPoint").Result;
-            ViewBag.minioendpoint = minio?.Url;
-            ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
+            ViewBag.URLBucket = _URLSettingsFrontEnd.S3BaseUrl + _URLSettingsFrontEnd.S3BucketPath;
 
             var queryParams = new Dictionary<string, string>
             {
@@ -91,7 +89,7 @@ namespace Submission.Web.Controllers
                 return NotFound();
             }
 
-            ViewBag.URLBucket = _URLSettingsFrontEnd.MinioUrl;
+            ViewBag.URLBucket = _URLSettingsFrontEnd.S3BaseUrl + _URLSettingsFrontEnd.S3BucketPath;
 
             var model = new SubmissionInfo()
             {
@@ -100,68 +98,6 @@ namespace Submission.Web.Controllers
             };
 
             return View(model);
-        }
-
-        [HttpPost]
-        [Authorize]
-        public async Task<ActionResult> SubmitDemoTes(AddiSubmissionWizard model, string Executors, string SQL)
-        {
-            if (!ModelState.IsValid) // SonarQube security
-            {
-                return View("/");
-            }
-
-            try
-            {
-                var tres = "";
-                var paramlist = new Dictionary<string, string>();
-                paramlist.Add("projectId", model.ProjectId.ToString());
-                var project = await _clientHelper.CallAPIWithoutModel<Project?>(
-                    "/api/Project/GetProject/", paramlist) ?? throw new NullReferenceException("Project not found");
-
-                var treSelection = model.TreRadios.Where(x => x.IsSelected).ToList();
-                if (treSelection.Count == 0)
-                {
-                    var paramList = new Dictionary<string, string>();
-                    paramList.Add("projectId", model.ProjectId.ToString());
-                    var tre = await _clientHelper.CallAPIWithoutModel<List<Tre>>("/api/Project/GetTresInProject/",
-                        paramList);
-                    List<string> namesList = tre.Select(test => test.Name).ToList();
-                    tres = string.Join("|", namesList);
-                }
-                else
-                {
-                    tres = string.Join("|",
-                        model.TreRadios.Where(info => info.IsSelected).Select(info => info.Name));
-                }
-
-                var tesTask = new TesTask();
-                if (!string.IsNullOrWhiteSpace(model.JsonData))
-                {
-                    tesTask = JsonConvert.DeserializeObject<TesTask>(model.JsonData) ??
-                              throw new NullReferenceException("Json data not returned");
-
-                    if (tesTask.Tags == null || tesTask.Tags.Count == 0)
-                    {
-                        tesTask.Tags = new Dictionary<string, string>()
-                        {
-                            { "project", project.Name },
-                            { "tres", tres },
-                            { "author", HttpContext.User.FindFirst("name").Value }
-                        };
-                    }
-                }
-
-                await HttpContext.AuthenticateAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-                await _clientHelper.CallAPI<TesTask, TesTask?>("/v1/tasks", tesTask);
-
-                return Ok();
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "Exception in {Function}");
-                return BadRequest(e.Message);
-            }
         }
 
         [HttpPost]

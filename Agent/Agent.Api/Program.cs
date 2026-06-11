@@ -98,11 +98,7 @@ var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", 
 treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(treKeyCloakSettings);
 
-var dataEgressKeyCloakSettings = new DataEgressKeyCloakSettings();
-configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSettings);
-dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(dataEgressKeyCloakSettings);
-
+builder.Services.Configure<DataEgressKeyCloakSettings>(configuration.GetSection("DataEgressKeyCloakSettings"));
 builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
 
 var HasuraSettings = new HasuraSettings();
@@ -301,14 +297,15 @@ using (var scope = app.Services.CreateScope())
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
     db.Database.Migrate();
     var initialiser = new DataInitaliser(db, encDec);
-    if (await featureManager.IsEnabledAsync(FeatureFlags.DemoAllInOne))
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
         Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedAllInOneData(configuration["DemoModeDefaultP"]);
+        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
 
     scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
+    scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>().CurrentValue.KeycloakDemoMode = keycloakDemomode;
     var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
     IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
     var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);

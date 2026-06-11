@@ -28,7 +28,7 @@ namespace Submission.Api.Repositories.DbContexts
             _minioHelper = minioHelper;
         }
 
-        public void SeedAllInOneData()
+        public void SeedDemoData()
         {
             try
             {

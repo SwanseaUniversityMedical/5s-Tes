@@ -2,7 +2,10 @@ using System.Net;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models.Enums;
+using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Services;
 using Hangfire;
+using Microsoft.Extensions.Options;
 
 namespace Agent.Api;
 
@@ -17,22 +20,30 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     private readonly ApplicationDbContext _dbContext;
     private readonly AgentSettings _agentSettings;
     private readonly JobSettings _jobSettings;
+    private readonly IOptionsMonitor<DataEgressKeyCloakSettings> _egressKeycloakSettings;
+    private readonly IEncDecHelper _encDecHelper;
 
-    private readonly string submissionEndpoint;
+    private readonly string _submissionEndpoint;
+    private readonly IConfiguration _configuration;
 
-    public DoHealthCheckWork(ApplicationDbContext dbContext, IConfiguration config, AgentSettings agentSettings, JobSettings jobSettings)
+    public DoHealthCheckWork(ApplicationDbContext dbContext, IConfiguration config, AgentSettings agentSettings, JobSettings jobSettings, 
+        IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings, IEncDecHelper encDecHelper)
     {
         _dbContext = dbContext;
         _agentSettings = agentSettings;
         _jobSettings = jobSettings;
+        _egressKeycloakSettings = egressKeycloakSettings;
+        _configuration = config;
 
-        submissionEndpoint = config["DareAPISettings:Address"];
+        _submissionEndpoint = config["DareAPISettings:Address"];
+        _encDecHelper = encDecHelper;
     }
 
     public async Task Execute()
     {
         DoSyncHealthCheck();
         DoAgentHealthCheck();
+        await DoEgressHealthCheck();
 
         _dbContext.SaveChanges();
     }
@@ -45,7 +56,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         string message = "";
         bool isHealthy = true;
 
-        if (string.IsNullOrEmpty(submissionEndpoint))
+        if (string.IsNullOrEmpty(_submissionEndpoint))
         {
             message = "URL for Submission API is missing.";
             isHealthy = false;
@@ -55,7 +66,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             try
             {
                 using HttpClient client = new();
-                HttpResponseMessage response = client.GetAsync(submissionEndpoint + "/v1/get_test_tes").Result;
+                HttpResponseMessage response = client.GetAsync(_submissionEndpoint + "/v1/get_test_tes").Result;
 
                 if (!response.IsSuccessStatusCode)
                 {
@@ -151,5 +162,33 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     {
         RecurringJob.RemoveIfExists(_jobSettings.SyncJobName);
         RecurringJob.RemoveIfExists(_jobSettings.ScanJobName);
+    }
+
+    /// <summary>
+    /// Checks that our data egress credentials are valid.
+    /// </summary>
+    private async Task DoEgressHealthCheck()
+    {
+        DataEgressKeyCloakSettings keycloakSettings = _egressKeycloakSettings.CurrentValue;
+        var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(keycloakSettings.KeycloakDemoMode, _configuration["KeycloakDemoMode"]);
+        KeycloakTokenHelper keycloakTokenHelper = new (keycloakSettings.BaseUrl, keycloakSettings.ClientId,
+                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakDemoMode);
+
+        // Attempt to connect to egress using current credentials
+        var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, _encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");
+
+        string message = "";
+        bool isHealthy = !string.IsNullOrWhiteSpace(token.token);
+
+        // Log health status for egress connection
+        HealthCheckStatus healthStatus = new()
+        {
+            Product = "Egress",
+            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            Reason = message,
+            DateTime = DateTime.UtcNow
+        };
+
+        _dbContext.HealthCheckStatus.Add(healthStatus);
     }
 }

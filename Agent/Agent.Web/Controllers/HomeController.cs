@@ -23,14 +23,17 @@ namespace Agent.Web.Controllers
         public async Task<IActionResult> IndexAsync()
         {
            
-            var alreadyset =await  _treClientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/CheckCredentialsAreValid");
-            if (!alreadyset.Result)
+            var configUploaded = await _treClientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsConfigurationUploaded");
+            if (!configUploaded.Result)
             {
-               
-                return RedirectToAction("UpdateCredentials", "SubmissionCredentials");
+                var alreadyset = await _treClientHelper.CallAPIWithoutModel<BoolReturn>("/api/SubmissionCredentials/CheckCredentialsAreValid");
+                if (!alreadyset.Result)
+                {
+                    return RedirectToAction("UpdateCredentials", "SubmissionCredentials");
+                }
             }
-            alreadyset = await _treClientHelper.CallAPIWithoutModel<BoolReturn>("/api/DataEgressCredentials/CheckCredentialsAreValid");
-            if (!alreadyset.Result)
+            var egressCreds = await _treClientHelper.CallAPIWithoutModel<BoolReturn>("/api/DataEgressCredentials/CheckCredentialsAreValid");
+            if (!egressCreds.Result)
             {
 
                 return RedirectToAction("UpdateCredentials", "DataEgressCredentials");
