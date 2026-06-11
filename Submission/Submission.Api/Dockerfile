@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
+FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0.300 AS build
 
 WORKDIR /src
 COPY ["Submission/Submission.Api/Submission.Api.csproj", "Submission/Submission.Api/"]
@@ -15,7 +15,7 @@ RUN dotnet publish "Submission.Api.csproj" \
     --self-contained=false \
     /p:UseAppHost=false
 
-FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
 
 # Install curl for healthchecks
