@@ -3,7 +3,6 @@ using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models.Enums;
 using Hangfire;
-using FiveSafesTes.Core.Models;
 
 namespace Agent.Api;
 
