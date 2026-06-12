@@ -10,7 +10,7 @@ services:
       - 32769:5432
     volumes:
       - postgres:/var/lib/postgresql
-      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+      - ./init.sql:/docker-entrypoint-initdb.d/
     environment:
       - POSTGRES_USER=postgres
       - POSTGRES_PASSWORD=password123
@@ -266,12 +266,11 @@ services:
       - VAULT_DEV_ROOT_TOKEN_ID=dev-only-token
       - VAULT_DEV_LISTEN_ADDRESS=0.0.0.0:8200
       - VAULT_ADDR=http://127.0.0.1:8200
+      - VAULT_LOCAL_CONFIG={"disable_mlock":true}
+      - SKIP_SETCAP=true
     volumes:
       - vault_data:/vault/data
       - vault_logs:/vault/logs
-      - ./vault-config:/vault/config:ro
-    cap_add:
-      - IPC_LOCK
     networks:
       - communicating
     healthcheck:
