@@ -451,10 +451,6 @@ namespace Agent.Api
 
                 Log.Information("{Function} useRabbit {useRabbit}", "Execute", useRabbit);
                 Log.Information("{Function} useTESK {useTESK}", "Execute", useTESK);
-                if (await _features.IsEnabledAsync(FeatureFlags.DemoAllInOne))
-                {
-                    Log.Information("{Function} Demo Mode is on, simulating execution..", "Execute");
-                }
 
                 var cancelsubprojs = _subHelper.GetRequestCancelSubsForTre();
                 if (cancelsubprojs != null)
@@ -661,19 +657,6 @@ namespace Agent.Api
                             // The TES message
                             var tesMessage = JsonConvert.DeserializeObject<TesTask>(aSubmission.TesJson);
                             var processedOK = true;
-                            if (await _features.IsEnabledAsync(FeatureFlags.DemoAllInOne))
-                            {
-                                try
-                                {
-                                    _subHelper.SimulateSubmissionProcessing(aSubmission);
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Error(e, "{Function} Simulation failed for sub {SubId}", "Execute",
-                                        aSubmission.Id);
-                                    processedOK = false;
-                                }
-                            }
 
                             // **************  SEND TO RABBIT
                             if (useRabbit)
