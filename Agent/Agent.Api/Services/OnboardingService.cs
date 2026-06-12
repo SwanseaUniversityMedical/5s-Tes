@@ -5,6 +5,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Hangfire;
+using Hangfire.Storage;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Protocols;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
@@ -174,8 +175,15 @@ public class OnboardingService : IOnboardingService
     {
         using (var scope = _serviceProvider.CreateScope())
         {
-            var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
-            var result = dareSyncHelper.SyncSubmissionWithTre().Result;
+            try
+            {
+                var dareSyncHelper = scope.ServiceProvider.GetRequiredService<IDareSyncHelper>();
+                var result = dareSyncHelper.SyncSubmissionWithTre().Result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error("OnboardingService:SyncWithSubmission: " + ex.Message);
+            }
         }
     }
 
@@ -186,6 +194,16 @@ public class OnboardingService : IOnboardingService
     public bool IsConfigurationUploaded()
     {
         return _onboardingConfig.CurrentValue.IsConfigurationImported;
+    }
+
+    /// <summary>
+    /// Determines whether the Sync Hangfire job is currently running.
+    /// </summary>
+    /// <returns>Returns true if the sync job is present in Hangfire.</returns>
+    public bool IsSyncJobCreated()
+    {
+        List<RecurringJobDto> recurringJobs = JobStorage.Current.GetConnection().GetRecurringJobs();
+        return recurringJobs.Any(x => x.Id == _jobSettings.SyncJobName);
     }
 
     /// <summary>

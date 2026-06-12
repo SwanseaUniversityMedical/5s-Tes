@@ -6,4 +6,5 @@ public interface IOnboardingService
     void RestartHangfireJobs();
     bool IsTRESynced();
     bool IsConfigurationUploaded();
+    bool IsSyncJobCreated();
 }

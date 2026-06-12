@@ -21,9 +21,12 @@ public class SubmissionConfigController : Controller
     public async Task<IActionResult> Index(JsonConfigUploadResponse response)
     {
         var data = _clientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
-        if (data != null) {
-          response.healthCheckStatus = data;
+        if (data != null) 
+        {
+          response.HealthCheckStatus = data;
         }
+
+        response.SyncJobExists = await ControllerHelpers.IsSyncJobCreated(_clientHelper);
         response.IsUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
         response.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
         return View(response);
