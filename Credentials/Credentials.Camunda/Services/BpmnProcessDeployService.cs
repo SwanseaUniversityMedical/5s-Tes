@@ -11,6 +11,9 @@ namespace Credentials.Camunda.Services
         private readonly IHostEnvironment _env;
         private readonly CamundaSettings _camundaSettings;
 
+        // IServiceScopeFactory is used instead of injecting IProcessModelService directly because
+        // BpmnProcessDeployService is a singleton (IHostedService) and IProcessModelService is scoped.
+        // Injecting a scoped service into a singleton causes a DI lifetime conflict at runtime.
         public BpmnProcessDeployService(IServiceScopeFactory scopeFactory, IHostEnvironment env, CamundaSettings camundaSettings)
         {
             _scopeFactory = scopeFactory;
@@ -20,6 +23,8 @@ namespace Credentials.Camunda.Services
 
         public async Task StartAsync(CancellationToken cancellationToken)
         {
+            // Zeebe may not be ready immediately on startup, so retry up to maxRetries times
+            // before giving up and throwing, which will prevent the service from starting.
             const int maxRetries = 10;
             const int delaySeconds = 10;
 

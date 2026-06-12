@@ -74,6 +74,8 @@ namespace Credentials.Models.Services
             Console.WriteLine($"Published message: {messageName}");
         }
 
+        // Starts a new Camunda process instance for the given BPMN process ID using the latest deployed version.
+        // Variables are serialised to JSON and passed as the initial process variables.
         public async Task CreateProcessInstanceAsync(string bpmnProcessId, object variables)
         {
             var variablesJson = JsonSerializer.Serialize(variables);

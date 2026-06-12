@@ -54,6 +54,7 @@ namespace Agent.Api
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
+        // Used to start Camunda process instances directly via Zeebe gRPC, replacing the previous HTTP calls to CredentialsController
         private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
 
 
@@ -957,6 +958,9 @@ namespace Agent.Api
             }
         }
 
+        // Starts the Start_Credentials Camunda process for the given submission.
+        // InputCollections mirrors the top-level variables as a list because the BPMN multi-instance
+        // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
         {
             var variables = new Dictionary<string, object>
@@ -1044,6 +1048,8 @@ namespace Agent.Api
             throw new TimeoutException(errorMsg);
         }
 
+        // Starts the Credentials_Revoke Camunda process to revoke credentials for the given submission.
+        // timer controls how long (seconds) the revoke process waits before expiring credentials.
         private async Task TriggerRevokeCredentialsAsync(int submissionId, string projectName, int user, int timer)
         {
             var variables = new Dictionary<string, object>
