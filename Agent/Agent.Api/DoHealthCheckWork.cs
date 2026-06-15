@@ -184,6 +184,11 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             // Attempt to connect to egress using current credentials
             var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, _encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");
             isHealthy = !string.IsNullOrWhiteSpace(token.token);
+
+            if (!isHealthy)
+            {
+                message = "Invalid Egress Credentials.";
+            }
         }
         else
         {

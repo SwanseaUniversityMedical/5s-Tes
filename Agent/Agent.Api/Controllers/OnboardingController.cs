@@ -65,6 +65,13 @@ public class OnboardingController : Controller
         return new() { Result = result };
     }
 
+    [HttpGet("IsSyncJobCreated")]
+    public async Task<BoolReturn> IsSyncJobCreated()
+    {
+        bool result = _onboardingService.IsSyncJobCreated();
+        return new() { Result = result };
+    }
+
     [HttpGet("IsConfigurationUploaded")]
     public async Task<BoolReturn> IsConfigurationUploaded()
     {
