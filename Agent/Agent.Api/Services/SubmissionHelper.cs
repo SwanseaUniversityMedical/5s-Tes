@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services.SignalR;
 using EasyNetQ;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
@@ -41,7 +40,7 @@ namespace Agent.Api.Services
         private readonly AgentSettings _agentSettings;
 
 
-        public SubmissionHelper(ISignalRService signalRService,
+        public SubmissionHelper(
             IDareClientWithoutTokenHelper helper,
             ApplicationDbContext dbContext,
             IBus rabbit,

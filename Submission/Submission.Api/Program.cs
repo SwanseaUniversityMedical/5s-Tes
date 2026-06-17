@@ -39,12 +39,12 @@ Log.Information("API logging LastStatusUpdate.");
 // Add services to the container.
 builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
     {
-        options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
+        options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
         options.SerializerSettings.PreserveReferencesHandling = PreserveReferencesHandling.Objects;
     }
-); ;
+);
 builder.Services.AddDbContextPool<ApplicationDbContext>(options => options
-    .UseLazyLoadingProxies(true)
+    .UseLazyLoadingProxies()
     .UseNpgsql(
     builder.Configuration.GetConnectionString("DefaultConnection")
 ));
@@ -166,131 +166,26 @@ builder.Services.AddAuthentication(options =>
         {
             OnForbidden = context =>
             {
-                //Log.Information("ONFORBIDDEN START");
-                //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                //    context.HttpContext.Connection.RemoteIpAddress);
-                //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                //    context.HttpContext.Connection.RemotePort);
-                //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                //foreach (var header in context.HttpContext.Request.Headers)
-                //{
-                //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                //}
-
-                //foreach (var header in context.HttpContext.Response.Headers)
-                //{
-                //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                //}
-                //Log.Information("ONFORBIDDEN END");
                 return context.Response.CompleteAsync();
             },
             OnTokenValidated = context =>
             {
-                //Log.Information("ONTOKENVALIDATED START");
-                //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                //    context.HttpContext.Connection.RemoteIpAddress);
-                //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                //    context.HttpContext.Connection.RemotePort);
-                //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                //foreach (var header in context.HttpContext.Request.Headers)
-                //{
-                //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                //}
-
-                //foreach (var header in context.HttpContext.Response.Headers)
-                //{
-                //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                //}
-                //Log.Information("ONTOKENVALIDATED END");
-                //// Log the issuer claim from the token
-                //var issuer = context.Principal.FindFirst("iss")?.Value;
-                //Log.Information("Token Issuer: {Issuer}", issuer);
-                //var audience = context.Principal.FindFirst("aud")?.Value;
-                //Log.Information("Token Audience: {Audience}", audience);
                 return Task.CompletedTask;
             },
             OnAuthenticationFailed = context =>
             {
-                //Log.Information("ONAUTHFAILED START");
-                //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                //    context.HttpContext.Connection.RemoteIpAddress);
-                //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                //    context.HttpContext.Connection.RemotePort);
-                //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                //foreach (var header in context.HttpContext.Request.Headers)
-                //{
-                //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                //}
-
-                //foreach (var header in context.HttpContext.Response.Headers)
-                //{
-                //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                //}
-                //Log.Information("ONAUTHFAILED END");
-                //Log.Error("{Function}: {ex}", "OnAuthFailed", context.Exception.Message);
-                //Log.Error("Auth failed event: {event}", context.Request.Headers);
                 context.Response.StatusCode = 401;
                 return context.Response.CompleteAsync();
             },
             OnMessageReceived = context =>
             {
-                //Log.Information("ONMESSAGERECEIVED START");
-                //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                //    context.HttpContext.Connection.RemoteIpAddress);
-                //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                //    context.HttpContext.Connection.RemotePort);
-                //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                //foreach (var header in context.HttpContext.Request.Headers)
-                //{
-                //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                //}
-
-                //foreach (var header in context.HttpContext.Response.Headers)
-                //{
-                //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                //}
-                //Log.Information("ONMESSAGERECEVIED END");
                 string accessToken = context.Request.Query["access_token"];
                 PathString path = context.HttpContext.Request.Path;
-
-                if (
-                    !string.IsNullOrEmpty(accessToken) &&
-                    path.StartsWithSegments("/api/SignalRHub")
-                )
-                {
-                    context.Token = accessToken;
-                }
 
                 return Task.CompletedTask;
             },
             OnChallenge = context =>
             {
-                //Log.Information("ONCHALLENGE START");
-                //Log.Information("HttpContext.Connection.RemoteIpAddress : {RemoteIpAddress}",
-                //    context.HttpContext.Connection.RemoteIpAddress);
-                //Log.Information("HttpContext.Connection.RemotePort : {RemotePort}",
-                //    context.HttpContext.Connection.RemotePort);
-                //Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
-                //Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
-
-                //foreach (var header in context.HttpContext.Request.Headers)
-                //{
-                //    Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                //}
-
-                //foreach (var header in context.HttpContext.Response.Headers)
-                //{
-                //    Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                //}
-                //Log.Information("ONCHALLENGE END");
                 return Task.CompletedTask;
             }
         };
@@ -299,10 +194,7 @@ builder.Services.AddAuthentication(options =>
 
 
 // - authorize here
-builder.Services.AddAuthorization(options =>
-{
-
-});
+builder.Services.AddAuthorization();
 
 var app = builder.Build();
 
@@ -417,19 +309,11 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
 
 }
 
-
-/// <summary>
-/// Add Services
-/// </summary>
-async void AddServices(WebApplicationBuilder builder)
+void AddServices(WebApplicationBuilder builder)
 {
     builder.Services.AddHttpClient();
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSignalR();
-    builder.Services.Configure<TREAPISettings>(configuration.GetSection("TREAPI"));
-    builder.Services.AddHostedService<DAREBackgroundService>();
-
     //TODO
     builder.Services.AddEndpointsApiExplorer();
     builder.Services.AddSwaggerGen(c =>
@@ -470,9 +354,6 @@ async void AddServices(WebApplicationBuilder builder)
     );
 
 }
-
-//for SignalR
-app.UseCors();
 
 app.Run();
 
