@@ -5,7 +5,6 @@ using Agent.Api.Constants;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
-using Agent.Api.Services.SignalR;
 using Credentials.Models.DbContexts;
 using EasyNetQ;
 using FiveSafesTes.Core.Models.Settings;
@@ -19,7 +18,6 @@ using Hangfire.PostgreSql;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.DataProtection;
-using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -363,7 +361,6 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
 
     builder.Services.AddScoped<IMinioTreHelper, MinioTreHelper>();
     builder.Services.AddScoped<IMinioSubHelper, MinioSubHelper>();
-    builder.Services.AddScoped<ISignalRService, SignalRService>();
     builder.Services.AddMvc().AddControllersAsServices();
 }
 
@@ -396,7 +393,6 @@ void AddServices(WebApplicationBuilder builder)
 
     // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
     builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSignalR();
 
     // DMN Service for managing DMN files
     builder.Services.AddScoped<IDmnService, DmnService>();
@@ -438,12 +434,6 @@ void AddServices(WebApplicationBuilder builder)
         ));
     }
 }
-
-//for SignalR
-app.UseCors();
-app.MapHub<SignalRService>("/signalRHub",
-        options => { options.Transports = HttpTransportType.WebSockets | HttpTransportType.LongPolling; })
-    .RequireCors(MyAllowSpecificOrigins);
 
 var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
 
