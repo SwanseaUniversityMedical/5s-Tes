@@ -393,31 +393,41 @@ namespace Agent.Api
                                 ClearJob(taskID);
                                 var outputBucketGood = outputBucket.Replace(_AgentSettings.TESKOutputBucketPrefix, "");
                                 var data = await _minioTreHelper.GetFilesInBucket(outputBucketGood, $"{subId}");
-                                var files = new List<string>();
 
-                                foreach (var s3Object in data.S3Objects) //TODO is this right?
+                                if (data != null)
                                 {
-                                    Log.Information("{Function} *** added file from outputBucket *** {file} ",
-                                        "CheckTES", s3Object.Key);
-                                    files.Add(s3Object.Key);
+                                    var files = new List<string>();
+
+                                    foreach (var s3Object in data.S3Objects) //TODO is this right?
+                                    {
+                                        Log.Information("{Function} *** added file from outputBucket *** {file} ",
+                                            "CheckTES", s3Object.Key);
+                                        files.Add(s3Object.Key);
+                                    }
+
+                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutRequested, "");
+                                    Log.Information($"  FilesReadyForReview files {files.Count} ");
+                                    if (files.Count == 0)
+                                    {
+                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Complete,
+                                            " Complete - No Files to review ");
+                                        return;
+                                    }
+
+                                    _subHelper.FilesReadyForReview(new ReviewFiles()
+                                    {
+                                        SubId = subId.ToString(),
+                                        Files = files,
+                                        tesId = tesId.ToString(),
+                                        Name = NameTes
+                                    }, outputBucketGood);
                                 }
-
-                                _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutRequested, "");
-                                Log.Information($"  FilesReadyForReview files {files.Count} ");
-                                if (files.Count == 0)
+                                else
                                 {
-                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutApprovalRejected,
-                                        " No Files to review ");
+                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Failed,
+                                            " Failed to get files in bucket. ");
                                     return;
                                 }
-
-                                _subHelper.FilesReadyForReview(new ReviewFiles()
-                                {
-                                    SubId = subId.ToString(),
-                                    Files = files,
-                                    tesId = tesId.ToString(),
-                                    Name = NameTes
-                                }, outputBucketGood);
                             }
                         }
                         else
