@@ -9,12 +9,12 @@ namespace Agent.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class StatusController : Controller
+    public class HealthCheckController : Controller
     {
         public readonly ApplicationDbContext _DbContext;
-        public readonly IStatusService _statusService;
+        public readonly IHealthCheckService _statusService;
 
-        public StatusController(IStatusService statusService)
+        public HealthCheckController(IHealthCheckService statusService)
         {
             _statusService = statusService;
         }

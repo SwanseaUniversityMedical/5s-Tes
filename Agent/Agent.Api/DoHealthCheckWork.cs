@@ -67,7 +67,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
             try
             {
                 using HttpClient client = new();
-                HttpResponseMessage response = client.GetAsync(_submissionEndpoint + "/v1/get_test_tes").Result;
+                HttpResponseMessage response = client.GetAsync(_submissionEndpoint + "/api/HealthCheck/CheckHealth").Result;
 
                 if (!response.IsSuccessStatusCode)
                 {

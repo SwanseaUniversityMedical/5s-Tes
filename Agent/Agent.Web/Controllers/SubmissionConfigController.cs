@@ -20,7 +20,7 @@ public class SubmissionConfigController : Controller
 
     public async Task<IActionResult> Index(JsonConfigUploadResponse response)
     {
-        var data = _clientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+        var data = _clientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/HealthCheck/GetHealthCheckData").Result;
         if (data != null) 
         {
           response.HealthCheckStatus = data;

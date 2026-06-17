@@ -3,16 +3,16 @@ using FiveSafesTes.Core.Models;
 
 namespace Agent.Api.Services
 {
-    public interface IStatusService
+    public interface IHealthCheckService
     {
         public List<HealthCheckStatus> GetHealthCheckData();
     }
 
-    public class StatusService : IStatusService
+    public class HealthCheckService : IHealthCheckService
   {
         private readonly ApplicationDbContext _applicationDbContext;
 
-        public StatusService(ApplicationDbContext applicationDbContext)
+        public HealthCheckService(ApplicationDbContext applicationDbContext)
         {
             _applicationDbContext = applicationDbContext;
         }
