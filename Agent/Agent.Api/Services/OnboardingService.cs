@@ -220,7 +220,7 @@ public class OnboardingService : IOnboardingService
         try
         {
             using HttpClient client = new();
-            HttpResponseMessage response = client.GetAsync(submissionAddress + "/v1/get_test_tes").Result;
+            HttpResponseMessage response = client.GetAsync(submissionAddress + "/api/HealthCheck/CheckHealth").Result;
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
