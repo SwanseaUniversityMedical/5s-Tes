@@ -19,8 +19,9 @@ namespace Agent.Api.Services
 
         public List<HealthCheckStatus> GetHealthCheckData()
         {
-            // Return only the most recent log for each product.
-            return _applicationDbContext.HealthCheckStatus.GroupBy(x => x.Product).Select(g => g.OrderByDescending(x => x.DateTime).First()).ToList();
+            DateTime logCutoff = DateTime.UtcNow.AddHours(-24);
+            // Only return logs from the last 24 hours.
+            return _applicationDbContext.HealthCheckStatus.Where(x => x.DateTime >= logCutoff).OrderByDescending(x => x.DateTime).ToList();
         }
     }
 }
