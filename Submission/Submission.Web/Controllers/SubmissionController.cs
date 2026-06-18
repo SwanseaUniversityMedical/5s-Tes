@@ -328,7 +328,7 @@ namespace Submission.Web.Controllers
                     var project = await _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
                         "/api/Project/GetProjectDetails/",
                         new Dictionary<string, string> { { "projectId", model.ProjectId.ToString() } });
-                    Log.Information("Resolved project: {ProjectName} (ID: {ProjectId})", project?.Name, model.ProjectId);
+
                     // 2. Resolve TRE list (fall back to all TREs in the project)
                     var selectedTres = model.TreRadios?
                         .Where(x => x.IsSelected)
