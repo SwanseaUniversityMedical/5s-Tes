@@ -235,14 +235,7 @@ builder.Services.AddAuthentication(options =>
                     {
                         string accessToken = context.Request.Query["access_token"];
                         PathString path = context.HttpContext.Request.Path;
-
-                        if (
-                            !string.IsNullOrEmpty(accessToken) &&
-                            path.StartsWithSegments("/api/SignalRHub")
-                        )
-                        {
-                            context.Token = accessToken;
-                        }
+                        
 
                         return Task.CompletedTask;
                     },

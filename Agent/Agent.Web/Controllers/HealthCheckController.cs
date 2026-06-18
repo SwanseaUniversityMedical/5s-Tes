@@ -7,12 +7,12 @@ namespace Agent.Web.Controllers
 {
     [Authorize]
     [Route("[controller]")]
-    public class StatusController : Controller
+    public class HealthCheckController : Controller
     {
-        private readonly ILogger<StatusController> _logger;
+        private readonly ILogger<HealthCheckController> _logger;
         private readonly ITREClientHelper _treClientHelper;
 
-        public StatusController(ILogger<StatusController> logger, ITREClientHelper trehelper)
+        public HealthCheckController(ILogger<HealthCheckController> logger, ITREClientHelper trehelper)
         {
             _logger = logger;
             _treClientHelper = trehelper;
@@ -24,7 +24,7 @@ namespace Agent.Web.Controllers
             try
             {
                 _logger.LogInformation("Status page successfully loaded.");
-                var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+                var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/HealthCheck/GetHealthCheckData").Result;
                 return View("index", data);
             }
             catch (Exception ex)
@@ -37,7 +37,7 @@ namespace Agent.Web.Controllers
         [Route("GetHealthCheckData")]
         public async Task<IActionResult> GetHealthCheckData()
         {
-            var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/Status/GetHealthCheckData").Result;
+            var data = _treClientHelper.CallAPIWithoutModel<List<HealthCheckStatus>>("/api/HealthCheck/GetHealthCheckData").Result;
 
             return View(data);
         }

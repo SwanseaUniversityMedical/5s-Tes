@@ -9,20 +9,20 @@ namespace Agent.Api.Controllers
     [Authorize]
     [Route("api/[controller]")]
     [ApiController]
-    public class StatusController : Controller
+    public class HealthCheckController : Controller
     {
         public readonly ApplicationDbContext _DbContext;
-        public readonly IStatusService _statusService;
+        public readonly IHealthCheckService _healthCheckService;
 
-        public StatusController(IStatusService statusService)
+        public HealthCheckController(IHealthCheckService healthCheckService)
         {
-            _statusService = statusService;
+            _healthCheckService = healthCheckService;
         }
 
         [HttpGet("GetHealthCheckData")]
         public List<HealthCheckStatus> GetHealthCheckData()
         {
-            var healthCheckData = _statusService.GetHealthCheckData();
+            var healthCheckData = _healthCheckService.GetHealthCheckData();
             return healthCheckData;
         }
     }
