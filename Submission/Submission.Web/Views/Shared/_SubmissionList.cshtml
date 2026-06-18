@@ -23,7 +23,7 @@
                     var linkid = submission.Id;
                     if (Model.UseParent)
                     {
-                        linkid = submission.Parent.Id;
+                        linkid = submission.ParentId.Value;
                     }
                     <tr>
                         <td>
@@ -82,10 +82,10 @@
 
                         </td>
                         <td>
-                            @submission.Project.Name
+                            @submission.ProjectName
                         </td>
                         <td>
-                            @submission.SubmittedBy.Name
+                            @submission.SubmittedByName
                         </td>
                         <td>
                             @submission.GetFormattedStartDate()
