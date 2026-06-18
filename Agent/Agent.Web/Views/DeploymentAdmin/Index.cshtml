@@ -2,7 +2,6 @@
 @model JsonConfigUploadResponse
 @{
     ViewData["Title"] = "Deployment Admin";
-    var showJsonConfig = ViewBag.showJsonConfig ?? false;
 }
 
 
@@ -33,13 +32,13 @@
     <div class="card border rounded-3 shadow-sm overflow-hidden">
         <ul class="nav nav-tabs px-3 pt-2 bg-light" id="deploymentTabs" role="tablist">
             <li class="nav-item" role="presentation">
-                <button class="nav-link @(!showJsonConfig ? "active" : "")" id="json-tab" data-bs-toggle="tab"
+                <button class="nav-link active" id="json-tab" data-bs-toggle="tab"
                         data-bs-target="#json-pane" type="button" role="tab">
                     <i class="bi bi-filetype-json"></i> JSON Config
                 </button>
             </li>
             <li class="nav-item" role="presentation">
-                <button class="nav-link @(showJsonConfig ? "active" : "")" id="health-tab" data-bs-toggle="tab"
+                <button class="nav-link" id="health-tab" data-bs-toggle="tab"
                         data-bs-target="#health-pane" type="button" role="tab">
                     <i class="bi bi-heart-pulse"></i> Health Check Status
                 </button>
