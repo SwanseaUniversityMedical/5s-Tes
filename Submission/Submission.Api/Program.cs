@@ -114,7 +114,7 @@ var TVP = new TokenValidationParameters
 Log.Information($"Check TokenValidationParams for Issuer {submissionKeyCloakSettings.Authority}");
 
 builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformerBL>();
-
+builder.Services.AddScoped<ControllerHelpers>();
 
 builder.Services.AddMailKit(optionBuilder =>
 {
