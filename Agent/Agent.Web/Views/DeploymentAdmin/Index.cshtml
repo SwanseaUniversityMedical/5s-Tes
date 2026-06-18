@@ -1,7 +1,7 @@
 @using FiveSafesTes.Core.Models.ViewModels
 @model JsonConfigUploadResponse
 @{
-    ViewData["Title"] = "Submission Configuration";
+    ViewData["Title"] = "Deployment Admin";
 }
 
 
@@ -62,7 +62,7 @@
                 }
             }
 
-            <form asp-controller="SubmissionConfig" asp-action="UploadJsonConfig" method="post" enctype="multipart/form-data">
+            <form asp-controller="DeploymentAdmin" asp-action="UploadJsonConfig" method="post" enctype="multipart/form-data">
                 <input type="file" name="file" />
                 <button type="submit">Upload</button>
             </form>
@@ -101,7 +101,7 @@
 
 <script>
     document.getElementById("hangfireRevivalBtn").addEventListener("click", async function () {
-        const response = await fetch('/SubmissionConfig/ReviveHangfireJobs', { method: 'POST' });
+        const response = await fetch('/DeploymentAdmin/ReviveHangfireJobs', { method: 'POST' });
          location.reload();
     });
 </script>
