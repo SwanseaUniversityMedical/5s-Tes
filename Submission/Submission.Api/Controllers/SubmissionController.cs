@@ -551,7 +551,7 @@ namespace Submission.Api.Controllers
                 var summarySubmissions = await _DbContext.Submissions
                   .AsNoTracking()  
                   .Where(s => s.SubmittedBy.Name.ToLower() == preferredUsername)
-                  .Select(s => new FiveSafesTes.Core.Models.Submission.SubmissionSummary
+                  .Select(s => new Project.ProjectSubmissionDto()
                   {
                     Id = s.Id,
                     ParentId = s.Parent.Id,
@@ -560,9 +560,7 @@ namespace Submission.Api.Controllers
                     StartTime = s.StartTime,
                     EndTime = s.EndTime,
                     ProjectName = s.Project.Name,
-                    ProjectOutputBucket = s.Project.OutputBucket,
                     SubmittedByName = s.SubmittedBy.Name,
-                    SubmittedByFullName = s.SubmittedBy.FullName,
                   })
                   .ToListAsync();
                 return Ok(summarySubmissions);

@@ -94,7 +94,7 @@
                     </div>
                 </div>
                 <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
-                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.SubmissionsSummary.Where(x => x.ParentId == null).ToList(), UseParent = false})
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.SubmissionsSummary.Where(x => x.ParentId == null).ToList(), UseParent = false})
                 </div>
             </div>
         </div>

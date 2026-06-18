@@ -11,7 +11,7 @@
         public virtual List<Project.ProjectSummary> ProjectSummary { get; set; }
         public virtual List<Submission> Submissions { get; set; }
       
-        public virtual List<Submission.SubmissionSummary> SubmissionsSummary { get; set; }
+        public virtual List<Project.ProjectSubmissionDto> SubmissionsSummary { get; set; }
         
         public string FormData { get; set; }
 
