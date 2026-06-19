@@ -701,31 +701,6 @@ namespace Submission.Api.Controllers
             string randomName = prefix + random.Next(1000, 9999);
             return randomName;
         }
-
-        //For testing FetchAndStoreS3Object
-        public class testFetch
-        {
-            public string url { get; set; }
-            public string bucketName { get; set; }
-            public string key { get; set; }
-        }
-
-        [Authorize(Roles = "dare-control-admin")]
-        [HttpPost("TestFetchAndStoreObject")]
-        public async Task<IActionResult> TestFetchAndStoreObject(testFetch testf)
-        {
-            try
-            {
-                await _minioHelper.FetchAndStoreObject(testf.url, testf.bucketName, testf.key);
-
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "TestFetchAandStoreObject");
-                throw;
-            }
-        }
         
         [HttpGet("IsUserOnProject")]
         public bool IsUserOnProject(int projectId, int userId)
@@ -810,14 +785,6 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
-                //List<Project> searchResults = _DbContext.Projects
-                //    .Include(c => c.Users)
-                //    .Include(c => c.Submissions)
-                //     .Include(c => c.Tres)
-                //    .Where(c => c.Name.ToLower().Contains(searchString.Trim().ToLower()) ||
-                //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
-                //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
                 List<Project> searchResults = _DbContext.Projects
 
@@ -849,8 +816,5 @@ namespace Submission.Api.Controllers
 
         }
 
-
-        //End
-        
     }
 }
