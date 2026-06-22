@@ -642,13 +642,9 @@ namespace Submission.Api.Controllers
         [Authorize(Roles = "dare-tre-admin")]
         public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
-            var aresult = new BoolReturn();
-            aresult.Result = true;
-            return aresult;
             try
             {
                 var result = new BoolReturn();
-                var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
 
                 foreach (var item in decisions)
@@ -669,10 +665,9 @@ namespace Submission.Api.Controllers
                     tredecision.Decision = item.Decision;
                 }
                 _DbContext.SaveChanges();
-
-
+                
                 result.Result = true;
-                Log.Information("{Function} Tre {TreName} membership decisions synched", "SyncTreMembershipDecisions", tre.Name);
+                Log.Information("{Function} Tre {TreName} membership decisions synced", "SyncTreMembershipDecisions", tre.Name);
                 return result;
             }
             catch (Exception ex)
