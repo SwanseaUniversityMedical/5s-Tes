@@ -1,0 +1,77 @@
+@using FiveSafesTes.Core.Models.ViewModels
+@model JsonConfigUploadResponse
+@{
+    ViewData["Title"] = "Deployment Admin";
+}
+
+
+<div class="container-lg p-4">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-3 mb-4">
+        <div>
+            <h1 class="fw-bold mb-1">Deployment Admin</h1>
+            <p class="text-secondary mb-0">Manage submission configuration and monitor platform health.</p>
+        </div>
+        @if (Model != null && !Model.SyncJobExists)
+        {
+            <div class="d-flex align-items-center gap-3 rounded-3 px-3 py-2">
+                <button id="hangfireRevivalBtn" class="btn btn-primary btn-sm d-flex align-items-center">
+                    <span>Enable Sync</span>
+                </button>
+            </div>
+        }
+        else
+        {
+            <div class="d-flex align-items-center gap-3 rounded-3 px-3 py-2">
+                <button disabled class="btn btn-primary btn-sm d-flex align-items-center">
+                    <span>Sync Active</span>
+                </button>
+            </div>
+        }
+    </div>
+
+    <div class="card border rounded-3 shadow-sm overflow-hidden">
+        <ul class="nav nav-tabs px-3 pt-2 bg-light" id="deploymentTabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="json-tab" data-bs-toggle="tab"
+                        data-bs-target="#json-pane" type="button" role="tab">
+                    <i class="bi bi-filetype-json"></i> JSON Config
+                </button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="health-tab" data-bs-toggle="tab"
+                        data-bs-target="#health-pane" type="button" role="tab">
+                    <i class="bi bi-heart-pulse"></i> Health Check Status
+                </button>
+            </li>
+        </ul>
+
+        <div class="tab-content p-4">
+
+            <div class="tab-pane fade show active" id="json-pane" role="tabpanel">
+                @await Html.PartialAsync("_JsonConfig", Model)
+            </div>
+            <div class="tab-pane fade" id="health-pane" role="tabpanel">
+                <div class="container-lg px-4">
+                    <div class="row">
+                        <div class="col-sm-12 col-md-6">
+                            <h3>Health Check Status</h3>
+                        </div>
+
+                    </div>
+                    <div>
+                        <div class="tab-pane" id="" role="tabpanel" aria-labelledby="statuses">
+                            @await Html.PartialAsync("_StatusTable", Model.HealthCheckStatus)
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById("hangfireRevivalBtn").addEventListener("click", async function () {
+        const response = await fetch('/DeploymentAdmin/ReviveHangfireJobs', { method: 'POST' });
+         location.reload();
+    });
+</script>
