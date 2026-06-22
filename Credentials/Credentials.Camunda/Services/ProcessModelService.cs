@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System.Reflection;
 using Credentials.Models.Services;
 using FiveSafesTes.Core.Models;

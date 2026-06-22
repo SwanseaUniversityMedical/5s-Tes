@@ -246,6 +246,7 @@ using (var scope = app.Services.CreateScope())
     var userService = scope.ServiceProvider.GetRequiredService<IKeycloakMinioUserService>();
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 
+    
     db.Database.Migrate();
     var initialiser = new DataInitialiser(miniosettings, db, keytoken, userService, miniohelper);
     if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
