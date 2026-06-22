@@ -15,6 +15,7 @@ namespace Submission.Api.Services
             IKeycloakMinioUserService keycloakMinioUserService, ClaimsPrincipal loggedInUser,
             ApplicationDbContext dbContext)
         {
+            // NOTE: When the access token here expired, the process will crash, so we need to renovate the way we get/handle access token
             var accessToken = await httpContextAccessor.HttpContext.GetTokenAsync("access_token");
 
 
@@ -63,6 +64,7 @@ namespace Submission.Api.Services
             IKeycloakMinioUserService keycloakMinioUserService, ClaimsPrincipal loggedInUser,
             ApplicationDbContext dbContext)
         {
+            // NOTE: When the access token here expired, the process will crash, so we need to renovate the way we get/handle access token
             var accessToken = await httpContextAccessor.HttpContext.GetTokenAsync("access_token");
 
 
