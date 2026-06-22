@@ -150,6 +150,7 @@ namespace Submission.Api.Services
             public string id { get; set; }
         }
         public async Task<string> GetUserIDAsync(string accessToken, string userName)
+        // TODO: Handle error better here: if user is not found (e.g., user is not in the group "Dare-Control-Admin"), return null or throw a specific exception
         {
             var baseUrl = _submissionKeyCloakSettings.Server;
             var realm = _submissionKeyCloakSettings.Realm;
