@@ -539,36 +539,25 @@ namespace Submission.Api.Controllers
 
         }
 
-        [HttpGet("GetProjectsSummaryForCurrentUser")]
-        public async Task<IActionResult> GetProjectsSummaryForCurrentUser()
+        [HttpGet("GetProjectsForCurrentUser")]
+        public List<Project> GetProjectsForCurrentUser()
         {
-            try
-            {
-                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
-                var summaryProjects = await _DbContext.Projects
-                  .AsNoTracking()
-                  .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
-                  .Select(p => new Project.ProjectSummary
-                  {
-                    Id = p.Id,
-                    Name = p.Name,
-                    StartDate = p.StartDate,
-                    EndDate = p.EndDate,
-                    ProjectDescription = p.ProjectDescription,
-                    SubmissionCount = p.Submissions.Count(s => s.Parent == null),
-                    UserCount = p.Users.Count(),
-                    TreCount = p.Tres.Count(),
-                  })
-                  .ToListAsync();
-              
+          try
+          {
+            var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
 
-                return Ok(summaryProjects);
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
-                throw;
-            }
+            var userProjects = _DbContext.Projects
+              .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+              .Distinct()
+              .ToList();
+
+            return userProjects;
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
+            throw;
+          }
         }
 
 

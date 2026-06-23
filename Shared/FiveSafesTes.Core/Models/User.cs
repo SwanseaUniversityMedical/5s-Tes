@@ -10,12 +10,9 @@ namespace FiveSafesTes.Core.Models
         public string Email { get; set; }
         public virtual List<Project> Projects { get; set; }
 
-        [NotMapped]
-        public virtual List<Project.ProjectSummary> ProjectSummary { get; set; }
+
         public virtual List<Submission> Submissions { get; set; }
 
-        [NotMapped]
-        public virtual List<Project.ProjectSubmissionDto> SubmissionsSummary { get; set; }
 
         public string FormData { get; set; }
 

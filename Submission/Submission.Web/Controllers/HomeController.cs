@@ -108,28 +108,28 @@ namespace Submission.Web.Controllers
         [Authorize]
         public async Task<IActionResult> LoggedInUser()
         {
-            if(User.Identity.IsAuthenticated == false) {
-                return RedirectToAction("Index", "Home");
-            }
+          if(User.Identity.IsAuthenticated == false) {
+            return RedirectToAction("Index", "Home");
+          }
             
-            var userProjectsTask = _clientHelper.CallAPIWithoutModel<List<Project.ProjectSummary>>("/api/Project/GetProjectsSummaryForCurrentUser");
-            var userSubmissionsTask = _clientHelper.CallAPIWithoutModel<List<Project.ProjectSubmissionDto>>("/api/Submission/GetSubmissionsSummaryForCurrentUser");
+          var userProjectsTask = _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetProjectsForCurrentUser");
+          var userSubmissionsTask = _clientHelper.CallAPIWithoutModel<List<FiveSafesTes.Core.Models.Submission>>("/api/Submission/GetSubmissionsForCurrentUser");
 
+          await Task.WhenAll(userProjectsTask, userSubmissionsTask);
             
-            var userProjects = userProjectsTask.Result ?? new List<Project.ProjectSummary>();
-            
-            var userSubmissions = userSubmissionsTask.Result ?? new List<Project.ProjectSubmissionDto>();
+          var userProjects = userProjectsTask.Result ?? new List<Project>();
+          var userSubmissions = userSubmissionsTask.Result ?? new List<FiveSafesTes.Core.Models.Submission>();
 
-            ViewBag.userOnProjectCount = userProjects.Count;
-            ViewBag.userWroteSubCount = userSubmissions.Count(x => x.ParentId == null);
+          ViewBag.userOnProjectCount = userProjects.Count;
+          ViewBag.userWroteSubCount = userSubmissions.Count(x => x.Parent == null);
 
-            var userModel = new User
-            {
-                Name = User.Identity.Name,
-                ProjectSummary = userProjects,
-                SubmissionsSummary = userSubmissions,
-            };
-            return View(userModel);
+          var userModel = new User
+          {
+            Name = User.Identity.Name,
+            Projects = userProjects,
+            Submissions = userSubmissions,
+          };
+          return View(userModel);
         }
 
       
