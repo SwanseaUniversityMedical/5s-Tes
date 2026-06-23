@@ -8,6 +8,7 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+      - "Shared/**"
   push:
     # Only release off of release and maintenance branches for this asset
     branches:
@@ -18,6 +19,7 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+      - "Shared/**"
 
 permissions:
   contents: write

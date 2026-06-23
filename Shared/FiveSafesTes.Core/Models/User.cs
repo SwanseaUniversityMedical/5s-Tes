@@ -1,4 +1,6 @@
-﻿namespace FiveSafesTes.Core.Models
+﻿using System.ComponentModel.DataAnnotations.Schema;
+
+namespace FiveSafesTes.Core.Models
 {
     public class User : BaseModel
     {
@@ -7,19 +9,20 @@
         public string Name { get; set; }
         public string Email { get; set; }
         public virtual List<Project> Projects { get; set; }
-        
+
+        [NotMapped]
         public virtual List<Project.ProjectSummary> ProjectSummary { get; set; }
         public virtual List<Submission> Submissions { get; set; }
-      
+
+        [NotMapped]
         public virtual List<Project.ProjectSubmissionDto> SubmissionsSummary { get; set; }
-        
+
         public string FormData { get; set; }
 
         public string? Biography { get; set; }
         public string? Organisation {get;set;}
         public virtual List<MembershipTreDecision> MembershipTreDecision { get; set; }
         public virtual List<AuditLog>? AuditLogs { get; set; }
-        
         public class UserSummary
         {
             public int Id { get; set; }
