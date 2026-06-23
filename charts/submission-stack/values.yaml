@@ -1,0 +1,177 @@
+fullnameOverride: "5s-tes-submission"
+
+global:
+  # this makes the chart autogenerate all secrets
+  dev: true
+  argoProject: 5s-tes-submission
+  namespace: 5s-tes-submission
+  oidc:
+    authority: "https://keycloak.localtest.me/realms/5s-tes"
+  ingress:
+    enabled: false
+    host: "forms.msregister.pk.serp.ac.uk"
+    className: "nginx"
+    adminClassName: "nginx"
+    certClusterIssuer: "ca-issuer"
+  storage:
+    defaultClass: "default"
+    rwxClass: "default"
+    dbSize: "5Gi"
+  monitoring:
+    prometheusEndpoint: "http://prometheus-operator-kube-p-prometheus.hiru-mgmt-monitoring.svc:9090"
+    prometheusNamespace: "hiru-mgmt-monitoring"
+
+vault:
+  role: test
+  secretPath: kvv2/data/test/5stes/submission
+
+seq:
+  storageSize: "1Gi"
+
+rabbitmq:
+  storageSize: "1Gi"
+
+submission:
+  storageSize: "1Gi"
+  chartVersion: "1.0.0"
+  postgres:
+    replicas: 1
+    database: "5S-TES"
+    host: "submission-postgres"
+
+  api:
+    image:
+      repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+      pullPolicy: IfNotPresent
+      tag: "1.7.2"
+
+    serviceType: ClusterIP
+
+  ui:
+    image:
+      repository: harbor.federated-analytics.ac.uk/5s-tes/submission-ui
+      pullPolicy: IfNotPresent
+      tag: "1.7.2"
+
+    serviceType: ClusterIP
+
+
+  config:
+    uiName: "5S-TES"
+    helpdeskUrl: ""
+
+    formio:
+      projectForm: "https://rikojtsvfwnqslz.form.io/darecontrolproject"
+      treForm: "https://rikojtsvfwnqslz.form.io/darecontrolendpoint"
+      userForm: "https://rikojtsvfwnqslz.form.io/darecontroluser"
+
+  minioBucketName: "testbucket"
+  keycloakConfig:
+    proxy:
+      enabled: false
+      url: "http://proxy:8080"
+      bypassList: "minio,seq"
+
+    api:
+      protocol: "http"
+      host: "keycloak"
+      realm: "Dare-Control"
+      secretName: "api-keycloak-secret"
+      clientSecretKey: "secret"
+      clientIdKey: "id" 
+      redirectUrl: ""
+      useRedirect: false
+      tokenRefreshSeconds: "3600"
+      trustKeycloakCert: false
+      validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+      validIssuer: ""
+      validAudience: ""
+
+    ui:
+      protocol: "http"
+      host: "keycloak"
+      realm: "Dare-Control"
+      secretName: "ui-keycloak-secret"
+      clientSecretKey: "secret"
+      clientIdKey: "id" 
+      tokenExpiredAddress: "http://localhost:5001/Account/LoginAfterTokenExpired"
+      redirectUrl: ""
+      useRedirect: false
+      tokenRefreshSeconds: "3600"
+      trustKeycloakCert: false
+      validIssuer: ""
+      validAudience: ""
+
+  queryImage:
+    sql: "ukserp/runsql:1.0.0"
+    graphql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-graphqlrunner:1.0.0"
+
+
+keycloak:
+  enabled: true
+  postgres:
+    replicas: 1
+    database: "keycloak"
+    size: "2Gi"
+
+minio:
+  enabled: true
+  repoURL: 'https://operator.min.io/'
+  chart: tenant
+  chartVersion: "7.1.1"
+
+  ecParity: "EC:1"
+  ecStripeSize: "2"
+
+  tenantName: "submission-layer"
+  firstPool:
+    servers: 1
+    volumesPerServer: 2
+    size: 10Gi
+    storageClassName: default
+    storageTierNodeLabel: "2"
+
+  env: []
+
+  extraPools: []
+    # - servers: 2
+    #   volumesPerServer: 1
+    #   size: 1000Gi
+    #   storageClassName: directpv-min-io-tier9
+    #   storageTierNodeLabel: "woo"
+    #   resources:
+    #     requests:
+    #       cpu: "8"
+    #       memory: "8Gi"
+    #     limits:
+    #       cpu: "16"
+    #       memory: "10Gi"
+
+
+operators:
+  minio:
+    enabled: false
+
+  postgres:
+    enabled: false
+
+  rabbitmq:
+    enabled: false
+
+rabbitmq-cluster-operator:
+  clusterOperator:
+    watchAllNamespaces: true
+    image:
+      repository: bitnamilegacy/rabbitmq-cluster-operator
+
+  msgTopologyOperator:
+    enabled: true
+    watchAllNamespaces: true
+    image:
+      repository: bitnamilegacy/rmq-messaging-topology-operator
+
+  rabbitmqImage:
+    repository: bitnamilegacy/rabbitmq
+
+  credentialUpdaterImage:
+    repository: bitnamilegacy/rmq-default-credential-updater

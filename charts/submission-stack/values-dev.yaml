@@ -1,0 +1,127 @@
+fullnameOverride: "5s-tes-submission"
+
+global:
+  # this makes the chart autogenerate all secrets
+  dev: true
+  argoProject: 5s-tes-submission
+  namespace: 5s-tes-submission
+  oidc:
+    authority: "http://keycloak.localtest.me/realms/Dare-Control"
+  ingress:
+    enabled: false
+  storage:
+    defaultClass: "standard"
+    rwxClass: "standard"
+    dbSize: "5Gi"
+  monitoring:
+    prometheusEndpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc:9090"
+    prometheusNamespace: "monitoring"
+
+
+seq:
+  storageSize: "1Gi"
+
+rabbitmq:
+  storageSize: "1Gi"
+
+submission:
+  storageSize: "1Gi"
+  chartVersion: "0.0.0-pr.1005"
+  postgres:
+    replicas: 1
+    database: "5S-TES"
+    host: "submission-postgres"
+
+  api:
+    image:
+      repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+      pullPolicy: IfNotPresent
+      tag: "pr-59"
+
+    serviceType: ClusterIP
+
+  ui:
+    image:
+      repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+      pullPolicy: IfNotPresent
+      tag: "pr-59"
+
+    serviceType: ClusterIP
+
+
+
+  minioBucketName: "testbucket"
+
+  queryImage:
+    sql: "ukserp/runsql:1.0.0"
+    graphql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-graphqlrunner:1.0.0"
+
+
+keycloak:
+  enabled: true
+  postgres:
+    replicas: 1
+    database: "keycloak"
+    size: "2Gi"
+
+minio:
+  enabled: true
+  repoURL: 'https://operator.min.io/'
+  chart: tenant
+  chartVersion: "7.1.1"
+
+  ecParity: "EC:1"
+  ecStripeSize: "2"
+
+  tenantName: "submission-layer"
+  firstPool:
+    servers: 1
+    volumesPerServer: 2
+    size: 10Gi
+    storageClassName: standard
+    storageTierNodeLabel: "2"
+
+  env: []
+
+  extraPools: []
+    # - servers: 2
+    #   volumesPerServer: 1
+    #   size: 1000Gi
+    #   storageClassName: directpv-min-io-tier9
+    #   storageTierNodeLabel: "woo"
+    #   resources:
+    #     requests:
+    #       cpu: "8"
+    #       memory: "8Gi"
+    #     limits:
+    #       cpu: "16"
+    #       memory: "10Gi"
+
+
+operators:
+  minio:
+    enabled: false
+
+  postgres:
+    enabled: false
+
+  rabbitmq:
+    enabled: false
+
+rabbitmq-cluster-operator:
+  clusterOperator:
+    watchAllNamespaces: true
+    image:
+      repository: bitnamilegacy/rabbitmq-cluster-operator
+
+  msgTopologyOperator:
+    enabled: true
+    watchAllNamespaces: true
+    image:
+      repository: bitnamilegacy/rmq-messaging-topology-operator
+
+  rabbitmqImage:
+    repository: bitnamilegacy/rabbitmq
+
+  credentialUpdaterImage:
+    repository: bitnamilegacy/rmq-default-credential-updater

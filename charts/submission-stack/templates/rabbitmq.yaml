@@ -1,0 +1,29 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    "helm.sh/hook": "post-install"
+spec:
+  persistence:
+    storageClassName: {{ .Values.global.storage.defaultClass }}
+    storage: {{ .Values.rabbitmq.storageSize }}
+
+  secretBackend:
+    externalSecret:
+      name: "rabbitmq-secret"
+
+---
+
+apiVersion: rabbitmq.com/v1beta1
+kind: Vhost
+metadata:
+  name: vhost-sublayer
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    "helm.sh/hook": "post-install"
+spec:
+  name: "SubLayer"
+  rabbitmqClusterReference:
+    name: rabbitmq
