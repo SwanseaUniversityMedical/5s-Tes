@@ -7,7 +7,12 @@
         public string Name { get; set; }
         public string Email { get; set; }
         public virtual List<Project> Projects { get; set; }
+        
+        public virtual List<Project.ProjectSummary> ProjectSummary { get; set; }
         public virtual List<Submission> Submissions { get; set; }
+      
+        public virtual List<Project.ProjectSubmissionDto> SubmissionsSummary { get; set; }
+        
         public string FormData { get; set; }
 
         public string? Biography { get; set; }
