@@ -45,7 +45,7 @@
                                         <tbody>
                                         @{
 
-                                            foreach (var project in Model.Projects)
+                                            foreach (var project in Model.ProjectSummary)
                                             {
                                                 <tr>
                                                     <td class="card mb-2 p-3 bg-white shadow-sm border-1">
@@ -67,21 +67,20 @@
                                                         </div>
                                                         <div class="">
                                                             <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#submissions" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                                @project.Submissions.Where(x => x.Parent == null).ToList().Count Submissions
+                                                                @project.SubmissionCount Submissions
                                                             </a>
                                                             <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#people" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                                @project.Users.Count People
+                                                                @project.UserCount People
                                                             </a>
                                                             <a href="@Url.Action("GetProject", "Project", new { id = project.Id })#tre" class="badge py-2 px-3 badge-lg bg-grey text-dark rounded-pill">
-                                                                @project.Tres.Count TREs
+                                                                @project.TreCount TREs
                                                             </a>
                                                         </div>
                                                         <p class="my-4">
-                                                            Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.
-                                                            Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in...
+                                                           @project.ProjectDescription
                                                         </p>
                                                         <p class="text-muted fs-7 mb-0">
-                                                            LastStatusUpdate Date: @project.StartDate <span class="mx-2"></span>End Date: @project.EndDate
+                                                            Start Date: @project.StartDate <span class="mx-2"></span>End Date: @project.EndDate
                                                         </p>
                                                     </td>
                                                 </tr>
@@ -95,7 +94,7 @@
                     </div>
                 </div>
                 <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
-                  @await Html.PartialAsync("_SubmissionList", new SubmissionList(){Submissions  = Model.Submissions.Where(x => x.Parent == null).ToList(), UseParent = false})
+                    @await Html.PartialAsync("_SubmissionList", new SubmissionList(){SubmissionsDTO  = Model.SubmissionsSummary.Where(x => x.ParentId == null).ToList(), UseParent = false})
                 </div>
             </div>
         </div>

@@ -540,25 +540,36 @@ namespace Submission.Api.Controllers
             }
         }
 
-        [HttpGet("GetSubmissionsForCurrentUser")]
-        public List<FiveSafesTes.Core.Models.Submission> GetSubmissionsForCurrentUser()
+        [HttpGet("GetSubmissionsSummaryForCurrentUser")]
+        public async Task<IActionResult> GetSubmissionsSummaryForCurrentUser()
         {
-          try
-          {
-            var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
 
-            var submissions = _DbContext.Submissions
-              .Where(s => s.SubmittedBy.Name.ToLower() == preferredUsername)
-              .Distinct()
-              .ToList();
-
-            return submissions;
-          }
-          catch (Exception ex)
-          {
-            Log.Error(ex, "{Function} Crashed", "GetSubmissionsForCurrentUser");
-            throw;
-          }
+      
+                var summarySubmissions = await _DbContext.Submissions
+                  .AsNoTracking()  
+                  .Where(s => s.SubmittedBy.Name.ToLower() == preferredUsername)
+                  .Select(s => new Project.ProjectSubmissionDto()
+                  {
+                    Id = s.Id,
+                    ParentId = s.Parent.Id,
+                    TesName = s.TesName,
+                    Status = s.Status,
+                    StartTime = s.StartTime,
+                    EndTime = s.EndTime,
+                    ProjectName = s.Project.Name,
+                    SubmittedByName = s.SubmittedBy.Name,
+                  })
+                  .ToListAsync();
+                return Ok(summarySubmissions);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetSubmissionsForCurrentUser");
+                throw;
+            }
         }
     }
 }
