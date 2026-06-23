@@ -23,7 +23,6 @@ namespace FiveSafesTes.Core.Models
         public string? Organisation {get;set;}
         public virtual List<MembershipTreDecision> MembershipTreDecision { get; set; }
         public virtual List<AuditLog>? AuditLogs { get; set; }
-            
         public class UserSummary
         {
             public int Id { get; set; }
