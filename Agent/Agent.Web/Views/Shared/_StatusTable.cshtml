@@ -1,0 +1,45 @@
+@using FiveSafesTes.Core.Models;
+@model List<HealthCheckStatus>
+
+<div class="container-lg p-4">
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table id="statusTable" class="table table-hover">
+                    <thead class="bg-light">
+                        <tr>
+                            <th>ID</th>
+                            <th>Product</th>
+                            <th>Health Status</th>
+                            <th>Reason</th>
+                            <th>Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var status in Model)
+                        {
+                            <tr>
+                                <td>@status.Id</td>
+                                <td>@status.Product</td>
+                                <td>@status.HealthStatus</td>
+                                <td>@status.Reason</td>
+                                <td>@status.DateTime.ToString("yyyy/MM/dd")</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/lib/DataTables/datatables.min.js"></script>
+    <link rel="stylesheet" href="~/lib/DataTables/datatables.min.css" />
+
+    <script>
+
+        new DataTable('#statusTable');
+
+    </script>
+}

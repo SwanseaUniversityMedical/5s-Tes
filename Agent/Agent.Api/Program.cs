@@ -1,4 +1,16 @@
+using System.Net;
+using System.Reflection;
+using Agent.Api;
+using Agent.Api.Constants;
+using Agent.Api.Models;
+using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Services;
+using Credentials.Models.DbContexts;
 using EasyNetQ;
+using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Rabbit;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Dashboard.BasicAuthorization;
@@ -14,20 +26,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Serilog;
-using System.Net;
-using Zeebe.Client.Accelerator.Extensions;
-using System.Reflection;
-using Agent.Api;
-using Agent.Api.Constants;
-using Agent.Api.Models;
-using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services;
-using Credentials.Models.DbContexts;
-using FiveSafesTes.Core.Models.Settings;
-using FiveSafesTes.Core.Models.ViewModels;
-using FiveSafesTes.Core.Rabbit;
-using FiveSafesTes.Core.Services;
 using Serilog.Events;
+using VaultSharp;
+using VaultSharp.V1.AuthMethods;
+using VaultSharp.V1.AuthMethods.Token;
+using Zeebe.Client.Accelerator.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -89,19 +92,12 @@ await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configur
 
 var treKeyCloakSettings = new TreKeyCloakSettings();
 configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
-var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
+var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
 treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(treKeyCloakSettings);
 
-var dataEgressKeyCloakSettings = new DataEgressKeyCloakSettings();
-configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSettings);
-dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(dataEgressKeyCloakSettings);
-
-var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
-configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
-submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(submissionKeyCloakSettings);
+builder.Services.Configure<DataEgressKeyCloakSettings>(configuration.GetSection("DataEgressKeyCloakSettings"));
+builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
 
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
@@ -135,6 +131,11 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
+//For hangfire
+var jobSettings = new JobSettings();
+configuration.Bind(nameof(JobSettings), jobSettings);
+builder.Services.AddSingleton(jobSettings);
+
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
@@ -145,8 +146,14 @@ builder.Services.AddHostedService<ConsumeInternalMessageService>();
 builder.Services.AddScoped<IDareClientWithoutTokenHelper, DareClientWithoutTokenHelper>();
 builder.Services.AddScoped<IDataEgressClientWithoutTokenHelper, DataEgressClientWithoutTokenHelper>();
 
+builder.Services.AddSingleton(new AutomaticRetryAttribute());
+
 string hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddHangfire(config => { config.UsePostgreSqlStorage(hangfireConnectionString); });
+builder.Services.AddHangfire((provider, config) => 
+{ 
+    config.UsePostgreSqlStorage(hangfireConnectionString);
+    config.UseFilter(provider.GetRequiredService<AutomaticRetryAttribute>());
+});
 
 builder.Services.AddHangfireServer();
 var encryptionSettings = new EncryptionSettings();
@@ -160,9 +167,13 @@ builder.Services.AddScoped<IDareSyncHelper, DareSyncHelper>();
 builder.Services.AddScoped<ISubmissionHelper, SubmissionHelper>();
 builder.Services.AddScoped<IDoSyncWork, DoSyncWork>();
 builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
+builder.Services.AddScoped<IDoHealthCheckWork, DoHealthCheckWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
 
 var TVP = new TokenValidationParameters
 {
@@ -281,13 +292,29 @@ using (var scope = app.Services.CreateScope())
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var credDb = scope.ServiceProvider.GetRequiredService<CredentialsDbContext>();
     var encDec = scope.ServiceProvider.GetRequiredService<IEncDecHelper>();
+    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+
+    IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>();
+    submissionKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
+    IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>();
+    egressKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
+
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
+
+    var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
+    IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
+    var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
+    IVaultClient vaultClient = new VaultClient(vaultClientSettings);
+
+    configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromMinutes(options.VaultConfigReloadInterval));
+
     db.Database.Migrate();
-    var initialiser = new DataInitaliser(db, encDec);
+    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService, configuration);
     if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
         Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
+        await initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
 }
@@ -342,6 +369,8 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
     //Configure Vault settings
     builder.Services.Configure<VaultSettings>(
         configuration.GetSection("VaultSettings"));
+
+    builder.Services.Configure<TreOnboardingConfig>(configuration.GetSection("TreOnboardingConfig"));
 
     // Register HttpClient for Vault service
     builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>
@@ -406,10 +435,8 @@ void AddServices(WebApplicationBuilder builder)
     }
 }
 
-//Hangfire
-var jobSettings = new JobSettings();
-configuration.Bind(nameof(JobSettings), jobSettings);
 var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
+
 if (extHangfire != null && extHangfire.ToLower() == "true")
 {
     app.UseHangfireDashboard("/hangfire", new DashboardOptions
@@ -440,14 +467,19 @@ else
     app.UseHangfireDashboard();
 }
 
+string healthCheckJobName = jobSettings.HealthCheckJobName;
+if (jobSettings.healthCheckSchedule == 0)
+    RecurringJob.RemoveIfExists(healthCheckJobName);
+else
+    RecurringJob.AddOrUpdate<IDoHealthCheckWork>(healthCheckJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.healthCheckSchedule));
 
-const string syncJobName = "Sync Projects and Membership";
+string syncJobName = jobSettings.SyncJobName;
 if (jobSettings.syncSchedule == 0)
     RecurringJob.RemoveIfExists(syncJobName);
 else
     RecurringJob.AddOrUpdate<IDoSyncWork>(syncJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.syncSchedule));
 
-const string scanJobName = "Sync Submissions";
+string scanJobName = jobSettings.ScanJobName;
 
 if (jobSettings.scanSchedule == 0)
     RecurringJob.RemoveIfExists(scanJobName);

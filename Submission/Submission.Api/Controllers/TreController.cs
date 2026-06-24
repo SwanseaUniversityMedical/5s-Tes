@@ -1,13 +1,18 @@
-﻿using Newtonsoft.Json;
+using Newtonsoft.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
 using Microsoft.AspNetCore.Authentication;
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
+using Submission.Api.Services.Contract;
+using FiveSafesTes.Core.Services;
+using System.Text;
+using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 
 namespace Submission.Api.Controllers
 {
@@ -19,13 +24,23 @@ namespace Submission.Api.Controllers
     {
         private readonly ApplicationDbContext _DbContext;
         protected readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly IVaultCredentialsService _vaultCredentialsService;
+        private readonly SubmissionKeyCloakSettings _keycloakSettings;
+        private readonly IConfiguration _configuration;
 
 
-        public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor)
+        public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor,
+            IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService,
+            SubmissionKeyCloakSettings keycloakSettings, IConfiguration configuration)
         {
 
             _DbContext = applicationDbContext;
-            _httpContextAccessor= httpContextAccessor;
+            _httpContextAccessor = httpContextAccessor;
+            _keycloakAdminService = keycloakAdminService;
+            _vaultCredentialsService = vaultCredentialsService;
+            _keycloakSettings = keycloakSettings;
+            _configuration = configuration;
 
         }     
 
@@ -74,6 +89,33 @@ namespace Submission.Api.Controllers
                 }
                 await _DbContext.SaveChangesAsync();
                 await ControllerHelpers.AddAuditLog(logtype, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
+
+                if (logtype == LogType.AddTre && string.IsNullOrEmpty(tre.KeycloakClientId))
+                {
+                    try
+                    {
+                        var (clientUuid, clientId, clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
+
+                        tre.KeycloakClientId = clientId;
+                        await _DbContext.SaveChangesAsync();
+
+                        await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak",
+                            new Dictionary<string, object>
+                            {
+                                { "clientId", clientId },
+                                { "clientSecret", clientSecret },
+                                { "clientUuid", clientUuid }
+                            });
+
+                        Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
+                            "SaveTre", clientId, tre.Name);
+                    }
+                    catch (Exception serviceAccountEx)
+                    {
+                        Log.Error(serviceAccountEx, "{Function} Failed to create service account for TRE {TreName}. TRE was saved but service account needs manual setup.",
+                            "SaveTre", tre.Name);
+                    }
+                }
 
                 return Ok(tre); 
             }
@@ -174,6 +216,8 @@ namespace Submission.Api.Controllers
                     Name = t.Name,
                     About = t.About,
                     LastHeartBeatReceived = t.LastHeartBeatReceived,
+                    AdminUsername = t.AdminUsername,
+                    KeycloakClientId = t.KeycloakClientId,
                     Projects = t.Projects
                       .Select(p => new Project.ProjectSummary
                       {
@@ -230,6 +274,99 @@ namespace Submission.Api.Controllers
             }
         }
 
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("DownloadConfig/{treId}")]
+        public async Task<IActionResult> DownloadConfig(int treId)
+        {
+            try
+            {
+                var tre = await _DbContext.Tres.FindAsync(treId);
+                if (tre == null)
+                {
+                    return NotFound($"TRE with id {treId} not found");
+                }
 
+                // Only the TRE's assigned human admin can download onboarding config.
+                var username = (from x in User.Claims
+                                where x.Type == "preferred_username"
+                                select x.Value).FirstOrDefault();
+                var isTreAdmin = !string.IsNullOrEmpty(username) &&
+                                 !string.IsNullOrEmpty(tre.AdminUsername) &&
+                                 string.Equals(tre.AdminUsername, username, StringComparison.OrdinalIgnoreCase);
+
+                if (!isTreAdmin)
+                {
+                    Log.Warning("{Function} User {User} is not authorised to download config for TRE {TreName}",
+                        "DownloadConfig", username, tre.Name);
+                    return Forbid();
+                }
+
+                if (string.IsNullOrEmpty(tre.KeycloakClientId))
+                {
+                    Log.Error("{Function} TRE {TreName} has no Keycloak service account configured",
+                        "DownloadConfig", tre.Name);
+                    return StatusCode(500, "TRE has no Keycloak service account configured");
+                }
+
+                // Service-account credentials are persisted under a TRE-specific vault path.
+                var vaultPath = $"tre/{tre.Name.ToLowerInvariant()}/keycloak";
+                var credential = await _vaultCredentialsService.GetCredentialAsync(vaultPath);
+                if (credential == null || !credential.TryGetValue("clientSecret", out var secretObj) ||
+                    string.IsNullOrEmpty(secretObj?.ToString()))
+                {
+                    Log.Error("{Function} Could not retrieve service account secret from Vault for TRE {TreName}",
+                        "DownloadConfig", tre.Name);
+                    return StatusCode(500, "Service account secret not found in Vault");
+                }
+
+                var clientSecret = secretObj!.ToString()!;
+                var serviceAccountJwt = await _keycloakAdminService.GetServiceAccountTokenAsync(
+                    tre.KeycloakClientId, clientSecret);
+
+                var config = new TreOnboardingConfig
+                {
+                    TREId = tre.Id,
+                    TREName = tre.Name,
+                    SubmissionURL = _configuration["SubmissionApiUrl"] ?? string.Empty,
+                    KeycloakRealmSettingURL = GetOnboardingKeycloakMetadataUrl(),
+                    JWT = serviceAccountJwt,
+                    IsConfigurationImported = true
+                };
+
+                var json = JsonConvert.SerializeObject(config, Formatting.Indented);
+                var bytes = Encoding.UTF8.GetBytes(json);
+                var fileName = $"tre-onboarding-{tre.Name.ToLower()}.json";
+
+                Log.Information("{Function} Config generated for TRE {TreName} by user {User}",
+                    "DownloadConfig", tre.Name, username);
+
+                return File(bytes, "application/json", fileName);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "DownloadConfig");
+                return StatusCode(500, "An internal server error occurred");
+            }
+        }
+
+        /// <summary>
+        /// Public OIDC discovery URL for TRE onboarding JSON, built from KeycloakFullURL.
+        /// </summary>
+        private string GetOnboardingKeycloakMetadataUrl()
+        {
+            var keycloakFullUrl = _configuration["KeycloakFullURL"]?.Trim().TrimEnd('/');
+            var realm = string.IsNullOrWhiteSpace(_keycloakSettings.Realm)
+                ? "Dare-Control"
+                : _keycloakSettings.Realm;
+
+            return $"{keycloakFullUrl}/realms/{realm}/.well-known/openid-configuration";
+        }
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("IsUserAssignedTRE")]
+        public async Task<BoolReturn> IsUserAssignedTRE()
+        {
+            return new BoolReturn() { Result = ControllerHelpers.IsUserAssignedTRE(User, _DbContext) };
+        }
     }
 }

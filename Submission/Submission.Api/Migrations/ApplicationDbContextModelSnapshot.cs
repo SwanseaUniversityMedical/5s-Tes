@@ -17,7 +17,7 @@ namespace Submission.Api.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "7.0.13")
+                .HasAnnotation("ProductVersion", "8.0.22")
                 .HasAnnotation("Proxies:ChangeTracking", false)
                 .HasAnnotation("Proxies:CheckEquality", false)
                 .HasAnnotation("Proxies:LazyLoading", true)
@@ -25,7 +25,7 @@ namespace Submission.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
-            modelBuilder.Entity("BL.Models.AuditLog", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.AuditLog", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -73,7 +73,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("AuditLogs");
                 });
 
-            modelBuilder.Entity("BL.Models.HistoricStatus", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.HistoricStatus", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -103,7 +103,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("HistoricStatuses");
                 });
 
-            modelBuilder.Entity("BL.Models.MembershipTreDecision", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.MembershipTreDecision", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -134,7 +134,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("MembershipTreDecisions");
                 });
 
-            modelBuilder.Entity("BL.Models.Project", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Project", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -184,7 +184,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("Projects");
                 });
 
-            modelBuilder.Entity("BL.Models.ProjectTreDecision", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.ProjectTreDecision", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -210,7 +210,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("ProjectTreDecisions");
                 });
 
-            modelBuilder.Entity("BL.Models.Submission", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Submission", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -285,7 +285,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("Submissions");
                 });
 
-            modelBuilder.Entity("BL.Models.SubmissionFile", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.SubmissionFile", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -322,7 +322,7 @@ namespace Submission.Api.Migrations
                     b.ToTable("SubmissionFiles");
                 });
 
-            modelBuilder.Entity("BL.Models.Tre", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Tre", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -342,6 +342,9 @@ namespace Submission.Api.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
+                    b.Property<string>("KeycloakClientId")
+                        .HasColumnType("text");
+
                     b.Property<DateTime>("LastHeartBeatReceived")
                         .HasColumnType("timestamp with time zone");
 
@@ -354,7 +357,33 @@ namespace Submission.Api.Migrations
                     b.ToTable("Tres");
                 });
 
-            modelBuilder.Entity("BL.Models.User", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.UsedOnboardingJti", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("Jti")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("TreId")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("UsedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Jti")
+                        .IsUnique();
+
+                    b.ToTable("UsedOnboardingJtis");
+                });
+
+            modelBuilder.Entity("FiveSafesTes.Core.Models.User", b =>
                 {
                     b.Property<int>("Id")
                         .ValueGeneratedOnAdd()
@@ -418,21 +447,21 @@ namespace Submission.Api.Migrations
                     b.ToTable("ProjectUser");
                 });
 
-            modelBuilder.Entity("BL.Models.AuditLog", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.AuditLog", b =>
                 {
-                    b.HasOne("BL.Models.Project", "Project")
+                    b.HasOne("FiveSafesTes.Core.Models.Project", "Project")
                         .WithMany("AuditLogs")
                         .HasForeignKey("ProjectId");
 
-                    b.HasOne("BL.Models.Submission", "Submission")
+                    b.HasOne("FiveSafesTes.Core.Models.Submission", "Submission")
                         .WithMany("AuditLogs")
                         .HasForeignKey("SubmissionId");
 
-                    b.HasOne("BL.Models.Tre", "Tre")
+                    b.HasOne("FiveSafesTes.Core.Models.Tre", "Tre")
                         .WithMany("AuditLogs")
                         .HasForeignKey("TreId");
 
-                    b.HasOne("BL.Models.User", "User")
+                    b.HasOne("FiveSafesTes.Core.Models.User", "User")
                         .WithMany("AuditLogs")
                         .HasForeignKey("UserId");
 
@@ -445,9 +474,9 @@ namespace Submission.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BL.Models.HistoricStatus", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.HistoricStatus", b =>
                 {
-                    b.HasOne("BL.Models.Submission", "Submission")
+                    b.HasOne("FiveSafesTes.Core.Models.Submission", "Submission")
                         .WithMany("HistoricStatuses")
                         .HasForeignKey("SubmissionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -456,17 +485,17 @@ namespace Submission.Api.Migrations
                     b.Navigation("Submission");
                 });
 
-            modelBuilder.Entity("BL.Models.MembershipTreDecision", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.MembershipTreDecision", b =>
                 {
-                    b.HasOne("BL.Models.Project", "SubmissionProj")
+                    b.HasOne("FiveSafesTes.Core.Models.Project", "SubmissionProj")
                         .WithMany("MembershipTreDecision")
                         .HasForeignKey("SubmissionProjId");
 
-                    b.HasOne("BL.Models.Tre", "Tre")
+                    b.HasOne("FiveSafesTes.Core.Models.Tre", "Tre")
                         .WithMany("MembershipTreDecision")
                         .HasForeignKey("TreId");
 
-                    b.HasOne("BL.Models.User", "User")
+                    b.HasOne("FiveSafesTes.Core.Models.User", "User")
                         .WithMany("MembershipTreDecision")
                         .HasForeignKey("UserId");
 
@@ -477,13 +506,13 @@ namespace Submission.Api.Migrations
                     b.Navigation("User");
                 });
 
-            modelBuilder.Entity("BL.Models.ProjectTreDecision", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.ProjectTreDecision", b =>
                 {
-                    b.HasOne("BL.Models.Project", "SubmissionProj")
+                    b.HasOne("FiveSafesTes.Core.Models.Project", "SubmissionProj")
                         .WithMany("ProjectTreDecisions")
                         .HasForeignKey("SubmissionProjId");
 
-                    b.HasOne("BL.Models.Tre", "Tre")
+                    b.HasOne("FiveSafesTes.Core.Models.Tre", "Tre")
                         .WithMany("ProjectTreDecisions")
                         .HasForeignKey("TreId");
 
@@ -492,25 +521,25 @@ namespace Submission.Api.Migrations
                     b.Navigation("Tre");
                 });
 
-            modelBuilder.Entity("BL.Models.Submission", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Submission", b =>
                 {
-                    b.HasOne("BL.Models.Submission", "Parent")
+                    b.HasOne("FiveSafesTes.Core.Models.Submission", "Parent")
                         .WithMany("Children")
                         .HasForeignKey("ParentID");
 
-                    b.HasOne("BL.Models.Project", "Project")
+                    b.HasOne("FiveSafesTes.Core.Models.Project", "Project")
                         .WithMany("Submissions")
                         .HasForeignKey("ProjectId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BL.Models.User", "SubmittedBy")
+                    b.HasOne("FiveSafesTes.Core.Models.User", "SubmittedBy")
                         .WithMany("Submissions")
                         .HasForeignKey("SubmittedById")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BL.Models.Tre", "Tre")
+                    b.HasOne("FiveSafesTes.Core.Models.Tre", "Tre")
                         .WithMany("Submissions")
                         .HasForeignKey("TreId");
 
@@ -523,9 +552,9 @@ namespace Submission.Api.Migrations
                     b.Navigation("Tre");
                 });
 
-            modelBuilder.Entity("BL.Models.SubmissionFile", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.SubmissionFile", b =>
                 {
-                    b.HasOne("BL.Models.Submission", "Submission")
+                    b.HasOne("FiveSafesTes.Core.Models.Submission", "Submission")
                         .WithMany("SubmissionFiles")
                         .HasForeignKey("SubmissionId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -536,13 +565,13 @@ namespace Submission.Api.Migrations
 
             modelBuilder.Entity("ProjectTre", b =>
                 {
-                    b.HasOne("BL.Models.Project", null)
+                    b.HasOne("FiveSafesTes.Core.Models.Project", null)
                         .WithMany()
                         .HasForeignKey("ProjectsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BL.Models.Tre", null)
+                    b.HasOne("FiveSafesTes.Core.Models.Tre", null)
                         .WithMany()
                         .HasForeignKey("TresId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -551,20 +580,20 @@ namespace Submission.Api.Migrations
 
             modelBuilder.Entity("ProjectUser", b =>
                 {
-                    b.HasOne("BL.Models.Project", null)
+                    b.HasOne("FiveSafesTes.Core.Models.Project", null)
                         .WithMany()
                         .HasForeignKey("ProjectsId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
 
-                    b.HasOne("BL.Models.User", null)
+                    b.HasOne("FiveSafesTes.Core.Models.User", null)
                         .WithMany()
                         .HasForeignKey("UsersId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
                 });
 
-            modelBuilder.Entity("BL.Models.Project", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Project", b =>
                 {
                     b.Navigation("AuditLogs");
 
@@ -575,7 +604,7 @@ namespace Submission.Api.Migrations
                     b.Navigation("Submissions");
                 });
 
-            modelBuilder.Entity("BL.Models.Submission", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Submission", b =>
                 {
                     b.Navigation("AuditLogs");
 
@@ -586,7 +615,7 @@ namespace Submission.Api.Migrations
                     b.Navigation("SubmissionFiles");
                 });
 
-            modelBuilder.Entity("BL.Models.Tre", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.Tre", b =>
                 {
                     b.Navigation("AuditLogs");
 
@@ -597,7 +626,7 @@ namespace Submission.Api.Migrations
                     b.Navigation("Submissions");
                 });
 
-            modelBuilder.Entity("BL.Models.User", b =>
+            modelBuilder.Entity("FiveSafesTes.Core.Models.User", b =>
                 {
                     b.Navigation("AuditLogs");
 

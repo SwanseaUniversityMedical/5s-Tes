@@ -21,7 +21,9 @@ namespace Agent.Web.Controllers
 
         public async Task<IActionResult> UpdateCredentialsAsync()
         {
-            return View(await ControllerHelpers.CheckCredentialsAreValid("DataEgressCredentials", _clientHelper));
+            var model = await ControllerHelpers.CheckCredentialsAreValid("DataEgressCredentials", _clientHelper);
+            model.CredentialsConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
+            return View(model);
         }
 
 
@@ -36,15 +38,15 @@ namespace Agent.Web.Controllers
             }
             credentials = await ControllerHelpers.UpdateCredentials("DataEgressCredentials", _clientHelper, ModelState,
                     credentials);
+
+            credentials.CredentialsConfigured = await ControllerHelpers.AreEgressCredentialsConfigured(_clientHelper);
+
             if (credentials.Valid)
             {
                 return RedirectToAction("Index", "Home");
             }
-            else
-            {
-                return View(credentials);
-            }
 
+            return View(credentials);
         }
 
     }

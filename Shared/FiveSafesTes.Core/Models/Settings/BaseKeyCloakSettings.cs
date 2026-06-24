@@ -1,4 +1,4 @@
-﻿using System.Runtime;
+using System.Runtime;
 using System.Net;
 using Serilog;
 
