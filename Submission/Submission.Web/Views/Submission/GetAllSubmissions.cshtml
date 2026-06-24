@@ -19,34 +19,17 @@
 	<hr class="d-flex my-4">
 	<div class="table-responsive">
 		<table id="submissionList" class="table" order="[[3, 'asc' ]]">
-            @if (submissionCount == 0)
-            {
-                <caption>List of Submissions</caption>
-                <thead class="hidden">
-                    <tr>
-                        <th></th>
-                        <th>Submission Name</th>
-                        <th>Project</th>
-                        <th>Submitted by</th>
-                        <th>Submission Date</th>
-                        <th></th>
-                    </tr>
-                </thead>
-            } else
-            {
-                <caption>List of Submissions</caption>
-                <thead>
-                    <tr>
-                        <th></th>
-                        <th>Submission Name</th>
-                        <th>Project</th>
-                        <th>Submitted by</th>
-                        <th>Submission Date</th>
-                        <th></th>
-                    </tr>
-                </thead>
-            }
-			
+			<caption>List of Submissions</caption>
+			<thead class="@(submissionCount == 0 ? "hidden" : "")">
+				<tr>
+					<th></th>
+					<th>Submission Name</th>
+					<th>Project</th>
+					<th>Submitted by</th>
+					<th>Submission Date</th>
+					<th></th>
+				</tr>
+			</thead>
 			<tbody>
 				@foreach (var submission in Model.OrderByDescending(x => x.StartTime))
 				{
