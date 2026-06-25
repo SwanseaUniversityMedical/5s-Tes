@@ -7,6 +7,7 @@ using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using FiveSafesTes.Core.Models;
+using Microsoft.EntityFrameworkCore;
 
 namespace Agent.Api;
 
@@ -42,6 +43,8 @@ public class DoHealthCheckWork : IDoHealthCheckWork
 
     public async Task Execute()
     {
+        await DeleteOldLogs();
+
         DoSyncHealthCheck();
         DoAgentHealthCheck();
         await DoEgressHealthCheck();
@@ -205,5 +208,16 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         };
 
         _dbContext.HealthCheckStatus.Add(healthStatus);
+    }
+
+    /// <summary>
+    /// Logs that are more than 30 days old are removed from the database.
+    /// </summary>
+    private async Task DeleteOldLogs()
+    {
+        DateTime cutoffDate = DateTime.UtcNow.AddDays(-30);
+
+        await _dbContext.HealthCheckStatus.Where(x => x.DateTime < cutoffDate).ExecuteDeleteAsync();
+
     }
 }
