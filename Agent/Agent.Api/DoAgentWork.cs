@@ -54,6 +54,8 @@ namespace Agent.Api
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
+        // Used to start Camunda process instances directly via Zeebe gRPC, replacing the previous HTTP calls to CredentialsController
+        private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -72,7 +74,8 @@ namespace Agent.Api
             IHttpClientFactory httpClientFactory,
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
-            IConfiguration config
+            IConfiguration config,
+            Credentials.Models.Services.IServicedZeebeClient zeebeClient
         )
         {
             _serviceProvider = serviceProvider;
@@ -101,8 +104,8 @@ namespace Agent.Api
             _httpClientFactory = httpClientFactory;
             _credsDbContext = credsDbContext;
             _vaultService = vaultService;
-
             _config = config;
+            _zeebeClient = zeebeClient;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -955,41 +958,29 @@ namespace Agent.Api
             }
         }
 
+        // Starts the Start_Credentials Camunda process for the given submission.
+        // InputCollections mirrors the top-level variables as a list because the BPMN multi-instance
+        // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
         {
-            var payload = new
+            var variables = new Dictionary<string, object>
             {
-                records = new[]
+                ["project"] = projectName,
+                ["user"] = userId.ToString(),
+                ["submissionId"] = submissionId.ToString(),
+                ["InputCollections"] = new List<Dictionary<string, object>>
                 {
-                    new
+                    new Dictionary<string, object>
                     {
-                        project = projectName,
-                        user = userId.ToString(),
-                        submissionId = submissionId.ToString()
+                        ["project"] = projectName,
+                        ["user"] = userId.ToString(),
+                        ["submissionId"] = submissionId.ToString()
                     }
                 }
             };
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
-
-            var response = await httpClient.PostAsync(camundaWebhookUrl, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId,
-                    error);
-                throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
-            }
-
-            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
-                submissionId);
+            await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
+            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
 
@@ -1057,54 +1048,30 @@ namespace Agent.Api
             throw new TimeoutException(errorMsg);
         }
 
+        // Starts the Credentials_Revoke Camunda process to revoke credentials for the given submission.
+        // timer controls how long (seconds) the revoke process waits before expiring credentials.
         private async Task TriggerRevokeCredentialsAsync(int submissionId, string projectName, int user, int timer)
         {
-            var payload = new
+            var variables = new Dictionary<string, object>
             {
-                records = new[]
+                ["submissionId"] = submissionId.ToString(),
+                ["project"] = projectName,
+                ["user"] = user.ToString(),
+                ["timer"] = timer,
+                ["InputCollections"] = new List<Dictionary<string, object>>
                 {
-                    new
+                    new Dictionary<string, object>
                     {
-                        submissionId = submissionId.ToString(),
-                        project = projectName,
-                        user = user.ToString(),
-                        timer = timer
+                        ["submissionId"] = submissionId.ToString(),
+                        ["project"] = projectName,
+                        ["user"] = user.ToString(),
+                        ["timer"] = timer
                     }
                 }
             };
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-            // use the correct config key (matches appsettings: RevokeWebhookUrl)
-            var camundaWebhookUrl = _config["CredentialAPISettings:RevokeWebhookUrl"];
-
-            if (string.IsNullOrWhiteSpace(camundaWebhookUrl))
-            {
-                throw new InvalidOperationException(
-                    "Configuration 'CredentialAPISettings:RevokeWebhookUrl' is missing or empty.");
-            }
-
-            if (!Uri.TryCreate(camundaWebhookUrl, UriKind.Absolute, out var webhookUri))
-            {
-                throw new InvalidOperationException($"Invalid webhook URL in configuration: {camundaWebhookUrl}");
-            }
-
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
-
-            var response = await httpClient.PostAsync(webhookUri, content);
-
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda revoke webhook failed for submission {SubmissionId}. Error: {Error}", submissionId,
-                    error);
-                throw new Exception($"Camunda revoke webhook call failed: {response.StatusCode}");
-            }
-
-            Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}",
-                submissionId);
+            await _zeebeClient.CreateProcessInstanceAsync("Credentials_Revoke", variables);
+            Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
 
