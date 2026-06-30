@@ -215,7 +215,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
     /// </summary>
     private async Task DeleteOldLogs()
     {
-        DateTime cutoffDate = DateTime.UtcNow.AddDays(-30);
+        DateTime cutoffDate = DateTime.UtcNow.AddDays(-_jobSettings.DaysBeforeHealthLogDeletion);
 
         await _dbContext.HealthCheckStatus.Where(x => x.DateTime < cutoffDate).ExecuteDeleteAsync();
 
