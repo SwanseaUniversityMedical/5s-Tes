@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using Serilog;
@@ -570,11 +570,8 @@ namespace Submission.Api.Controllers
 
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
 
-                Log.Debug("{Function} tre is {tre}", "GetAllProjectsForTre", tre);
-
                 var allProjects = tre.Projects;
 
-                Log.Debug("{Function} project count == {Projects}.", "GetAllProjectsForTre", allProjects.Count);
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
                 return allProjects;
             }

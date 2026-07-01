@@ -142,8 +142,6 @@ namespace FiveSafesTes.Core.Services
                     if (method == HttpMethod.Delete) res = await apiClient.DeleteAsync(endPoint);
                 }
 
-                Log.Debug($"ClientHelperRequestAsync response to {method} {endPoint} is {res.StatusCode}");
-
                 if (!res.IsSuccessStatusCode)
                 {
                     var stream =res.Content.ReadAsStream();
