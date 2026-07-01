@@ -33,7 +33,7 @@ namespace FiveSafesTes.Core.Models.ViewModels
 
         public string? Query { get; set; }
 
-        public virtual List<Submission>? Submissions { get; set; }
+        public virtual List<Project.ProjectSubmissionDto>? Submissions { get; set; }
 
         public IEnumerable<SelectListItem>? TreItemList { get; set; }
 
