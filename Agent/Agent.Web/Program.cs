@@ -340,9 +340,7 @@ try
           ? CookieSecurePolicy.Always
           : CookieSecurePolicy.None,
 
-    MinimumSameSitePolicy = secureSslCookies
-          ? SameSiteMode.None
-          : SameSiteMode.Lax,
+    MinimumSameSitePolicy = SameSiteMode.Unspecified,
 
     OnAppendCookie = cookieContext =>
         CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
@@ -398,6 +396,10 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 
 void CheckSameSite(HttpContext httpContext, CookieOptions options, bool secureSslCookies)
 {
+  Log.Information(
+    "CookiePolicy: Name=, SameSite={SameSite}, Secure={Secure}",
+    options.SameSite,
+    options.Secure);
   if (!secureSslCookies)
   {
     // Non-HTTPS/dev deployments: do not mark cookies as Secure,
