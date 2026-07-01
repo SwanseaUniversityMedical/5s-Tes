@@ -34,19 +34,6 @@ namespace FiveSafesTes.Core.Models
         public string? StatusDescription { get; set; }
 
         public string? QueryToken { get; set; }
-
-        public string GetTotalDisplayTime()
-        {
-            var end = EndTime == DateTime.MinValue ? (DateTime.Now).ToUniversalTime() : EndTime;
-            var data = TimeHelper.GetDisplayTime(StartTime, end);
-            return data;
-        }
-
-        public string GetFormattedStartDate()
-        {
-            var date = StartTime.ToString("yyyy/MM/dd HH:mm:ss");
-            return date;
-        }
         
         
         public class SubmissionSummary

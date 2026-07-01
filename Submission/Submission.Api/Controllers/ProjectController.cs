@@ -539,19 +539,30 @@ namespace Submission.Api.Controllers
 
         }
 
-        [HttpGet("GetProjectsForCurrentUser")]
-        public List<Project> GetProjectsForCurrentUser()
+        [HttpGet("GetProjectsSummaryForCurrentUser")]
+        public async Task<IActionResult> GetProjectsSummaryForCurrentUser()
         {
             try
             {
                 var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+                var summaryProjects = await _DbContext.Projects
+                  .AsNoTracking()
+                  .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                  .Select(p => new Project.ProjectSummary
+                  {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                    UserCount = p.Users.Count(),
+                    TreCount = p.Tres.Count(),
+                  })
+                  .ToListAsync();
+              
 
-                var userProjects = _DbContext.Projects
-                    .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
-                    .Distinct()
-                    .ToList();
-
-                return userProjects;
+                return Ok(summaryProjects);
             }
             catch (Exception ex)
             {
@@ -642,13 +653,9 @@ namespace Submission.Api.Controllers
         [Authorize(Roles = "dare-tre-admin")]
         public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
-            var aresult = new BoolReturn();
-            aresult.Result = true;
-            return aresult;
             try
             {
                 var result = new BoolReturn();
-                var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
 
                 foreach (var item in decisions)
@@ -669,10 +676,9 @@ namespace Submission.Api.Controllers
                     tredecision.Decision = item.Decision;
                 }
                 _DbContext.SaveChanges();
-
-
+                
                 result.Result = true;
-                Log.Information("{Function} Tre {TreName} membership decisions synched", "SyncTreMembershipDecisions", tre.Name);
+                Log.Information("{Function} Tre {TreName} membership decisions synced", "SyncTreMembershipDecisions", tre.Name);
                 return result;
             }
             catch (Exception ex)
