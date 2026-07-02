@@ -37,5 +37,8 @@ namespace FiveSafesTes.Core.Services
         Task<MinioCommandResult> DeleteMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
         Task<MinioCommandResult> ListMinioSecretsAsync(CancellationToken cancellationToken = default);
         Task<MinioCommandResult> GetMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
+
+        Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string submissionBucket, string outputBucket);
+        Task<bool> AttachPolicyToUserAsync(string policyName, string accessKey, CancellationToken cancellationToken = default);
     }
 }

@@ -44,6 +44,7 @@ namespace Agent.Api
         private readonly ISubmissionHelper _subHelper;
         private readonly IMinioSubHelper _minioSubHelper;
         private readonly IMinioTreHelper _minioTreHelper;
+        private readonly IProjectMinioSubHelperFactory _projectMinioSubHelperFactory;
         private readonly IHasuraAuthenticationService _hasuraAuthenticationService;
         private readonly IDareClientWithoutTokenHelper _dareHelper;
         private readonly AgentSettings _AgentSettings;
@@ -64,6 +65,7 @@ namespace Agent.Api
             ISubmissionHelper subHelper,
             IMinioTreHelper minioTreHelper,
             IMinioSubHelper minioSubHelper,
+            IProjectMinioSubHelperFactory projectMinioSubHelperFactory,
             IHasuraAuthenticationService hasuraAuthenticationService,
             IDareClientWithoutTokenHelper dareHelper,
             AgentSettings AgentSettings,
@@ -86,6 +88,7 @@ namespace Agent.Api
 
             _minioTreHelper = minioTreHelper;
             _minioSubHelper = minioSubHelper;
+            _projectMinioSubHelperFactory = projectMinioSubHelperFactory;
 
             _serviceProvider = serviceProvider;
             _dbContext = dbContext;
@@ -803,8 +806,10 @@ namespace Agent.Api
                                     Log.Information(
                                         $"getting copy for {CleanedIntput} for SubmissionBucket {aSubmission.Project.SubmissionBucket} to {NewCleanedInput}");
 
+                                    // Use project-scoped Submission S3 creds (from TRE Vault), not shared root creds.
+                                    var minioSubHelper = await _projectMinioSubHelperFactory.GetForProjectAsync(aSubmission.Project.Id);
                                     var source =
-                                        await _minioSubHelper.GetCopyObject(aSubmission.Project.SubmissionBucket,
+                                        await minioSubHelper.GetCopyObject(aSubmission.Project.SubmissionBucket,
                                             CleanedIntput);
                                     try
                                     {
