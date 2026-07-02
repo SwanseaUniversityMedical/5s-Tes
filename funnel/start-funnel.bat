@@ -1,6 +1,23 @@
 @echo off
 echo Starting Funnel server...
 
+if not exist "C:\funnel" mkdir "C:\funnel"
+if not exist "C:\funnel\data" mkdir "C:\funnel\data"
+
+if not exist "C:\funnel\config.yaml" (
+    echo Creating default config.yaml...
+    (
+        echo Server:
+        echo   HostName: localhost
+        echo   HTTPPort: "8000"
+        echo   RPCPort: "9090"
+        echo.
+        echo LocalStorage:
+        echo   AllowedDirs:
+        echo     - /data
+    ) > "C:\funnel\config.yaml"
+)
+
 echo Removing existing container (if any)...
 docker rm -f funnel-server 2>nul
 
