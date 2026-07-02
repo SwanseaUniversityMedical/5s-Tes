@@ -382,9 +382,8 @@ else
           ? CookieSecurePolicy.Always
           : CookieSecurePolicy.None,
 
-    MinimumSameSitePolicy = secureSslCookies
-          ? SameSiteMode.None
-          : SameSiteMode.Lax,
+    MinimumSameSitePolicy = SameSiteMode.Unspecified,
+
 
     OnAppendCookie = cookieContext =>
         CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
