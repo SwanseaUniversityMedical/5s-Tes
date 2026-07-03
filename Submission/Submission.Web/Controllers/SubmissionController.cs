@@ -116,7 +116,7 @@ namespace Submission.Web.Controllers
                 var paramlist = new Dictionary<string, string>();
                 paramlist.Add("projectId", model.ProjectId.ToString());
                 var project = await _clientHelper.CallAPIWithoutModel<Project?>(
-                    "/api/Project/GetProject/", paramlist);
+                    "/api/Project/GetProjectDetails/", paramlist);
 
                 var test = new TesTask();
                 var tesExecutors = new List<TesExecutor>();
@@ -325,8 +325,8 @@ namespace Submission.Web.Controllers
                 else if (Mode == "Simple" || Mode == "Custom")
                 {
                     // 1. Resolve project
-                    var project = await _clientHelper.CallAPIWithoutModel<Project?>(
-                        "/api/Project/GetProject/",
+                    var project = await _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+                        "/api/Project/GetProjectDetails/",
                         new Dictionary<string, string> { { "projectId", model.ProjectId.ToString() } });
 
                     // 2. Resolve TRE list (fall back to all TREs in the project)
