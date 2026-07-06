@@ -50,7 +50,6 @@ try
     var treKeyCloakSettings = new TreKeyCloakSettings();
     configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
     var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
-    var demomode = configuration["DemoMode"].ToLower() == "true";
     treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
     builder.Services.AddSingleton(treKeyCloakSettings);
     Log.Information("{Function} Step 1 Authority {Authority}","Main",  treKeyCloakSettings.Authority);
@@ -241,14 +240,6 @@ try
                 {
                     string accessToken = context.Request.Query["access_token"];
                     PathString path = context.HttpContext.Request.Path;
-
-                    if (
-                        !string.IsNullOrEmpty(accessToken) &&
-                        path.StartsWithSegments("/api/SignalRHub")
-                    )
-                    {
-                        context.Token = accessToken;
-                    }
 
                     return Task.CompletedTask;
                 },

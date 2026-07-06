@@ -1,7 +1,6 @@
 ﻿using System.Text;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services.SignalR;
 using EasyNetQ;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
@@ -17,7 +16,6 @@ namespace Agent.Api.Services
     public interface ISubmissionHelper
     {
         APIReturn? UpdateStatusForTre(string subId, StatusType statusType, string? description);
-        void SimulateSubmissionProcessing(Submission submission);
         bool IsUserApprovedOnProject(int projectId, int userId);
         List<Submission>? GetWaitingSubmissionForTre();
 
@@ -42,7 +40,7 @@ namespace Agent.Api.Services
         private readonly AgentSettings _agentSettings;
 
 
-        public SubmissionHelper(ISignalRService signalRService,
+        public SubmissionHelper(
             IDareClientWithoutTokenHelper helper,
             ApplicationDbContext dbContext,
             IBus rabbit,
@@ -170,45 +168,6 @@ namespace Agent.Api.Services
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crash", "GetOutputBucketGuts");
-                throw;
-            }
-        }
-
-        public void SimulateSubmissionProcessing(Submission submission)
-        {
-            try
-            {
-                UpdateStatusForTre(submission.Id.ToString(), StatusType.PreparingOutputs, "");
-
-                //Uri uri = new Uri(submission.DockerInputLocation);
-                string fileName = "stdout.txt";
-
-                var destinationBucket = GetOutputBucketGuts(submission.Id.ToString(), false, false);
-                var subProj = _dbContext.Projects
-                    .FirstOrDefault(x => x.SubmissionProjectId == submission.Project.Id);
-                var sourceBucket = subProj.SubmissionBucketTre;
-                Log.Information("{Function} Copying {File} from {From} to {To}", "Execute", fileName, sourceBucket,
-                    destinationBucket);
-                string content = "Hello World";
-                var memoryStream = new MemoryStream(Encoding.UTF8.GetBytes(content));
-                _minioTreHelper.WriteToStore(destinationBucket.Bucket, fileName, memoryStream);
-
-                Log.Information("{Function} Simulate submission for Id {Id} returned ",
-                    "SimulateSubmissionProcessing", submission.Id);
-                var reviewFiles = new ReviewFiles()
-                {
-                    Files = new List<string>() { fileName },
-                    SubId = submission.Id.ToString(),
-                    tesId = submission.TesId
-                };
-
-                FilesReadyForReview(reviewFiles);
-                UpdateStatusForTre(submission.Id.ToString(), StatusType.TransferredForDataOut, "");
-            }
-            catch (Exception e)
-            {
-                Log.Error(e, "{Function} Something went wrong with submission {Id}", "SimulateSubmissionProcessing",
-                    submission.Id);
                 throw;
             }
         }

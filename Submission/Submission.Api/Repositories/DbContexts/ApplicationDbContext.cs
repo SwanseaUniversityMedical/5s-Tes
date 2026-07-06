@@ -5,11 +5,6 @@ namespace Submission.Api.Repositories.DbContexts
 {
     public class ApplicationDbContext : DbContext
     {
-        //protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        //{
-        //    optionsBuilder.UseNpgsql("DefaultConnection")
-        //    .UseUtcDateTime();
-        //}
         public ApplicationDbContext(DbContextOptions<ApplicationDbContext> options)
           : base(options)
         {

@@ -19,7 +19,7 @@ namespace Agent.Api.Repositories.DbContexts
 
         }
 
-        public void SeedAllInOneData(string password)
+        public void SeedDemoData(string password)
         {
             
             try

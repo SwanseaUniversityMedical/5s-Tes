@@ -1,4 +1,4 @@
-﻿FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:8.0.416 AS build
+﻿FROM --platform=${BUILDPLATFORM} mcr.microsoft.com/dotnet/sdk:10.0.300 AS build
 WORKDIR /src
 COPY ["Agent/Agent.Api/Agent.Api.csproj", "Agent/Agent.Api/"]
 COPY ["Credentials/Credentials.Models/Credentials.Models.csproj", "Credentials/Credentials.Models/"]
@@ -16,7 +16,7 @@ RUN dotnet publish "Agent.Api.csproj" \
     --self-contained=false \
     /p:UseAppHost=false
 
-FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:8.0 AS final
+FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
 COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
