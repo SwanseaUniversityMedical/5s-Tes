@@ -108,7 +108,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         if (string.IsNullOrEmpty(_agentSettings.TESKAPIURL))
         {
             isHealthy = false;
-            message = "TESK API URL is missing.";
+            message = "TES API URL is missing.";
         }
         else
         {
