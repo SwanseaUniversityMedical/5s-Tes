@@ -86,7 +86,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         HealthCheckStatus healthStatus = new()
         {
             Product = "Submission",
-            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
             Reason = message,
             DateTime = DateTime.UtcNow
         };
@@ -131,13 +131,13 @@ public class DoHealthCheckWork : IDoHealthCheckWork
                 if (!response.IsSuccessStatusCode)
                 {
                     isHealthy = false;
-                    message = "Failed to reach TESK API.";
+                    message = "Failed to reach TES API.";
                 }
             }
             catch (Exception)
             {
                 isHealthy = false;
-                message = "Invalid URL for TESK API.";
+                message = "Invalid URL for TES API.";
             }
         }
 
@@ -145,7 +145,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         HealthCheckStatus healthStatus = new()
         {
             Product = "TES Engine",
-            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
             Reason = message,
             DateTime = DateTime.UtcNow
         };
@@ -199,7 +199,7 @@ public class DoHealthCheckWork : IDoHealthCheckWork
         HealthCheckStatus healthStatus = new()
         {
             Product = "Egress",
-            HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+            HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
             Reason = message,
             DateTime = DateTime.UtcNow
         };
