@@ -306,6 +306,7 @@ try
 // a "Correlation failed" error.
 // This only applies to top-level HTML GET requests. Nothing happens unless
 // demo mode is enabled and a valid RedirectURL is configured.
+    if (keycloakDemomode &&
         Uri.TryCreate(treKeyCloakSettings.RedirectURL, UriKind.Absolute, out var canonicalUri))
     {
         var canonicalAuthority = canonicalUri.Authority; // host[:port]
