@@ -410,7 +410,7 @@ namespace Agent.Api
                                     if (files.Count == 0)
                                     {
                                         _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Complete,
-                                            " Complete - No Files to review ");
+                                            " Complete - No files to review ");
                                         return;
                                     }
 
