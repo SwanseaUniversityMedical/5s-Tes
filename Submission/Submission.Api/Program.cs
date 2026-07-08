@@ -248,10 +248,13 @@ using (var scope = app.Services.CreateScope())
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 
     db.Database.Migrate();
-    var initialiser = new DataInitialiser(miniosettings, db, keytoken, userService, miniohelper);
+    var keycloakAdminService = scope.ServiceProvider.GetRequiredService<IKeycloakAdminService>();
+    var vaultCredentialsService = scope.ServiceProvider.GetRequiredService<IVaultCredentialsService>();
+    var initialiser = new DataInitialiser(miniosettings, db, keytoken, userService, miniohelper,
+        keycloakAdminService, vaultCredentialsService);
     if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
-        initialiser.SeedDemoData();
+        await initialiser.SeedDemoDataAsync();
     }
 }
 

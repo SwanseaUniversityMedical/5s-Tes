@@ -300,6 +300,35 @@ try
     app.UseCors();
     app.UseForwardedHeaders();
 
+// DemoStack only: redirect browser requests to the configured host before login.
+// This keeps the Keycloak OIDC flow on the same site and prevents the
+// correlation cookie from being created on a different host, which can cause
+// a "Correlation failed" error.
+// This only applies to top-level HTML GET requests. Nothing happens unless
+// demo mode is enabled and a valid RedirectURL is configured.
+    if (keycloakDemomode &&
+        Uri.TryCreate(treKeyCloakSettings.RedirectURL, UriKind.Absolute, out var canonicalUri))
+    {
+        var canonicalAuthority = canonicalUri.Authority; // host[:port]
+        app.Use(async (context, next) =>
+        {
+            var request = context.Request;
+            var accept = request.Headers["Accept"].ToString();
+            if (HttpMethods.IsGet(request.Method) &&
+                accept.Contains("text/html", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(request.Host.Value, canonicalAuthority, StringComparison.OrdinalIgnoreCase))
+            {
+                var target = $"{canonicalUri.Scheme}://{canonicalAuthority}{request.PathBase}{request.Path}{request.QueryString}";
+                Log.Information("{Function} Redirecting {From} to canonical host {To} to keep OIDC same-site",
+                    "CanonicalHostRedirect", request.Host.Value, canonicalAuthority);
+                context.Response.Redirect(target, permanent: false);
+                return;
+            }
+
+            await next();
+        });
+    }
+
     if (app.Environment.IsDevelopment())
     {
         app.UseDeveloperExceptionPage();
@@ -340,9 +369,10 @@ try
           ? CookieSecurePolicy.Always
           : CookieSecurePolicy.None,
 
+    // Over HTTP, leave the minimum SameSite policy as Unspecified rather than Lax.
     MinimumSameSitePolicy = secureSslCookies
           ? SameSiteMode.None
-          : SameSiteMode.Lax,
+          : SameSiteMode.Unspecified,
 
     OnAppendCookie = cookieContext =>
         CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
@@ -405,7 +435,9 @@ void CheckSameSite(HttpContext httpContext, CookieOptions options, bool secureSs
     options.Secure = false;
     if (options.SameSite == SameSiteMode.None)
     {
-      options.SameSite = SameSiteMode.Lax;
+      // Don't set Lax explicitly - it gets dropped on Keycloak's cross-site form_post callback
+      // (localhost <-> *.localtest.me) so login fails. Leaving it unset relies on the Lax+POST grace.
+      options.SameSite = SameSiteMode.Unspecified;
     }
     return;
   }

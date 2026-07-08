@@ -75,7 +75,7 @@ public class DoHealthCheckWork(
     HealthCheckStatus healthStatus = new()
     {
       Product = "Submission",
-      HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+      HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
       Reason = message,
       DateTime = DateTime.UtcNow
     };
@@ -97,7 +97,7 @@ public class DoHealthCheckWork(
     if (string.IsNullOrEmpty(agentSettings.TESKAPIURL))
     {
       isHealthy = false;
-      message = "TESK API URL is missing.";
+      message = "TES API URL is missing.";
     }
     else
     {
@@ -120,13 +120,13 @@ public class DoHealthCheckWork(
         if (!response.IsSuccessStatusCode)
         {
           isHealthy = false;
-          message = "Failed to reach TESK API.";
+          message = "Failed to reach TES API.";
         }
       }
       catch (Exception)
       {
         isHealthy = false;
-        message = "Invalid URL for TESK API.";
+        message = "Invalid URL for TES API.";
       }
     }
 
@@ -134,7 +134,7 @@ public class DoHealthCheckWork(
     HealthCheckStatus healthStatus = new()
     {
       Product = "TES Engine",
-      HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+      HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
       Reason = message,
       DateTime = DateTime.UtcNow
     };
