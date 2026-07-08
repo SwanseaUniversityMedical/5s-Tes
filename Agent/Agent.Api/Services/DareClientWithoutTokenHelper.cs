@@ -10,13 +10,14 @@ namespace Agent.Api.Services
     public class DareClientWithoutTokenHelper : BaseClientHelper, IDareClientWithoutTokenHelper
     {
         private readonly SubmissionKeyCloakSettings _keycloakSettings;
-
+        private readonly ApiEndpointSettings _apiEndpointSettings;
         public DareClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
-            IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings) : base(httpClientFactory, httpContextAccessor,
-            config["DareAPISettings:Address"], false)
+            IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.SubmissionApiUrl
+            , false)
         {
-            _keycloakSettings = keycloakSettings.CurrentValue;
+          _apiEndpointSettings = apiEndpointSettings.Value;
+          _keycloakSettings = keycloakSettings.CurrentValue;
 
             bool useServiceAccount = _keycloakSettings.ConfigInputMethod == ConfigInputMethod.Upload;
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
