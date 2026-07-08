@@ -190,7 +190,7 @@ public class DoHealthCheckWork(
     HealthCheckStatus healthStatus = new()
     {
       Product = "Egress",
-      HealthStatus = isHealthy ? HealthStatus.Succeed : HealthStatus.Failed,
+      HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
       Reason = message,
       DateTime = DateTime.UtcNow
     };
