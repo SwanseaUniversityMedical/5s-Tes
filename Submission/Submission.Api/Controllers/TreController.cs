@@ -90,16 +90,20 @@ namespace Submission.Api.Controllers
                 await _DbContext.SaveChangesAsync();
                 await ControllerHelpers.AddAuditLog(logtype, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
 
-                if (logtype == LogType.AddTre && string.IsNullOrEmpty(tre.KeycloakClientId))
+                // Provision whenever the TRE has no service account yet, not just on first add. This lets a
+                // failed run (e.g. a Vault write that didn't complete) self-heal on the next save, and
+                // backfills legacy TREs. CreateServiceAccountAsync is idempotent: it reuses the existing
+                // Keycloak client for the TRE name, so re-running never creates a duplicate.
+                if (string.IsNullOrEmpty(tre.KeycloakClientId))
                 {
                     try
                     {
                         var (clientUuid, clientId, clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
 
-                        tre.KeycloakClientId = clientId;
-                        await _DbContext.SaveChangesAsync();
-
-                        await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak",
+                        // Write to Vault first, then persist KeycloakClientId only if the secret was stored.
+                        // This keeps the DB and Vault in sync: DownloadConfig needs both the client id and
+                        // the Vault-held secret, so we never record an id whose secret is missing from Vault.
+                        var vaultWritten = await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak",
                             new Dictionary<string, object>
                             {
                                 { "clientId", clientId },
@@ -107,8 +111,19 @@ namespace Submission.Api.Controllers
                                 { "clientUuid", clientUuid }
                             });
 
-                        Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
-                            "SaveTre", clientId, tre.Name);
+                        if (!vaultWritten)
+                        {
+                            Log.Error("{Function} Keycloak client {ClientId} was provisioned but the Vault write failed for TRE {TreName}. KeycloakClientId was not saved and the service account needs manual setup.",
+                                "SaveTre", clientId, tre.Name);
+                        }
+                        else
+                        {
+                            tre.KeycloakClientId = clientId;
+                            await _DbContext.SaveChangesAsync();
+
+                            Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
+                                "SaveTre", clientId, tre.Name);
+                        }
                     }
                     catch (Exception serviceAccountEx)
                     {
