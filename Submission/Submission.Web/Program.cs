@@ -411,9 +411,10 @@ else
           ? CookieSecurePolicy.Always
           : CookieSecurePolicy.None,
 
+    // Over HTTP, leave the minimum SameSite policy as Unspecified rather than Lax.
     MinimumSameSitePolicy = secureSslCookies
           ? SameSiteMode.None
-          : SameSiteMode.Lax,
+          : SameSiteMode.Unspecified,
 
     OnAppendCookie = cookieContext =>
         CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
