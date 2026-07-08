@@ -1,45 +1,64 @@
 @using FiveSafesTes.Core.Models;
+@using FiveSafesTes.Core.Models.Enums
 @model List<HealthCheckStatus>
 
-<div class="py-2 pb-4">
-    <div class="card shadow-sm">
-        <div class="card-body">
-            <div class="table-responsive">
-                <table id="statusTable" class="table table-hover">
-                    <thead class="bg-light">
-                        <tr>
-                            <th>ID</th>
-                            <th>Product</th>
-                            <th>Health Status</th>
-                            <th>Reason</th>
-                            <th>Date</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var status in Model)
-                        {
-                            <tr>
-                                <td>@status.Id</td>
-                                <td>@status.Product</td>
-                                <td>@status.HealthStatus</td>
-                                <td>@status.Reason</td>
-                                <td>@status.DateTime.ToString("yyyy/MM/dd")</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </div>
+<div class="container-lg p-4">
+  <div class="card shadow border-0 rounded-3">
+    <div class="card-body">
+      <div class="table-responsive">
+        <table id="statusTable" class="table table-hover table-striped align-middle mb-0">
+          <thead class="table-light">
+          <tr>
+            <th>ID</th>
+            <th>Product</th>
+            <th>Health Status</th>
+            <th>Reason</th>
+            <th>Date</th>
+          </tr>
+          </thead>
+          <tbody>
+          @foreach (var status in Model)
+          {
+            <tr>
+              <td class="text-muted">@status.Id</td>
+              <td>@status.Product</td>
+
+              <td>
+                @{
+                  var dotClass = status.HealthStatus switch
+                  {
+                    HealthStatus.Connected => "bg-success",
+                    HealthStatus.Failed => "bg-danger",
+                    _ => "bg-secondary"
+                  };
+                }
+
+                <span class="d-inline-flex align-items-center">
+                  <span class="rounded-circle @dotClass me-2" style="width:10px; height:10px; display:inline-block;">
+                  </span>
+                  @status.HealthStatus
+                  </span>
+              </td>
+              <td class="text-wrap" style="max-width:350px;">
+                @status.Reason
+              </td>
+              <td>@status.DateTime.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+            </tr>
+          }
+          </tbody>
+        </table>
+      </div>
     </div>
+  </div>
 </div>
 
 @section Scripts {
-    <script src="~/lib/DataTables/datatables.min.js"></script>
-    <link rel="stylesheet" href="~/lib/DataTables/datatables.min.css" />
+  <script src="~/lib/DataTables/datatables.min.js"></script>
+  <link rel="stylesheet" href="~/lib/DataTables/datatables.min.css"/>
 
-    <script>
+  <script>
 
-        new DataTable('#statusTable');
+    new DataTable('#statusTable');
 
-    </script>
+  </script>
 }
