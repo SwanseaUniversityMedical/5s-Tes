@@ -58,7 +58,7 @@ namespace Submission.Api.Controllers
                 project.StartDate = project.StartDate.ToUniversalTime();
                 project.EndDate = project.EndDate.ToUniversalTime();
                 project.ProjectDescription = project.ProjectDescription.Trim();
-                project.Display = project.Display.Trim();
+                
                project.FormData = data.FormIoString;
                 
 
