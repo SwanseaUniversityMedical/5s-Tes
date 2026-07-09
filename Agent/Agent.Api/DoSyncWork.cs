@@ -85,7 +85,7 @@ namespace Agent.Api
 
                     // We no longer need these credentials in the database.
                     _dbContext.KeycloakCredentials.Remove(creds);
-                    _dbContext.SaveChanges();
+                    await _dbContext.SaveChangesAsync();
 
                     return true;
                 }
