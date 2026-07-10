@@ -127,7 +127,7 @@ public class DoHealthCheckWork(
       catch (Exception)
       {
         isHealthy = false;
-        message = "Invalid URL for TES API.";
+        message = "Failed to reach TES API.";
       }
     }
 
