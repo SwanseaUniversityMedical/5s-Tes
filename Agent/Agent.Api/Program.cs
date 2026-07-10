@@ -7,6 +7,7 @@ using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
 using Credentials.Models.DbContexts;
 using EasyNetQ;
+using FiveSafesTes.Core.Extensions;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Rabbit;
@@ -90,15 +91,22 @@ var bus =
 await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"],
     configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
 
-var treKeyCloakSettings = new TreKeyCloakSettings();
-configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
-var keycloakDemomode = string.Equals(configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
-treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(treKeyCloakSettings);
+builder.Services.AddKeycloakSettings<TreKeyCloakSettings>(
+  configuration, "TreKeyCloakSettings");
+var treKeyCloakSettings = configuration
+  .GetSection("TreKeyCloakSettings")
+  .Get<TreKeyCloakSettings>()!;
 
-builder.Services.Configure<DataEgressKeyCloakSettings>(configuration.GetSection("DataEgressKeyCloakSettings"));
-builder.Services.Configure<SubmissionKeyCloakSettings>(configuration.GetSection("SubmissionKeyCloakSettings"));
+treKeyCloakSettings.KeycloakDemoMode =
+  configuration.GetValue<bool>("KeycloakDemoMode");
+builder.Services.AddKeycloakSettings<DataEgressKeyCloakSettings>(
+  configuration, "DataEgressKeyCloakSettings");
 
+builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(
+  configuration, "SubmissionKeyCloakSettings");
+builder.Services.Configure<ApiEndpointSettings>(
+  builder.Configuration.GetSection("ApiEndpoints"));
+var apiEndpointSettings = configuration.GetSection("ApiEndpoints").Get<ApiEndpointSettings>();
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
 builder.Services.AddSingleton(HasuraSettings);
@@ -246,12 +254,13 @@ builder.Services.AddCors(options =>
     options.AddPolicy(name: MyAllowSpecificOrigins,
         policy =>
         {
+          if (apiEndpointSettings != null)
             policy.WithOrigins(
-                    configuration["TreAPISettings:Address"]
-                )
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
+                apiEndpointSettings.TreApiUrl
+              )
+              .AllowAnyMethod()
+              .AllowAnyHeader()
+              .AllowCredentials();
         });
 });
 
@@ -287,18 +296,16 @@ if (!app.Environment.IsDevelopment())
 }
 
 
+var submissionKeycloakSettings = app.Services
+  .GetRequiredService<IOptions<SubmissionKeyCloakSettings>>();
+var egressKeycloakSettings = app.Services
+  .GetRequiredService<IOptions<DataEgressKeyCloakSettings>>();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var credDb = scope.ServiceProvider.GetRequiredService<CredentialsDbContext>();
     var encDec = scope.ServiceProvider.GetRequiredService<IEncDecHelper>();
     var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
-
-    IOptionsMonitor<SubmissionKeyCloakSettings> submissionKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<SubmissionKeyCloakSettings>>();
-    submissionKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
-
-    IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings = scope.ServiceProvider.GetRequiredService<IOptionsMonitor<DataEgressKeyCloakSettings>>();
-    egressKeycloakSettings.CurrentValue.KeycloakDemoMode = keycloakDemomode;
 
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 

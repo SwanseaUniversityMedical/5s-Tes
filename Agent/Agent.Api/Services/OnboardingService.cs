@@ -13,30 +13,18 @@ using Serilog;
 
 namespace Agent.Api.Services;
 
-public class OnboardingService : IOnboardingService
+public class OnboardingService(
+  IConfiguration configuration,
+  IConfigurationService configService,
+  IOptionsMonitor<TreOnboardingConfig> configSettings,
+  JobSettings jobSettings,
+  IEncDecHelper encDec,
+  IServiceProvider serviceProvider,
+  IOptions<ApiEndpointSettings> apiEndpoints)
+  : IOnboardingService
 {
-    private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
-    private readonly IConfigurationService _configurationService;
-    private readonly IConfiguration _configuration;
-    private readonly IEncDecHelper _encDecHelper;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly JobSettings _jobSettings;
-    private readonly VaultConfigurationProvider _vaultConfigProvider;
-
-    private readonly string submissionAddress;
-
-    public OnboardingService(IConfiguration config, IConfigurationService configService, IOptionsMonitor<TreOnboardingConfig> configSettings, 
-        JobSettings jobSettings, IEncDecHelper encDec, IServiceProvider serviceProvider)
-    {
-        _configuration = config;
-        _configurationService = configService;
-        _onboardingConfig = configSettings;
-        _jobSettings = jobSettings;
-        _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
-        _encDecHelper = encDec;
-        _serviceProvider = serviceProvider;
-        submissionAddress = config["DareAPISettings:Address"];
-    }
+  private readonly VaultConfigurationProvider _vaultConfigProvider = ((IConfigurationRoot)configuration).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+    private readonly ApiEndpointSettings _apiEndpoints = apiEndpoints.Value;
 
     /// <summary>
     /// Reads a JSON config file and applies its values to our own configuration.
@@ -47,12 +35,12 @@ public class OnboardingService : IOnboardingService
         using StreamReader reader = new(file.OpenReadStream());
         string json = await reader.ReadToEndAsync();
 
-        await _configurationService.AddConfigurationToVault(json, nameof(TreOnboardingConfig));
+        await configService.AddConfigurationToVault(json, nameof(TreOnboardingConfig));
 
         // Update configuration immediately
         await _vaultConfigProvider.LoadAsync();
 
-        await AddKeycloakSettingsToVault(_onboardingConfig.CurrentValue.KeycloakRealmSettingURL);
+        await AddKeycloakSettingsToVault(configSettings.CurrentValue.KeycloakRealmSettingURL);
 
         await LogIntoSubmissionLayer();
 
@@ -72,7 +60,7 @@ public class OnboardingService : IOnboardingService
         {
             try
             {
-                var keycloakDemoMode = string.Equals(_configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
+                var keycloakDemoMode = string.Equals(configuration["KeycloakDemoMode"], "true", StringComparison.OrdinalIgnoreCase);
                 var documentRetriever = new HttpDocumentRetriever { RequireHttps = !keycloakDemoMode };
                 ConfigurationManager<OpenIdConnectConfiguration> configManager = new(
                     keycloakSettingsURL,
@@ -89,7 +77,7 @@ public class OnboardingService : IOnboardingService
                 };
 
                 // ... then add them to vault.
-                await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(keycloakConfig), nameof(SubmissionKeyCloakSettings));
+                await configService.AddConfigurationToVault(JsonSerializer.Serialize(keycloakConfig), nameof(SubmissionKeyCloakSettings));
             }
             catch (Exception ex)
             {
@@ -107,15 +95,15 @@ public class OnboardingService : IOnboardingService
     /// </summary>
     private async Task LogIntoSubmissionLayer()
     {
-        if (string.IsNullOrEmpty(_onboardingConfig.CurrentValue.SubmissionURL))
+        if (string.IsNullOrEmpty(configSettings.CurrentValue.SubmissionURL))
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
         }
 
         HttpClient httpClient = new();
-        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", _onboardingConfig.CurrentValue.JWT);
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configSettings.CurrentValue.JWT);
 
-        HttpResponseMessage response = await httpClient.PostAsync($"{_onboardingConfig.CurrentValue.SubmissionURL}/api/Onboarding/RetrieveCredentials", null);
+        HttpResponseMessage response = await httpClient.PostAsync($"{configSettings.CurrentValue.SubmissionURL}/api/Onboarding/RetrieveCredentials", null);
 
         if (response.IsSuccessStatusCode)
         {
@@ -128,11 +116,11 @@ public class OnboardingService : IOnboardingService
                     credentials.ClientId,
                     credentials.ClientSecret,
                     Username = credentials.ClientId,
-                    PasswordEnc = _encDecHelper.Encrypt(credentials.ClientSecret),
+                    PasswordEnc = encDec.Encrypt(credentials.ClientSecret),
                     ConfigInputMethod = ConfigInputMethod.Upload
                 };
 
-                await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
+                await configService.AddConfigurationToVault(JsonSerializer.Serialize(vaultCredentials), nameof(SubmissionKeyCloakSettings));
             }
         }
         else
@@ -147,24 +135,24 @@ public class OnboardingService : IOnboardingService
     /// </summary>
     public void RestartHangfireJobs()
     {
-        string syncJobName = _jobSettings.SyncJobName;
-        if (_jobSettings.syncSchedule == 0)
+        string syncJobName = jobSettings.SyncJobName;
+        if (jobSettings.syncSchedule == 0)
         {
             RecurringJob.RemoveIfExists(syncJobName);
         }
         else
         {
-            RecurringJob.AddOrUpdate<IDoSyncWork>(syncJobName, x => x.Execute(), Cron.MinuteInterval(_jobSettings.syncSchedule));
+            RecurringJob.AddOrUpdate<IDoSyncWork>(syncJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.syncSchedule));
         }
 
-        string scanJobName = _jobSettings.ScanJobName;
-        if (_jobSettings.scanSchedule == 0)
+        string scanJobName = jobSettings.ScanJobName;
+        if (jobSettings.scanSchedule == 0)
         {
             RecurringJob.RemoveIfExists(scanJobName);
         }
         else
         {
-            RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(_jobSettings.scanSchedule));
+            RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.scanSchedule));
         }
     }
 
@@ -173,7 +161,7 @@ public class OnboardingService : IOnboardingService
     /// </summary>
     public void SyncWithSubmission()
     {
-        using (var scope = _serviceProvider.CreateScope())
+        using (var scope = serviceProvider.CreateScope())
         {
             try
             {
@@ -193,7 +181,7 @@ public class OnboardingService : IOnboardingService
     /// <returns>Returns true if config has been uploaded.</returns>
     public bool IsConfigurationUploaded()
     {
-        return _onboardingConfig.CurrentValue.IsConfigurationImported;
+        return configSettings.CurrentValue.IsConfigurationImported;
     }
 
     /// <summary>
@@ -203,7 +191,7 @@ public class OnboardingService : IOnboardingService
     public bool IsSyncJobCreated()
     {
         List<RecurringJobDto> recurringJobs = JobStorage.Current.GetConnection().GetRecurringJobs();
-        return recurringJobs.Any(x => x.Id == _jobSettings.SyncJobName);
+        return recurringJobs.Any(x => x.Id == jobSettings.SyncJobName);
     }
 
     /// <summary>
@@ -212,7 +200,7 @@ public class OnboardingService : IOnboardingService
     /// <returns>Returns true if we are able to reach the submission layer.</returns>
     public bool IsTRESynced()
     {
-        if (string.IsNullOrEmpty(submissionAddress))
+        if (string.IsNullOrEmpty(_apiEndpoints.SubmissionApiUrl))
         {
             return false;
         }
@@ -220,12 +208,12 @@ public class OnboardingService : IOnboardingService
         try
         {
             using HttpClient client = new();
-            HttpResponseMessage response = client.GetAsync(submissionAddress + "/api/HealthCheck/CheckHealth").Result;
+            HttpResponseMessage response = client.GetAsync(_apiEndpoints.SubmissionApiUrl + "/api/HealthCheck/CheckHealth").Result;
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)
         {
-            Log.Debug(ex, "{Function} Could not reach Submission at {Url}", "IsTRESynced", submissionAddress);
+            Log.Debug(ex, "{Function} Could not reach Submission at {Url}", "IsTRESynced", _apiEndpoints.SubmissionApiUrl);
             return false;
         }
     }

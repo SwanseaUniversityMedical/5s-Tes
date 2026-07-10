@@ -7,6 +7,7 @@ using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
+using Microsoft.Extensions.Options;
 using Newtonsoft.Json;
 using Serilog;
 
@@ -20,26 +21,15 @@ namespace Agent.Api.Services
         Task<KeyCloakService.TokenResponse> GenAccessTokenSimple(string adminName, string adminPassword, string max_age);
     }
 
-    public class KeyCloakService : IKeyCloakService
+    public class KeyCloakService(
+      ApplicationDbContext applicationDbContext,
+      IHttpContextAccessor httpContextAccessor,
+      IOptions<TreKeyCloakSettings> treKeyCloakSettings,
+      IEncDecHelper encDecHelper)
+      : IKeyCloakService
     {
-
-
-        private readonly ApplicationDbContext _DbContext;
-        protected readonly IHttpContextAccessor _httpContextAccessor;
-
-        public IDareSyncHelper _dareSyncHelper { get; set; }
-        public readonly TreKeyCloakSettings _TreKeyCloakSettings;
-        private readonly IEncDecHelper _encDecHelper;
-
-        public KeyCloakService(IDareSyncHelper dareSyncHelper, ApplicationDbContext applicationDbContext,
-            IHttpContextAccessor httpContextAccessor, TreKeyCloakSettings TreKeyCloakSettings, IEncDecHelper encDecHelper)
-        {
-            _dareSyncHelper = dareSyncHelper;
-            _DbContext = applicationDbContext;
-            _httpContextAccessor = httpContextAccessor;
-            _TreKeyCloakSettings = TreKeyCloakSettings;
-            _encDecHelper = encDecHelper;
-        }
+      protected readonly IHttpContextAccessor _httpContextAccessor = httpContextAccessor;
+      private readonly TreKeyCloakSettings _treKeyCloakSettings = treKeyCloakSettings.Value;
 
         public async Task DoGenAccount(string Uers)
         {
@@ -61,14 +51,14 @@ namespace Agent.Api.Services
             var Result = await GenAccount(data);
             if (Result)
             {
-                _DbContext.ProjectAcount.Add(new ProjectAcount()
+                applicationDbContext.ProjectAcount.Add(new ProjectAcount()
                 {
                     Name = data.Name,
                     Email = data.Email,
-                    Pass = _encDecHelper.Encrypt(data.Password)
+                    Pass = encDecHelper.Encrypt(data.Password)
                 });
 
-                _DbContext.SaveChanges();
+                applicationDbContext.SaveChanges();
             }
           
 
@@ -78,12 +68,12 @@ namespace Agent.Api.Services
 
         public async Task DeleteUser(string Uers)
         {
-            var login = _DbContext.ProjectAcount.FirstOrDefault(x => x.Name == Uers);
+            var login = applicationDbContext.ProjectAcount.FirstOrDefault(x => x.Name == Uers);
             if (login != null)
             {
-                var domain = _TreKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
-                var realm = _TreKeyCloakSettings.Realm;
-                var creds = _DbContext.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Tre);
+                var domain = _treKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
+                var realm = _treKeyCloakSettings.Realm;
+                var creds = applicationDbContext.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Tre);
                 var adminName = creds.UserName;
 
                 var adminPassword = creds.PasswordEnc; // _encDecHelper.Decrypt(creds.PasswordEnc);
@@ -93,8 +83,8 @@ namespace Agent.Api.Services
                 var UserId = await GetUserIdAsync(domain, realm, token.access_token, Uers.ToLower());
 
                 await DeleteUserAsync(domain, realm, token.access_token, UserId);
-                _DbContext.ProjectAcount.Remove(login);
-                _DbContext.SaveChanges();
+                applicationDbContext.ProjectAcount.Remove(login);
+                applicationDbContext.SaveChanges();
 
             }
         }
@@ -114,8 +104,8 @@ namespace Agent.Api.Services
 
         public async Task<TokenResponse> GenAccessTokenSimple(string adminName, string adminPassword, string max_age)
         {
-            var domain = _TreKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
-            var realm = _TreKeyCloakSettings.Realm;
+            var domain = _treKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
+            var realm = _treKeyCloakSettings.Realm;
             return await GetAccessTokenAsync(domain, realm, adminName, adminPassword, max_age);
         }
 
@@ -158,13 +148,13 @@ namespace Agent.Api.Services
 
         public async Task<bool> GenAccount(GenAccountData GenAccountData)
         {
-            var domain = _TreKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
-            var realm = _TreKeyCloakSettings.Realm;
-            var creds = _DbContext.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Tre);
+            var domain = _treKeyCloakSettings.BaseUrl.Replace("/realms/Dare-TRE", "");
+            var realm = _treKeyCloakSettings.Realm;
+            var creds = applicationDbContext.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Tre);
 
             var adminName = creds.UserName;
 
-            var adminPassword = _encDecHelper.Decrypt(creds.PasswordEnc);
+            var adminPassword = encDecHelper.Decrypt(creds.PasswordEnc);
 
 
             // Get an access token from Keycloak using admin credentials
@@ -291,12 +281,12 @@ namespace Agent.Api.Services
         {
             var handler = new HttpClientHandler();
 
-            if (_TreKeyCloakSettings.Proxy)
+            if (_treKeyCloakSettings.Proxy)
             {
                 handler.Proxy = new WebProxy()
                 {
-                    Address = new Uri(_TreKeyCloakSettings.ProxyAddresURL),
-                    BypassList = new[] { _TreKeyCloakSettings.BypassProxy }
+                    Address = new Uri(_treKeyCloakSettings.ProxyAddresURL),
+                    BypassList = new[] { _treKeyCloakSettings.BypassProxy }
                 };
                 handler.UseProxy = true;
             }
