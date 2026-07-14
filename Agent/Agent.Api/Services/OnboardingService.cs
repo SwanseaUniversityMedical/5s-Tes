@@ -4,6 +4,7 @@ using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
+using Agent.Api.Helpers;
 using Hangfire;
 using Hangfire.Storage;
 using Microsoft.Extensions.Options;
@@ -98,12 +99,13 @@ public class OnboardingService(
         if (string.IsNullOrEmpty(configSettings.CurrentValue.SubmissionURL))
         {
             Log.Error("OnboardingService:LogIntoSubmissionlayer - SumbissionURL is missing");
+            return;
         }
 
         HttpClient httpClient = new();
         httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", configSettings.CurrentValue.JWT);
 
-        HttpResponseMessage response = await httpClient.PostAsync($"{configSettings.CurrentValue.SubmissionURL}/api/Onboarding/RetrieveCredentials", null);
+        HttpResponseMessage response = await httpClient.PostAsync(UrlHelper.Combine(configSettings.CurrentValue.SubmissionURL, "api/Onboarding/RetrieveCredentials"), null);
 
         if (response.IsSuccessStatusCode)
         {
@@ -208,7 +210,7 @@ public class OnboardingService(
         try
         {
             using HttpClient client = new();
-            HttpResponseMessage response = client.GetAsync(_apiEndpoints.SubmissionApiUrl + "/api/HealthCheck/CheckHealth").Result;
+            HttpResponseMessage response = client.GetAsync(UrlHelper.Combine(_apiEndpoints.SubmissionApiUrl, "api/HealthCheck/CheckHealth")).Result;
             return response.IsSuccessStatusCode;
         }
         catch (Exception ex)

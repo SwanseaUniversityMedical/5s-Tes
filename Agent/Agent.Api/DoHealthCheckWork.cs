@@ -1,4 +1,5 @@
 using System.Net;
+using Agent.Api.Helpers;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models.Enums;
@@ -57,7 +58,7 @@ public class DoHealthCheckWork(
       {
         using HttpClient client = new();
         HttpResponseMessage response =
-          await client.GetAsync(_apiEndpoints.SubmissionApiUrl + "/api/HealthCheck/CheckHealth");
+          await client.GetAsync(UrlHelper.Combine(_apiEndpoints.SubmissionApiUrl, "api/HealthCheck/CheckHealth"));
 
         if (!response.IsSuccessStatusCode)
         {
