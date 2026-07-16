@@ -37,6 +37,10 @@ public class OnboardingService(
 
         await configService.AddConfigurationToVault(json, nameof(TreOnboardingConfig));
 
+        // Backend flag — set in code rather than relying on the uploaded JSON.
+        object uploadDataToSave = new { IsConfigurationImported = true };
+        await configService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
+
         // Update configuration immediately
         await _vaultConfigProvider.LoadAsync();
 
