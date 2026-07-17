@@ -1,0 +1,6 @@
+@TeleportUserManagement_HostAddress = http://localhost:5258
+
+GET {{TeleportUserManagement_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
