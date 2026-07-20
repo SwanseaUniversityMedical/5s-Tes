@@ -1,7 +1,6 @@
-﻿using System.Text;
+using System.Text;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services.SignalR;
 using EasyNetQ;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
@@ -41,7 +40,7 @@ namespace Agent.Api.Services
         private readonly AgentSettings _agentSettings;
 
 
-        public SubmissionHelper(ISignalRService signalRService,
+        public SubmissionHelper(
             IDareClientWithoutTokenHelper helper,
             ApplicationDbContext dbContext,
             IBus rabbit,
@@ -221,7 +220,7 @@ namespace Agent.Api.Services
 
         public List<Submission>? GetWaitingSubmissionForTre()
         {
-            if (_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission))
+            if (_dareHelper.CheckCredsAreAvailable())
             {
                 var result =
                     _dareHelper.CallAPIWithoutModel<List<Submission>>("/api/Submission/GetWaitingSubmissionsForTre")
@@ -236,7 +235,7 @@ namespace Agent.Api.Services
 
         public List<Submission>? GetRequestCancelSubsForTre()
         {
-            if (_dbContext.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Submission))
+            if (_dareHelper.CheckCredsAreAvailable())
             {
                 var result =
                     _dareHelper.CallAPIWithoutModel<List<Submission>>("/api/Submission/GetRequestCancelSubsForTre")

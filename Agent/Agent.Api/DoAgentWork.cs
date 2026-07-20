@@ -19,6 +19,7 @@ using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.FeatureManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -27,6 +28,7 @@ namespace Agent.Api
 {
     public interface IDoAgentWork
     {
+        [AutomaticRetry(Attempts = 0)]
         Task Execute();
 
         Task CheckTES(string taskID, int subId, int projectId, int userId, string tesId, string outputBucket,
@@ -47,7 +49,7 @@ namespace Agent.Api
         private readonly AgentSettings _AgentSettings;
         private readonly MinioSettings _minioSettings;
         private readonly IKeyCloakService _keyCloakService;
-        private readonly TreKeyCloakSettings _TreKeyCloakSettings;
+        private readonly TreKeyCloakSettings _treKeyCloakSettings;
         private readonly IEncDecHelper _encDecHelper;
         private readonly IFeatureManager _features;
         private readonly IHttpClientFactory _httpClientFactory;
@@ -56,6 +58,7 @@ namespace Agent.Api
         private readonly IConfiguration _config;
         // Used to start Camunda process instances directly via Zeebe gRPC, replacing the previous HTTP calls to CredentialsController
         private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -68,14 +71,15 @@ namespace Agent.Api
             AgentSettings AgentSettings,
             MinioSettings minioSettings,
             IKeyCloakService keyCloakService,
-            TreKeyCloakSettings TreKeyCloakSettings,
+            IOptions<TreKeyCloakSettings> treKeyCloakSettings,
             IEncDecHelper encDecHelper,
             IFeatureManager features,
             IHttpClientFactory httpClientFactory,
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
             IConfiguration config,
-            Credentials.Models.Services.IServicedZeebeClient zeebeClient
+            Credentials.Models.Services.IServicedZeebeClient zeebeClient,
+            IOptionsMonitor<TreOnboardingConfig> configSettings
         )
         {
             _serviceProvider = serviceProvider;
@@ -98,7 +102,7 @@ namespace Agent.Api
             _minioSubHelper = minioSubHelper;
 
             _keyCloakService = keyCloakService;
-            _TreKeyCloakSettings = TreKeyCloakSettings;
+            _treKeyCloakSettings = treKeyCloakSettings.Value;
             _encDecHelper = encDecHelper;
             _features = features;
             _httpClientFactory = httpClientFactory;
@@ -106,6 +110,7 @@ namespace Agent.Api
             _vaultService = vaultService;
             _config = config;
             _zeebeClient = zeebeClient;
+            _onboardingConfig = configSettings;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -442,6 +447,8 @@ namespace Agent.Api
         // Method executed upon hangfire job
         public async Task Execute()
         {
+            if (!_onboardingConfig.CurrentValue.IsConfigurationImported) return;
+
             Log.Information("{Function} DoAgentWork running", "Execute");
             // control use of dependency injection
             using (var scope = _serviceProvider.CreateScope())
@@ -695,7 +702,7 @@ namespace Agent.Api
                                         x.Name == aSubmission.Project.Name + aSubmission.SubmittedBy.Name);
 
                                     var TokenIN = await _keyCloakService.GenAccessTokenSimple(Acount.Name,
-                                        _encDecHelper.Decrypt(Acount.Pass), _TreKeyCloakSettings.TokenRefreshSeconds);
+                                        _encDecHelper.Decrypt(Acount.Pass), _treKeyCloakSettings.TokenRefreshSeconds);
 
                                     Token = TokenIN.access_token;
                                 }

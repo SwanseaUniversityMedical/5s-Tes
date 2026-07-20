@@ -369,29 +369,63 @@ namespace FiveSafesTes.Core.Services
         {
             var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
 
-            var content = new StringContent(
-                "{\r\n    \"Version\": \"2012-10-17\",\r\n    \"Statement\": [\r\n        {\r\n            \"Effect\": \"Allow\",\r\n            \"Action\": [\r\n                \"s3:List*\",\r\n                \"s3:ListBucket\",\r\n                \"s3:PutObject\",\r\n                \"s3:DeleteObject\",\r\n                \"s3:GetBucketLocation\",\r\n                \"s3:GetObject\"\r\n            ],\r\n            \"Resource\": [\r\n                \"arn:aws:s3:::" +
-                bucketName + "\",\r\n                \"arn:aws:s3:::" + bucketName +
-                "/*\"\r\n            ]\r\n        }\r\n    ]\r\n}", null, "application/json");
+            var policyJson = JsonConvert.SerializeObject(new
+            {
+                Version = "2012-10-17",
+                Statement = new[]
+                {
+                    new
+                    {
+                        Effect = "Allow",
+                        Action = new[]
+                        {
+                            "s3:ListBucket",
+                            "s3:PutObject",
+                            "s3:DeleteObject",
+                            "s3:GetBucketLocation",
+                            "s3:GetObject"
+                        },
+                        Resource = new[]
+                        {
+                            $"arn:aws:s3:::{bucketName}",
+                            $"arn:aws:s3:::{bucketName}/*"
+                        }
+                    }
+                }
+            });
 
-            var request = new HttpRequestMessage
+            var baseUrl = _minioSettings.Url.TrimEnd('/');
+            var policyName = Uri.EscapeDataString($"{bucketName}_policy");
+            // NOTE: RustFS accepts admin API paths as "/minio/admin/v3/add-canned-policy" or "/rustfs/admin/v3/add-canned-policy" 
+            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
+
+
+            using var client = new HttpClient();
+            using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage
             {
                 Method = HttpMethod.Put,
-                RequestUri = new Uri(_minioSettings.Url + "/minio/admin/v3/add-canned-policy?name=" + bucketName +
-                                     "_policy"),
+                RequestUri = new Uri($"{baseUrl}{adminApiPath}?name={policyName}"),
                 Content = content
             };
 
-            request = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
-            var client = new HttpClient();
-            var response = await client.SendAsync(request);
+            var signedRequest = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
+            using var response = await client.SendAsync(signedRequest);
 
-            if (response.StatusCode != HttpStatusCode.OK)
+            if (response.StatusCode == HttpStatusCode.OK)
             {
-                return false;
+                return true;
             }
 
-            return true;
+            var responseBody = await response.Content.ReadAsStringAsync();
+            Log.Warning(
+                "CreateBucketPolicy failed for bucket {BucketName} using {AdminApiPath}. Status: {StatusCode}. Response: {ResponseBody}",
+                bucketName,
+                adminApiPath,
+                response.StatusCode,
+                responseBody);
+            
+            return false;
         }
 
 
