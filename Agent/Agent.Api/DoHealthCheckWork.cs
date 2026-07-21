@@ -156,11 +156,6 @@ public class DoHealthCheckWork(
   /// we also stop the sync/scan jobs — that way the Submission side sees the TRE as offline and
   /// won't queue work that cannot run.
   /// </summary>
-  /// <remarks>
-  /// This opens a short-lived connection rather than reading the shared bus's IsConnected flag:
-  /// EasyNetQ connects lazily, so IsConnected stays false until the Agent's first publish and
-  /// would report a false "Failed" on a healthy broker.
-  /// </remarks>
   private void DoRabbitMqHealthCheck()
   {
     bool isHealthy = false;
