@@ -1,14 +1,15 @@
 using System.Net;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
-using EasyNetQ;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 namespace Agent.Api;
 
@@ -26,7 +27,7 @@ public class DoHealthCheckWork(
   IEncDecHelper encDecHelper,
   IOptions<ApiEndpointSettings> apiEndpointSettings,
   IConfiguration configuration,
-  IBus bus)
+  RabbitMQSetting rabbitSettings)
   : IDoHealthCheckWork
 {
   private readonly ApiEndpointSettings _apiEndpoints = apiEndpointSettings.Value;
@@ -150,11 +151,16 @@ public class DoHealthCheckWork(
   }
 
   /// <summary>
-  /// Check that the Agent's connection to the RabbitMQ broker is live and log the result.
+  /// Check that the Agent can reach the RabbitMQ broker and log the result.
   /// If the broker is unreachable the Agent can't receive tasks from the Submission queue, so
   /// we also stop the sync/scan jobs — that way the Submission side sees the TRE as offline and
   /// won't queue work that cannot run.
   /// </summary>
+  /// <remarks>
+  /// This opens a short-lived connection rather than reading the shared bus's IsConnected flag:
+  /// EasyNetQ connects lazily, so IsConnected stays false until the Agent's first publish and
+  /// would report a false "Failed" on a healthy broker.
+  /// </remarks>
   private void DoRabbitMqHealthCheck()
   {
     bool isHealthy = false;
@@ -162,7 +168,18 @@ public class DoHealthCheckWork(
 
     try
     {
-      isHealthy = bus.Advanced.IsConnected;
+      var factory = new ConnectionFactory
+      {
+        HostName = rabbitSettings.HostAddress,
+        Port = int.Parse(rabbitSettings.PortNumber),
+        VirtualHost = rabbitSettings.VirtualHost,
+        UserName = rabbitSettings.Username,
+        Password = rabbitSettings.Password,
+        RequestedConnectionTimeout = TimeSpan.FromSeconds(5)
+      };
+
+      using IConnection connection = factory.CreateConnection();
+      isHealthy = connection.IsOpen;
 
       if (!isHealthy)
       {
