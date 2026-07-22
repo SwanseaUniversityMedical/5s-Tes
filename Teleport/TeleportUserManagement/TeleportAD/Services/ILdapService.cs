@@ -1,9 +1,10 @@
-using Novell.Directory.Ldap;
 using System.DirectoryServices.Protocols;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
+using FiveSafesTes.Core.Services;
+using Novell.Directory.Ldap;
 using TeleportUserManagement.Models;
 using TeleportUserManagement.Models.Settings;
 using TeleportUserManagement.Utilities;
@@ -15,11 +16,11 @@ namespace TeleportUserManagement.Services
 {
     public interface ILdapService
     {
-        ResultType CreateUserAccount(string userName, string givenName, string surname, string email,
+        Task<ResultType> CreateUserAccount(string userName, string givenName, string surname, string email,
             string description, bool enabled, bool requirePasswordChange, bool passwordNeverExpires,
             List<string> ouPath, string passwordOverride = "");
         LdapUser FindUserByIdentityDefault(string userName);
-        public bool CheckUserExists(string userName);
+        bool CheckUserExists(string userName);
         bool CheckGroupExists(string groupName);
         ResultType CreateGroup(string groupName, string description, List<string> ouPath, bool multidomains = false);
         void AddUserToGroup(string userName, string groupName);
@@ -28,11 +29,13 @@ namespace TeleportUserManagement.Services
 
     public class LdapService : ILdapService
     {
+        private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly ILogger log;
         private readonly LdapConnection ldapConnection;
         private readonly string domainNameDcFormat;
         private readonly string machineName;
 
+        private readonly string domain;
         private readonly string shortDomain;
         private readonly string username;
         private readonly string password;
@@ -41,13 +44,14 @@ namespace TeleportUserManagement.Services
         private string userOu;
         private string groupOu;
 
-
-        public LdapService(ActiveDirectorySettings adSettings)
+        public LdapService(ActiveDirectorySettings adSettings, IVaultCredentialsService vaultCredsService)
         {
-            useSsl = adSettings.Connection.UseSsl;
-            log = Serilog.Log.ForContext<ILdapService>();
+            _vaultCredentialsService = vaultCredsService;
 
-            string domain = adSettings.Connection.Domain;
+            useSsl = adSettings.Connection.UseSsl;
+            log = Serilog.Log.ForContext<LdapService>();
+
+            domain = adSettings.Connection.Domain;
             var segments = domain.Split('.');
             domainNameDcFormat = "";
             foreach (var segment in segments)
@@ -229,7 +233,7 @@ namespace TeleportUserManagement.Services
 
         #region User Creation
 
-        public ResultType CreateUserAccount(string userName, string givenName, string surname, string email,
+        public async Task<ResultType> CreateUserAccount(string userName, string givenName, string surname, string email,
             string description, bool enabled, bool requirePasswordChange, bool passwordNeverExpires,
             List<string> ouPath, string passwordOverride = "")
         {
@@ -239,27 +243,37 @@ namespace TeleportUserManagement.Services
             }
 
             var password = PasswordGenerator.Generate();
+
             if (!string.IsNullOrWhiteSpace(passwordOverride))
             {
                 password = passwordOverride;
+            }
+
+            // Add the password to vault
+            Dictionary<string, object> allPasswords = await _vaultCredentialsService.GetCredentialAsync("passwords");
+            allPasswords[userName] = password;
+            bool vaultWriteSuccess = await _vaultCredentialsService.AddCredentialAsync("passwords", allPasswords);
+
+            if (!vaultWriteSuccess)
+            {
+                log.Error("{Function} Failed to write password to vault for {UserName}", "CreateUserAccount", userName);
             }
 
             GetUserOu(ouPath);
 
             var ldapou = userOu;
 
-            //This may well not work outside of CHI. At present we only Create new users in CHI Serps so should be fine
-            var post2000 = $"{userName}@yourdomain.com"; // replace with your real domain
+            var userPrincipleName = $"{userName}@{domain}";
             var userDn = $"CN={EscapeDnValue(userName)},{ldapou}";
             log.Information("{Function} Creating user {UserName}, {Email}, {GivenName}, {Description}, {PasswordNever}, {W2000Name}, {Post2000} {Enabled}",
-                "CreateUserAccount", userName, email, givenName, description, passwordNeverExpires, userName, post2000, enabled);
+                "CreateUserAccount", userName, email, givenName, description, passwordNeverExpires, userName, userPrincipleName, enabled);
 
             var attributes = new LdapAttributeSet
             {
                 new LdapAttribute("objectClass", ["top", "person", "organizationalPerson", "user"]),
                 new LdapAttribute("cn", userName),
                 new LdapAttribute("sAMAccountName", userName),
-                new LdapAttribute("userPrincipalName", post2000),
+                new LdapAttribute("userPrincipalName", userPrincipleName),
                 new LdapAttribute("displayName", userName),
                 new LdapAttribute("givenName", givenName),
                 new LdapAttribute("sn", surname),
@@ -268,9 +282,6 @@ namespace TeleportUserManagement.Services
             };
 
             var newEntry = new LdapEntry(userDn, attributes);
-
-            // Add the new user entry
-            ldapConnection.AddAsync(newEntry).Wait();
 
             // Set the password
             var quotedPassword = $"\"{password}\"";
@@ -302,7 +313,17 @@ namespace TeleportUserManagement.Services
                 mods.Add(pwdLastSetMod);
             }
 
-            ldapConnection.ModifyAsync(userDn, mods.ToArray()).Wait();
+            try
+            {
+                // Add the new user
+                ldapConnection.AddAsync(newEntry).Wait();
+                ldapConnection.ModifyAsync(userDn, mods.ToArray()).Wait();
+            }
+            catch (Exception ex)
+            {
+                log.Error(ex, "{Function} Failed to create user {UserName}", "CreateUserAccount", userName);
+                return ResultType.Failure;
+            }
 
             return ResultType.Success;
         }

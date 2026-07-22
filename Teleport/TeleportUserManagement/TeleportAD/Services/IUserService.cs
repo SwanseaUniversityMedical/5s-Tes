@@ -3,6 +3,8 @@ using FiveSafesTes.Core.Models.APISimpleTypeReturns;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using TeleportUserManagement.Models;
+using TeleportUserManagement.Models.Settings;
+using TeleportUserManagement.Utilities;
 using JobSettings = TeleportUserManagement.Models.Settings.JobSettings;
 
 namespace TeleportUserManagement.Services
@@ -19,13 +21,21 @@ namespace TeleportUserManagement.Services
         private readonly IDareClientHelper _clientHelper;
         private readonly JobSettings _jobSettings;
 
-        public UserService(ILdapService ldapService, IDareClientHelper clientHelper, JobSettings jobSettings) 
+        private readonly List<string> _ouPath;
+
+        public UserService(ILdapService ldapService, IDareClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings) 
         {
             _ldapService = ldapService;
             _clientHelper = clientHelper;
             _jobSettings = jobSettings;
+
+            _ouPath = adSettings.Connection.BaseOu.Split(',').ToList();
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="projectName"></param>
         public void SetupRecurringProjectCheck(string projectName) 
         {
             string jobName = $"{_jobSettings.ProjectJobNamePrefix}_{projectName}";
@@ -45,12 +55,22 @@ namespace TeleportUserManagement.Services
             if (await IsProjectApproved(projectName))
             {
                 // The project has been unanimously approved, add the group to all of its corresponding users.
-                if (!_ldapService.CheckGroupExists(projectName)) CreateADGroup(projectName);
+                if (!_ldapService.CheckGroupExists(projectName))
+                {
+                    ResultType groupCreationResult = CreateADGroup(projectName);
+                    if (groupCreationResult == ResultType.Failure) return;
+                }
 
                 foreach (ProjectUser user in users)
                 {
                     // Add users if they don't exist in AD already, then assign them the group.
-                    if (!_ldapService.CheckUserExists(user.Username)) AddUserToAD(user);
+                    if (!_ldapService.CheckUserExists(user.Username))
+                    {
+                        ResultType userCreationResult = await AddUserToAD(user);
+                        if (userCreationResult == ResultType.Failure) continue;
+                    }
+
+                    // TODO check everyone has approved this user, then if not remove the group if they have it already
                     _ldapService.AddUserToGroup(user.Username, projectName);
                 }
             }
@@ -78,7 +98,7 @@ namespace TeleportUserManagement.Services
         /// <returns></returns>
         private async Task<List<ProjectUser>> GetUsersForProject(string projectName)
         {
-            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"api/GetUsersForApprovedProject/{projectName}", httpMethod: HttpMethod.Get);
+            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"api/GetUsersForApprovedProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
 
             if (userJson == null) return null;
 
@@ -99,28 +119,26 @@ namespace TeleportUserManagement.Services
         /// <returns></returns>
         private async Task<bool> IsProjectApproved(string projectName)
         {
-            BoolReturn result = await _clientHelper.CallAPIWithoutModel<BoolReturn>($"api/IsProjectApproved/{projectName}", httpMethod: HttpMethod.Get);
-            return result.Result;
+            BoolReturn? result = await _clientHelper.CallAPIWithoutModel<BoolReturn>($"api/IsProjectApproved/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
+            return result?.Result ?? false;
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="user"></param>
-        private void AddUserToAD(ProjectUser user)
+        private async Task<ResultType> AddUserToAD(ProjectUser user)
         {
-            List<string> ouPath = new();
-            _ldapService.CreateUserAccount(user.Username, user.FullName, "", user.Email, "", true, false, true, ouPath);
+            return await _ldapService.CreateUserAccount(user.Username, user.FullName, "", user.Email, "", true, false, true, _ouPath);
         }
 
         /// <summary>
         /// 
         /// </summary>
         /// <param name="groupName"></param>
-        private void CreateADGroup(string groupName)
+        private ResultType CreateADGroup(string groupName)
         {
-            List<string> ouPath = new();
-            _ldapService.CreateGroup(groupName, "", ouPath);
+            return _ldapService.CreateGroup(groupName, "", _ouPath);
         }
     }
 }

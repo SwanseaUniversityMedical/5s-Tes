@@ -13,6 +13,7 @@ namespace TeleportUserManagement.Models.Settings
         public string Password { get; set; }
         public string Machine { get; set; }
         public bool UseSsl { get; set; } = true;
+        public string BaseOu { get; set; }
     }
 
     public class BehaviourOptions
