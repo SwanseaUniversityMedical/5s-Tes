@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Agent.Api.Repositories.DbContexts;
 using Credentials.Models.DbContexts;
 using FiveSafesTes.Core.Models;
@@ -248,40 +248,40 @@ namespace Agent.Api.Services
 
         }
 
-        private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
-        {
-            var payload = new
-            {
-                records = new[]
-                {
-                    new
-                    {
-                        project = projectName,
-                        user = userId.ToString(),
-                        submissionId = submissionId.ToString()
+        //private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
+        //{
+        //    var payload = new
+        //    {
+        //        records = new[]
+        //        {
+        //            new
+        //            {
+        //                project = projectName,
+        //                user = userId.ToString(),
+        //                submissionId = submissionId.ToString()
 
-                    }
-                }
-            };
+        //            }
+        //        }
+        //    };
 
-            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+        //    var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
+        //    var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
 
-            var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
+        //    var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
 
-            using var httpClient = _httpClientFactory.CreateClient();
-            httpClient.Timeout = TimeSpan.FromMinutes(2);
+        //    using var httpClient = _httpClientFactory.CreateClient();
+        //    httpClient.Timeout = TimeSpan.FromMinutes(2);
 
-            var response = await httpClient.PostAsync(camundaWebhookUrl, content);                      
+        //    var response = await httpClient.PostAsync(camundaWebhookUrl, content);                      
 
-            if (!response.IsSuccessStatusCode)
-            {
-                var error = await response.Content.ReadAsStringAsync();
-                Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
-                throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
-            }
+        //    if (!response.IsSuccessStatusCode)
+        //    {
+        //        var error = await response.Content.ReadAsStringAsync();
+        //        Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
+        //        throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
+        //    }
 
-            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
-        }      
+        //    Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
+        //}      
     }
 }
