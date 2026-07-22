@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using Serilog;
@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 using Submission.Api.Services.Contract;
+using System.Text.Json;
 
 namespace Submission.Api.Controllers
 {
@@ -828,5 +829,41 @@ namespace Submission.Api.Controllers
 
         }
 
+        [AllowAnonymous]
+        [HttpGet("GetUsersForApprovedProject/{projectName}")]
+        public List<string> GetUsersForApprovedProject(string projectName) 
+        {
+            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
+            if (project == null) return null;
+
+            List<string> users = [];
+            foreach (User user in project.Users) 
+            {
+                var userDto = new
+                {
+                    Username = user.Name,
+                    FullName = user.FullName,
+                    Email = user.Email
+                };
+
+                string userJson = System.Text.Json.JsonSerializer.Serialize(userDto);
+                users.Add(userJson);
+            }
+
+            return users;
+        }
+
+        [AllowAnonymous]
+        [HttpGet("IsProjectApproved/{projectName}")]
+        public BoolReturn IsProjectApproved(string projectName) 
+        {
+            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
+            if (project == null || project.ProjectTreDecisions.Any(x => x.Decision != FiveSafesTes.Core.Models.Enums.Decision.Approved))
+            {
+                return new() { Result = false };
+            }
+
+            return new() { Result = true};
+        }
     }
 }

@@ -1,6 +1,6 @@
 using Novell.Directory.Ldap;
 
-namespace TeleportAD.Models
+namespace TeleportUserManagement.Models
 {
     public class LdapGroup
     {

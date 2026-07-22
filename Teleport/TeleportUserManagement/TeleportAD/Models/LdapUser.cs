@@ -1,7 +1,7 @@
 using System.DirectoryServices.Protocols;
 using System.Security.Principal;
 
-namespace TeleportAD.Models
+namespace TeleportUserManagement.Models
 {
     public class LdapUser
     {

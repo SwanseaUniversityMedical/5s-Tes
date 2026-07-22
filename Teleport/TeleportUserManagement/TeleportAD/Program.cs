@@ -1,5 +1,5 @@
-using TeleportAD.Models.Settings;
-using TeleportAD.Services;
+using TeleportUserManagement.Models.Settings;
+using TeleportUserManagement.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -19,9 +19,9 @@ var activeDirectorySettings = new ActiveDirectorySettings();
 configuration.Bind(nameof(ActiveDirectorySettings), activeDirectorySettings);
 builder.Services.AddSingleton(activeDirectorySettings);
 
-var dareControlSettings = new DareControlSettings();
-configuration.Bind(nameof(DareControlSettings), dareControlSettings);
-builder.Services.AddSingleton(dareControlSettings);
+var jobSettings = new JobSettings();
+configuration.Bind(nameof(JobSettings), jobSettings);
+builder.Services.AddSingleton(jobSettings);
 
 var app = builder.Build();
 

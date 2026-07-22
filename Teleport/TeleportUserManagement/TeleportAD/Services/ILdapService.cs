@@ -1,17 +1,17 @@
-﻿using Novell.Directory.Ldap;
+using Novell.Directory.Ldap;
 using System.DirectoryServices.Protocols;
 using System.Net;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using TeleportAD.Models;
-using TeleportAD.Models.Settings;
-using TeleportAD.Utilities;
+using TeleportUserManagement.Models;
+using TeleportUserManagement.Models.Settings;
+using TeleportUserManagement.Utilities;
 using ILogger = Serilog.ILogger;
 using LdapConnection = Novell.Directory.Ldap.LdapConnection;
 using LdapException = Novell.Directory.Ldap.LdapException;
 
-namespace TeleportAD.Services
+namespace TeleportUserManagement.Services
 {
     public interface ILdapService
     {
@@ -537,9 +537,45 @@ namespace TeleportAD.Services
             }
         }
 
-        public void RemoveUserFromGroup(string username, string groupName)
+        public void RemoveUserFromGroup(string userName, string groupName)
         {
+            var user = FindUserByIdentityDefault(userName);
+            var group = FindGroupDefault(groupName);
 
+            if (user != null && group != null)
+            {
+                var userDn = user.DistinguishedName;
+                var groupDn = group.DistinguishedName;
+
+                try
+                {
+                    var isMember = IsUserMemberOfGroup(userDn, groupDn);
+                    if (!isMember)
+                    {
+                        log.Information("{Function} User {Username} is not a member of {Group}",
+                            "RemoveUserFromGroup", userDn, groupDn);
+                        return;
+                    }
+
+                    var attribute = new LdapAttribute("member", userDn);
+                    var modification = new LdapModification(
+                        LdapModification.Delete,
+                        attribute
+                    );
+
+                    ldapConnection.ModifyAsync(groupDn, [modification]).Wait();
+                }
+                catch (LdapException ex)
+                {
+                    log.Warning(ex, "{Function} Error removing user {User} from group {Group}.", "RemoveUserFromGroup",
+                        userName, groupName);
+                }
+            }
+            else
+            {
+                log.Information("{Function} User {Username} exists = {UExists}, {Group} exists = {GExists}",
+                    "RemoveUserFromGroup", userName, user != null, groupName, group != null);
+            }
         }
 
         #endregion

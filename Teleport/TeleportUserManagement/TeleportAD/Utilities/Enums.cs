@@ -1,12 +1,5 @@
-﻿namespace TeleportAD.Utilities
+namespace TeleportUserManagement.Utilities
 {
-    public enum ProjectApprovalStatus
-    {
-        NotApproved,
-        PartiallyApproved,
-        Approved
-    }
-
     public enum ResultType
     {
         Success,

@@ -1,6 +1,6 @@
-﻿using System.Security.Cryptography;
+using System.Security.Cryptography;
 
-namespace TeleportAD.Utilities
+namespace TeleportUserManagement.Utilities
 {
     public class PasswordGenerator
     {

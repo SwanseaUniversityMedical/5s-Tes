@@ -1,4 +1,4 @@
-﻿namespace TeleportAD.Models.Settings
+namespace TeleportUserManagement.Models.Settings
 {
     public class ActiveDirectorySettings
     {
