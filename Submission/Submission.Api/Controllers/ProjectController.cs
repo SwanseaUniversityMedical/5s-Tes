@@ -865,5 +865,37 @@ namespace Submission.Api.Controllers
 
             return new() { Result = true};
         }
+
+        [AllowAnonymous]
+        [HttpGet("GetApprovedUsersForProject/{projectName}")]
+        public List<string> GetApprovedUsersForProject(string projectName)
+        {
+            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
+            if (project == null) return null;
+
+            var approvedUsers = project.Users.Where(user =>
+                project.Tres.All(tre =>
+                    project.MembershipTreDecision.Any(d =>
+                        d.User.Id == user.Id &&
+                        d.Tre.Id == tre.Id &&
+                        d.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)));
+
+            List<string> users = [];
+            foreach (User user in approvedUsers)
+            {
+                var userDto = new
+                {
+                    Username = user.Name,
+                    FullName = user.FullName,
+                    Email = user.Email
+                };
+
+                string userJson = System.Text.Json.JsonSerializer.Serialize(userDto);
+                users.Add(userJson);
+            }
+
+            return users;
+        }
+
     }
 }

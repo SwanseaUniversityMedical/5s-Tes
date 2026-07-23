@@ -49,44 +49,38 @@ namespace TeleportUserManagement.Services
         /// <returns></returns>
         public async Task UpdateGroupsForProject(string projectName)
         {
-            List<ProjectUser> users = await GetUsersForProject(projectName);
-            if (users == null) return;
+            List<ProjectUser> approvedUsers = await GetUsersForProject(projectName);
+            if (approvedUsers == null) return;
 
-            if (await IsProjectApproved(projectName))
+            var approvedUsernames = approvedUsers.Select(u => u.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
+
+            if (approvedUsers.Count > 0 && !_ldapService.CheckGroupExists(projectName))
             {
-                // The project has been unanimously approved, add the group to all of its corresponding users.
-                if (!_ldapService.CheckGroupExists(projectName))
-                {
-                    ResultType groupCreationResult = CreateADGroup(projectName);
-                    if (groupCreationResult == ResultType.Failure) return;
-                }
-
-                foreach (ProjectUser user in users)
-                {
-                    // Add users if they don't exist in AD already, then assign them the group.
-                    if (!_ldapService.CheckUserExists(user.Username))
-                    {
-                        ResultType userCreationResult = await AddUserToAD(user);
-                        if (userCreationResult == ResultType.Failure) continue;
-                    }
-
-                    // TODO check everyone has approved this user, then if not remove the group if they have it already
-                    _ldapService.AddUserToGroup(user.Username, projectName);
-                }
+                ResultType groupCreationResult = CreateADGroup(projectName);
+                if (groupCreationResult == ResultType.Failure) return;
             }
-            else
+
+            // Add everyone currently approved by every TRE.
+            foreach (ProjectUser user in approvedUsers)
             {
-                // One or more TRE has not approved this project, remove group from all users.
-                if (!_ldapService.CheckGroupExists(projectName))
+                if (!_ldapService.CheckUserExists(user.Username))
                 {
-                    // The group doesn't exist yet in AD.
-                    return;
+                    ResultType userCreationResult = await AddUserToAD(user);
+                    if (userCreationResult == ResultType.Failure) continue;
                 }
 
-                foreach (ProjectUser user in users)
+                _ldapService.AddUserToGroup(user.Username, projectName);
+            }
+
+            // Remove anyone still in the group whose approval has since lapsed
+            // (a TRE revoked/changed its decision, or they dropped off the project).
+            if (!_ldapService.CheckGroupExists(projectName)) return;
+
+            foreach (string existingMember in _ldapService.GetGroupMemberUsernames(projectName))
+            {
+                if (!approvedUsernames.Contains(existingMember))
                 {
-                    if (!_ldapService.CheckUserExists(user.Username)) continue;
-                    _ldapService.RemoveUserFromGroup(user.Username, projectName);
+                    _ldapService.RemoveUserFromGroup(existingMember, projectName);
                 }
             }
         }
@@ -98,7 +92,7 @@ namespace TeleportUserManagement.Services
         /// <returns></returns>
         private async Task<List<ProjectUser>> GetUsersForProject(string projectName)
         {
-            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"api/GetUsersForApprovedProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
+            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"api/GetApprovedUsersForProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
 
             if (userJson == null) return null;
 

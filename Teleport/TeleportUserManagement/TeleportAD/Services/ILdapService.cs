@@ -25,6 +25,7 @@ namespace TeleportUserManagement.Services
         ResultType CreateGroup(string groupName, string description, List<string> ouPath, bool multidomains = false);
         void AddUserToGroup(string userName, string groupName);
         void RemoveUserFromGroup(string username, string groupName);
+        List<string> GetGroupMemberUsernames(string groupName);
     }
 
     public class LdapService : ILdapService
@@ -510,6 +511,42 @@ namespace TeleportUserManagement.Services
         #endregion
 
         #region User Groups
+
+        public List<string> GetGroupMemberUsernames(string groupName)
+        {
+            var group = FindGroupDefault(groupName);
+            if (group == null) return [];
+
+            var usernames = new List<string>();
+
+            try
+            {
+                // memberOf is AD's auto-maintained back-link for "member" - avoids parsing/unescaping DNs ourselves.
+                var filter = $"(&(objectClass=user)(objectCategory=person)(memberOf={EscapeLdapFilterValue(group.DistinguishedName)}))";
+                var searchResults = ldapConnection.SearchAsync(domainNameDcFormat, LdapConnection.ScopeSub, filter, ["sAMAccountName"], false).Result;
+
+                while (searchResults.HasMoreAsync().Result)
+                {
+                    try
+                    {
+                        var entry = searchResults.NextAsync().Result;
+                        var attr = entry.GetAttribute("sAMAccountName");
+                        if (attr != null) usernames.Add(attr.StringValue);
+                    }
+                    catch (AggregateException ae)
+                    {
+                        if (!AllReferrals(ae)) throw;
+                    }
+                }
+            }
+            catch (LdapException ex)
+            {
+                log.Error(ex, "{Function} Error retrieving members for group {Group}", "GetGroupMemberUsernames", groupName);
+            }
+
+            return usernames;
+        }
+
 
         public void AddUserToGroup(string userName, string groupName)
         {
