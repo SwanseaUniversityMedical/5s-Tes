@@ -58,6 +58,9 @@ namespace Submission.Api.Controllers
             _DbContext.SaveChanges();
             var results = tre.Submissions.Where(x => x.Status == StatusType.WaitingForAgentToTransfer).ToList();
 
+            Log.Information(
+                "{Function} TRE {TreName} (id {TreId}, user {User}) checked in and is scanning for jobs — {WaitingCount} submission(s) waiting to transfer",
+                "GetWaitingSubmissionsForTre", tre.Name, tre.Id, usersName, results.Count);
 
             return StatusCode(200, results);
         }
@@ -78,6 +81,9 @@ namespace Submission.Api.Controllers
             _DbContext.SaveChanges();
             var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
 
+            Log.Information(
+                "{Function} TRE {TreName} (id {TreId}, user {User}) checked in — {CancelCount} submission(s) awaiting cancellation",
+                "GetRequestCancelSubsForTre", tre.Name, tre.Id, usersName, results.Count);
 
             return StatusCode(200, results);
         }
