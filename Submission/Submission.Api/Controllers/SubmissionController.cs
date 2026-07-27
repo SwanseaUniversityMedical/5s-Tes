@@ -361,7 +361,7 @@ namespace Submission.Api.Controllers
             stage2List.stagesDict = stage2Dict;
 
             var stage3List = new StageInfo();
-            stage3List.stageName = "Query Processing";
+            stage3List.stageName = "Task Processing";
             stage3List.stageNumber = 3;
             stage3List.statusTypeList = new List<StatusType>
             {

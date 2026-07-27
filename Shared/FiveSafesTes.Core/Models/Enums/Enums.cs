@@ -14,7 +14,7 @@ namespace FiveSafesTes.Core.Models.Enums
         [Display(Name = "Waiting for Child Subs To Complete")]
         WaitingForChildSubsToComplete = 0,
         //Stage 1
-        [Display(Name = "Waiting for Agent To Transfer")]
+        [Display(Name = "Waiting for TRE Agent to Transfer")]
         WaitingForAgentToTransfer = 1,
         //Stage 2
         [Display(Name = "Sent to TES")]
@@ -180,7 +180,7 @@ namespace FiveSafesTes.Core.Models.Enums
         [Display(Name = "Complete but not all TREs returned a result")]
         PartialResult = 49,
         //Stage 2
-        [Display(Name = "Processing Credentials")]
+        [Display(Name = "Processing Ephemeral Credentials")]
         ProcessingCredentials = 50,
 
 
