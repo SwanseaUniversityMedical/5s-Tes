@@ -526,11 +526,28 @@ namespace Agent.Api
 
                         else
                         {
+                            // Submission picked up by this TRE — surface it as a step under Tre Layer
+                            // Processing. Guarded on the queue status so it's emitted once on first
+                            // pickup, not re-emitted every scan cycle while we wait on credentials.
+                            if (aSubmission.Status == StatusType.WaitingForAgentToTransfer)
+                            {
+                                _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
+                                    StatusType.AgentTransferringToPod, "");
+                            }
+
                             Dictionary<string, Dictionary<string, object>> credentials =
                                 new Dictionary<string, Dictionary<string, object>>();
 
                             if (await _features.IsEnabledAsync(FeatureFlags.EphemeralCredentials))
                             {
+                                // Entering credential provisioning — surface it as a step. Guarded so it
+                                // is emitted once, not on every re-pick while credentials are still pending.
+                                if (aSubmission.Status != StatusType.ProcessingCredentials)
+                                {
+                                    _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
+                                        StatusType.ProcessingCredentials, "");
+                                }
+
                                 var credsForSubmission = await _credsDbContext.EphemeralCredentials
                                     .Where(c => c.SubmissionId == aSubmission.Id).ToListAsync();
 
