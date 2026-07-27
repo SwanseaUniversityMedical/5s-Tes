@@ -22,7 +22,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\..\Agent\Agent.Api\Agent.Api.csproj" />
+    <ProjectReference Include="..\..\..\Shared\FiveSafesTes.Core\FiveSafesTes.Core.csproj" />
   </ItemGroup>
 
 </Project>

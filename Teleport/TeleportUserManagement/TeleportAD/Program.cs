@@ -1,12 +1,11 @@
-using Agent.Api.Constants;
-using Agent.Api.Repositories.DbContexts;
+using FiveSafesTes.Core.Extensions;
 using FiveSafesTes.Core.Models.Settings;
-using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Hangfire;
+using Hangfire.Dashboard;
+using Hangfire.Dashboard.BasicAuthorization;
 using Hangfire.PostgreSql;
 using Microsoft.Extensions.Options;
-using Microsoft.FeatureManagement;
 using TeleportUserManagement.Models.Settings;
 using TeleportUserManagement.Services;
 
@@ -21,8 +20,11 @@ builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
+builder.Services.AddHttpContextAccessor();
+
 builder.Services.AddSingleton<ILdapService, LdapService>();
-builder.Services.AddSingleton<IUserService, UserService>();
+builder.Services.AddScoped<IUserService, UserService>();
+builder.Services.AddScoped<ISubmissionClientHelper, SubmissionClientHelper>();
 
 var activeDirectorySettings = new ActiveDirectorySettings();
 configuration.Bind(nameof(ActiveDirectorySettings), activeDirectorySettings);
@@ -31,6 +33,14 @@ builder.Services.AddSingleton(activeDirectorySettings);
 var jobSettings = new JobSettings();
 configuration.Bind(nameof(JobSettings), jobSettings);
 builder.Services.AddSingleton(jobSettings);
+
+builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(configuration, nameof(SubmissionKeyCloakSettings));
+builder.Services.Configure<ApiEndpointSettings>(configuration.GetSection("ApiEndpoints"));
+
+var encryptionSettings = new EncryptionSettings();
+configuration.Bind(nameof(encryptionSettings), encryptionSettings);
+builder.Services.AddSingleton(encryptionSettings);
+builder.Services.AddScoped<IEncDecHelper, EncDecHelper>();
 
 builder.Services.AddSingleton(new AutomaticRetryAttribute() { Attempts = 3 });
 
@@ -80,5 +90,31 @@ using (var scope = app.Services.CreateScope())
 {
     var vaultCredentialsService = scope.ServiceProvider.GetRequiredService<IVaultCredentialsService>();
 }
+
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    Authorization = new List<IDashboardAuthorizationFilter>()
+    {
+        new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
+        {
+            RequireSsl = false,
+            SslRedirect = false,
+            LoginCaseSensitive = false,
+            Users = new[]
+            {
+                new BasicAuthAuthorizationUser
+                {
+                    Login = configuration["Hangfire:Username"],
+                    PasswordClear = configuration["Hangfire:Password"],
+                },
+            },
+        }),
+    },
+});
+
+RecurringJob.AddOrUpdate<IUserService>(
+    "ProjectDiscovery",
+    x => x.DiscoverProjects(),
+    Cron.MinuteInterval(jobSettings.ProjectDiscoverySchedule));
 
 app.Run();

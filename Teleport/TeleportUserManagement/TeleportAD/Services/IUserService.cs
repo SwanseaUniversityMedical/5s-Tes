@@ -1,5 +1,5 @@
 using System.Text.Json;
-using FiveSafesTes.Core.Models.APISimpleTypeReturns;
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using TeleportUserManagement.Models;
@@ -13,17 +13,18 @@ namespace TeleportUserManagement.Services
     {
         void SetupRecurringProjectCheck(string projectName);
         Task UpdateGroupsForProject(string projectName);
+        Task DiscoverProjects();
     }
 
     public class UserService : IUserService
     {
         private readonly ILdapService _ldapService;
-        private readonly IDareClientHelper _clientHelper;
+        private readonly ISubmissionClientHelper _clientHelper;
         private readonly JobSettings _jobSettings;
 
         private readonly List<string> _ouPath;
 
-        public UserService(ILdapService ldapService, IDareClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings) 
+        public UserService(ILdapService ldapService, ISubmissionClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings) 
         {
             _ldapService = ldapService;
             _clientHelper = clientHelper;
@@ -36,10 +37,25 @@ namespace TeleportUserManagement.Services
         /// 
         /// </summary>
         /// <param name="projectName"></param>
-        public void SetupRecurringProjectCheck(string projectName) 
+        public void SetupRecurringProjectCheck(string projectName)
         {
             string jobName = $"{_jobSettings.ProjectJobNamePrefix}_{projectName}";
             RecurringJob.AddOrUpdate<IUserService>(jobName, x => x.UpdateGroupsForProject(projectName), Cron.MinuteInterval(_jobSettings.ProjectCheckSchedule));
+        }
+
+        /// <summary>
+        /// Discovers which projects belong to this TRE and ensures each one has a recurring AD sync job registered.
+        /// Safe to run repeatedly - SetupRecurringProjectCheck just refreshes the existing job registration.
+        /// </summary>
+        public async Task DiscoverProjects()
+        {
+            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("api/Project/GetAllProjectsForTre");
+            if (projects == null) return;
+
+            foreach (Project project in projects)
+            {
+                SetupRecurringProjectCheck(project.Name);
+            }
         }
 
         /// <summary>
@@ -107,18 +123,7 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        /// 
-        /// </summary>
-        /// <param name="projectName"></param>
-        /// <returns></returns>
-        private async Task<bool> IsProjectApproved(string projectName)
-        {
-            BoolReturn? result = await _clientHelper.CallAPIWithoutModel<BoolReturn>($"api/IsProjectApproved/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
-            return result?.Result ?? false;
-        }
-
-        /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="user"></param>
         private async Task<ResultType> AddUserToAD(ProjectUser user)

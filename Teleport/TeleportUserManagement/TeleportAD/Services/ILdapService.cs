@@ -530,8 +530,8 @@ namespace TeleportUserManagement.Services
                     try
                     {
                         var entry = searchResults.NextAsync().Result;
-                        var attr = entry.GetAttribute("sAMAccountName");
-                        if (attr != null) usernames.Add(attr.StringValue);
+                        var samAccountName = entry.GetStringValueOrDefault("sAMAccountName", null);
+                        if (!string.IsNullOrEmpty(samAccountName)) usernames.Add(samAccountName);
                     }
                     catch (AggregateException ae)
                     {

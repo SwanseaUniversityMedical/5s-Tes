@@ -829,44 +829,7 @@ namespace Submission.Api.Controllers
 
         }
 
-        [AllowAnonymous]
-        [HttpGet("GetUsersForApprovedProject/{projectName}")]
-        public List<string> GetUsersForApprovedProject(string projectName) 
-        {
-            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
-            if (project == null) return null;
-
-            List<string> users = [];
-            foreach (User user in project.Users) 
-            {
-                var userDto = new
-                {
-                    Username = user.Name,
-                    FullName = user.FullName,
-                    Email = user.Email
-                };
-
-                string userJson = System.Text.Json.JsonSerializer.Serialize(userDto);
-                users.Add(userJson);
-            }
-
-            return users;
-        }
-
-        [AllowAnonymous]
-        [HttpGet("IsProjectApproved/{projectName}")]
-        public BoolReturn IsProjectApproved(string projectName) 
-        {
-            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
-            if (project == null || project.ProjectTreDecisions.Any(x => x.Decision != FiveSafesTes.Core.Models.Enums.Decision.Approved))
-            {
-                return new() { Result = false };
-            }
-
-            return new() { Result = true};
-        }
-
-        [AllowAnonymous]
+        [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("GetApprovedUsersForProject/{projectName}")]
         public List<string> GetApprovedUsersForProject(string projectName)
         {
@@ -874,6 +837,7 @@ namespace Submission.Api.Controllers
             if (project == null) return null;
 
             var approvedUsers = project.Users.Where(user =>
+                project.Tres.Count > 0 &&
                 project.Tres.All(tre =>
                     project.MembershipTreDecision.Any(d =>
                         d.User.Id == user.Id &&
