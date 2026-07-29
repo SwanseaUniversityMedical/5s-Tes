@@ -41,6 +41,7 @@ namespace TeleportUserManagement.Services
         private readonly string username;
         private readonly string password;
         private readonly bool useSsl;
+        private readonly List<string> _ouPath;
 
         private string userOu;
         private string groupOu;
@@ -71,6 +72,7 @@ namespace TeleportUserManagement.Services
             password = adSettings.Connection.Password;
 
             machineName = adSettings.Connection.Machine;
+            _ouPath = adSettings.Connection.BaseOu.Split(',').ToList();
             ldapConnection = GetLdapConnection();
         }
 
@@ -126,7 +128,7 @@ namespace TeleportUserManagement.Services
 
         public LdapUser FindUserByIdentityDefault(string userName)
         {
-            return FindUserByIdentityGuts(userName, "", domainNameDcFormat);
+            return FindUserByIdentityGuts(userName, "", "", _ouPath);
         }
 
         public bool CheckUserExists(string userName)
@@ -277,10 +279,19 @@ namespace TeleportUserManagement.Services
                 new LdapAttribute("userPrincipalName", userPrincipleName),
                 new LdapAttribute("displayName", userName),
                 new LdapAttribute("givenName", givenName),
-                new LdapAttribute("sn", surname),
-                new LdapAttribute("description", description),
                 new LdapAttribute("mail", email)
             };
+
+            // Only add the following values if they are not empty.
+            if (!string.IsNullOrWhiteSpace(surname))
+            {
+                attributes.Add(new LdapAttribute("sn", surname));
+            }
+
+            if (!string.IsNullOrWhiteSpace(description))
+            {
+                attributes.Add(new LdapAttribute("description", description));
+            }
 
             var newEntry = new LdapEntry(userDn, attributes);
 
@@ -408,7 +419,7 @@ namespace TeleportUserManagement.Services
 
         private LdapGroup FindGroupDefault(string groupName)
         {
-            return FindGroupGuts(groupName, null);
+            return FindGroupGuts(groupName, _ouPath);
         }
 
 
@@ -523,7 +534,7 @@ namespace TeleportUserManagement.Services
             {
                 // memberOf is AD's auto-maintained back-link for "member" - avoids parsing/unescaping DNs ourselves.
                 var filter = $"(&(objectClass=user)(objectCategory=person)(memberOf={EscapeLdapFilterValue(group.DistinguishedName)}))";
-                var searchResults = ldapConnection.SearchAsync(domainNameDcFormat, LdapConnection.ScopeSub, filter, ["sAMAccountName"], false).Result;
+                var searchResults = ldapConnection.SearchAsync(GetBaseDn(_ouPath), LdapConnection.ScopeSub, filter, ["sAMAccountName"], false).Result;
 
                 while (searchResults.HasMoreAsync().Result)
                 {

@@ -76,7 +76,7 @@ namespace TeleportUserManagement.Services
                 if (groupCreationResult == ResultType.Failure) return;
             }
 
-            // Add everyone currently approved by every TRE.
+            // Add every user currently approved by every TRE to active directory
             foreach (ProjectUser user in approvedUsers)
             {
                 if (!_ldapService.CheckUserExists(user.Username))
@@ -89,7 +89,6 @@ namespace TeleportUserManagement.Services
             }
 
             // Remove anyone still in the group whose approval has since lapsed
-            // (a TRE revoked/changed its decision, or they dropped off the project).
             if (!_ldapService.CheckGroupExists(projectName)) return;
 
             foreach (string existingMember in _ldapService.GetGroupMemberUsernames(projectName))
