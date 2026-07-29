@@ -49,7 +49,7 @@ namespace TeleportUserManagement.Services
         /// </summary>
         public async Task DiscoverProjects()
         {
-            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("api/Project/GetAllProjectsForTre");
+            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjectsForTre");
             if (projects == null) return;
 
             foreach (Project project in projects)
@@ -108,7 +108,7 @@ namespace TeleportUserManagement.Services
         /// <returns></returns>
         private async Task<List<ProjectUser>> GetUsersForProject(string projectName)
         {
-            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"api/GetApprovedUsersForProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
+            List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"/api/Project/GetApprovedUsersForProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
 
             if (userJson == null) return null;
 
