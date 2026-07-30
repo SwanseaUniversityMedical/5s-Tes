@@ -338,14 +338,14 @@ namespace Submission.Api.Controllers
                 var serviceAccountJwt = await _keycloakAdminService.GetServiceAccountTokenAsync(
                     tre.KeycloakClientId, clientSecret);
 
-                var config = new TreOnboardingConfig
+                // IsConfigurationImported is set by the Agent in code after upload, not in this file.
+                var config = new
                 {
                     TREId = tre.Id,
                     TREName = tre.Name,
                     SubmissionURL = _configuration["SubmissionApiUrl"] ?? string.Empty,
                     KeycloakRealmSettingURL = _keycloakSettings.MetadataAddress,
-                    JWT = serviceAccountJwt,
-                    IsConfigurationImported = true
+                    JWT = serviceAccountJwt
                 };
 
                 var json = JsonConvert.SerializeObject(config, Formatting.Indented);
