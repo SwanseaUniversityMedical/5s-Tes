@@ -829,24 +829,23 @@ namespace Submission.Api.Controllers
 
         }
 
-        [Authorize(Roles = "dare-tre-admin")]
+        [Authorize(Roles = "dare-control-admin")]
         [HttpGet("GetApprovedUsersForProject/{projectName}")]
         public List<string> GetApprovedUsersForProject(string projectName)
         {
             Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
             if (project == null) return null;
 
-            var approvedUsers = project.Users.Where(user =>
-                project.Tres.Count > 0 &&
-                project.Tres.All(tre =>
-                    project.MembershipTreDecision.Any(d =>
-                        d.User.Id == user.Id &&
-                        d.Tre.Id == tre.Id &&
-                        d.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)));
+            // Return the project users that have been approved by all project TREs
+            var approvedUsers = project.Users.Where(user => project.Tres.Count > 0 && project.Tres.All(tre => project.MembershipTreDecision.Any(d =>
+                d.User.Id == user.Id &&
+                d.Tre.Id == tre.Id &&
+                d.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)));
 
             List<string> users = [];
             foreach (User user in approvedUsers)
             {
+                // Extract the required details for Active Directory
                 var userDto = new
                 {
                     Username = user.Name,

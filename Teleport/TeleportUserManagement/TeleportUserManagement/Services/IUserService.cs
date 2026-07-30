@@ -34,9 +34,9 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        /// 
+        /// Sets up a recurring job to ensure that all users in the active directory group still belong there.
         /// </summary>
-        /// <param name="projectName"></param>
+        /// <param name="projectName">The name of the project we are checking.</param>
         public void SetupRecurringProjectCheck(string projectName)
         {
             string jobName = $"{_jobSettings.ProjectJobNamePrefix}_{projectName}";
@@ -44,12 +44,11 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        /// Discovers which projects belong to this TRE and ensures each one has a recurring AD sync job registered.
-        /// Safe to run repeatedly - SetupRecurringProjectCheck just refreshes the existing job registration.
+        /// Discovers all existing projects and ensures each one has a recurring AD sync job registered.
         /// </summary>
         public async Task DiscoverProjects()
         {
-            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjectsForTre");
+            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects");
             if (projects == null) return;
 
             foreach (Project project in projects)
@@ -59,19 +58,20 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        /// 
+        /// Add or remove an Active Directory group from project users based on their approval status.
         /// </summary>
-        /// <param name="projectName"></param>
-        /// <returns></returns>
+        /// <param name="projectName">The name of the project we are managing the users from.</param>
         public async Task UpdateGroupsForProject(string projectName)
         {
             List<ProjectUser> approvedUsers = await GetUsersForProject(projectName);
             if (approvedUsers == null) return;
 
+            // Ensure each user name only appears in the list once
             var approvedUsernames = approvedUsers.Select(u => u.Username).ToHashSet(StringComparer.OrdinalIgnoreCase);
 
             if (approvedUsers.Count > 0 && !_ldapService.CheckGroupExists(projectName))
             {
+                // No AD group exists for this project, create it.
                 ResultType groupCreationResult = CreateADGroup(projectName);
                 if (groupCreationResult == ResultType.Failure) return;
             }
@@ -101,10 +101,9 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        /// 
+        /// Returns a list of project users who have been unanimously approved for a given project.
         /// </summary>
-        /// <param name="projectName"></param>
-        /// <returns></returns>
+        /// <param name="projectName">The name of the project we are retrieving our approved users from.</param>
         private async Task<List<ProjectUser>> GetUsersForProject(string projectName)
         {
             List<string>? userJson = await _clientHelper.CallAPIWithoutModel<List<string>>($"/api/Project/GetApprovedUsersForProject/{Uri.EscapeDataString(projectName)}", httpMethod: HttpMethod.Get);
@@ -122,18 +121,18 @@ namespace TeleportUserManagement.Services
         }
 
         /// <summary>
-        ///
+        /// Adds a new user to Active Directory.
         /// </summary>
-        /// <param name="user"></param>
+        /// <param name="user">The details of the user we wish to add.</param>
         private async Task<ResultType> AddUserToAD(ProjectUser user)
         {
             return await _ldapService.CreateUserAccount(user.Username, user.FullName, "", user.Email, "", true, false, true, _ouPath);
         }
 
         /// <summary>
-        /// 
+        /// Creates a new group in Active Directory.
         /// </summary>
-        /// <param name="groupName"></param>
+        /// <param name="groupName">The name of our new AD group.</param>
         private ResultType CreateADGroup(string groupName)
         {
             return _ldapService.CreateGroup(groupName, "", _ouPath);
