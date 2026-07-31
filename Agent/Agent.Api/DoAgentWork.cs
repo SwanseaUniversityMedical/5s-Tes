@@ -375,20 +375,20 @@ namespace Agent.Api
                                 }
                                 else if (status.state == "EXECUTOR_ERROR" || status.state == "SYSTEM_ERROR")
                                 {
-                                    // Pod execution failed. Report the specific failure stage and pass the
-                                    // TESK-provided reason through so the researcher can see why it failed,
-                                    // rather than a bare "Failed".
+                                    // TES task failed. Close the submission as Failed (a valid terminal
+                                    // status) and pass the TESK-provided reason through as the description
+                                    // so it isn't a bare "Failed" with no explanation.
                                     var failureReason = string.IsNullOrWhiteSpace(status.description)
                                         ? status.state
                                         : status.description;
 
                                     Log.Error(
-                                        "{Function} Pod processing failed for sub {SubId} (task {TaskId}), state {State}: {Reason}",
+                                        "{Function} TES task failed for sub {SubId} (task {TaskId}), state {State}: {Reason}",
                                         "CheckTES", subId, taskID, status.state, failureReason);
                                     try
                                     {
                                         result = _subHelper.CloseSubmissionForTre(subId.ToString(),
-                                            StatusType.PodProcessingFailed, failureReason, "");
+                                            StatusType.Failed, failureReason, "");
                                     }
                                     catch (Exception ex)
                                     {
