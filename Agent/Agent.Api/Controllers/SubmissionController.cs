@@ -24,7 +24,7 @@ namespace Agent.Api.Controllers
         private readonly IBus _rabbit;
         private readonly ISubmissionHelper _subHelper;
         private readonly IMinioTreHelper _minioTreHelper;
-        private readonly IProjectMinioSubHelperFactory _projectMinioSubHelperFactory;
+        private readonly IProjectS3SubHelperFactory _projectS3SubHelperFactory;
         private readonly IDareClientWithoutTokenHelper _dareHelper;
         private readonly MinioTRESettings _minioTreSettings;
         private readonly AgentSettings _agentSettings;
@@ -34,7 +34,7 @@ namespace Agent.Api.Controllers
             IBus rabbit,
             ISubmissionHelper subHelper,
             IMinioTreHelper minioTreHelper,
-            IProjectMinioSubHelperFactory projectMinioSubHelperFactory,
+            IProjectS3SubHelperFactory projectS3SubHelperFactory,
             IDareClientWithoutTokenHelper dareHelper,
             MinioTRESettings minioTreSettings,
             AgentSettings agentSettings, IFeatureManager features)
@@ -42,7 +42,7 @@ namespace Agent.Api.Controllers
             _rabbit = rabbit;
             _subHelper = subHelper;
             _minioTreHelper = minioTreHelper;
-            _projectMinioSubHelperFactory = projectMinioSubHelperFactory;
+            _projectS3SubHelperFactory = projectS3SubHelperFactory;
             _dareHelper = dareHelper;
             _minioTreSettings = minioTreSettings;
             _agentSettings = agentSettings;
@@ -218,7 +218,7 @@ namespace Agent.Api.Controllers
                 var submission = await _dareHelper.CallAPIWithoutModel<Submission.SubmissionDetailsDto>(
                     $"/api/Submission/GetASubmission/{review.SubId}",
                     queryParams);
-                var minioSubHelper = await _projectMinioSubHelperFactory.GetForProjectAsync(submission.Project.Id);
+                var minioSubHelper = await _projectS3SubHelperFactory.GetProjectS3HelperAsync(submission.Project.Id);
 
                 foreach (var file in review.FileResults)
                 {

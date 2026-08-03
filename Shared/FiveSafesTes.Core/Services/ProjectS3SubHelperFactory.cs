@@ -10,13 +10,13 @@ namespace FiveSafesTes.Core.Services
     /// instead of the shared root credentials from environment variables.
     /// Used by the TRE Agent whenever it reads from or writes to the Submission Layer object store.
     /// </summary>
-    public class ProjectMinioSubHelperFactory : IProjectMinioSubHelperFactory
+    public class ProjectS3SubHelperFactory : IProjectS3SubHelperFactory
     {
         private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly IProjectS3AccessKeySyncService _projectS3AccessKeySyncService;
         private readonly MinioSubSettings _baseSettings;
 
-        public ProjectMinioSubHelperFactory(
+        public ProjectS3SubHelperFactory(
             IVaultCredentialsService vaultCredentialsService,
             IProjectS3AccessKeySyncService projectS3AccessKeySyncService,
             MinioSubSettings baseSettings)
@@ -26,7 +26,7 @@ namespace FiveSafesTes.Core.Services
             _baseSettings = baseSettings;
         }
 
-        public async Task<IMinioSubHelper> GetForProjectAsync(int submissionProjectId)
+        public async Task<IMinioSubHelper> GetProjectS3HelperAsync(int submissionProjectId)
         {
             var credentials = await LoadFromVaultAsync(submissionProjectId);
 
