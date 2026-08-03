@@ -271,6 +271,7 @@ namespace Submission.Api.Controllers
                       {
                         Id = child.Id,
                         Status = child.Status,
+                        StatusDescription = child.StatusDescription,
                         LastStatusUpdate = child.LastStatusUpdate,
                         StartTime = child.StartTime,
                         EndTime = child.EndTime,

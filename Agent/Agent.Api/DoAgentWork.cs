@@ -375,12 +375,9 @@ namespace Agent.Api
                                 }
                                 else if (status.state == "EXECUTOR_ERROR" || status.state == "SYSTEM_ERROR")
                                 {
-                                    // TES task failed. Close the submission as Failed (a valid terminal
-                                    // status) and pass the TESK-provided reason through as the description
-                                    // so it isn't a bare "Failed" with no explanation.
-                                    var failureReason = string.IsNullOrWhiteSpace(status.description)
-                                        ? status.state
-                                        : status.description;
+                                    // TES task failed. Close as Failed (a valid terminal status) and attach
+                                    // the TES state (EXECUTOR_ERROR / SYSTEM_ERROR) as the reason.
+                                    var failureReason = status.state;
 
                                     Log.Error(
                                         "{Function} TES task failed for sub {SubId} (task {TaskId}), state {State}: {Reason}",
