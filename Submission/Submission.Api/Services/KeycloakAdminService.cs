@@ -95,7 +95,7 @@ namespace Submission.Api.Services
             var adminUsername = _configuration["KeycloakAdmin:Username"];
             var adminPassword = _configuration["KeycloakAdmin:Password"];
 
-            var url = $"{baseUrl}/realms/master/protocol/openid-connect/token";
+            var url = $"{baseUrl}/realms/{_keycloakSettings.Realm}/protocol/openid-connect/token";
 
             using var client = new HttpClient(_keycloakSettings.getProxyHandler);
             var tokenRequest = new FormUrlEncodedContent(new Dictionary<string, string>
