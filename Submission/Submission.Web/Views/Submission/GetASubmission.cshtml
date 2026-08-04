@@ -264,7 +264,7 @@
                                                                                 @if (status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Completed)
                                                                                 {
                                                                             <h6 class="mb-0">
-                                                                                <a href="@bucketUrl@Model.Submission.Project.OutputBucket" target="_blank" rel="noopener">
+                                                                                <a href="@bucketUrl@Model.Submission.Project.OutputBucket&key=@child.Id.ToString()/" target="_blank" rel="noopener">
                                                                                     <span class="badge bg-success rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Completed: @Model.Submission.EndTime">
                                                                                         <i class="fa-solid fa-circle-check fs-6 text-white me-2"></i>
                                                                                         <span class="text-start">
