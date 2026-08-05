@@ -867,6 +867,118 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
+        /// <summary>
+        /// Creates a canned IAM policy scoped to a project's submission (read) and output (write) buckets.
+        /// </summary>
+        public async Task<bool> CreateProjectS3AccessPolicyAsync(
+            string policyName,
+            string submissionBucket,
+            string outputBucket)
+        {
+            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
+
+            var policyJson = JsonConvert.SerializeObject(new
+            {
+                Version = "2012-10-17",
+                Statement = new object[]
+                {
+                    new
+                    {
+                        Effect = "Allow",
+                        Action = new[] { "s3:ListBucket", "s3:GetBucketLocation" },
+                        Resource = new[]
+                        {
+                            $"arn:aws:s3:::{submissionBucket}",
+                            $"arn:aws:s3:::{outputBucket}"
+                        }
+                    },
+                    new
+                    {
+                        Effect = "Allow",
+                        Action = new[] { "s3:GetObject" },
+                        Resource = new[] { $"arn:aws:s3:::{submissionBucket}/*" }
+                    },
+                    new
+                    {
+                        Effect = "Allow",
+                        Action = new[] { "s3:PutObject", "s3:GetObject", "s3:DeleteObject" },
+                        Resource = new[] { $"arn:aws:s3:::{outputBucket}/*" }
+                    }
+                }
+            });
+
+            var baseUrl = _minioSettings.Url.TrimEnd('/');
+            var encodedPolicyName = Uri.EscapeDataString(policyName);
+            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
+
+            using var client = new HttpClient();
+            using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
+            using var request = new HttpRequestMessage
+            {
+                Method = HttpMethod.Put,
+                RequestUri = new Uri($"{baseUrl}{adminApiPath}?name={encodedPolicyName}"),
+                Content = content
+            };
+
+            var signedRequest = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
+            using var response = await client.SendAsync(signedRequest);
+
+            if (response.StatusCode == HttpStatusCode.OK)
+            {
+                Log.Information(
+                    "Created project S3 access policy {PolicyName} for buckets {SubmissionBucket}/{OutputBucket}",
+                    policyName, submissionBucket, outputBucket);
+                return true;
+            }
+
+            var responseBody = await response.Content.ReadAsStringAsync();
+            Log.Warning(
+                "CreateProjectS3AccessPolicyAsync failed for {PolicyName}. Status: {StatusCode}. Response: {ResponseBody}",
+                policyName,
+                response.StatusCode,
+                responseBody);
+
+            return false;
+        }
+
+        /// <summary>
+        /// Attaches a canned policy to an S3 access key user.
+        /// </summary>
+        public async Task<bool> AttachPolicyToUserAsync(
+            string policyName,
+            string accessKey,
+            CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                await EnsureMinioClientInitializedAsync(cancellationToken);
+
+                var command =
+                    $"mc admin policy attach {_minioSettings.Alias} {policyName} --user {accessKey}";
+                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+
+                if (result.Success)
+                {
+                    Log.Information(
+                        "Attached policy {PolicyName} to S3 user {AccessKey}",
+                        policyName, accessKey);
+                    return true;
+                }
+
+                Log.Warning(
+                    "Failed to attach policy {PolicyName} to user {AccessKey}. Error: {Error}",
+                    policyName, accessKey, result.Error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex,
+                    "Exception attaching policy {PolicyName} to user {AccessKey}",
+                    policyName, accessKey);
+                return false;
+            }
+        }
+
         #endregion
 
         #region MinIO Client Helper Methods
