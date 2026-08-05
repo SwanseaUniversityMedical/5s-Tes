@@ -18,8 +18,14 @@ RUN dotnet publish "Submission.Api.csproj" \
 FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
 
-# Install curl for healthchecks
-RUN apt-get update && apt-get install -y curl && rm -rf /var/lib/apt/lists/*
+# Install curl for healthchecks, and the MinIO client (mc) used to provision
+# per-project S3 users/policies on the Submission Layer.
+RUN apt-get update && apt-get install -y wget curl && \
+    wget https://dl.min.io/client/mc/release/linux-amd64/mc && \
+    chmod +x mc && \
+    mv mc /usr/local/bin/mc && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 
 COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
