@@ -2,6 +2,26 @@
 @using FiveSafesTes.Core.Models.Enums
 @model List<HealthCheckStatus>
 
+@functions {
+  static string DotClass(HealthStatus status) => status switch
+  {
+    HealthStatus.Connected => "bg-success",
+    HealthStatus.Failed => "bg-danger",
+    _ => "bg-secondary"
+  };
+}
+
+@{
+  // Show the most recent status for each product up front. Older records for the same product are
+  // kept behind a "History" dialog so the viewer sees current health immediately but can still drill
+  // into past statuses when they need to.
+  var products = Model
+    .GroupBy(s => s.Product)
+    .Select(g => g.OrderByDescending(s => s.DateTime).ToList())
+    .OrderBy(history => history[0].Product)
+    .ToList();
+}
+
 <div class="py-2 pb-4">
   <div class="card shadow border-0 rounded-3">
     <div class="card-body">
@@ -9,40 +29,46 @@
         <table id="statusTable" class="table table-hover table-striped align-middle mb-0">
           <thead class="table-light">
           <tr>
-            <th>ID</th>
             <th>Product</th>
             <th>Health Status</th>
             <th>Reason</th>
-            <th>Date</th>
+            <th>Last Checked</th>
+            <th class="text-end">History</th>
           </tr>
           </thead>
           <tbody>
-          @foreach (var status in Model)
+          @for (var i = 0; i < products.Count; i++)
+          {
+            var history = products[i];
+            var latest = history[0];
+            <tr>
+              <td>@latest.Product</td>
+              <td>
+                <span class="d-inline-flex align-items-center">
+                  <span class="rounded-circle @DotClass(latest.HealthStatus) me-2" style="width:10px; height:10px; display:inline-block;"></span>
+                  @latest.HealthStatus
+                </span>
+              </td>
+              <td>
+                <div style="max-width:350px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">
+                  @latest.Reason
+                </div>
+              </td>
+              <td class="text-nowrap">@latest.DateTime.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+              <td class="text-end">
+                <button type="button" class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="modal" data-bs-target="#history-modal-@i">
+                  <i class="bi bi-clock-history"></i>
+                  History
+                  <span class="badge text-bg-secondary ms-1">@history.Count</span>
+                </button>
+              </td>
+            </tr>
+          }
+          @if (products.Count == 0)
           {
             <tr>
-              <td class="text-muted">@status.Id</td>
-              <td>@status.Product</td>
-
-              <td>
-                @{
-                  var dotClass = status.HealthStatus switch
-                  {
-                    HealthStatus.Connected => "bg-success",
-                    HealthStatus.Failed => "bg-danger",
-                    _ => "bg-secondary"
-                  };
-                }
-
-                <span class="d-inline-flex align-items-center">
-                  <span class="rounded-circle @dotClass me-2" style="width:10px; height:10px; display:inline-block;">
-                  </span>
-                  @status.HealthStatus
-                  </span>
-              </td>
-              <td class="text-wrap" style="max-width:350px;">
-                @status.Reason
-              </td>
-              <td>@status.DateTime.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+              <td colspan="5" class="text-center text-muted py-3">No health check data available yet.</td>
             </tr>
           }
           </tbody>
@@ -52,13 +78,68 @@
   </div>
 </div>
 
+@* History dialogs are rendered outside the table so DataTables doesn't reorder or hide them. *@
+@for (var i = 0; i < products.Count; i++)
+{
+  var history = products[i];
+  var latest = history[0];
+  <div class="modal fade" id="history-modal-@i" tabindex="-1" aria-labelledby="history-modal-label-@i" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="history-modal-label-@i">
+            @latest.Product &mdash; Status History
+            <small class="text-muted">(last 24 hours)</small>
+          </h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+          <div class="table-responsive">
+            <table class="table table-sm table-striped align-middle mb-0">
+              <thead class="table-light">
+              <tr>
+                <th>Health Status</th>
+                <th>Reason</th>
+                <th>Date</th>
+              </tr>
+              </thead>
+              <tbody>
+              @foreach (var status in history)
+              {
+                <tr>
+                  <td>
+                    <span class="d-inline-flex align-items-center">
+                      <span class="rounded-circle @DotClass(status.HealthStatus) me-2" style="width:10px; height:10px; display:inline-block;"></span>
+                      @status.HealthStatus
+                    </span>
+                  </td>
+                  <td>
+                    <div style="max-width:420px; white-space:normal; overflow-wrap:anywhere; word-break:break-word;">@status.Reason</div>
+                  </td>
+                  <td class="text-nowrap">@status.DateTime.ToLocalTime().ToString("dd MMM yyyy HH:mm")</td>
+                </tr>
+              }
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Close</button>
+        </div>
+      </div>
+    </div>
+  </div>
+}
+
 @section Scripts {
   <script src="~/lib/DataTables/datatables.min.js"></script>
   <link rel="stylesheet" href="~/lib/DataTables/datatables.min.css"/>
 
   <script>
 
-    new DataTable('#statusTable');
+    new DataTable('#statusTable', {
+      columnDefs: [{ orderable: false, targets: 4 }]
+    });
 
   </script>
 }
