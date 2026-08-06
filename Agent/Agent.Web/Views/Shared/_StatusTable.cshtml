@@ -131,15 +131,3 @@
   </div>
 }
 
-@section Scripts {
-  <script src="~/lib/DataTables/datatables.min.js"></script>
-  <link rel="stylesheet" href="~/lib/DataTables/datatables.min.css"/>
-
-  <script>
-
-    new DataTable('#statusTable', {
-      columnDefs: [{ orderable: false, targets: 4 }]
-    });
-
-  </script>
-}
