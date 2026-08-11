@@ -91,7 +91,7 @@ Set by `ui.secretName`.
 
 | **Name** | **Description** | **Value** |
 |---|---|---|
-| `global.tag` | Image tag used by any component that does not pin its own. | `latest` |
+| `global.tag` | Image tag used by any component that does not pin its own. | `3.1.1` |
 | `global.ingress.enabled` | Master switch for every Ingress in the chart. | `true` |
 | `global.ingress.className` | Ingress controller class. | `nginx` |
 | `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues the TLS certificates. | `ca-issuer` |
@@ -122,7 +122,7 @@ Set by `ui.secretName`.
 | `api.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `api.replicas` | Number of copies. | `1` |
 | `api.containerPort` | Port the ASP.NET app listens on. Describes the app; it does not change it. | `8080` |
-| `api.resources` | CPU and memory requests/limits. | `{}` |
+| `api.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `api.service.type` | Service type. | `ClusterIP` |
 | `api.secretName` | Name of the Kubernetes Secret holding the API secrets. See **Secrets**. | `submission-api-secret` |
 | `api.ingress.enabled` | Create an Ingress for the API. | `true` |
@@ -151,7 +151,7 @@ Set by `ui.secretName`.
 | `ui.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `ui.replicas` | Number of copies. | `1` |
 | `ui.containerPort` | Port the ASP.NET app listens on. | `8080` |
-| `ui.resources` | CPU and memory requests/limits. | `{}` |
+| `ui.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `ui.service.type` | Service type. | `ClusterIP` |
 | `ui.secretName` | Name of the Kubernetes Secret holding the UI secrets. See **Secrets**. | `submission-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |

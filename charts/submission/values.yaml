@@ -59,7 +59,7 @@ monitoring:
 
 global:
   # Image tag used when a component does not pin its own.
-  tag: "latest"
+  tag: "3.1.1"
 
   ingress:
     enabled: true
@@ -104,7 +104,14 @@ api:
   replicas: 1
   # Must match the port the ASP.NET app listens on inside the container.
   containerPort: 8080
-  resources: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
   service:
     type: ClusterIP
   secretName: submission-api-secret
@@ -137,7 +144,14 @@ ui:
     pullPolicy: IfNotPresent
   replicas: 1
   containerPort: 8080
-  resources: {}
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
   service:
     type: ClusterIP
   secretName: submission-ui-secret
