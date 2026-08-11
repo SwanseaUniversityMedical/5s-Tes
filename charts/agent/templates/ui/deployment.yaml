@@ -98,8 +98,6 @@ spec:
                   key: keycloakClientSecret
             - name: TreKeyCloakSettings__ValidAudiences
               value: "Dare-TRE-API,Dare-TRE-UI"
-            - name: TreKeyCloakSettings__UseRedirectURL
-              value: "false"
             - name: TreKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: TreKeyCloakSettings__ProxyAddresURL

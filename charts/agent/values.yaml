@@ -112,8 +112,6 @@ api:
   treName: "SAIL"
   egress:
     apiAddress: "http://egress-api"
-    # Public URL of the Egress UI, used in token-expiry redirects.
-    uiRedirectUrl: "http://egress.localtest.me"
   tes:
     useTesk: true
     apiUrl: "http://tesk.localtest.me/v1/tasks"

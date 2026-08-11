@@ -187,18 +187,12 @@ spec:
                   key: treKeycloakClientSecret
             - name: TreKeyCloakSettings__ValidAudiences
               value: "Dare-TRE-API,Dare-TRE-UI"
-            - name: TreKeyCloakSettings__UseRedirectURL
-              value: "false"
             - name: TreKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: TreKeyCloakSettings__ProxyAddresURL
               value: "{{ .Values.global.config.proxy.url }}"
             - name: TreKeyCloakSettings__BypassProxy
               value: "{{ .Values.global.config.proxy.bypass }}"
-            - name: DataEgressKeyCloakSettings__Authority
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Data-Egress/.well-known/openid-configuration"
-            - name: DataEgressKeyCloakSettings__MetadataAddress
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Data-Egress/.well-known/openid-configuration"
             - name: DataEgressKeyCloakSettings__BaseUrl
               value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Data-Egress"
             - name: DataEgressKeyCloakSettings__ClientId
@@ -208,20 +202,10 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.api.secretName }}
                   key: egressKeycloakClientSecret
-            - name: DataEgressKeyCloakSettings__ValidAudiences
-              value: "Data-Egress-UI,Data-Egress-API"
-            - name: DataEgressKeyCloakSettings__TokenExpiredAddress
-              value: "{{ .Values.api.egress.uiRedirectUrl }}/Account/LoginAfterTokenExpired"
-            - name: DataEgressKeyCloakSettings__RedirectURL
-              value: "{{ .Values.api.egress.uiRedirectUrl }}"
-            - name: DataEgressKeyCloakSettings__UseRedirectURL
-              value: "false"
             - name: DataEgressKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: DataEgressKeyCloakSettings__ProxyAddresURL
               value: "{{ .Values.global.config.proxy.url }}"
-            - name: DataEgressKeyCloakSettings__BypassProxy
-              value: "{{ .Values.global.config.proxy.bypass }}"
             - name: SubmissionKeyCloakSettings__Authority
               value: "{{ .Values.global.config.submissionKeycloakUrl }}/realms/Dare-Control/.well-known/openid-configuration"
             - name: SubmissionKeyCloakSettings__MetadataAddress
@@ -237,8 +221,6 @@ spec:
                   key: submissionKeycloakClientSecret
             - name: SubmissionKeyCloakSettings__ValidAudiences
               value: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
-            - name: SubmissionKeyCloakSettings__UseRedirectURL
-              value: "false"
             - name: SubmissionKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: SubmissionKeyCloakSettings__ProxyAddresURL

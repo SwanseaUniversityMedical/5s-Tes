@@ -148,7 +148,6 @@ Set by `camundaWorker.secretName`.
 | `api.submissionApiUrl` | Address of the remote Submission API this TRE serves. External URL unless both layers share a cluster. | `http://submission-api.localtest.me` |
 | `api.treName` | Name this TRE registers with the Submission layer under. | `SAIL` |
 | `api.egress.apiAddress` | Address of the Data Egress API. | `http://egress-api` |
-| `api.egress.uiRedirectUrl` | Public URL of the Egress UI, for token-expiry redirects. | `http://egress.localtest.me` |
 | `api.tes.useTesk` | Submit tasks to a TES executor. Keep true in real deployments. | `true` |
 | `api.tes.apiUrl` | TES task endpoint (TESK or Funnel). Tasks go nowhere if this is wrong. | `http://tesk.localtest.me/v1/tasks` |
 | `api.tes.outputBucketPrefix` | Prefix put on output bucket paths handed to the executor. | `s3://` |
