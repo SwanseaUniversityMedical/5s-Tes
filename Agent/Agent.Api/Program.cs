@@ -49,6 +49,8 @@ if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntif
         .DisableAutomaticKeyGeneration();
 }
 
+builder.Services.AddHealthChecks();
+
 // Add services to the container.
 builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
 {
@@ -338,6 +340,7 @@ app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
