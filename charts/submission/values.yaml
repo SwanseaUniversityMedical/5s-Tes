@@ -1,0 +1,145 @@
+# Default values for the standalone `submission` chart.
+# The submission-stack chart overrides these through an ArgoCD `Application`.
+# The defaults below are local development settings, so that
+# `helm template ./charts/submission` renders without any extra input.
+
+nameOverride: ""
+# The stack sets this so that service DNS names stay `submission-<component>`.
+fullnameOverride: "submission"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  fsGroup: 1000
+
+# Organisation security baseline. Do not weaken this without a reason
+# written in the pull request.
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Mounts a cluster certificate bundle over every container's trust store, so
+# the apps trust internal HTTPS addresses. The ConfigMap is provided by the
+# cluster, not created by this chart.
+trustClusterCa:
+  enabled: true
+  configMapName: overlay-castore
+  key: ca-certificates.crt
+  mountPath: /etc/ssl/certs/ca-certificates.crt
+
+# Labels put on every PersistentVolumeClaim. The cluster's backup tool uses
+# these to decide what to back up; the labels alone do nothing.
+persistentVolumeLabels:
+  hiru.io/backup: "enabled"
+
+# ASP.NET Data Protection key ring, shared read-write by the API and the UI so
+# that each can decrypt cookies issued by the other. The path is fixed in the
+# application code. Requires a ReadWriteMany-capable storage class.
+dataProtectionStorage:
+  size: "1Gi"
+  # null means "use the cluster default". Set a string to choose one.
+  storageClassName: null
+  mountPath: /root/.aspnet/DataProtection-Keys
+
+global:
+  # Image tag used when a component does not pin its own.
+  tag: "latest"
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  # Settings that both components need. Defined once, here.
+  config:
+    seqUrl: "http://seq:5341"
+    logLevel: "Information"
+    # Base URL of the Keycloak that holds the Dare-Control realm.
+    keycloakUrl: "http://keycloak.localtest.me:8085"
+    keycloakDemoMode: false
+    # Public URL of the Submission UI; Keycloak redirects browsers back here.
+    uiRedirectUrl: "http://submission.localtest.me"
+    suppressAntiforgery: false
+    sslCookies: false
+    httpsRedirect: false
+    rabbitmq:
+      host: "rabbitmq"
+      username: "rabbitmq"
+    vault:
+      url: "http://vault:8200"
+    proxy:
+      enabled: false
+      url: ""
+      bypass: "submission-api,seq"
+
+# --------------------------------------------------------------------
+# One block per component. Only the settings unique to that component.
+# --------------------------------------------------------------------
+
+api:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # Must match the port the ASP.NET app listens on inside the container.
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  secretName: submission-api-secret
+  ingress:
+    enabled: true
+    host: "submission-api.localtest.me"
+  # Public URL of this API. It is embedded in the TRE onboarding data, so it
+  # must be reachable from remote agent/TRE hosts, not an in-cluster name.
+  publicUrl: "http://submission-api.localtest.me"
+  keycloak:
+    server: "keycloak.localtest.me"
+    protocol: "http"
+    validIssuer: "http://keycloak.localtest.me:8085/realms/Dare-Control"
+    autoTrustKeycloakCert: false
+    signedOutRedirectUri: "http://submission.localtest.me"
+    tokenRefreshSeconds: 300
+    adminUsername: "admin"
+  s3:
+    url: "http://rustfs-submission:9000"
+    adminConsole: "http://rustfs-submission:9001"
+  seedDemoData: false
+
+ui:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-ui
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  secretName: submission-ui-secret
+  ingress:
+    enabled: true
+    host: "submission.localtest.me"
+  apiAddress: "http://submission-api"
+  uiName: "Five Safes TES"
+  formIoUseInternal: true
+  frontend:
+    queryImageSql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-tre-sqlpg:1.0.0"
+    # Browser-facing URL of the S3 console.
+    s3BaseUrl: "http://rustfs-submission.localtest.me"
+    s3BucketPath: "/rustfs/console/browser/?bucket="

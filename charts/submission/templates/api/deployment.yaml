@@ -1,0 +1,177 @@
+{{- if .Values.api.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "submission.fullname" . }}-api
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "submission.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "submission.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "submission.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+        # The app writes its Data Protection keys under /root, but runs as a
+        # non-root user that cannot enter /root. The emptyDir makes /root
+        # traversable; the keys themselves live on the shared claim below.
+        - name: root-home
+          emptyDir: {}
+        - name: data-protection
+          persistentVolumeClaim:
+            claimName: {{ include "submission.fullname" . }}-data-protection
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: api
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          volumeMounts:
+            {{- if .Values.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.trustClusterCa.mountPath }}
+              subPath: {{ .Values.trustClusterCa.key }}
+            {{- end }}
+            - name: root-home
+              mountPath: /root
+            - name: data-protection
+              mountPath: {{ .Values.dataProtectionStorage.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+          env:
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: KeycloakDemoMode
+              value: "{{ .Values.global.config.keycloakDemoMode }}"
+            - name: SuppressAntiforgery
+              value: "{{ .Values.global.config.suppressAntiforgery }}"
+            - name: Features__SeedDemoData
+              value: "{{ .Values.api.seedDemoData }}"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: connectionString
+            - name: RabbitMQ__HostAddress
+              value: "{{ .Values.global.config.rabbitmq.host }}"
+            - name: RabbitMQ__Username
+              value: "{{ .Values.global.config.rabbitmq.username }}"
+            - name: RabbitMQ__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitPassword
+            - name: MinioSettings__Url
+              value: "{{ .Values.api.s3.url }}"
+            - name: MinioSettings__AdminConsole
+              value: "{{ .Values.api.s3.adminConsole }}"
+            - name: MinioSettings__AccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3AccessKey
+            - name: MinioSettings__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3SecretKey
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vault.url }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: vaultToken
+            - name: SubmissionKeyCloakSettings__Proxy
+              value: "{{ .Values.global.config.proxy.enabled }}"
+            - name: SubmissionKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.global.config.proxy.url }}"
+            - name: SubmissionKeyCloakSettings__BypassProxy
+              value: "{{ .Values.global.config.proxy.bypass }}"
+            - name: SubmissionKeyCloakSettings__Authority
+              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control/"
+            - name: SubmissionKeyCloakSettings__BaseUrl
+              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control"
+            - name: SubmissionKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__ClientId
+              value: "Dare-Control-API"
+            - name: SubmissionKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: keycloakClientSecret
+            - name: SubmissionKeyCloakSettings__ValidAudiences
+              value: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+            - name: SubmissionKeyCloakSettings__Realm
+              value: "Dare-Control"
+            - name: SubmissionKeyCloakSettings__Server
+              value: "{{ .Values.api.keycloak.server }}"
+            - name: SubmissionKeyCloakSettings__Protocol
+              value: "{{ .Values.api.keycloak.protocol }}"
+            - name: SubmissionKeyCloakSettings__ValidIssuer
+              value: "{{ .Values.api.keycloak.validIssuer }}"
+            - name: SubmissionKeyCloakSettings__AutoTrustKeycloakCert
+              value: "{{ .Values.api.keycloak.autoTrustKeycloakCert }}"
+            - name: SubmissionKeyCloakSettings__UseRedirectURL
+              value: "false"
+            - name: SubmissionKeyCloakSettings__RedirectURL
+              value: "{{ .Values.global.config.uiRedirectUrl }}"
+            - name: SubmissionKeyCloakSettings__TokenExpiredAddress
+              value: "{{ .Values.global.config.uiRedirectUrl }}/Account/LoginAfterTokenExpired"
+            - name: SubmissionKeyCloakSettings__SignedOutRedirectUri
+              value: "{{ .Values.api.keycloak.signedOutRedirectUri }}"
+            - name: SubmissionKeyCloakSettings__TokenRefreshSeconds
+              value: "{{ .Values.api.keycloak.tokenRefreshSeconds }}"
+            - name: KeycloakAdmin__Username
+              value: "{{ .Values.api.keycloak.adminUsername }}"
+            - name: KeycloakAdmin__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: keycloakAdminPassword
+            - name: SubmissionApiUrl
+              value: "{{ .Values.api.publicUrl }}"
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- end }}

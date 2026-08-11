@@ -1,0 +1,21 @@
+{{- if or .Values.api.enabled .Values.ui.enabled -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "submission.fullname" . }}-data-protection
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+    {{- with .Values.persistentVolumeLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if typeIs "string" .Values.dataProtectionStorage.storageClassName }}
+  storageClassName: {{ .Values.dataProtectionStorage.storageClassName | quote }}
+  {{- end }}
+  # ReadWriteMany: the API and UI pods both read and write the key ring.
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.dataProtectionStorage.size | quote }}
+{{- end }}
