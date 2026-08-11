@@ -1,0 +1,121 @@
+{{- if .Values.camundaWorker.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-camunda-worker
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: camunda-worker
+spec:
+  replicas: {{ .Values.camundaWorker.replicas }}
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: camunda-worker
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: camunda-worker
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+        - name: process-models
+          persistentVolumeClaim:
+            claimName: {{ include "agent.fullname" . }}-process-models
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: camunda-worker
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.camundaWorker.image.repository }}:{{ .Values.camundaWorker.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.camundaWorker.image.pullPolicy }}
+          volumeMounts:
+            {{- if .Values.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.trustClusterCa.mountPath }}
+              subPath: {{ .Values.trustClusterCa.key }}
+            {{- end }}
+            - name: process-models
+              mountPath: {{ .Values.processModelsStorage.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+          env:
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: DmnPath__Path
+              value: "{{ .Values.processModelsStorage.mountPath }}"
+            - name: ConnectionStrings__CredentialsConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camundaWorker.secretName }}
+                  key: credentialsConnectionString
+            - name: ConnectionStrings__TREPostgresConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camundaWorker.secretName }}
+                  key: treDataConnectionString
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vault.url }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camundaWorker.secretName }}
+                  key: vaultToken
+            - name: VaultSettings__TimeoutSeconds
+              value: "30"
+            - name: VaultSettings__SecretEngine
+              value: "secret"
+            - name: VaultSettings__EnableRetry
+              value: "true"
+            - name: VaultSettings__MaxRetryAttempts
+              value: "3"
+            - name: LdapSettings__Host
+              value: "{{ .Values.camundaWorker.ldap.host }}"
+            - name: LdapSettings__Port
+              value: "{{ .Values.camundaWorker.ldap.port }}"
+            - name: LdapSettings__AdminDn
+              value: "{{ .Values.camundaWorker.ldap.adminDn }}"
+            - name: LdapSettings__AdminPassword
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camundaWorker.secretName }}
+                  key: ldapAdminPassword
+            - name: LdapSettings__BaseDn
+              value: "{{ .Values.camundaWorker.ldap.baseDn }}"
+            - name: LdapSettings__UserOu
+              value: "{{ .Values.camundaWorker.ldap.userOu }}"
+            - name: LdapSettings__UseSSL
+              value: "{{ .Values.camundaWorker.ldap.useSsl }}"
+            - name: ZeebeBootstrap__Client__GatewayAddress
+              value: "{{ .Values.global.config.zeebeGatewayAddress }}"
+            - name: ZeebeBootstrap__Worker__MaxJobsActive
+              value: "5"
+            - name: ZeebeBootstrap__Worker__TimeoutInMilliseconds
+              value: "5000"
+            - name: ZeebeBootstrap__Worker__PollIntervalInMilliseconds
+              value: "1000"
+            - name: ZeebeBootstrap__Worker__PollingTimeoutInMilliseconds
+              value: "5000"
+            - name: ZeebeBootstrap__Worker__RetryTimeoutInMilliseconds
+              value: "5000"
+          resources:
+            {{- toYaml .Values.camundaWorker.resources | nindent 12 }}
+{{- end }}
