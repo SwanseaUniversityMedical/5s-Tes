@@ -118,7 +118,7 @@ Set by `camundaWorker.secretName`.
 
 | **Name** | **Description** | **Value** |
 |---|---|---|
-| `global.tag` | Image tag used by any component that does not pin its own. | `latest` |
+| `global.tag` | Image tag used by any component that does not pin its own. | `3.1.1` |
 | `global.ingress.enabled` | Master switch for every Ingress in the chart. | `true` |
 | `global.ingress.className` | Ingress controller class. | `nginx` |
 | `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues the TLS certificates. | `ca-issuer` |
@@ -148,7 +148,7 @@ Set by `camundaWorker.secretName`.
 | `api.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `api.replicas` | Number of copies. Keep at 1: the recurring jobs and the shared claim are not written for more. | `1` |
 | `api.containerPort` | Port the ASP.NET app listens on. Describes the app; it does not change it. | `8080` |
-| `api.resources` | CPU and memory requests/limits. | `{}` |
+| `api.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `api.service.type` | Service type. | `ClusterIP` |
 | `api.secretName` | Name of the Kubernetes Secret holding the API secrets. See **Secrets**. | `agent-api-secret` |
 | `api.ingress.enabled` | Create an Ingress for the API. | `true` |
@@ -193,7 +193,7 @@ Set by `camundaWorker.secretName`.
 | `ui.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `ui.replicas` | Number of copies. | `1` |
 | `ui.containerPort` | Port the ASP.NET app listens on. | `8080` |
-| `ui.resources` | CPU and memory requests/limits. | `{}` |
+| `ui.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `ui.service.type` | Service type. | `ClusterIP` |
 | `ui.secretName` | Name of the Kubernetes Secret holding the UI secrets. See **Secrets**. | `agent-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |
@@ -215,7 +215,7 @@ Set by `camundaWorker.secretName`.
 | `web.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `web.replicas` | Number of copies. Keep at 1 unless the better-auth session store is external. | `1` |
 | `web.containerPort` | Port the Node server listens on. | `3000` |
-| `web.resources` | CPU and memory requests/limits. | `{}` |
+| `web.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `web.service.type` | Service type. | `ClusterIP` |
 | `web.secretName` | Name of the Kubernetes Secret holding the web secrets. See **Secrets**. | `agent-web-secret` |
 | `web.ingress.enabled` | Create an Ingress for the web frontend. | `true` |
@@ -234,7 +234,7 @@ Set by `camundaWorker.secretName`.
 | `camundaWorker.image.tag` | Image tag. Falls back to `global.tag` when empty. | `""` |
 | `camundaWorker.image.pullPolicy` | Image pull policy. | `IfNotPresent` |
 | `camundaWorker.replicas` | Number of copies. Keep at 1: it shares the process models claim with the API. | `1` |
-| `camundaWorker.resources` | CPU and memory requests/limits. | `{}` |
+| `camundaWorker.resources` | Resource requests and limits. Defaults set modest requests and memory/storage limits. | see `values.yaml` |
 | `camundaWorker.secretName` | Name of the Kubernetes Secret holding the worker secrets. See **Secrets**. | `agent-camunda-worker-secret` |
 | `camundaWorker.ldap.host` | OpenLDAP host ephemeral accounts are created in. | `openldap` |
 | `camundaWorker.ldap.port` | LDAP port. | `389` |
