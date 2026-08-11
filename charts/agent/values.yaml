@@ -52,6 +52,11 @@ processModelsStorage:
   storageClassName: null
   mountPath: /app/ProcessModels
 
+# Prometheus pushgateway the .NET components push metrics to.
+monitoring:
+  enabled: true
+  pushgatewayUrl: "http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics"
+
 global:
   # Image tag used when a component does not pin its own.
   tag: "latest"

@@ -68,6 +68,12 @@ spec:
               port: http
             initialDelaySeconds: 5
           env:
+            {{- if .Values.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-{{ include "agent.fullname" . }}-api
+            {{- end }}
             - name: Serilog__SeqServerUrl
               value: "{{ .Values.global.config.seqUrl }}"
             - name: Serilog__MinimumLevel__Default

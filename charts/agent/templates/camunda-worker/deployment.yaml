@@ -54,6 +54,12 @@ spec:
             - name: tmp
               mountPath: /tmp
           env:
+            {{- if .Values.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-{{ include "agent.fullname" . }}-camunda-worker
+            {{- end }}
             - name: Serilog__SeqServerUrl
               value: "{{ .Values.global.config.seqUrl }}"
             - name: Serilog__MinimumLevel__Default

@@ -107,6 +107,13 @@ Set by `camundaWorker.secretName`.
 | `processModelsStorage.storageClassName` | Storage class for that claim. Must support ReadWriteMany. `null` uses the cluster default. | `null` |
 | `processModelsStorage.mountPath` | Where the models are mounted in the API and worker. Also sets `DmnPath__Path`. | `/app/ProcessModels` |
 
+### Monitoring
+
+| **Name** | **Description** | **Value** |
+|---|---|---|
+| `monitoring.enabled` | Push Prometheus metrics from the .NET components to a pushgateway. | `true` |
+| `monitoring.pushgatewayUrl` | Pushgateway address, including the `/metrics` path. | `http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics` |
+
 ### Global parameters
 
 | **Name** | **Description** | **Value** |

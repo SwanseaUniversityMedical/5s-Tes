@@ -1,3 +1,4 @@
+using Prometheus;
 using Serilog;
 using Credentials.Camunda.Extensions;
 using Credentials.Camunda.Settings;
@@ -40,6 +41,16 @@ Serilog.ILogger CreateSerilogLogger(IConfiguration configuration)
     .ReadFrom.Configuration(configuration)
     .CreateLogger();
 
+}
+
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new MetricPusher(new MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
 }
 
 await Host.CreateDefaultBuilder(args)
