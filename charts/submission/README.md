@@ -80,6 +80,13 @@ Set by `ui.secretName`.
 | `dataProtectionStorage.storageClassName` | Storage class for that claim. Must support ReadWriteMany. `null` uses the cluster default. | `null` |
 | `dataProtectionStorage.mountPath` | Where the key ring is mounted. Fixed in the application code; do not change without a matching code change. | `/root/.aspnet/DataProtection-Keys` |
 
+### Monitoring
+
+| **Name** | **Description** | **Value** |
+|---|---|---|
+| `monitoring.enabled` | Push Prometheus metrics from both components to a pushgateway. | `true` |
+| `monitoring.pushgatewayUrl` | Pushgateway address, including the `/metrics` path. | `http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics` |
+
 ### Global parameters
 
 | **Name** | **Description** | **Value** |
