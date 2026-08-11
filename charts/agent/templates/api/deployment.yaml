@@ -124,13 +124,13 @@ spec:
             - name: VaultSettings__TimeoutSeconds
               value: "30"
             - name: VaultSettings__SecretEngine
-              value: "secret"
+              value: "{{ .Values.global.config.vault.secretEngine }}"
             - name: VaultSettings__EnableRetry
               value: "true"
             - name: VaultSettings__MaxRetryAttempts
               value: "3"
             - name: VaultSettings__VaultConfigPath
-              value: "config"
+              value: "{{ .Values.api.vaultConfigPath }}"
             - name: VaultSettings__VaultConfigReloadInterval
               value: "10"
             - name: ApiEndpoints__SubmissionApiUrl
@@ -179,20 +179,20 @@ spec:
             - name: MinioSubSettings__Url
               value: "{{ .Values.api.s3Sub.url }}"
             - name: TreKeyCloakSettings__Authority
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE/.well-known/openid-configuration"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
             - name: TreKeyCloakSettings__MetadataAddress
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE/.well-known/openid-configuration"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
             - name: TreKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}"
             - name: TreKeyCloakSettings__ClientId
-              value: "Dare-TRE-UI"
+              value: "{{ .Values.api.treKeycloak.clientId }}"
             - name: TreKeyCloakSettings__ClientSecret
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.api.secretName }}
                   key: treKeycloakClientSecret
             - name: TreKeyCloakSettings__ValidAudiences
-              value: "Dare-TRE-API,Dare-TRE-UI"
+              value: "{{ .Values.api.treKeycloak.validAudiences }}"
             - name: TreKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: TreKeyCloakSettings__ProxyAddresURL
@@ -200,9 +200,9 @@ spec:
             - name: TreKeyCloakSettings__BypassProxy
               value: "{{ .Values.global.config.proxy.bypass }}"
             - name: DataEgressKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Data-Egress"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.api.egress.keycloak.realm }}"
             - name: DataEgressKeyCloakSettings__ClientId
-              value: "Data-Egress-API"
+              value: "{{ .Values.api.egress.keycloak.clientId }}"
             - name: DataEgressKeyCloakSettings__ClientSecret
               valueFrom:
                 secretKeyRef:
@@ -213,20 +213,20 @@ spec:
             - name: DataEgressKeyCloakSettings__ProxyAddresURL
               value: "{{ .Values.global.config.proxy.url }}"
             - name: SubmissionKeyCloakSettings__Authority
-              value: "{{ .Values.global.config.submissionKeycloakUrl }}/realms/Dare-Control/.well-known/openid-configuration"
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}/.well-known/openid-configuration"
             - name: SubmissionKeyCloakSettings__MetadataAddress
-              value: "{{ .Values.global.config.submissionKeycloakUrl }}/realms/Dare-Control/.well-known/openid-configuration"
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}/.well-known/openid-configuration"
             - name: SubmissionKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.config.submissionKeycloakUrl }}/realms/Dare-Control"
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}"
             - name: SubmissionKeyCloakSettings__ClientId
-              value: "Dare-Control-API"
+              value: "{{ .Values.api.submissionKeycloak.clientId }}"
             - name: SubmissionKeyCloakSettings__ClientSecret
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.api.secretName }}
                   key: submissionKeycloakClientSecret
             - name: SubmissionKeyCloakSettings__ValidAudiences
-              value: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+              value: "{{ .Values.api.submissionKeycloak.validAudiences }}"
             - name: SubmissionKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: SubmissionKeyCloakSettings__ProxyAddresURL

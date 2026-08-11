@@ -37,13 +37,13 @@ Set by `api.secretName`.
 | `connectionString` | Full PostgreSQL connection string for the `DARE-Tre` database, including the password. Read into `ConnectionStrings__DefaultConnection`. Hangfire also stores its jobs here. | Yes |
 | `credentialsConnectionString` | Connection string for the `TRE_Credentials` database. | Yes |
 | `encryptionKey` | Base64 AES key (16, 24 or 32 bytes) for `EncryptionSettings__Key`. The API refuses to start without it. | Yes |
-| `treKeycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. | Yes |
-| `egressKeycloakClientSecret` | Client secret for the `Data-Egress-API` Keycloak client. | Yes |
-| `submissionKeycloakClientSecret` | Client secret for the `Dare-Control-API` Keycloak client on the Submission side. | Yes |
+| `treKeycloakClientSecret` | Client secret for the client named in `api.treKeycloak.clientId`. | Yes |
+| `egressKeycloakClientSecret` | Client secret for the client named in `api.egress.keycloak.clientId`. | Yes |
+| `submissionKeycloakClientSecret` | Client secret for the client named in `api.submissionKeycloak.clientId`. | Yes |
 | `rabbitPassword` | Password for the RabbitMQ user named in `global.config.rabbitmq.username`. | Yes |
 | `s3TreAccessKey` | Access key for the TRE object store at `api.s3Tre.url`. | Yes |
 | `s3TreSecretKey` | Secret key matching `s3TreAccessKey`. | Yes |
-| `vaultToken` | Token for the Vault at `global.config.vault.url`. The API also reloads configuration from Vault path `config`. | Yes |
+| `vaultToken` | Token for the Vault at `global.config.vault.url`. The API also reloads configuration from the path in `api.vaultConfigPath`. | Yes |
 | `hangfirePassword` | Password for the Hangfire dashboard at `/hangfire`. Pairs with `api.hangfire.username`. | Yes |
 
 ### `agent-ui-secret`
@@ -52,7 +52,7 @@ Set by `ui.secretName`.
 
 | **Key** | **Used for** | **Required** |
 |---|---|---|
-| `keycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. | Yes |
+| `keycloakClientSecret` | Client secret for the client named in `ui.keycloak.clientId`. | Yes |
 
 ### `agent-web-secret`
 
@@ -60,7 +60,7 @@ Set by `web.secretName`.
 
 | **Key** | **Used for** | **Required** |
 |---|---|---|
-| `keycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. | Yes |
+| `keycloakClientSecret` | Client secret for the client named in `web.keycloak.clientId`. | Yes |
 | `betterAuthSecret` | Session signing secret for better-auth. Any long random string; changing it signs everyone out. | Yes |
 
 ### `agent-camunda-worker-secret`
@@ -125,13 +125,14 @@ Set by `camundaWorker.secretName`.
 | `global.ingress.tls` | Render the TLS blocks. Turn off for local clusters with no issuer. | `true` |
 | `global.config.seqUrl` | Address of the Seq instance every component logs to. | `http://seq:5341` |
 | `global.config.logLevel` | Serilog minimum level for every component. | `Information` |
-| `global.config.treKeycloakUrl` | Base URL of the Keycloak holding the `Dare-TRE` and `Data-Egress` realms. Wrong value means nobody can log in. | `http://keycloak.localtest.me:8085` |
-| `global.config.submissionKeycloakUrl` | Base URL of the Keycloak holding the `Dare-Control` realm, on the Submission side. | `http://keycloak.localtest.me:8085` |
+| `global.config.treKeycloak.url` | Base URL of the Keycloak holding the TRE realm (and the egress realm). Wrong value means nobody can log in. | `http://keycloak.localtest.me:8085` |
+| `global.config.treKeycloak.realm` | Name of the TRE realm on that Keycloak. | `Dare-TRE` |
 | `global.config.keycloakDemoMode` | Keycloak demo mode flag. Keep off outside demos. | `false` |
 | `global.config.treApiPublicUrl` | Public URL of the agent API. The UIs and onboarding data embed it; must match the API ingress host. | `http://agent-api.localtest.me` |
 | `global.config.rabbitmq.host` | RabbitMQ host. Password comes from the API secret. | `rabbitmq` |
 | `global.config.rabbitmq.username` | RabbitMQ username. | `rabbitmq` |
 | `global.config.vault.url` | Address of the Vault used for credentials and live configuration. | `http://vault:8200` |
+| `global.config.vault.secretEngine` | Vault KV engine the API and worker read from. | `secret` |
 | `global.config.zeebeGatewayAddress` | Zeebe gRPC gateway of the Camunda the API and worker connect to. | `orchestration:26500` |
 | `global.config.proxy.enabled` | Route Keycloak HTTP calls through a proxy. | `false` |
 | `global.config.proxy.url` | Proxy address, when enabled. | `""` |
@@ -154,7 +155,16 @@ Set by `camundaWorker.secretName`.
 | `api.ingress.host` | Hostname for that Ingress. | `agent-api.localtest.me` |
 | `api.submissionApiUrl` | Address of the remote Submission API this TRE serves. External URL unless both layers share a cluster. | `http://submission-api.localtest.me` |
 | `api.treName` | Name this TRE registers with the Submission layer under. | `SAIL` |
+| `api.treKeycloak.clientId` | Keycloak client the API authenticates as in the TRE realm. | `Dare-TRE-UI` |
+| `api.treKeycloak.validAudiences` | Audiences accepted in TRE realm tokens. | `Dare-TRE-API,Dare-TRE-UI` |
+| `api.submissionKeycloak.url` | Base URL of the Keycloak holding the Submission (control) realm, on the Submission side. | `http://keycloak.localtest.me:8085` |
+| `api.submissionKeycloak.realm` | Name of that realm. | `Dare-Control` |
+| `api.submissionKeycloak.clientId` | Client the API authenticates as in that realm. | `Dare-Control-API` |
+| `api.submissionKeycloak.validAudiences` | Audiences accepted in tokens from that realm. | `Dare-Control-UI,Dare-Control-API,Dare-Control-Minio` |
+| `api.vaultConfigPath` | Vault path the API reloads live configuration from. | `config` |
 | `api.egress.apiAddress` | Address of the Data Egress API. | `http://egress-api` |
+| `api.egress.keycloak.realm` | Name of the egress realm on the TRE Keycloak. | `Data-Egress` |
+| `api.egress.keycloak.clientId` | Client the API authenticates as in the egress realm. | `Data-Egress-API` |
 | `api.tes.useTesk` | Submit tasks to a TES executor. Keep true in real deployments. | `true` |
 | `api.tes.apiUrl` | TES task endpoint (TESK or Funnel). Tasks go nowhere if this is wrong. | `http://tesk.localtest.me/v1/tasks` |
 | `api.tes.outputBucketPrefix` | Prefix put on output bucket paths handed to the executor. | `s3://` |
@@ -190,6 +200,8 @@ Set by `camundaWorker.secretName`.
 | `ui.ingress.host` | Hostname for that Ingress. | `agent.localtest.me` |
 | `ui.apiAddress` | Address the UI calls the API on. The in-chart service name works unless the API is elsewhere. | `http://agent-api` |
 | `ui.uiName` | Product name shown in the UI. | `Five Safes TES` |
+| `ui.keycloak.clientId` | Keycloak client the UI logs users in with. | `Dare-TRE-UI` |
+| `ui.keycloak.validAudiences` | Audiences accepted in tokens. | `Dare-TRE-API,Dare-TRE-UI` |
 | `ui.sslCookies` | Mark auth cookies secure. Needs HTTPS end to end. | `false` |
 | `ui.httpsRedirect` | Redirect HTTP to HTTPS inside the app. Usually off behind an ingress that already does this. | `false` |
 
@@ -211,6 +223,7 @@ Set by `camundaWorker.secretName`.
 | `web.apiAddress` | Address the web frontend calls the API on. | `http://agent-api` |
 | `web.publicUrl` | Public URL of this frontend; better-auth builds login callbacks from it. | `http://agent-web.localtest.me` |
 | `web.helpdeskUrl` | Helpdesk link shown to users. | `https://ukserp.atlassian.net/servicedesk/customer/portal/3` |
+| `web.keycloak.clientId` | Keycloak client the web frontend logs users in with. | `Dare-TRE-UI` |
 
 ### Camunda worker parameters
 

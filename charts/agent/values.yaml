@@ -71,11 +71,10 @@ global:
   config:
     seqUrl: "http://seq:5341"
     logLevel: "Information"
-    # Base URL of the Keycloak that holds the Dare-TRE and Data-Egress realms.
-    treKeycloakUrl: "http://keycloak.localtest.me:8085"
-    # Base URL of the Keycloak that holds the Dare-Control realm, on the
-    # Submission side. Often a different Keycloak from the TRE one.
-    submissionKeycloakUrl: "http://keycloak.localtest.me:8085"
+    # Keycloak that holds the TRE realm (and the egress realm).
+    treKeycloak:
+      url: "http://keycloak.localtest.me:8085"
+      realm: "Dare-TRE"
     keycloakDemoMode: false
     # Public URL of the agent API; used in onboarding data and by the UIs.
     treApiPublicUrl: "http://agent-api.localtest.me"
@@ -84,6 +83,7 @@ global:
       username: "rabbitmq"
     vault:
       url: "http://vault:8200"
+      secretEngine: "secret"
     # Zeebe gRPC gateway of the Camunda the API and worker connect to.
     zeebeGatewayAddress: "orchestration:26500"
     proxy:
@@ -115,8 +115,22 @@ api:
   # not an in-cluster name, unless both layers share a cluster.
   submissionApiUrl: "http://submission-api.localtest.me"
   treName: "SAIL"
+  treKeycloak:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
+  # Keycloak that holds the Submission (control) realm, on the Submission
+  # side. Often a different Keycloak from the TRE one.
+  submissionKeycloak:
+    url: "http://keycloak.localtest.me:8085"
+    realm: "Dare-Control"
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+  vaultConfigPath: "config"
   egress:
     apiAddress: "http://egress-api"
+    keycloak:
+      realm: "Data-Egress"
+      clientId: "Data-Egress-API"
   tes:
     useTesk: true
     apiUrl: "http://tesk.localtest.me/v1/tasks"
@@ -161,6 +175,9 @@ ui:
     host: "agent.localtest.me"
   apiAddress: "http://agent-api"
   uiName: "Five Safes TES"
+  keycloak:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
   sslCookies: false
   httpsRedirect: false
 
@@ -182,6 +199,8 @@ web:
   apiAddress: "http://agent-api"
   # Public URL of this UI itself; better-auth builds callbacks from it.
   publicUrl: "http://agent-web.localtest.me"
+  keycloak:
+    clientId: "Dare-TRE-UI"
   helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
 
 camundaWorker:

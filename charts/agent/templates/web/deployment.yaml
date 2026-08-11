@@ -83,18 +83,18 @@ spec:
                   name: {{ .Values.web.secretName }}
                   key: betterAuthSecret
             - name: KEYCLOAK_URL
-              value: "{{ .Values.global.config.treKeycloakUrl }}"
+              value: "{{ .Values.global.config.treKeycloak.url }}"
             - name: KEYCLOAK_CLIENT_ID
-              value: "Dare-TRE-UI"
+              value: "{{ .Values.web.keycloak.clientId }}"
             - name: KEYCLOAK_CLIENT_SECRET
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.web.secretName }}
                   key: keycloakClientSecret
             - name: NEXT_PUBLIC_KEYCLOAK_URL
-              value: "{{ .Values.global.config.treKeycloakUrl }}"
+              value: "{{ .Values.global.config.treKeycloak.url }}"
             - name: NEXT_PUBLIC_KEYCLOAK_REALM
-              value: "Dare-TRE"
+              value: "{{ .Values.global.config.treKeycloak.realm }}"
             - name: NEXT_PUBLIC_HELPDESK_URL
               value: "{{ .Values.web.helpdeskUrl }}"
           resources:

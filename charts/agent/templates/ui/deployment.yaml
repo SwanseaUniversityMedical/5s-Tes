@@ -88,22 +88,22 @@ spec:
             - name: TreAPISettings__PublicApiBaseUrl
               value: "{{ .Values.global.config.treApiPublicUrl }}"
             - name: TreKeyCloakSettings__AccountManagementURL
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE/account"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/account"
             - name: TreKeyCloakSettings__Authority
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE/.well-known/openid-configuration"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
             - name: TreKeyCloakSettings__MetadataAddress
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE/.well-known/openid-configuration"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
             - name: TreKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.config.treKeycloakUrl }}/realms/Dare-TRE"
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}"
             - name: TreKeyCloakSettings__ClientId
-              value: "Dare-TRE-UI"
+              value: "{{ .Values.ui.keycloak.clientId }}"
             - name: TreKeyCloakSettings__ClientSecret
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.ui.secretName }}
                   key: keycloakClientSecret
             - name: TreKeyCloakSettings__ValidAudiences
-              value: "Dare-TRE-API,Dare-TRE-UI"
+              value: "{{ .Values.ui.keycloak.validAudiences }}"
             - name: TreKeyCloakSettings__Proxy
               value: "{{ .Values.global.config.proxy.enabled }}"
             - name: TreKeyCloakSettings__ProxyAddresURL
