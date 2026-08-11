@@ -137,7 +137,6 @@ ui:
     host: "submission.localtest.me"
   apiAddress: "http://submission-api"
   uiName: "Five Safes TES"
-  formIoUseInternal: true
   frontend:
     queryImageSql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-tre-sqlpg:1.0.0"
     # Browser-facing URL of the S3 console.

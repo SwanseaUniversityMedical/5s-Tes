@@ -148,7 +148,6 @@ Set by `ui.secretName`.
 | `ui.ingress.host` | Hostname for that Ingress. Must match `global.config.uiRedirectUrl`. | `submission.localtest.me` |
 | `ui.apiAddress` | Address the UI calls the API on. The in-chart service name works unless the API is elsewhere. | `http://submission-api` |
 | `ui.uiName` | Product name shown in the UI. | `Five Safes TES` |
-| `ui.formIoUseInternal` | Use the bundled forms instead of external form.io. | `true` |
 | `ui.frontend.queryImageSql` | Container image reference the SQL query wizard submits as a task. | `harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-tre-sqlpg:1.0.0` |
 | `ui.frontend.s3BaseUrl` | Browser-facing URL of the S3 console, for output links. | `http://rustfs-submission.localtest.me` |
 | `ui.frontend.s3BucketPath` | Console path template for a bucket link. | `/rustfs/console/browser/?bucket=` |

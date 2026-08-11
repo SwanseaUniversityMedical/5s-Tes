@@ -95,8 +95,6 @@ spec:
               value: "{{ .Values.ui.apiAddress }}"
             - name: DareAPISettings__HelpAddress
               value: "{{ .Values.ui.apiAddress }}"
-            - name: FormIOSettings__UseInternal
-              value: "{{ .Values.ui.formIoUseInternal }}"
             - name: URLSettingsFrontEnd__QueryImageSQL
               value: "{{ .Values.ui.frontend.queryImageSql }}"
             - name: URLSettingsFrontEnd__S3BaseUrl
