@@ -135,22 +135,22 @@ spec:
             - name: SubmissionKeyCloakSettings__BypassProxy
               value: "{{ .Values.global.config.proxy.bypass }}"
             - name: SubmissionKeyCloakSettings__Authority
-              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control/"
+              value: "{{ .Values.global.config.keycloak.url }}/realms/{{ .Values.global.config.keycloak.realm }}/"
             - name: SubmissionKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control"
+              value: "{{ .Values.global.config.keycloak.url }}/realms/{{ .Values.global.config.keycloak.realm }}"
             - name: SubmissionKeyCloakSettings__MetadataAddress
-              value: "{{ .Values.global.config.keycloakUrl }}/realms/Dare-Control/.well-known/openid-configuration"
+              value: "{{ .Values.global.config.keycloak.url }}/realms/{{ .Values.global.config.keycloak.realm }}/.well-known/openid-configuration"
             - name: SubmissionKeyCloakSettings__ClientId
-              value: "Dare-Control-API"
+              value: "{{ .Values.api.keycloak.clientId }}"
             - name: SubmissionKeyCloakSettings__ClientSecret
               valueFrom:
                 secretKeyRef:
                   name: {{ .Values.api.secretName }}
                   key: keycloakClientSecret
             - name: SubmissionKeyCloakSettings__ValidAudiences
-              value: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+              value: "{{ .Values.api.keycloak.validAudiences }}"
             - name: SubmissionKeyCloakSettings__Realm
-              value: "Dare-Control"
+              value: "{{ .Values.global.config.keycloak.realm }}"
             - name: SubmissionKeyCloakSettings__Server
               value: "{{ .Values.api.keycloak.server }}"
             - name: SubmissionKeyCloakSettings__Protocol

@@ -32,7 +32,7 @@ Set by `api.secretName`.
 | **Key** | **Used for** | **Required** |
 |---|---|---|
 | `connectionString` | Full PostgreSQL connection string for the `DARE-Control` database, including the password. Read into `ConnectionStrings__DefaultConnection`. | Yes |
-| `keycloakClientSecret` | Client secret for the `Dare-Control-API` Keycloak client. | Yes |
+| `keycloakClientSecret` | Client secret for the client named in `api.keycloak.clientId`. | Yes |
 | `keycloakAdminPassword` | Password for the Keycloak admin account the API uses to create users and clients. Pairs with `api.keycloak.adminUsername`. | Yes |
 | `rabbitPassword` | Password for the RabbitMQ user named in `global.config.rabbitmq.username`. | Yes |
 | `s3AccessKey` | Access key for the Submission object store at `api.s3.url`. | Yes |
@@ -45,7 +45,7 @@ Set by `ui.secretName`.
 
 | **Key** | **Used for** | **Required** |
 |---|---|---|
-| `keycloakClientSecret` | Client secret for the `Dare-Control-UI` Keycloak client. | Yes |
+| `keycloakClientSecret` | Client secret for the client named in `ui.keycloak.clientId`. | Yes |
 
 ## Parameters
 
@@ -98,7 +98,8 @@ Set by `ui.secretName`.
 | `global.ingress.tls` | Render the TLS blocks. Turn off for local clusters with no issuer. | `true` |
 | `global.config.seqUrl` | Address of the Seq instance both components log to. | `http://seq:5341` |
 | `global.config.logLevel` | Serilog minimum level for both components. | `Information` |
-| `global.config.keycloakUrl` | Base URL of the Keycloak that holds the `Dare-Control` realm. Wrong value means nobody can log in. | `http://keycloak.localtest.me:8085` |
+| `global.config.keycloak.url` | Base URL of the Keycloak that holds the Submission (control) realm. Wrong value means nobody can log in. | `http://keycloak.localtest.me:8085` |
+| `global.config.keycloak.realm` | Name of that realm. | `Dare-Control` |
 | `global.config.keycloakDemoMode` | Keycloak demo mode flag. Keep off outside demos. | `false` |
 | `global.config.uiRedirectUrl` | Public URL of the UI. Keycloak sends browsers back here after login; must match the UI ingress host. | `http://submission.localtest.me` |
 | `global.config.suppressAntiforgery` | Disables anti-forgery tokens and switches Data Protection onto the shared claim. Testing only. | `false` |
@@ -127,6 +128,8 @@ Set by `ui.secretName`.
 | `api.ingress.enabled` | Create an Ingress for the API. | `true` |
 | `api.ingress.host` | Hostname for that Ingress. | `submission-api.localtest.me` |
 | `api.publicUrl` | Public URL of this API. Embedded in TRE onboarding data, so remote agent hosts must be able to reach it. An in-cluster name breaks onboarding. | `http://submission-api.localtest.me` |
+| `api.keycloak.clientId` | Keycloak client the API authenticates as. | `Dare-Control-API` |
+| `api.keycloak.validAudiences` | Audiences accepted in tokens. | `Dare-Control-UI,Dare-Control-API,Dare-Control-Minio` |
 | `api.keycloak.server` | Keycloak host, as the API validates issuers against it. | `keycloak.localtest.me` |
 | `api.keycloak.protocol` | Scheme for that host. | `http` |
 | `api.keycloak.validIssuer` | Exact issuer string expected in tokens. Wrong value rejects every login. | `http://keycloak.localtest.me:8085/realms/Dare-Control` |
@@ -153,6 +156,7 @@ Set by `ui.secretName`.
 | `ui.secretName` | Name of the Kubernetes Secret holding the UI secrets. See **Secrets**. | `submission-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |
 | `ui.ingress.host` | Hostname for that Ingress. Must match `global.config.uiRedirectUrl`. | `submission.localtest.me` |
+| `ui.keycloak.clientId` | Keycloak client the UI logs users in with. | `Dare-Control-UI` |
 | `ui.apiAddress` | Address the UI calls the API on. The in-chart service name works unless the API is elsewhere. | `http://submission-api` |
 | `ui.uiName` | Product name shown in the UI. | `Five Safes TES` |
 | `ui.frontend.queryImageSql` | Container image reference the SQL query wizard submits as a task. | `harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-tre-sqlpg:1.0.0` |

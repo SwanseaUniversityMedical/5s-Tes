@@ -71,8 +71,10 @@ global:
   config:
     seqUrl: "http://seq:5341"
     logLevel: "Information"
-    # Base URL of the Keycloak that holds the Dare-Control realm.
-    keycloakUrl: "http://keycloak.localtest.me:8085"
+    # Keycloak that holds the Submission (control) realm.
+    keycloak:
+      url: "http://keycloak.localtest.me:8085"
+      realm: "Dare-Control"
     keycloakDemoMode: false
     # Public URL of the Submission UI; Keycloak redirects browsers back here.
     uiRedirectUrl: "http://submission.localtest.me"
@@ -113,6 +115,8 @@ api:
   # must be reachable from remote agent/TRE hosts, not an in-cluster name.
   publicUrl: "http://submission-api.localtest.me"
   keycloak:
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
     server: "keycloak.localtest.me"
     protocol: "http"
     validIssuer: "http://keycloak.localtest.me:8085/realms/Dare-Control"
@@ -142,6 +146,8 @@ ui:
     host: "submission.localtest.me"
   apiAddress: "http://submission-api"
   uiName: "Five Safes TES"
+  keycloak:
+    clientId: "Dare-Control-UI"
   frontend:
     queryImageSql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-tre-sqlpg:1.0.0"
     # Browser-facing URL of the S3 console.
