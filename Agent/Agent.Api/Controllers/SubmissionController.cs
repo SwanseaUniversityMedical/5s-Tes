@@ -23,8 +23,9 @@ namespace Agent.Api.Controllers
     {       
         private readonly IBus _rabbit;
         private readonly ISubmissionHelper _subHelper;
-        private readonly IMinioSubHelper _minioSubHelper;
         private readonly IMinioTreHelper _minioTreHelper;
+        private readonly IProjectS3SubHelperFactory _projectS3SubHelperFactory;
+        private readonly IDareClientWithoutTokenHelper _dareHelper;
         private readonly MinioTRESettings _minioTreSettings;
         private readonly AgentSettings _agentSettings;
         private readonly IFeatureManager _features;
@@ -32,15 +33,17 @@ namespace Agent.Api.Controllers
         public SubmissionController(           
             IBus rabbit,
             ISubmissionHelper subHelper,
-            IMinioSubHelper minioSubHelper,
             IMinioTreHelper minioTreHelper,
+            IProjectS3SubHelperFactory projectS3SubHelperFactory,
+            IDareClientWithoutTokenHelper dareHelper,
             MinioTRESettings minioTreSettings,
             AgentSettings agentSettings, IFeatureManager features)
         {            
             _rabbit = rabbit;
             _subHelper = subHelper;
             _minioTreHelper = minioTreHelper;
-            _minioSubHelper = minioSubHelper;
+            _projectS3SubHelperFactory = projectS3SubHelperFactory;
+            _dareHelper = dareHelper;
             _minioTreSettings = minioTreSettings;
             _agentSettings = agentSettings;
             _features = features;
@@ -210,6 +213,13 @@ namespace Agent.Api.Controllers
                 
                 Log.Information(
                   $"EgressResults with review.OutputBucket > {review.OutputBucket} bucket.Bucket > {bucket.Bucket} ");
+
+                var queryParams = new Dictionary<string, string> { ["responseType"] = "summary" };
+                var submission = await _dareHelper.CallAPIWithoutModel<Submission.SubmissionDetailsDto>(
+                    $"/api/Submission/GetASubmission/{review.SubId}",
+                    queryParams);
+                var minioSubHelper = await _projectS3SubHelperFactory.GetProjectS3HelperAsync(submission.Project.Id);
+
                 foreach (var file in review.FileResults)
                 {
                   Log.Information(
@@ -218,7 +228,7 @@ namespace Agent.Api.Controllers
                   {
                     var source = await _minioTreHelper.GetCopyObject(review.OutputBucket, file.FileName);
                     var resultcopy =
-                      await _minioSubHelper.CopyObjectToDestination(bucket.Bucket, file.FileName, source);
+                      await minioSubHelper.CopyObjectToDestination(bucket.Bucket, file.FileName, source);
                   }
                 }
 

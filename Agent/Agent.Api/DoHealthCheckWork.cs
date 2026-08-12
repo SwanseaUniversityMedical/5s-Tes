@@ -1,13 +1,16 @@
 using System.Net;
+using Agent.Api.Helpers;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
+using RabbitMQ.Client;
 
 namespace Agent.Api;
 
@@ -24,7 +27,8 @@ public class DoHealthCheckWork(
   IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings,
   IEncDecHelper encDecHelper,
   IOptions<ApiEndpointSettings> apiEndpointSettings,
-  IConfiguration configuration)
+  IConfiguration configuration,
+  RabbitMQSetting rabbitSettings)
   : IDoHealthCheckWork
 {
   private readonly ApiEndpointSettings _apiEndpoints = apiEndpointSettings.Value;
@@ -34,6 +38,7 @@ public class DoHealthCheckWork(
     await DeleteOldLogs();
     await DoSyncHealthCheck();
     await DoAgentHealthCheck();
+    DoRabbitMqHealthCheck();
     await DoEgressHealthCheck();
     await dbContext.SaveChangesAsync();
   }
@@ -57,7 +62,7 @@ public class DoHealthCheckWork(
       {
         using HttpClient client = new();
         HttpResponseMessage response =
-          await client.GetAsync(_apiEndpoints.SubmissionApiUrl + "/api/HealthCheck/CheckHealth");
+          await client.GetAsync(UrlHelper.Combine(_apiEndpoints.SubmissionApiUrl, "api/HealthCheck/CheckHealth"));
 
         if (!response.IsSuccessStatusCode)
         {
@@ -144,6 +149,57 @@ public class DoHealthCheckWork(
 
     if (!isHealthy) KillHangfireJobs();
     return isHealthy;
+  }
+
+  /// <summary>
+  /// Check that the Agent can reach the RabbitMQ broker and log the result.
+  /// If the broker is unreachable the Agent can't receive tasks from the Submission queue, so
+  /// we also stop the sync/scan jobs — that way the Submission side sees the TRE as offline and
+  /// won't queue work that cannot run.
+  /// </summary>
+  private void DoRabbitMqHealthCheck()
+  {
+    bool isHealthy = false;
+    string message = "";
+
+    try
+    {
+      var factory = new ConnectionFactory
+      {
+        HostName = rabbitSettings.HostAddress,
+        Port = int.Parse(rabbitSettings.PortNumber),
+        VirtualHost = rabbitSettings.VirtualHost,
+        UserName = rabbitSettings.Username,
+        Password = rabbitSettings.Password,
+        RequestedConnectionTimeout = TimeSpan.FromSeconds(5)
+      };
+
+      using IConnection connection = factory.CreateConnection();
+      isHealthy = connection.IsOpen;
+
+      if (!isHealthy)
+      {
+        message = "Not connected to RabbitMQ broker.";
+      }
+    }
+    catch (Exception)
+    {
+      isHealthy = false;
+      message = "Failed to reach RabbitMQ broker.";
+    }
+
+    // Log health status for the RabbitMQ broker in the database.
+    HealthCheckStatus healthStatus = new()
+    {
+      Product = "RabbitMQ",
+      HealthStatus = isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
+      Reason = message,
+      DateTime = DateTime.UtcNow
+    };
+
+    dbContext.HealthCheckStatus.Add(healthStatus);
+
+    if (!isHealthy) KillHangfireJobs();
   }
 
   /// <summary>

@@ -25,7 +25,9 @@ namespace Agent.Api.Services
 
         private readonly IFeatureManager _features;
 
-        public DareSyncHelper(ApplicationDbContext dbContext, IDareClientWithoutTokenHelper dareClient,  IMinioTreHelper minioTreHelper, CredentialsDbContext credentialsDbContext, IHttpClientFactory httpClientFactory, IConfiguration config, IFeatureManager features)
+        private readonly IProjectS3AccessKeySyncService _projectS3AccessKeySyncService;
+
+        public DareSyncHelper(ApplicationDbContext dbContext, IDareClientWithoutTokenHelper dareClient,  IMinioTreHelper minioTreHelper, CredentialsDbContext credentialsDbContext, IHttpClientFactory httpClientFactory, IConfiguration config, IFeatureManager features, IProjectS3AccessKeySyncService projectS3AccessKeySyncService)
         {
             _DbContext = dbContext;
             _dareclientHelper = dareClient;
@@ -39,6 +41,8 @@ namespace Agent.Api.Services
             _features = features;
 
             _config = config;
+
+            _projectS3AccessKeySyncService = projectS3AccessKeySyncService;
         }
 
         public async Task<BoolReturn> SyncSubmissionWithTre()
@@ -210,6 +214,15 @@ namespace Agent.Api.Services
 
                 Log.Error(ex.ToString());
             }
+
+            try
+            {
+                await SyncProjectS3AccessKeys(subprojs);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Failed to sync project S3 access keys", "SyncSubmissionWithTre");
+            }
        
 
             return new BoolReturn()
@@ -283,5 +296,51 @@ namespace Agent.Api.Services
 
         //    Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
         //}      
+        /// <summary>
+        /// For each project assigned to this TRE, ensure scoped Submission S3 credentials
+        /// are present in TRE Vault (fetches from Submission Layer only when missing).
+        /// </summary>
+        private async Task SyncProjectS3AccessKeys(List<Project> subprojs)
+        {
+            // Each sync handles its own errors and returns null on failure, so it is safe to fan out.
+            await Task.WhenAll(
+                subprojs.Select(project => _projectS3AccessKeySyncService.SyncProjectAccessKeyAsync(project.Id)));
+        }
+
+        private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
+        {
+            var payload = new
+            {
+                records = new[]
+                {
+                    new
+                    {
+                        project = projectName,
+                        user = userId.ToString(),
+                        submissionId = submissionId.ToString()
+
+                    }
+                }
+            };
+
+            var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
+            var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
+
+            var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
+
+            using var httpClient = _httpClientFactory.CreateClient();
+            httpClient.Timeout = TimeSpan.FromMinutes(2);
+
+            var response = await httpClient.PostAsync(camundaWebhookUrl, content);                      
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync();
+                Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
+                throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
+            }
+
+            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
+        }      
     }
 }
