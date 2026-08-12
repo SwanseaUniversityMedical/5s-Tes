@@ -261,45 +261,6 @@ namespace Agent.Api.Services
 
         }
 
-        //private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
-        //{
-        //    var payload = new
-        //    {
-        //        records = new[]
-        //        {
-        //            new
-        //            {
-        //                project = projectName,
-        //                user = userId.ToString(),
-        //                submissionId = submissionId.ToString()
-
-        //            }
-        //        }
-        //    };
-
-        //    var jsonPayload = Newtonsoft.Json.JsonConvert.SerializeObject(payload);
-        //    var content = new StringContent(jsonPayload, Encoding.UTF8, "application/json");
-
-        //    var camundaWebhookUrl = _config["CredentialAPISettings:StartWebhookUrl"];
-
-        //    using var httpClient = _httpClientFactory.CreateClient();
-        //    httpClient.Timeout = TimeSpan.FromMinutes(2);
-
-        //    var response = await httpClient.PostAsync(camundaWebhookUrl, content);                      
-
-        //    if (!response.IsSuccessStatusCode)
-        //    {
-        //        var error = await response.Content.ReadAsStringAsync();
-        //        Log.Error("Camunda webhook call failed for submission {SubmissionId}. Error: {Error}", submissionId, error);
-        //        throw new Exception($"Camunda webhook call failed: {response.StatusCode}");
-        //    }
-
-        //    Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
-        //}      
-        /// <summary>
-        /// For each project assigned to this TRE, ensure scoped Submission S3 credentials
-        /// are present in TRE Vault (fetches from Submission Layer only when missing).
-        /// </summary>
         private async Task SyncProjectS3AccessKeys(List<Project> subprojs)
         {
             // Each sync handles its own errors and returns null on failure, so it is safe to fan out.
