@@ -119,7 +119,7 @@ namespace TeleportUserManagement.Services
 
         private static bool RemoteCertificateValidation(object sender, X509Certificate certificate, X509Chain chain, SslPolicyErrors sslPolicyErrors)
         {
-            return true;
+            return sslPolicyErrors == SslPolicyErrors.None;
         }
 
         #endregion
@@ -253,9 +253,7 @@ namespace TeleportUserManagement.Services
             }
 
             // Add the password to vault
-            Dictionary<string, object> allPasswords = await _vaultCredentialsService.GetCredentialAsync("passwords");
-            allPasswords[userName] = password;
-            bool vaultWriteSuccess = await _vaultCredentialsService.AddCredentialAsync("passwords", allPasswords);
+            bool vaultWriteSuccess = await _vaultCredentialsService.AddCredentialAsync($"passwords/{userName}", new() {{ "password", password }});
 
             if (!vaultWriteSuccess)
             {

@@ -37,6 +37,9 @@ builder.Services.Configure<ApiEndpointSettings>(configuration.GetSection("ApiEnd
 
 var encryptionSettings = new EncryptionSettings();
 configuration.Bind(nameof(encryptionSettings), encryptionSettings);
+if (string.IsNullOrWhiteSpace(encryptionSettings.Key))
+  throw new InvalidOperationException(
+      "EncryptionSettings:Key must be provided via appsettings or environment variables (EncryptionSettings__Key). It must be a valid 16, 24, or 32-byte Base64-encoded string for AES-128/192/256.");
 builder.Services.AddSingleton(encryptionSettings);
 builder.Services.AddScoped<IEncDecHelper, EncDecHelper>();
 
