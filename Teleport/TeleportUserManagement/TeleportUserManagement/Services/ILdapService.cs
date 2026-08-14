@@ -113,7 +113,7 @@ namespace TeleportUserManagement.Services
             catch (LdapException ex)
             {
                 log.Error(ex, "LDAP bind failed");
-                return null;
+                throw;
             }
         }
 
@@ -206,7 +206,10 @@ namespace TeleportUserManagement.Services
 
         private SearchResponse LdapUserSearching(string filter, string searchPath, string domainName)
         {
-            using var ldapConnection = new System.DirectoryServices.Protocols.LdapConnection(domainName);
+            var identifier = new LdapDirectoryIdentifier(domainName, useSsl ? 636 : 389);
+            using var ldapConnection = new System.DirectoryServices.Protocols.LdapConnection(identifier);
+
+            ldapConnection.SessionOptions.SecureSocketLayer = useSsl;
 
             var hasDomain = username.Split('\\');
             var nameToUse = username;
