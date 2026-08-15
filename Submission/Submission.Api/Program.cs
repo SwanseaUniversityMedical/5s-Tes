@@ -29,6 +29,8 @@ using Submission.Api.Constants;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddHealthChecks();
+builder.Services.AddScoped<IProvenanceRecorder, ProvenanceRecorder>();
+builder.Services.AddScoped<IProvenanceManifestService, ProvenanceManifestService>();
 
 ConfigurationManager configuration = builder.Configuration;
 IWebHostEnvironment environment = builder.Environment;

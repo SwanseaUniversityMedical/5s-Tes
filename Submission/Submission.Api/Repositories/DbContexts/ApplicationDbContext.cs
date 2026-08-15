@@ -21,6 +21,7 @@ namespace Submission.Api.Repositories.DbContexts
         public DbSet<HistoricStatus> HistoricStatuses { get; set; }
         public DbSet<AuditLog> AuditLogs { get; set; }
         public DbSet<SubmissionFile> SubmissionFiles { get; set; }
+        public DbSet<ProvenanceEvent> ProvenanceEvents { get; set; }
 
         public DbSet<ProjectTreDecision> ProjectTreDecisions { get; set; }
 
@@ -31,6 +32,15 @@ namespace Submission.Api.Repositories.DbContexts
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ProvenanceEvent>(b =>
+            {
+                b.HasIndex(x => x.SubmissionId);
+                b.HasIndex(x => x.TesTaskId);
+                b.HasIndex(x => x.TraceId);
+                b.HasIndex(x => x.EventTimeUtc);
+            });
+
             modelBuilder.Entity<UsedOnboardingJti>(b =>
             {
                 b.HasIndex(x => x.Jti).IsUnique();

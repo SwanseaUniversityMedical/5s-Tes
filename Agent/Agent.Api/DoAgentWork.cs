@@ -58,6 +58,7 @@ namespace Agent.Api
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
         private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
+        private readonly IProvenanceRecorder _provenanceRecorder;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -78,7 +79,8 @@ namespace Agent.Api
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
             IConfiguration config,
-            IOptionsMonitor<TreOnboardingConfig> configSettings
+            IOptionsMonitor<TreOnboardingConfig> configSettings,
+            IProvenanceRecorder provenanceRecorder
 
         )
         {
@@ -112,6 +114,7 @@ namespace Agent.Api
 
             _config = config;
             _onboardingConfig = configSettings;
+            _provenanceRecorder = provenanceRecorder;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -266,6 +269,27 @@ namespace Agent.Api
                             Log.Information("{Function} *** status change *** {State} {name} {description}", "CheckTES",
                                 status.state, status.name, status.description);
 
+                            _provenanceRecorder.Record(
+                                submissionId: subId.ToString(),
+                                tesTaskId: tesId,
+                                eventType: status.state switch
+                                {
+                                    "QUEUED" => ProvenanceEventType.TesQueued,
+                                    "RUNNING" => ProvenanceEventType.TesRunning,
+                                    "COMPLETE" => ProvenanceEventType.TesCompleted,
+                                    "EXECUTOR_ERROR" => ProvenanceEventType.TesFailed,
+                                    "SYSTEM_ERROR" => ProvenanceEventType.TesFailed,
+                                    _ => ProvenanceEventType.Failure
+                                },
+                                serviceName: "Agent.Api",
+                                status: status.state,
+                                outcome: "tes_state_changed",
+                                traceId: Activity.Current?.TraceId.ToString(),
+                                spanId: Activity.Current?.SpanId.ToString(),
+                                projectId: projectId,
+                                errorSummarySafe: status.description,
+                                treId: _dbContext.Projects.FirstOrDefault(p => p.SubmissionProjectId == projectId)?.Id
+                            );
 
                             // send update
                             using (var scope = _serviceProvider.CreateScope())
@@ -362,6 +386,18 @@ namespace Agent.Api
                                 {
                                     Log.Information(
                                         $"  CloseSubmissionForTre with status.state subId {subId.ToString()} == COMPLETE ");
+                                    _provenanceRecorder.Record(
+                                        submissionId: subId.ToString(),
+                                        tesTaskId: tesId,
+                                        eventType: ProvenanceEventType.OutputReviewed,
+                                        serviceName: "Agent.Api",
+                                        status: "complete",
+                                        outcome: "output_ready_for_review",
+                                        traceId: Activity.Current?.TraceId.ToString(),
+                                        spanId: Activity.Current?.SpanId.ToString(),
+                                        projectId: projectId,
+                                        treId: _dbContext.Projects.FirstOrDefault(p => p.SubmissionProjectId == projectId)?.Id
+                                    );
                                     try
                                     {
                                         result = _subHelper.CloseSubmissionForTre(subId.ToString(),
@@ -378,6 +414,19 @@ namespace Agent.Api
                                 {
                                     Log.Information(
                                         $"  CloseSubmissionForTre with status.state subId {subId.ToString()} == EXECUTOR_ERROR or SYSTEM_ERROR ");
+                                    _provenanceRecorder.Record(
+                                        submissionId: subId.ToString(),
+                                        tesTaskId: tesId,
+                                        eventType: ProvenanceEventType.TesFailed,
+                                        serviceName: "Agent.Api",
+                                        status: status.state,
+                                        outcome: "tes_failed",
+                                        traceId: Activity.Current?.TraceId.ToString(),
+                                        spanId: Activity.Current?.SpanId.ToString(),
+                                        projectId: projectId,
+                                        errorSummarySafe: status.description,
+                                        treId: _dbContext.Projects.FirstOrDefault(p => p.SubmissionProjectId == projectId)?.Id
+                                    );
                                     try
                                     {
                                         result = _subHelper.CloseSubmissionForTre(subId.ToString(), StatusType.Failed,
@@ -821,6 +870,20 @@ namespace Agent.Api
                                         var resultcopy =
                                             await _minioTreHelper.CopyObjectToDestination(InputBucket, NewCleanedInput,
                                                 source);
+
+                                        _provenanceRecorder.Record(
+                                            submissionId: aSubmission.Id.ToString(),
+                                            tesTaskId: aSubmission.TesId,
+                                            eventType: ProvenanceEventType.MinioObjectWritten,
+                                            serviceName: "Agent.Api",
+                                            status: "success",
+                                            outcome: "copied_input_to_tre_bucket",
+                                            objectBucket: InputBucket,
+                                            objectKeyHash: source?.ETag ?? NewCleanedInput,
+                                            projectId: aSubmission.Project?.Id,
+                                            treId: aSubmission.Tre?.Id,
+                                            traceId: Activity.Current?.TraceId.ToString(),
+                                            spanId: Activity.Current?.SpanId.ToString());
                                     }
                                     catch (Exception ex)
                                     {
@@ -1003,6 +1066,17 @@ namespace Agent.Api
 
             Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
                 submissionId);
+
+            _provenanceRecorder.Record(
+                submissionId: submissionId.ToString(),
+                tesTaskId: null,
+                eventType: ProvenanceEventType.CredentialsIssued,
+                serviceName: "Agent.Api",
+                status: "started",
+                outcome: "credential_workflow_initiated",
+                actorType: "submission",
+                traceId: Activity.Current?.TraceId.ToString(),
+                spanId: Activity.Current?.SpanId.ToString());
         }
 
 
@@ -1118,6 +1192,17 @@ namespace Agent.Api
 
             Log.Information("Camunda RevokeCredentials triggered successfully for submission {SubmissionId}",
                 submissionId);
+
+            _provenanceRecorder.Record(
+                submissionId: submissionId.ToString(),
+                tesTaskId: null,
+                eventType: ProvenanceEventType.CredentialsRevoked,
+                serviceName: "Agent.Api",
+                status: "success",
+                outcome: "credential_workflow_revoked",
+                actorType: "submission",
+                traceId: Activity.Current?.TraceId.ToString(),
+                spanId: Activity.Current?.SpanId.ToString());
         }
 
 

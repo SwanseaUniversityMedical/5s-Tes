@@ -37,6 +37,21 @@ namespace Agent.Api.Repositories.DbContexts
 
         public DbSet<ProjectAcount> ProjectAcount { get; set; }
 
+        public DbSet<ProvenanceEvent> ProvenanceEvents { get; set; }
+
         public DbSet<HealthCheckStatus> HealthCheckStatus { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+            base.OnModelCreating(modelBuilder);
+
+            modelBuilder.Entity<ProvenanceEvent>(b =>
+            {
+                b.HasIndex(x => x.SubmissionId);
+                b.HasIndex(x => x.TesTaskId);
+                b.HasIndex(x => x.TraceId);
+                b.HasIndex(x => x.EventTimeUtc);
+            });
+        }
     }
 }

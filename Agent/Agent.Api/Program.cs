@@ -153,6 +153,7 @@ builder.Services.AddHostedService<ConsumeInternalMessageService>();
 
 builder.Services.AddScoped<IDareClientWithoutTokenHelper, DareClientWithoutTokenHelper>();
 builder.Services.AddScoped<IDataEgressClientWithoutTokenHelper, DataEgressClientWithoutTokenHelper>();
+builder.Services.AddScoped<IProvenanceRecorder, ProvenanceRecorder>();
 
 builder.Services.AddSingleton(new AutomaticRetryAttribute());
 

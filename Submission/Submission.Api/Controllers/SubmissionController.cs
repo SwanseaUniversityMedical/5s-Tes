@@ -30,14 +30,15 @@ namespace Submission.Api.Controllers
         private readonly IBus _rabbit;
         private readonly IMinioHelper _minioHelper;
         private readonly IDareEmailService _IDareEmailService;
+        private readonly IProvenanceManifestService _provenanceManifestService;
 
-        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService)
+        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService, IProvenanceManifestService provenanceManifestService)
         {
             _DbContext = repository;
             _rabbit = rabbit;
             _minioHelper = minioHelper;
             _IDareEmailService = IDareEmailService;
-
+            _provenanceManifestService = provenanceManifestService;
 
         }
         
@@ -172,7 +173,10 @@ namespace Submission.Api.Controllers
             var sub = UpdateStatusForTreGuts(subId, statusType, description);
             sub.FinalOutputFile = finalFile;
             _DbContext.SaveChanges();
-            
+
+            var manifest = _provenanceManifestService.BuildManifest(subId);
+            Log.Information("{Function} Provenance manifest generated for submission {SubmissionId}: {Summary}", "CloseSubmissionForTre", subId, manifest.UserSafeSummary);
+
             return StatusCode(200, new APIReturn() { ReturnType = ReturnType.voidReturn });
         }
 
