@@ -1,5 +1,6 @@
 ﻿using System.Net.Http.Headers;
 using System.Text;
+using Agent.Api.Helpers;
 using Agent.Api.Models;
 using Agent.Api.Repositories;
 using Agent.Api.Repositories.DbContexts;
@@ -73,7 +74,7 @@ namespace Agent.Api.Services
         public async Task SetUpDb(string DbName, string EnvironmentVariable)
         {
             // Set the endpoint URL
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v1/metadata";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v1/metadata").ToString();
             /*
             // Create the JSON payload
             string payload = @"
@@ -170,7 +171,7 @@ namespace Agent.Api.Services
         {
 
             // Set the endpoint URL
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v2/query";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v2/query").ToString();
 
             // Create the JSON payload
             string payload = @"
@@ -206,7 +207,7 @@ namespace Agent.Api.Services
         {
 
             // Set the endpoint URL
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v2/query";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v2/query").ToString();
 
             // Create the JSON payload
             string payload = @"
@@ -243,7 +244,7 @@ namespace Agent.Api.Services
         public async Task<bool> TrackData(string Db, string Schema, string table)
         {
             // Set the endpoint URL
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v1/metadata";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v1/metadata").ToString();
             /*
             // Create the JSON payload
             string payload = @"
@@ -339,7 +340,7 @@ namespace Agent.Api.Services
         public async Task SetPermission(string Db, string Schema, string table)
         {
             // Set the endpoint URL
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v1/metadata";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v1/metadata").ToString();
 
             // Create the JSON payload
             string payload = @"
@@ -387,7 +388,7 @@ namespace Agent.Api.Services
           
 
             //need to get the headers to send from the token userid
-            string endpointUrl = _hasuraSettings.HasuraURL + "/v1/graphql";
+            string endpointUrl = UrlHelper.Combine(_hasuraSettings.HasuraURL, "v1/graphql").ToString();
             try
             {
                 var Result = await HttpClient(endpointUrl, Query, false, Token);

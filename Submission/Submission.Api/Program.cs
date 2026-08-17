@@ -1,0 +1,384 @@
+using Submission.Api.Repositories.DbContexts;
+using Submission.Api.Services.Contract;
+using Submission.Api.Services;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using Serilog;
+using System.Net;
+
+using Newtonsoft.Json;
+using EasyNetQ;
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Rabbit;
+using FiveSafesTes.Core.Services;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.HttpOverrides;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
+using NETCore.MailKit.Extensions;
+using NETCore.MailKit.Infrastructure.Internal;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.FeatureManagement;
+using Serilog.Events;
+using Submission.Api.Constants;
+
+var builder = WebApplication.CreateBuilder(args);
+
+builder.Services.AddHealthChecks();
+
+ConfigurationManager configuration = builder.Configuration;
+IWebHostEnvironment environment = builder.Environment;
+
+Log.Logger = CreateSerilogLogger(configuration, environment);
+Log.Information("API logging LastStatusUpdate.");
+
+// Add services to the container.
+builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
+    {
+        options.SerializerSettings.ReferenceLoopHandling = ReferenceLoopHandling.Ignore;
+        options.SerializerSettings.PreserveReferencesHandling = PreserveReferencesHandling.Objects;
+    }
+);
+builder.Services.AddDbContextPool<ApplicationDbContext>(options => options
+    .UseLazyLoadingProxies()
+    .UseNpgsql(
+    builder.Configuration.GetConnectionString("DefaultConnection")
+));
+if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntiforgery"].ToLower() == "true")
+{
+    Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
+    builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+    builder.Services.AddDataProtection()
+        .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
+        .DisableAutomaticKeyGeneration();
+}
+//Add Services
+AddServices(builder);
+
+//Add Dependancies
+AddDependencies(builder, configuration);
+AddVaultServices(builder, configuration);
+builder.Services.Configure<ForwardedHeadersOptions>(options =>
+{
+    options.ForwardedHeaders =
+        ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto;
+
+    options.KnownNetworks.Clear();
+    options.KnownProxies.Clear();
+});
+
+
+builder.Services.AddFeatureManagement(
+  builder.Configuration.GetSection("Features"));
+builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
+builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
+var bus =
+builder.Services.AddSingleton(RabbitHutch.CreateBus($"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}"));
+await SetUpRabbitMQ.DoItSubmissionAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"], configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
+
+var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
+configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
+var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
+
+submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
+builder.Services.AddSingleton(submissionKeyCloakSettings);
+
+builder.Services.Configure<KestrelServerOptions>(options =>
+{
+    options.Limits.MaxRequestBodySize = int.MaxValue; // Adjust this as needed
+});
+
+var minioSettings = new MinioSettings();
+configuration.Bind(nameof(MinioSettings), minioSettings);
+builder.Services.AddSingleton(minioSettings);
+
+
+var emailSettings = new EmailSettings();
+configuration.Bind(nameof(emailSettings), emailSettings);
+builder.Services.AddSingleton(emailSettings);
+
+
+builder.Services.AddHostedService<ConsumeInternalMessageService>();
+var TVP = new TokenValidationParameters
+{
+    ValidateAudience = true,
+    ValidAudiences = submissionKeyCloakSettings.ValidAudiences.Trim().Split(',').ToList(),
+    ValidIssuer = submissionKeyCloakSettings.Authority,
+    ValidateIssuerSigningKey = true,
+    ValidateIssuer = false,
+    ValidateLifetime = true
+};
+Log.Information($"Check TokenValidationParams for Issuer {submissionKeyCloakSettings.Authority}");
+
+builder.Services.AddTransient<IClaimsTransformation, ClaimsTransformerBL>();
+
+
+builder.Services.AddMailKit(optionBuilder =>
+{
+    optionBuilder.UseMailKit(new MailKitOptions
+    {
+        Server = emailSettings.Host,
+        Port = emailSettings.Port,
+        SenderName = emailSettings.FromDisplayName,
+        SenderEmail = emailSettings.FromAddress,
+
+        // can be optional with no authentication 
+        //Account = Configuration["Account"],
+        //Password = Configuration["Password"],
+        // enable ssl or tls
+        Security = emailSettings.EnableSSL
+    });
+});
+
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+})
+    .AddJwtBearer(options =>
+    {
+        if (submissionKeyCloakSettings.Proxy)
+        {
+            options.BackchannelHttpHandler = new HttpClientHandler
+            {
+                UseProxy = true,
+                UseDefaultCredentials = true,
+                Proxy = new WebProxy()
+                {
+                    Address = new Uri(submissionKeyCloakSettings.ProxyAddresURL),
+                    BypassList = new[] { submissionKeyCloakSettings.BypassProxy }
+                }
+            };
+        }
+        
+        options.Authority = submissionKeyCloakSettings.Authority;
+        options.Audience = submissionKeyCloakSettings.ClientId;          
+        options.MetadataAddress = submissionKeyCloakSettings.MetadataAddress;
+
+        options.RequireHttpsMetadata = submissionKeyCloakSettings.RequireHttpsMetadata;
+        options.IncludeErrorDetails = true;
+
+        options.TokenValidationParameters = TVP;
+        options.Events = new JwtBearerEvents
+        {
+            OnForbidden = context =>
+            {
+                return context.Response.CompleteAsync();
+            },
+            OnTokenValidated = context =>
+            {
+                return Task.CompletedTask;
+            },
+            OnAuthenticationFailed = context =>
+            {
+                context.Response.StatusCode = 401;
+                return context.Response.CompleteAsync();
+            },
+            OnMessageReceived = context =>
+            {
+                string accessToken = context.Request.Query["access_token"];
+                PathString path = context.HttpContext.Request.Path;
+
+                return Task.CompletedTask;
+            },
+            OnChallenge = context =>
+            {
+                return Task.CompletedTask;
+            }
+        };
+    });
+
+
+
+// - authorize here
+builder.Services.AddAuthorization();
+
+var app = builder.Build();
+
+var serviceScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
+app.MapHealthChecks("/health");
+
+app.UseForwardedHeaders(new ForwardedHeadersOptions
+{
+    ForwardedHeaders = ForwardedHeaders.XForwardedProto
+});
+// --- Session Token
+
+
+// Swagger
+app.UseSwagger();
+app.UseSwaggerUI(c =>
+{
+    c.EnableValidator(null);
+    c.SwaggerEndpoint("/swagger/ga4gh-tes/swagger.json", $"GA4GH TES API");
+    c.SwaggerEndpoint("/swagger/v1/swagger.json", $"{environment.ApplicationName} v1");
+    c.OAuthClientId(submissionKeyCloakSettings.ClientId);
+    c.OAuthAppName(submissionKeyCloakSettings.ClientId);
+});
+
+
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    //app.UseDeveloperExceptionPage();
+}
+
+// Configure the HTTP request pipeline.
+if (!app.Environment.IsDevelopment())
+{
+    app.UseExceptionHandler("/Home/Error");
+    // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
+    app.UseHsts();
+}
+
+
+
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    var keytoken = scope.ServiceProvider.GetRequiredService<IKeycloakTokenApiHelper>();
+    var miniosettings = scope.ServiceProvider.GetRequiredService<MinioSettings>();
+    var miniohelper = scope.ServiceProvider.GetRequiredService<IMinioHelper>();
+    var userService = scope.ServiceProvider.GetRequiredService<IKeycloakMinioUserService>();
+    IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
+
+    db.Database.Migrate();
+    var keycloakAdminService = scope.ServiceProvider.GetRequiredService<IKeycloakAdminService>();
+    var vaultCredentialsService = scope.ServiceProvider.GetRequiredService<IVaultCredentialsService>();
+    var initialiser = new DataInitialiser(miniosettings, db, keytoken, userService, miniohelper,
+        keycloakAdminService, vaultCredentialsService);
+    if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
+    {
+        await initialiser.SeedDemoDataAsync();
+    }
+}
+
+
+
+//app.UseHttpsRedirection();
+app.UseStaticFiles();
+app.UseRouting();
+app.UseAuthentication();
+app.UseAuthorization();
+
+app.MapControllerRoute(
+    name: "default",
+    pattern: "{controller=Home}/{action=Index}/{id?}");
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
+    db.Database.Migrate();
+}
+Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHostEnvironment environment)
+{
+    var seqServerUrl = configuration["Serilog:SeqServerUrl"];
+    var seqApiKey = configuration["Serilog:SeqApiKey"];
+    var logLevelValue = configuration["Serilog:MinimumLevel:Default"];
+    var logLevel = Enum.TryParse<LogEventLevel>(logLevelValue, true, out var parsedLevel)
+        ? parsedLevel
+        : LogEventLevel.Information;
+
+
+
+    return new LoggerConfiguration()
+    .MinimumLevel.Is(logLevel)
+    .Enrich.WithProperty("ApplicationContext", environment.ApplicationName)
+    .Enrich.FromLogContext()
+    .WriteTo.Console(restrictedToMinimumLevel: logLevel)
+    .WriteTo.Seq(seqServerUrl, apiKey: seqApiKey)
+    .ReadFrom.Configuration(configuration)
+    .CreateLogger();
+}
+
+void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configuration)
+{
+
+    builder.Services.AddHttpContextAccessor();
+
+
+    
+    builder.Services.AddScoped<IMinioHelper, MinioHelper>();
+    builder.Services.AddScoped<IKeycloakMinioUserService, KeycloakMinioUserService>();
+    builder.Services.AddScoped<IProjectS3AccessKeyService, ProjectS3AccessKeyService>();
+    builder.Services.AddScoped<IKeycloakTokenApiHelper, KeycloakTokenApiHelper>();
+    builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+    builder.Services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
+    builder.Services.AddScoped<IDareEmailService, DareEmailService>();
+    
+
+
+}
+
+void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager configuration)
+{
+  //Configure Vault settings
+  builder.Services.Configure<VaultSettings>(
+        configuration.GetSection("VaultSettings"));
+
+  // Register HttpClient for Vault service
+  builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>
+  {
+        var options = sp.GetRequiredService<IOptions<VaultSettings>>().Value;
+
+        client.BaseAddress = new Uri(options.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        client.DefaultRequestHeaders.Add("X-Vault-Token", options.Token);
+        client.DefaultRequestHeaders.Accept.Add(
+            new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+  });
+}
+
+void AddServices(WebApplicationBuilder builder)
+{
+    builder.Services.AddHttpClient();
+    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+    builder.Services.AddEndpointsApiExplorer();
+    //TODO
+    builder.Services.AddEndpointsApiExplorer();
+    builder.Services.AddSwaggerGen(c =>
+      {
+        c.EnableAnnotations();
+        c.UseOneOfForPolymorphism();
+        // GA4GH TES API Docs definition
+        c.SwaggerDoc("ga4gh-tes", new()
+          {
+            Title = "GA4GH TES API",
+            Version = "v1.1.0",
+            Description = "A GA4GH TES API implementation"
+          }
+        );
+        c.SwaggerDoc("v1", new OpenApiInfo { Title = environment.ApplicationName, Version = "v1" });
+
+        var securityScheme = new OpenApiSecurityScheme
+        {
+          Name = "JWT Authentication",
+          Description = "Enter JWT token.",
+          In = ParameterLocation.Header,
+          Type = SecuritySchemeType.Http,
+          Scheme = "bearer",
+          BearerFormat = "JWT",
+          Reference = new OpenApiReference
+          {
+            Id = JwtBearerDefaults.AuthenticationScheme,
+            Type = ReferenceType.SecurityScheme
+          }
+        };
+
+        c.AddSecurityDefinition(securityScheme.Reference.Id, securityScheme);
+        c.AddSecurityRequirement(new OpenApiSecurityRequirement
+        {
+          { securityScheme, new string[] { } }
+        });
+      }
+    );
+
+}
+
+app.Run();
+

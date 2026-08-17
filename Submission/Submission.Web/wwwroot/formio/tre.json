@@ -1,0 +1,117 @@
+{
+  "_id": "64c8b80f8c240f99dcaef32a",
+  "title": "DARE Control Tre",
+  "name": "dareControlTre",
+  "path": "darecontrolTre",
+  "type": "form",
+  "display": "form",
+  "tags": [],
+  "access": [
+    {
+      "type": "read_all",
+      "roles": [ "643682757c5fb885facaba2e", "643682757c5fb87f60caba33", "643682757c5fb8a71fcaba38" ]
+    }
+  ],
+  "submissionAccess": [],
+  "owner": "605388c15a305bb6bee90290",
+  "components": [
+    {
+      "label": "Name",
+      "placeholder": "Enter name of TRE",
+      "tableView": true,
+      "key": "Name",
+      "type": "textfield",
+      "input": true,
+      "id": "enxwmy",
+      "prefix": "",
+      "customClass": "",
+      "suffix": "",
+      "multiple": false,
+      "defaultValue": null,
+      "protected": false,
+      "unique": false,
+      "persistent": true,
+      "hidden": false,
+      "clearOnHide": true,
+      "refreshOn": "",
+      "redrawOn": "",
+      "modalEdit": false,
+      "dataGridLabel": false,
+      "labelPosition": "top",
+      "description": "",
+      "errorLabel": "",
+      "tooltip": "",
+      "hideLabel": false,
+      "tabindex": "",
+      "disabled": false,
+      "autofocus": false,
+      "dbIndex": false,
+      "customDefaultValue": "",
+      "calculateValue": "",
+      "calculateServer": false,
+      "widget": { "type": "input" },
+      "attributes": {},
+      "validateOn": "change",
+      "validate": {
+        "required": true,
+        "custom": "",
+        "customPrivate": false,
+        "strictDateValidation": false,
+        "multiple": false,
+        "unique": false,
+        "minLength": "",
+        "maxLength": "",
+        "pattern": ""
+      },
+      "conditional": {
+        "show": null,
+        "when": null,
+        "eq": ""
+      },
+      "overlay": {
+        "style": "",
+        "left": "",
+        "top": "",
+        "width": "",
+        "height": ""
+      },
+      "allowCalculateOverride": false,
+      "encrypted": false,
+      "showCharCount": false,
+      "showWordCount": false,
+      "properties": {},
+      "allowMultipleMasks": false,
+      "addons": [],
+      "mask": false,
+      "inputType": "text",
+      "inputFormat": "plain",
+      "inputMask": "",
+      "displayMask": "",
+      "spellcheck": true,
+      "truncateMultipleSpaces": false
+    },
+    {
+      "label": "TRE Admin User",
+      "placeholder": "Enter username of TRE's admin",
+      "key": "AdminUsername",
+      "type": "textfield",
+      "input": true,
+      "validate": {
+        "required": true
+      }
+
+    }
+
+  ],
+  "settings": {},
+  "properties": {},
+  "project": "643682757c5fb85738caba27",
+  "controller": "",
+  "revisions": "",
+  "submissionRevisions": "",
+  "_vid": 0,
+  "created": "2023-08-01T07:45:19.191Z",
+  "modified": "2023-08-01T07:45:19.195Z",
+  "machineName": "rikojtsvfwnqslz:dareControlTre",
+  "plan": "commercial"
+}

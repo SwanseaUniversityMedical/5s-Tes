@@ -1,0 +1,8 @@
+services:
+  acmecorp:
+    url: https://host.docker.internal:7157/api/OPA/BundleGet
+    allow_insecure_tls : true
+
+discovery:
+  service: acmecorp
+  resource: /example/discovery.tar.gz

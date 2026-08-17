@@ -1,0 +1,114 @@
+﻿@model string
+@{
+    ViewData["Title"] = "Submission Instructions";
+}
+
+<div class="container-lg mt-4 p-4 bg-white border-1 shadow-sm">
+    <div class="d-flex align-items-center justify-content-between">
+        <h1 class="fs-3 mb-0">Submission Instructions</h1>
+
+    </div>
+    <hr class="d-flex my-4">
+
+
+    <h2 class="fs-4">Access Token (JWT)</h2>
+    <p>
+        To submit a Job you must be authenticated. When you sign in you are given a JWT Token that can be used to
+        authenticate all the actions you take.
+    </p>
+    <p>You can access the token from the <a href="/Account/NewTokenIssue">API Access Token page</a> found in the main
+        menu when you are signed in.</p>
+    <p>This token will expire overtime. Your token can also be renewed from the same page.</p>
+
+    <h2 class="fs-4 mt-4">Message Format</h2>
+    <p>The system uses the <a href="https://ga4gh.github.io/task-execution-schemas/docs/" target="_blank"
+                              rel="noopener">GA4GH TES</a> message format to pass a job to the system in order to tell a
+        TRE to download and execute an image.</p>
+    <p>In order for the system to align with the '5 Safes' requirement, the message must also contain a set number of
+        parameters:</p>
+    <h3 class="fs-5 mt-3">Key parameters</h3>
+    <ol>
+        <li>Name: display name</li>
+        <li>TAGS: project : name of the project as known on this system</li>
+        <li>TAGS: TRE : blank (all) or pipe | separated lists of TREs the submission is going to</li>
+    </ol>
+
+    <p><b>IMPORTANT: </b> You can only submit requests if you are a valid user on the system, you are listed on the
+        project you state and that the TRE(s) have been added to the project.</p>
+    <p><b>NOTE: </b> When a submission is received by a TRE, the project and user must also have been authorised
+        locally, otherwise the submission will be rejected at the parameter of the TRE.</p>
+    <h3 class="fs-5 mt-3">Example</h3>
+    <div class="card card-body">
+        <pre>
+<code>
+ 
+POST @Html.Raw(Model)/v1/tasks
+{
+    "state": 0,
+    "name": "Hello World",
+    "inputs": [],
+    "outputs": [
+        {
+            "name": "Stdout",
+            "description": "Stdout results",
+            "url": "s3://outputBucketName", // Set the output bucket
+            "path": "/outputs",
+            "type": "DIRECTORY"
+        }
+    ],
+    "executors": [
+        {
+            "image": "ubuntu",
+            "command": [
+                "echo",
+                "Hello World"
+            ],
+            "workdir": "/outputs",
+            "stdout": "/outputs/stdout",
+        }
+    ],
+    "volumes": null,
+    "tags": {
+        "project": "ProjectName", // Project that you would like to submit to.
+        "tres": "TREName" // TRE related to that Project
+    },
+    "logs": null,
+    "creation_time": null
+}
+ 
+</code>
+
+</pre>
+    </div>
+
+
+    <h2 class="fs-4 mt-4">Calling the REST API</h2>
+    <p>You will need a JWT Token (<a href="/Account/NewTokenIssue">Found Here</a>)</p>
+    <h3 class="fs-5 mt-3">Example Command</h3>
+    <div class="card card-body">
+        <pre>
+        <code>
+curl -X 'POST' \
+            '@Html.Raw(Model)/v1/tasks' \
+            -H 'accept: text/plain' \
+            -H 'Authorization: Bearer **TOKEN-HERE**' \
+            -H 'Content-Type: application/json-patch+json' \
+            -d '{"state": 0,
+            "name": "Hello World",
+            "inputs": [],
+            "outputs": [
+            {"name": "Stdout","description": "Stdout results","url": "s3://outputBucketName","path": "/outputs","type": "DIRECTORY"}],"executors": [{"image": "ubuntu","command": ["echo","Hello World"],"workdir": "/outputs","stdout": "/outputs/stdout",}],"volumes": null,"tags": {"project": "ProjectName","tres": "TREName"},"logs": null,"creation_time": null}'
+</code>
+</pre>
+    </div>
+
+    <h2 class="fs-4 mt-4">Calling the REST API through Swagger</h2>
+    <p>Access Swagger URL at <a href="@Html.Raw(Model)/swagger/index.html" target="_blank"
+                                rel="noopener">@Html.Raw(Model)/swagger/index.html</a></p>
+    <ol>
+        <li>Click Authorize, enter Token into Value and press Authorize then Close</li>
+        <li>Section TaskServiceApi, POST /v1/tasks</li>
+        <li>Press "Try it out"</li>
+        <li>Paste JSON message into textbox and then press Execute</li>
+    </ol>
+</div>

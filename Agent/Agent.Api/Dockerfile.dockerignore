@@ -1,0 +1,35 @@
+# Ignore everything
+*
+
+# Allow specific directories
+!rootca.pem
+!Agent/Agent.Api/
+!Shared/FiveSafesTes.Core/
+!Credentials/Credentials.Models/
+
+# Ignore specific things that were allowed above
+**/.dockerignore
+**/.env
+**/.git
+**/.gitignore
+**/.project
+**/.settings
+**/.toolstarget
+**/.vs
+**/.vscode
+**/.idea
+**/*.*proj.user
+**/*.dbmdl
+**/*.jfm
+**/azds.yaml
+**/bin
+**/charts
+**/docker-compose*
+**/Dockerfile*
+**/node_modules
+**/npm-debug.log
+**/obj
+**/secrets.dev.yaml
+**/values.dev.yaml
+LICENSE
+README.md

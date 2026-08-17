@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.IdentityModel.Tokens;
 using Newtonsoft.Json;
 using Microsoft.AspNetCore.DataProtection;
+using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
 ConfigurationManager configuration = builder.Configuration;
@@ -49,7 +50,6 @@ try
     var treKeyCloakSettings = new TreKeyCloakSettings();
     configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
     var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
-    var demomode = configuration["DemoMode"].ToLower() == "true";
     treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
     builder.Services.AddSingleton(treKeyCloakSettings);
     Log.Information("{Function} Step 1 Authority {Authority}","Main",  treKeyCloakSettings.Authority);
@@ -70,16 +70,6 @@ try
 
 
     builder.Services.AddMvc().AddViewComponentsAsServices();
-
-    builder.Services.Configure<CookiePolicyOptions>(options =>
-    {
-        options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
-        options.OnAppendCookie = cookieContext =>
-            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-        options.OnDeleteCookie = cookieContext =>
-            CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-    });
-
 
     JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
@@ -176,7 +166,7 @@ try
             // For testing we disable https (should be true for production)
             options.RemoteSignOutPath = treKeyCloakSettings.RemoteSignOutPath;
             options.SignedOutRedirectUri = treKeyCloakSettings.SignedOutRedirectUri;
-            options.RequireHttpsMetadata = false;
+            options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata;
             options.GetClaimsFromUserInfoEndpoint = true;
             options.Scope.Add("openid");
             options.Scope.Add("profile");
@@ -240,14 +230,6 @@ try
                 {
                     string accessToken = context.Request.Query["access_token"];
                     PathString path = context.HttpContext.Request.Path;
-
-                    if (
-                        !string.IsNullOrEmpty(accessToken) &&
-                        path.StartsWithSegments("/api/SignalRHub")
-                    )
-                    {
-                        context.Token = accessToken;
-                    }
 
                     return Task.CompletedTask;
                 },
@@ -318,6 +300,35 @@ try
     app.UseCors();
     app.UseForwardedHeaders();
 
+// DemoStack only: redirect browser requests to the configured host before login.
+// This keeps the Keycloak OIDC flow on the same site and prevents the
+// correlation cookie from being created on a different host, which can cause
+// a "Correlation failed" error.
+// This only applies to top-level HTML GET requests. Nothing happens unless
+// demo mode is enabled and a valid RedirectURL is configured.
+    if (keycloakDemomode &&
+        Uri.TryCreate(treKeyCloakSettings.RedirectURL, UriKind.Absolute, out var canonicalUri))
+    {
+        var canonicalAuthority = canonicalUri.Authority; // host[:port]
+        app.Use(async (context, next) =>
+        {
+            var request = context.Request;
+            var accept = request.Headers["Accept"].ToString();
+            if (HttpMethods.IsGet(request.Method) &&
+                accept.Contains("text/html", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(request.Host.Value, canonicalAuthority, StringComparison.OrdinalIgnoreCase))
+            {
+                var target = $"{canonicalUri.Scheme}://{canonicalAuthority}{request.PathBase}{request.Path}{request.QueryString}";
+                Log.Information("{Function} Redirecting {From} to canonical host {To} to keep OIDC same-site",
+                    "CanonicalHostRedirect", request.Host.Value, canonicalAuthority);
+                context.Response.Redirect(target, permanent: false);
+                return;
+            }
+
+            await next();
+        });
+    }
+
     if (app.Environment.IsDevelopment())
     {
         app.UseDeveloperExceptionPage();
@@ -344,22 +355,33 @@ try
 
     app.UseStaticFiles();
 
-//This is a biggy. If having issues with keycloak DISABLE THIS
-    if (configuration["sslcookies"] == "true")
-    {
-        Log.Information("Enabling Secure SSL Cookies");
-        app.UseCookiePolicy(new CookiePolicyOptions
-        {
-            Secure = CookieSecurePolicy.Always
-        });
-    }
-    else
-    {
-        Log.Information("Disabling Secure SSL Cookies");
-        app.UseCookiePolicy();
-    }
+  //This is a biggy. If having issues with keycloak DISABLE THIS
+  // If we fail to parse the configuration value, it needs to default to true. Otherwise, use the parsed value.
+  bool secureSslCookies = !bool.TryParse(configuration["sslcookies"], out bool useSslCookies) || useSslCookies;
 
-    app.UseRouting();
+  Log.Information(
+      secureSslCookies ? "Enabling Secure SSL Cookies" : "Disabling Secure SSL Cookies"
+  );
+
+  app.UseCookiePolicy(new CookiePolicyOptions
+  {
+    Secure = secureSslCookies
+          ? CookieSecurePolicy.Always
+          : CookieSecurePolicy.None,
+
+    // Over HTTP, leave the minimum SameSite policy as Unspecified rather than Lax.
+    MinimumSameSitePolicy = secureSslCookies
+          ? SameSiteMode.None
+          : SameSiteMode.Unspecified,
+
+    OnAppendCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
+
+    OnDeleteCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies)
+  });
+
+  app.UseRouting();
 
     app.UseAuthentication();
     app.UseAuthorization();
@@ -387,12 +409,16 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 {
     var seqServerUrl = configuration["Serilog:SeqServerUrl"];
     var seqApiKey = configuration["Serilog:SeqApiKey"];
+    var logLevelValue = configuration["Serilog:MinimumLevel:Default"];
+    var logLevel = Enum.TryParse<LogEventLevel>(logLevelValue, true, out var parsedLevel)
+      ? parsedLevel
+      : LogEventLevel.Information;
 
     return new LoggerConfiguration()
-        .MinimumLevel.Verbose()
+        .MinimumLevel.Is(logLevel)
         .Enrich.WithProperty("ApplicationContext", environment.ApplicationName)
         .Enrich.FromLogContext()
-        .WriteTo.Console()
+        .WriteTo.Console(restrictedToMinimumLevel: logLevel)
         .WriteTo.Seq(seqServerUrl, apiKey: seqApiKey)
         .ReadFrom.Configuration(configuration)
         .CreateLogger();
@@ -400,17 +426,31 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 
 #region SameSite Cookie Issue - https: //community.auth0.com/t/correlation-failed-unknown-location-error-on-chrome-but-not-in-safari/40013/7
 
-void CheckSameSite(HttpContext httpContext, CookieOptions options)
+void CheckSameSite(HttpContext httpContext, CookieOptions options, bool secureSslCookies)
 {
+  if (!secureSslCookies)
+  {
+    // Non-HTTPS/dev deployments: do not mark cookies as Secure,
+    // otherwise browsers will not send OIDC correlation/nonce cookies back over HTTP.
+    options.Secure = false;
     if (options.SameSite == SameSiteMode.None)
     {
-        var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
-        //configure cookie policy to omit samesite=none when request is not https
-        if (!httpContext.Request.IsHttps || DisallowsSameSiteNone(userAgent))
-        {
-            options.SameSite = SameSiteMode.Unspecified;
-        }
+      // Don't set Lax explicitly - it gets dropped on Keycloak's cross-site form_post callback
+      // (localhost <-> *.localtest.me) so login fails. Leaving it unset relies on the Lax+POST grace.
+      options.SameSite = SameSiteMode.Unspecified;
     }
+    return;
+  }
+
+  if (options.SameSite == SameSiteMode.None)
+  {
+    var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
+    //configure cookie policy to omit samesite=none when request is not https
+    if (!httpContext.Request.IsHttps || DisallowsSameSiteNone(userAgent))
+    {
+      options.SameSite = SameSiteMode.Unspecified;
+    }
+  }
 }
 
 

@@ -1,0 +1,940 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
+using Newtonsoft.Json;
+using Serilog;
+using Microsoft.AspNetCore.Authentication;
+using System.Text.RegularExpressions;
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.APISimpleTypeReturns;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
+using Microsoft.EntityFrameworkCore;
+using Submission.Api.Repositories.DbContexts;
+using Submission.Api.Services;
+using Submission.Api.Services.Contract;
+
+namespace Submission.Api.Controllers
+{
+    [ApiExplorerSettings(GroupName = "v1")]
+    [ApiController]
+    [Route("api/[controller]")]
+    [Authorize]
+
+
+    public class ProjectController : Controller
+    {
+
+        private readonly ApplicationDbContext _DbContext;
+        private readonly MinioSettings _minioSettings;
+        private readonly IMinioHelper _minioHelper;
+        private readonly IKeycloakMinioUserService _keycloakMinioUserService;
+        private readonly IProjectS3AccessKeyService _projectS3AccessKeyService;
+        protected readonly IHttpContextAccessor _httpContextAccessor;
+
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor)
+        {
+
+            _DbContext = applicationDbContext;
+            _minioSettings = minioSettings;
+            _minioHelper = minioHelper;
+            _keycloakMinioUserService = keycloakMinioUserService;
+            _projectS3AccessKeyService = projectS3AccessKeyService;
+            _httpContextAccessor = httpContextAccessor;
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("SaveProject")]
+        public async Task<Project?> SaveProject([FromBody] FormData data)
+        {
+            Project project = null;
+            try
+            {
+                project = JsonConvert.DeserializeObject<Project>(data.FormIoString);
+                //2023-06-01 14:30:00 use this as the datetime
+           
+
+                string input = project.Name.Trim();
+                string pattern = @"[^a-zA-Z0-9]"; // exclude everything but letters and numbers
+                string result = Regex.Replace(input, pattern, "");
+                project.Name = result;
+                project.StartDate = project.StartDate.ToUniversalTime();
+                project.EndDate = project.EndDate.ToUniversalTime();
+                project.ProjectDescription = project.ProjectDescription.Trim();
+                
+               project.FormData = data.FormIoString;
+                
+
+                if (_DbContext.Projects.Any(x => x.Name.ToLower() == project.Name.ToLower().Trim() && x.Id != project.Id))
+                {
+
+                    return new Project() { Error = true, ErrorMessage = "Another project already exists with the same name" };
+                }
+
+                if (project.Id == 0)
+                {
+                    try
+                    {
+                        _DbContext.Projects.Add(project);
+                        await _DbContext.SaveChangesAsync();
+
+                        project.SubmissionBucket = GenerateRandomName(project.Id.ToString()) + "submission".Replace("_", "");
+                        project.OutputBucket = GenerateRandomName(project.Id.ToString()) + "output".Replace("_", ""); ;
+                        var submissionBucket = await _minioHelper.CreateBucket(project.SubmissionBucket);
+                        if (!submissionBucket)
+                        {
+                            Log.Error("{Function} S3GetListObjects: Failed to create bucket {name}.", "SaveProject", project.SubmissionBucket);
+                            throw new Exception("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.");
+                        }
+                        else
+                        {
+                            var submistionBucketPolicy = await _minioHelper.CreateBucketPolicy(project.SubmissionBucket);
+                            if (!submistionBucketPolicy)
+                            {
+                                Log.Error("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.", "SaveProject", project.SubmissionBucket);
+                                throw new Exception("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.");
+                            }
+                        }
+                        var outputBucket = await _minioHelper.CreateBucket(project.OutputBucket);
+                        if (!outputBucket)
+                        {
+                            Log.Error("{Function} S3GetListObjects: Failed to create bucket {name}.", "SaveProject", project.OutputBucket);
+                            throw new Exception("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.");
+
+                        }
+                        else
+                        {
+                            var outputBucketPolicy = await _minioHelper.CreateBucketPolicy(project.OutputBucket);
+                            if (!outputBucketPolicy)
+                            {
+                                Log.Error("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.", "SaveProject", project.OutputBucket);
+                                throw new Exception("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.");
+                            }
+                        }
+
+                        // Provision scoped S3 credentials for this project (stored in Submission Vault).
+                        // Treated as a required step: if it fails we roll back the whole project (below)
+                        // so the admin gets a clear error rather than a project the TRE can never access.
+                        var projectS3Credentials = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                            project.Id,
+                            project.Name,
+                            project.SubmissionBucket,
+                            project.OutputBucket);
+                        if (projectS3Credentials == null)
+                        {
+                            Log.Error("{Function} Failed to create scoped S3 credentials for project {ProjectId}", "SaveProject", project.Id);
+                            throw new Exception($"Failed to create scoped S3 credentials for project {project.Id}.");
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        if (project != null)
+                        {
+                            if (project.Id != 0)
+                            {
+                                _DbContext.Projects.Remove(project);
+                                await _DbContext.SaveChangesAsync();
+                            }
+                        }
+                        Log.Error(ex, "{Function} Crash", "SaveProject");
+                        var errorModel = new Project();
+                        errorModel.FormData = ex.ToString();
+                        return errorModel;
+                    }
+                }
+
+                var logtype = LogType.AddProject;
+
+                if (project.Id > 0)
+                {
+                    if (_DbContext.Projects.Select(x => x.Id == project.Id).Any())
+                    {
+                        _DbContext.Projects.Update(project);
+                        logtype = LogType.UpdateProject;
+                    }
+                    else
+                    {
+                        _DbContext.Projects.Add(project);
+                    }
+                }
+                else
+                {
+                    _DbContext.Projects.Add(project);
+
+                }
+                await _DbContext.SaveChangesAsync();
+                await ControllerHelpers.AddAuditLog(logtype, null, project, null, null, null, _httpContextAccessor, User, _DbContext);
+                
+                
+                
+                Log.Information("{Function} Projects added successfully", "CreateProject");
+                return project;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "SaveProject");
+                var errorModel = new Project();
+                return errorModel;
+                throw;
+            }
+
+
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("CheckUserExists")]
+        public async Task<ProjectUser?> CheckUserExists(ProjectUser model)
+        {
+            var accessToken = await _httpContextAccessor.HttpContext.GetTokenAsync("access_token");
+            var user = _DbContext.Users.FirstOrDefault(x => x.Id == model.UserId);
+            if (user == null)
+            {
+                return model;
+            }
+            var userId = await _keycloakMinioUserService.GetUserIDAsync(accessToken, user.Name.ToString());
+            if (userId == "")
+            {
+                var newUser=new ProjectUser();
+                return newUser;
+            }
+            return model;
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("AddUserMembership")]
+        public async Task<ProjectUser?> AddUserMembership(ProjectUser model)
+        {
+            try
+            {
+                var user = _DbContext.Users.FirstOrDefault(x => x.Id == model.UserId);
+                if (user == null)
+                {
+                    Log.Error("{Function} Invalid user id {UserId}", "AddUserMembership", model.UserId);
+                    return null;
+                }
+
+                var project = _DbContext.Projects.FirstOrDefault(x => x.Id == model.ProjectId);
+                if (project == null)
+                {
+                    Log.Error("{Function} Invalid project id {UserId}", "AddUserMembership", model.ProjectId);
+                    return null;
+                }
+
+                if (project.Users.Any(x => x == user))
+                {
+                    Log.Error("{Function} User {UserName} is already on {ProjectName}", "AddUserMembership", user.Name, project.Name);
+                    return null;
+                }
+                
+                project.Users.Add(user);
+                await _DbContext.SaveChangesAsync();
+                await ControllerHelpers.AddUserToMinioBucket(user, project, _httpContextAccessor, _minioSettings.AttributeName, _keycloakMinioUserService, User, _DbContext );
+                await ControllerHelpers.AddAuditLog(LogType.AddUserToProject, user, project, null, null, null, _httpContextAccessor, User, _DbContext);
+                Log.Information("{Function} Added User {UserName} to {ProjectName}", "AddUserMembership", user.Name, project.Name);
+                return model;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "AddUserMembership");
+                throw;
+            }
+
+
+        }
+
+        
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("RemoveUserMembership")]
+        public async Task<ProjectUser?> RemoveUserMembership(ProjectUser model)
+        {
+            try
+            {
+                var user = _DbContext.Users.FirstOrDefault(x => x.Id == model.UserId);
+                if (user == null)
+                {
+                    Log.Error("{Function} Invalid user id {UserId}", "RemoveUserMembership", model.UserId);
+                    return null;
+                }
+
+                var project = _DbContext.Projects.FirstOrDefault(x => x.Id == model.ProjectId);
+                if (project == null)
+                {
+                    Log.Error("{Function} Invalid project id {UserId}", "RemoveUserMembership", model.ProjectId);
+                    return null;
+                }
+
+                if (!project.Users.Any(x => x == user))
+                {
+                    Log.Error("{Function} User {UserName} is not in the {ProjectName}", "RemoveUserMembership", user.Name, project.Name);
+                    return null;
+                }
+
+                project.Users.Remove(user);
+                await _DbContext.SaveChangesAsync();
+                await ControllerHelpers.RemoveUserFromMinioBucket(user, project, _httpContextAccessor, _minioSettings.AttributeName, _keycloakMinioUserService, User, _DbContext);
+
+                await ControllerHelpers.AddAuditLog(LogType.RemoveUserFromProject, user, project, null, null, null, _httpContextAccessor, User, _DbContext);
+                
+                Log.Information("{Function} Added User {UserName} to {ProjectName}", "RemoveUserMembership", user.Name, project.Name);
+                return model;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "RemoveUserMembership");
+                throw;
+            }
+
+
+        }
+
+        
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("AddTreMembership")]
+        public async Task<ProjectTre?> AddTreMembership(ProjectTre model)
+        {
+            try
+            {
+                var tre = _DbContext.Tres.FirstOrDefault(x => x.Id == model.TreId);
+                if (tre == null)
+                {
+                    Log.Error("{Function} Invalid tre id {UserId}", "AddTreMembership", model.TreId);
+                    return null;
+                }
+
+                var project = _DbContext.Projects.FirstOrDefault(x => x.Id == model.ProjectId);
+                if (project == null)
+                {
+                    Log.Error("{Function} Invalid project id {UserId}", "AddTreMembership", model.ProjectId);
+                    return null;
+                }
+
+                if (project.Tres.Any(x => x == tre))
+                {
+                    Log.Error("{Function} Tre {Tre} is already on {ProjectName}", "AddTreMembership", tre.Name, project.Name);
+                    return null;
+                }
+
+                project.Tres.Add(tre);
+
+                await _DbContext.SaveChangesAsync();
+                await ControllerHelpers.AddAuditLog(LogType.AddTreToProject, null, project, tre, null, null, _httpContextAccessor, User, _DbContext);
+                Log.Information("{Function} Added Tre {Tre} to {ProjectName}", "AddTreMembership", tre.Name, project.Name);
+                return model;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "AddTreMembership");
+                throw;
+            }
+
+
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("RemoveTreMembership")]
+        public async Task<ProjectTre?> RemoveTreMembership(ProjectTre model)
+        {
+            try
+            {
+                var tre = _DbContext.Tres.FirstOrDefault(x => x.Id == model.TreId);
+                if (tre == null)
+                {
+                    Log.Error("{Function} Invalid tre id {UserId}", "AddTreMembership", model.TreId);
+                    return null;
+                }
+
+                var project = _DbContext.Projects.FirstOrDefault(x => x.Id == model.ProjectId);
+                if (project == null)
+                {
+                    Log.Error("{Function} Invalid project id {UserId}", "AddTreMembership", model.ProjectId);
+                    return null;
+                }
+
+                if (!project.Tres.Any(x => x == tre))
+                {
+                    Log.Error("{Function} Tre {Tre} is already on {ProjectName}", "AddTreMembership", tre.Name, project.Name);
+                    return null;
+                }
+
+                project.Tres.Remove(tre);
+                
+                await _DbContext.SaveChangesAsync();
+                await ControllerHelpers.AddAuditLog(LogType.RemoveTreFromProject, null, project, tre, null, null, _httpContextAccessor, User, _DbContext);
+                Log.Information("{Function} Added Tre {Tre} to {ProjectName}", "AddTreMembership", tre.Name, project.Name);
+                return model;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "AddTreMembership");
+                throw;
+            }
+
+
+        }
+        
+        
+      
+          
+        [HttpGet("GetProjectDetails")]
+        public async Task<ActionResult<Project.ProjectDetailsDto>> GetProjectDetails(int projectId)
+        {
+            var project = await _DbContext.Projects
+                .AsNoTracking()
+                .Where(p => p.Id == projectId)
+                .Select(p => new Project.ProjectDetailsDto()
+                {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    ProjectOwner = p.ProjectOwner,
+                    ProjectContact = p.ProjectContact,
+                    SubmissionBucket = p.SubmissionBucket,
+                    OutputBucket = p.OutputBucket,
+
+                    Users = p.Users
+                        .Select(u => new Project.ProjectUserDto()
+                        {
+                            Id = u.Id,
+                            Name = u.Name,
+                            FullName = u.FullName
+                        })
+                        .ToList(),
+
+                    Tres = p.Tres
+                        .Select(t => new Project.ProjectTreDto()
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                            LastHeartBeatReceived = t.LastHeartBeatReceived,
+                            Decision = t.ProjectTreDecisions
+                                .Where(d => d.SubmissionProj != null && d.SubmissionProj.Id == projectId)
+                                .OrderByDescending(d => d.Id)
+                                .Select(d => d.Decision)
+                                .FirstOrDefault()
+                        })
+                        .ToList(),
+
+                    Submissions = p.Submissions
+                        .Select(s => new Project.ProjectSubmissionDto()
+                        {
+                            Id = s.Id,
+                            ParentId = s.ParentId,
+                            HasParent = s.Parent != null,
+                            Status = s.Status,
+                            StartTime = s.StartTime,
+                            EndTime = s.EndTime,
+                            TesName = s.TesName,
+                            ProjectName = p.Name,
+                            SubmittedByName = s.SubmittedBy.Name
+                        })
+                        .ToList()
+                })
+                .FirstOrDefaultAsync();
+
+            if (project == null)
+            {
+                return NotFound();
+            }
+
+            var projectUserIds = project.Users.Select(u => u.Id).ToHashSet();
+            var projectTreIds = project.Tres.Select(t => t.Id).ToHashSet();
+
+            project.UsersNotInProject = await _DbContext.Users
+                .AsNoTracking()
+                .Where(u => !projectUserIds.Contains(u.Id))
+                .Select(u => new Project.ProjectUserDto()
+                {
+                    Id = u.Id,
+                    Name = u.Name,
+                    FullName = u.FullName
+                })
+                .ToListAsync();
+
+            project.TresNotInProject = await _DbContext.Tres
+                .AsNoTracking()
+                .Where(t => !projectTreIds.Contains(t.Id))
+                .Select(t => new Project.ProjectTreDto()
+                {
+                    Id = t.Id,
+                    Name = t.Name
+                })
+                .ToListAsync();
+
+            return Ok(project);
+        }
+
+        [HttpGet("GetProjectUI")]
+        public SubmissionGetProjectModel? GetProjectUI(int projectId)
+        {
+          try
+          {
+            var returned = _DbContext.Projects.Find(projectId);
+            if (returned == null)
+            {
+              return null;
+            }
+
+            Log.Information("{Function} Project retrieved successfully", "GetProject");
+            var Users = _DbContext.Users.ToList();
+            _DbContext.Tres.ToList();
+            return new SubmissionGetProjectModel(returned, _DbContext.Users, _DbContext.Tres);
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", "GetProject");
+            throw;
+          }
+        }
+
+        [HttpGet("GetProject")]
+        public Project? GetProject(int projectId)
+        {
+            try
+            {
+                var returned = _DbContext.Projects.Find(projectId);
+                if (returned == null)
+                {
+                    return null;
+                }
+
+                Log.Information("{Function} Project retrieved successfully", "GetProject");
+                return returned;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetProject");
+                throw;
+            }
+
+
+        }
+
+        [HttpGet("GetAllProjects")]
+        public async Task<IActionResult> GetAllProjects(string? responseType = "full")
+        {
+            try
+            {
+                //TODO - use User.Identity.IsAuthenticated to alter list returned : embargoed etc
+
+                if (string.Equals(responseType, "summary", StringComparison.OrdinalIgnoreCase))
+                {
+                    var summaryProjects = await _DbContext.Projects
+                        .AsNoTracking()
+                        .Select(p => new Project.ProjectSummary
+                        {
+                            Id = p.Id,
+                            Name = p.Name,
+                            StartDate = p.StartDate,
+                            EndDate = p.EndDate,
+                            ProjectDescription = p.ProjectDescription,
+                            SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                            UserCount = p.Users.Count(),
+                            TreCount = p.Tres.Count(),
+                        })
+                        .ToListAsync();
+
+                    Log.Information("{Function} Project summaries retrieved successfully", "GetAllProjects");
+                    return Ok(summaryProjects);
+                }
+
+                var allProjects = await _DbContext.Projects
+                    .ToListAsync();
+
+
+                Log.Information("{Function} Projects retrieved successfully", "GetAllProjects");
+                return Ok(allProjects);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetAllProjects");
+                throw;
+            }
+
+
+        }
+
+        [HttpGet("GetProjectsSummaryForCurrentUser")]
+        public async Task<IActionResult> GetProjectsSummaryForCurrentUser()
+        {
+            try
+            {
+                var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+                var summaryProjects = await _DbContext.Projects
+                  .AsNoTracking()
+                  .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                  .Select(p => new Project.ProjectSummary
+                  {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                    UserCount = p.Users.Count(),
+                    TreCount = p.Tres.Count(),
+                  })
+                  .ToListAsync();
+              
+
+                return Ok(summaryProjects);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetProjectsForCurrentUser");
+                throw;
+            }
+        }
+
+
+        [HttpGet("GetAllProjectsForTre")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public List<Project> GetAllProjectsForTre()
+        {
+            try
+            {
+
+                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+
+                var allProjects = tre.Projects;
+
+                Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
+                return allProjects;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetAllProjectsForTre");
+                throw;
+            }
+
+
+        }
+
+        
+
+
+        [HttpPost("SyncTreProjectDecisions")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public BoolReturn SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
+        {
+            try
+            {
+                Log.Information("SyncTreProjectDecisions called with  " + decisions.Count);
+
+                var result = new BoolReturn();
+                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+
+                foreach (var item in decisions)
+                {
+                    Log.Information("SyncTreProjectDecisions item > ProjectId  " + item.ProjectId  + " Decision  > " + item.Decision);
+
+                    var dbproj = _DbContext.Projects.FirstOrDefault(x => x.Id == item.ProjectId);
+                    if (dbproj == null)
+                    {
+                        Log.Error($"no Projects with ID of {item.ProjectId}");
+                        continue;
+                    }
+                    var tredecision = _DbContext.ProjectTreDecisions.FirstOrDefault(x => x.SubmissionProj == dbproj && x.Tre == tre);
+                    if (tredecision == null)
+                    {
+                        Log.Information("SyncTreProjectDecisions add new  tredecision " + decisions.Count);
+
+                        tredecision = new ProjectTreDecision()
+                        {
+                            SubmissionProj = dbproj,
+                            Tre = tre,
+                        };
+                        _DbContext.ProjectTreDecisions.Add(tredecision);
+                    }
+                    tredecision.Decision = item.Decision;
+                }
+                _DbContext.SaveChanges();
+
+
+                result.Result = true;
+                Log.Information("{Function} Tre {TreName} decisions synched", "SyncTreProjectDecisions", tre.Name);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "SyncTreProjectDecisions");
+                throw;
+            }
+
+
+        }
+
+        [HttpPost("SyncTreMembershipDecisions")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
+        {
+            try
+            {
+                var result = new BoolReturn();
+                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+
+                foreach (var item in decisions)
+                {
+                    var dbproj = _DbContext.Projects.First(x => x.Id == item.ProjectId);
+                    var dbuser = _DbContext.Users.First(x => x.Id == item.UserId);
+                    var tredecision = _DbContext.MembershipTreDecisions.FirstOrDefault(x => x.SubmissionProj == dbproj && x.User == dbuser && x.Tre == tre);
+                    if (tredecision == null)
+                    {
+                        tredecision = new MembershipTreDecision()
+                        {
+                            SubmissionProj = dbproj,
+                            User = dbuser,
+                            Tre = tre,
+                        };
+                        _DbContext.MembershipTreDecisions.Add(tredecision);
+                    }
+                    tredecision.Decision = item.Decision;
+                }
+                _DbContext.SaveChanges();
+                
+                result.Result = true;
+                Log.Information("{Function} Tre {TreName} membership decisions synced", "SyncTreMembershipDecisions", tre.Name);
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "SyncTreMembershipDecisions");
+                throw;
+            }
+
+
+        }
+
+        [HttpGet("GetTresInProject")]
+        public List<Tre> GetTresInProject(int projectId)
+        {
+            try
+            {
+                List<Tre> tres = _DbContext.Projects.Where(p => p.Id == projectId).SelectMany(p => p.Tres).ToList();
+
+                return tres;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "GetTresInProject");
+                throw;
+            }
+        }
+
+        private static string GenerateRandomName(string prefix)
+        {
+            Random random = new Random();
+            string randomName = prefix + random.Next(1000, 9999);
+            return randomName;
+        }
+        
+        [HttpGet("IsUserOnProject")]
+        public bool IsUserOnProject(int projectId, int userId)
+        {
+            try
+            {
+                bool isUserOnProject = _DbContext.Projects.Any(p => p.Id == projectId && p.Users.Any(u => u.Id == userId));
+                return isUserOnProject;
+            }
+
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} crash", "IsUserOnProject");
+                throw;
+            }
+        }
+        [AllowAnonymous]
+        [HttpGet("GetMinioEndPoint")]
+        public MinioEndpoint? GetMinioEndPoint()
+        {
+
+            var minioEndPoint = new MinioEndpoint()
+            {
+                Url = _minioSettings.AdminConsole,
+            };
+
+            return minioEndPoint;
+        }
+
+        
+
+        [HttpPost("UploadToMinio")]
+        public async Task<BoolReturn> UploadToMinio(string bucketName, IFormFile file)
+        {
+            if (file == null || file.Length == 0)
+                return new BoolReturn() { Result = false };
+
+            try
+            {
+                var submissionBucket = await _minioHelper.UploadFileAsync(file, bucketName, file.Name);
+
+
+                return new BoolReturn() { Result = true };
+            }
+            catch (Exception ex)
+            {
+                return new BoolReturn() { Result = false };
+            }
+        }
+
+
+        private IFormFile ConvertJsonToIFormFile(string fileJson)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(fileJson))
+                    return null;
+                var fileData = System.Text.Json.JsonSerializer.Deserialize<IFileData>(fileJson);
+
+                var bytes = Convert.FromBase64String(fileData.Content);
+
+                var fileName = fileData.FileName;
+                var contentType = fileData.ContentType;
+
+                var formFile = new FormFile(new MemoryStream(bytes), 0, bytes.Length, null, fileName)
+                {
+                    Headers = new HeaderDictionary(),
+                    ContentType = contentType
+                };
+
+                return formFile;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "ConvertJsonToIformFile");
+                throw;
+            }
+        }
+        [AllowAnonymous]
+        [HttpGet("GetSearchData")]
+        public List<Project> GetSearchData(string searchString)
+        {
+            try
+            {
+                string normalizedSearchString = $"%{searchString.Trim()}%";
+                List<Project> searchResults = _DbContext.Projects
+
+                    .Include(c => c.Users)
+
+                    .Include(c => c.Submissions)
+
+                    .Include(c => c.Tres)
+                    .Where(c => EF.Functions.Like(c.Name, normalizedSearchString) ||
+
+
+                                c.Users.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+
+                                c.Tres.Any(t => EF.Functions.Like(t.Name, normalizedSearchString)) ||
+
+                                c.Submissions.Any(s => EF.Functions.Like(s.TesName, normalizedSearchString))
+
+                    )
+
+                    .ToList();
+                Log.Information("{Function} Search Data retrieved successfully", "GetSearchData");
+                return searchResults.ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "GetSearchData");
+                throw;
+            }
+
+        }
+
+        /// <summary>
+        /// Returns scoped S3 credentials for a project to an authenticated TRE admin.
+        /// Creates the RustFS user/policy on Submission if they do not exist yet.
+        /// </summary>
+        [HttpGet("GetProjectS3Credentials/{projectId}")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<ActionResult<ProjectS3AccessKey>> GetProjectS3Credentials(int projectId)
+        {
+            try
+            {
+                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var project = await _DbContext.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
+                if (project == null)
+                {
+                    return NotFound();
+                }
+
+                var isAssignedToTre = await _DbContext.Projects
+                    .AnyAsync(p => p.Id == projectId && p.Tres.Any(t => t.Id == tre.Id));
+                if (!isAssignedToTre)
+                {
+                    return Forbid();
+                }
+
+                if (string.IsNullOrWhiteSpace(project.SubmissionBucket) ||
+                    string.IsNullOrWhiteSpace(project.OutputBucket))
+                {
+                    return BadRequest("Project is missing S3 bucket configuration.");
+                }
+
+                // Returns full credential bundle (access key + secret + buckets), creating on RustFS if missing.
+                var projectS3Credentials = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                    project.Id,
+                    project.Name,
+                    project.SubmissionBucket,
+                    project.OutputBucket);
+
+                if (projectS3Credentials == null)
+                {
+                    return StatusCode(500, "Failed to ensure scoped S3 access key for project.");
+                }
+
+                return Ok(projectS3Credentials);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed for project {ProjectId}", "GetProjectS3Credentials", projectId);
+                throw;
+            }
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("BackfillS3AccessKeys")]
+        public async Task<BoolReturn> BackfillS3AccessKeys()
+        {
+            var result = new BoolReturn { Result = true };
+            try
+            {
+                var projects = await _DbContext.Projects
+                    .Where(p => p.SubmissionBucket != null && p.OutputBucket != null)
+                    .ToListAsync();
+
+                var created = 0;
+                foreach (var project in projects)
+                {
+                    var accessKey = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                        project.Id,
+                        project.Name,
+                        project.SubmissionBucket!,
+                        project.OutputBucket!);
+
+                    if (accessKey != null)
+                    {
+                        created++;
+                    }
+                }
+
+                Log.Information(
+                    "{Function} Backfilled scoped S3 access keys for {Created}/{Total} projects",
+                    "BackfillS3AccessKeys",
+                    created,
+                    projects.Count);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "BackfillS3AccessKeys");
+                result.Result = false;
+            }
+
+            return result;
+        }
+
+    }
+}

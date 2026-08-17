@@ -234,5 +234,15 @@ namespace FiveSafesTes.Core.Models.Enums
         }
     }
 
+    public enum HealthStatus
+    {
+        Failed = 0,
+        Connected = 1
+    }
 
+    public enum ConfigInputMethod
+    {
+        Manual = 0,
+        Upload = 1
+    }
 }

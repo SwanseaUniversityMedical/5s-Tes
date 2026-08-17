@@ -1,0 +1,29 @@
+
+.mode-section {
+  border: 1px solid #e9ecef;
+  border-radius: 0.5rem;
+  padding: 1.5rem;
+  margin-bottom: 1rem;
+  background-color: #f8f9fa;
+}
+
+.mode-selection {
+  background-color: #fff;
+  border: 1px solid #dee2e6;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+}
+
+.form-check-label strong {
+  color: #495057;
+}
+
+.alert {
+  margin-bottom: 1rem;
+}
+
+#rawMode textarea {
+  font-family: 'Monaco', 'Consolas', 'Courier New', monospace;
+  font-size: 0.9rem;
+}

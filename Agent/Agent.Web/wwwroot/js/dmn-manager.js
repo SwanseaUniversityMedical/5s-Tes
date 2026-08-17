@@ -70,29 +70,33 @@ function displayDmnInfo(table) {
  * Build dynamic table headers based on inputs and outputs (excluding submissionId)
  */
 function buildTableHeaders(table) {
-    const headerRow = $('#rulesTable thead tr');
+  const headerRow = $('#rulesTable thead tr');
 
-    // Remove existing dynamic columns
-    headerRow.find('th:not(:first):not(:nth-child(2)):not(:last)').remove();
+  // Remove existing dynamic columns (keep #, Description, and Actions)
+  headerRow.find('th:not(:first-child):not(:nth-child(2)):not(:last-child)').remove();
 
-    // Add input columns (excluding submissionId)
-    let visibleInputCount = 0;
-    table.inputs.forEach(input => {
-        const label = input.label || input.expression || 'Input';
-        // Skip submissionId input
-        if (label.toLowerCase() === 'submissionid') {
-            return;
-        }
-        headerRow.find('th:nth-child(2)').after(`<th class="text-dark bg-light">Input: ${label}</th>`);
-        visibleInputCount++;
-    });
+  // Filter inputs, excluding submissionId
+  const visibleInputs = table.inputs.filter(input => {
+    const label = (input.label || input.expression || '').toLowerCase();
+    return label !== 'submissionid';
+  });
 
-    // Add output columns (after inputs and description)
-    const lastInputIndex = 2 + visibleInputCount;
-    table.outputs.forEach(output => {
-        const label = output.label || output.name || 'Output';
-        headerRow.find(`th:nth-child(${lastInputIndex})`).after(`<th class="text-dark bg-light">Output: ${label}</th>`);
-    });
+  // Use a moving anchor so insertion order is preserved (not reversed)
+  let anchor = headerRow.find('th:nth-child(2)');
+  visibleInputs.forEach(input => {
+    const label = input.label || input.expression || 'Input';
+    const th = $(`<th class="text-dark bg-light">Input: ${label}</th>`);
+    anchor.after(th);
+    anchor = th; // advance anchor to the newly inserted th
+  });
+
+  // Insert output headers after all inputs, also with a moving anchor
+  table.outputs.forEach(output => {
+    const label = output.label || output.name || 'Output';
+    const th = $(`<th class="text-dark bg-light">Output: ${label}</th>`);
+    anchor.after(th);
+    anchor = th;
+  });
 }
 
 /**

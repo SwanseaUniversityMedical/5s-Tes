@@ -19,6 +19,7 @@ using FiveSafesTes.Core.Rabbit;
 using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Microsoft.FeatureManagement;
 using Newtonsoft.Json;
 using Serilog;
@@ -27,6 +28,7 @@ namespace Agent.Api
 {
     public interface IDoAgentWork
     {
+        [AutomaticRetry(Attempts = 0)]
         Task Execute();
 
         Task CheckTES(string taskID, int subId, int projectId, int userId, string tesId, string outputBucket,
@@ -42,18 +44,20 @@ namespace Agent.Api
         private readonly ISubmissionHelper _subHelper;
         private readonly IMinioSubHelper _minioSubHelper;
         private readonly IMinioTreHelper _minioTreHelper;
+        private readonly IProjectS3SubHelperFactory _projectS3SubHelperFactory;
         private readonly IHasuraAuthenticationService _hasuraAuthenticationService;
         private readonly IDareClientWithoutTokenHelper _dareHelper;
         private readonly AgentSettings _AgentSettings;
         private readonly MinioSettings _minioSettings;
         private readonly IKeyCloakService _keyCloakService;
-        private readonly TreKeyCloakSettings _TreKeyCloakSettings;
+        private readonly TreKeyCloakSettings _treKeyCloakSettings;
         private readonly IEncDecHelper _encDecHelper;
         private readonly IFeatureManager _features;
         private readonly IHttpClientFactory _httpClientFactory;
         private readonly CredentialsDbContext _credsDbContext;
         private readonly IVaultCredentialsService _vaultService;
         private readonly IConfiguration _config;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -61,18 +65,21 @@ namespace Agent.Api
             ISubmissionHelper subHelper,
             IMinioTreHelper minioTreHelper,
             IMinioSubHelper minioSubHelper,
+            IProjectS3SubHelperFactory projectS3SubHelperFactory,
             IHasuraAuthenticationService hasuraAuthenticationService,
             IDareClientWithoutTokenHelper dareHelper,
             AgentSettings AgentSettings,
             MinioSettings minioSettings,
             IKeyCloakService keyCloakService,
-            TreKeyCloakSettings TreKeyCloakSettings,
+            IOptions<TreKeyCloakSettings> treKeyCloakSettings,
             IEncDecHelper encDecHelper,
             IFeatureManager features,
             IHttpClientFactory httpClientFactory,
             CredentialsDbContext credsDbContext,
             IVaultCredentialsService vaultService,
-            IConfiguration config
+            IConfiguration config,
+            IOptionsMonitor<TreOnboardingConfig> configSettings
+
         )
         {
             _serviceProvider = serviceProvider;
@@ -81,6 +88,7 @@ namespace Agent.Api
 
             _minioTreHelper = minioTreHelper;
             _minioSubHelper = minioSubHelper;
+            _projectS3SubHelperFactory = projectS3SubHelperFactory;
 
             _serviceProvider = serviceProvider;
             _dbContext = dbContext;
@@ -95,7 +103,7 @@ namespace Agent.Api
             _minioSubHelper = minioSubHelper;
 
             _keyCloakService = keyCloakService;
-            _TreKeyCloakSettings = TreKeyCloakSettings;
+            _treKeyCloakSettings = treKeyCloakSettings.Value;
             _encDecHelper = encDecHelper;
             _features = features;
             _httpClientFactory = httpClientFactory;
@@ -103,6 +111,7 @@ namespace Agent.Api
             _vaultService = vaultService;
 
             _config = config;
+            _onboardingConfig = configSettings;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -439,6 +448,8 @@ namespace Agent.Api
         // Method executed upon hangfire job
         public async Task Execute()
         {
+            if (!_onboardingConfig.CurrentValue.IsConfigurationImported) return;
+
             Log.Information("{Function} DoAgentWork running", "Execute");
             // control use of dependency injection
             using (var scope = _serviceProvider.CreateScope())
@@ -449,10 +460,6 @@ namespace Agent.Api
 
                 Log.Information("{Function} useRabbit {useRabbit}", "Execute", useRabbit);
                 Log.Information("{Function} useTESK {useTESK}", "Execute", useTESK);
-                if (await _features.IsEnabledAsync(FeatureFlags.DemoAllInOne))
-                {
-                    Log.Information("{Function} Demo Mode is on, simulating execution..", "Execute");
-                }
 
                 var cancelsubprojs = _subHelper.GetRequestCancelSubsForTre();
                 if (cancelsubprojs != null)
@@ -659,19 +666,6 @@ namespace Agent.Api
                             // The TES message
                             var tesMessage = JsonConvert.DeserializeObject<TesTask>(aSubmission.TesJson);
                             var processedOK = true;
-                            if (await _features.IsEnabledAsync(FeatureFlags.DemoAllInOne))
-                            {
-                                try
-                                {
-                                    _subHelper.SimulateSubmissionProcessing(aSubmission);
-                                }
-                                catch (Exception e)
-                                {
-                                    Log.Error(e, "{Function} Simulation failed for sub {SubId}", "Execute",
-                                        aSubmission.Id);
-                                    processedOK = false;
-                                }
-                            }
 
                             // **************  SEND TO RABBIT
                             if (useRabbit)
@@ -709,7 +703,7 @@ namespace Agent.Api
                                         x.Name == aSubmission.Project.Name + aSubmission.SubmittedBy.Name);
 
                                     var TokenIN = await _keyCloakService.GenAccessTokenSimple(Acount.Name,
-                                        _encDecHelper.Decrypt(Acount.Pass), _TreKeyCloakSettings.TokenRefreshSeconds);
+                                        _encDecHelper.Decrypt(Acount.Pass), _treKeyCloakSettings.TokenRefreshSeconds);
 
                                     Token = TokenIN.access_token;
                                 }
@@ -812,8 +806,10 @@ namespace Agent.Api
                                     Log.Information(
                                         $"getting copy for {CleanedIntput} for SubmissionBucket {aSubmission.Project.SubmissionBucket} to {NewCleanedInput}");
 
+                                    // Use project-scoped Submission S3 creds (from TRE Vault), not shared root creds.
+                                    var minioSubHelper = await _projectS3SubHelperFactory.GetProjectS3HelperAsync(aSubmission.Project.Id);
                                     var source =
-                                        await _minioSubHelper.GetCopyObject(aSubmission.Project.SubmissionBucket,
+                                        await minioSubHelper.GetCopyObject(aSubmission.Project.SubmissionBucket,
                                             CleanedIntput);
                                     try
                                     {

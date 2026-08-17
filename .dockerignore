@@ -1,4 +1,7 @@
-﻿**/.dockerignore
+﻿# MAKE SURE YOU UPDATE THE Dockerfile.dockerignore
+#       FOR EACH Dockerfile IN THIS REPO!
+
+**/.dockerignore
 **/.env
 **/.git
 **/.gitignore

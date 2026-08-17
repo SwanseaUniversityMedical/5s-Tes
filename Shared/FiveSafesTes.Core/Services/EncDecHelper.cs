@@ -7,32 +7,28 @@ namespace FiveSafesTes.Core.Services
     public class EncDecHelper : IEncDecHelper
     {
         public string _Key { get; set; }
-        public string _IVBase64 { get; set; }
-
-        public (string Key, string IVBase64) InitSymmetricEncryptionKeyIV(string key)
-        {
-
-            Aes cipher = CreateCipher(key);
-            var IVBase64 = Convert.ToBase64String(cipher.IV);
-            return (key, IVBase64);
-        }
 
         public EncDecHelper(EncryptionSettings encset)
         {
             _Key = encset.Key;
-            _IVBase64 = encset.Base;
         }
-
         
-
         public string Decrypt(string encryptedText)
         {
+            byte[] fullBytes = Convert.FromBase64String(encryptedText);
+
             Aes cipher = CreateCipher(_Key);
-            cipher.IV = Convert.FromBase64String(_IVBase64);
+
+            // Extract the IV that was prepended during encryption (first 16 bytes)
+            byte[] iv = new byte[cipher.BlockSize / 8];
+            byte[] cipherBytes = new byte[fullBytes.Length - iv.Length];
+            Buffer.BlockCopy(fullBytes, 0, iv, 0, iv.Length);
+            Buffer.BlockCopy(fullBytes, iv.Length, cipherBytes, 0, cipherBytes.Length);
+
+            cipher.IV = iv;
 
             ICryptoTransform cryptTransform = cipher.CreateDecryptor();
-            byte[] encryptedBytes = Convert.FromBase64String(encryptedText);
-            byte[] plainBytes = cryptTransform.TransformFinalBlock(encryptedBytes, 0, encryptedBytes.Length);
+            byte[] plainBytes = cryptTransform.TransformFinalBlock(cipherBytes, 0, cipherBytes.Length);
 
             return Encoding.UTF8.GetString(plainBytes);
         }
@@ -40,13 +36,19 @@ namespace FiveSafesTes.Core.Services
         public string Encrypt(string text)
         {
             Aes cipher = CreateCipher(_Key);
-            cipher.IV = Convert.FromBase64String(_IVBase64);
+            // Generate a fresh random IV for every encryption
+            cipher.GenerateIV();
 
             ICryptoTransform cryptTransform = cipher.CreateEncryptor();
             byte[] plaintext = Encoding.UTF8.GetBytes(text);
             byte[] cipherText = cryptTransform.TransformFinalBlock(plaintext, 0, plaintext.Length);
 
-            return Convert.ToBase64String(cipherText);
+            // Prepend the IV to the ciphertext so Decrypt can recover it
+            byte[] result = new byte[cipher.IV.Length + cipherText.Length];
+            Buffer.BlockCopy(cipher.IV, 0, result, 0, cipher.IV.Length);
+            Buffer.BlockCopy(cipherText, 0, result, cipher.IV.Length, cipherText.Length);
+
+            return Convert.ToBase64String(result);
         }
 
         public static string GetEncodedRandomString(int length)

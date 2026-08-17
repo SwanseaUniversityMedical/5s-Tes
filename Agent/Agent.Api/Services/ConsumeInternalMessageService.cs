@@ -17,7 +17,7 @@ namespace Agent.Api.Services
     private readonly ApplicationDbContext _dbContext;
     private readonly IMinioTreHelper _minioTreHelper;
     private readonly IDareClientWithoutTokenHelper _dareHelper;
-    private readonly IMinioSubHelper _minioSubHelper;
+    private readonly IProjectS3SubHelperFactory _projectS3SubHelperFactory;
     private readonly ISubmissionHelper _subHelper;
     private readonly string _treName;
 
@@ -27,7 +27,7 @@ namespace Agent.Api.Services
       _bus = bus;
       _dbContext = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<ApplicationDbContext>();
       _minioTreHelper = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IMinioTreHelper>();
-      _minioSubHelper = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IMinioSubHelper>();
+      _projectS3SubHelperFactory = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IProjectS3SubHelperFactory>();
       _dareHelper = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IDareClientWithoutTokenHelper>();
       _subHelper = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<ISubmissionHelper>();
       var config = serviceProvider.CreateScope().ServiceProvider.GetRequiredService<IConfiguration>();
@@ -60,8 +60,12 @@ namespace Agent.Api.Services
       try
       {
         var outcome = message.Body;
+        var queryParams = new Dictionary<string, string>
+        {
+          ["responseType"] = "summary",
+        };
         var submission = _dareHelper
-          .CallAPIWithoutModel<Submission>($"/api/Submission/GetASubmission/{outcome.SubId}")
+          .CallAPIWithoutModel<Submission.SubmissionDetailsDto>($"/api/Submission/GetASubmission/{outcome.SubId}", queryParams)
           .Result;
         var sourceBucket = _subHelper.GetOutputBucketGuts(outcome.SubId, false, false);
 
@@ -73,13 +77,15 @@ namespace Agent.Api.Services
 
         var destinationBucket = project.OutputBucket;
 
+        var minioSubHelper = _projectS3SubHelperFactory.GetProjectS3HelperAsync(submission.Project.Id).Result;
+
         //Copy file to output bucket
         var source = _minioTreHelper.GetCopyObject(sourceBucket.Bucket, outcome.File).Result;
 
 
         var destfile = sourceBucket.Path + _treName + "/" + outcome.File.Replace(sourceBucket.Path, "");
         var copyResult =
-          _minioSubHelper.CopyObjectToDestination(destinationBucket, destfile, source);
+          minioSubHelper.CopyObjectToDestination(destinationBucket, destfile, source);
 
         var StatusResult = _subHelper.CloseSubmissionForTre(outcome.SubId, StatusType.Completed, "", destfile);
       }

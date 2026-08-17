@@ -1,7 +1,7 @@
 "use server";
 
-import { isNextRedirectError } from "@/lib/api/helpers";
 import request from "@/lib/api/request";
+import { handleRequest } from "@/lib/api/helpers";
 import type { ActionResult } from "@/types/ActionResult";
 import type {
   TreMembershipDecision,
@@ -19,24 +19,6 @@ const fetchKeys = {
   updateProject: () => `Approval/UpdateProjects`,
   updateMembershipDecisions: () => `Approval/UpdateMembershipDecisions`,
 };
-
-async function handleRequest<T>(
-  requestPromise: Promise<T>,
-): Promise<ActionResult<T>> {
-  try {
-    const data = await requestPromise;
-    return { success: true, data };
-  } catch (error) {
-    if (isNextRedirectError(error)) {
-      throw error;
-    }
-    return {
-      success: false,
-      error:
-        error instanceof Error ? error.message : "An unexpected error occurred",
-    };
-  }
-}
 
 export async function getProjects(params: {
   showOnlyUnprocessed: boolean;
