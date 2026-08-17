@@ -15,7 +15,7 @@ namespace Submission.Api.Services
                 Status = sub.Status,
                 StatusDescription = sub.StatusDescription
             });
-            if (type == StatusType.Cancelled || type == StatusType.Completed)
+            if (type == StatusType.Cancelled || type == StatusType.Completed || type == StatusType.Failed)
             {
                 sub.EndTime = DateTime.Now.ToUniversalTime();
             }

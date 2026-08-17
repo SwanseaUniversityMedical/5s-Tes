@@ -1,27 +1,29 @@
-﻿using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
+using Microsoft.Extensions.Options;
 
 namespace Agent.Api.Services
 {
     public class DataEgressClientWithoutTokenHelper : BaseClientHelper, IDataEgressClientWithoutTokenHelper
     {
-        public ApplicationDbContext CredDb { get; set; }
+        public readonly DataEgressKeyCloakSettings _keycloakSettings;
+        private readonly ApiEndpointSettings _apiEndpointSettings;
 
         public DataEgressClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
-            IEncDecHelper encDec, DataEgressKeyCloakSettings settings) : base(httpClientFactory, httpContextAccessor,
-            config["DataEgressAPISettings:Address"], false)
+            IEncDecHelper encDec, IOptionsMonitor<DataEgressKeyCloakSettings> settings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.EgressApiUrl , false)
         {
-            CredDb = db;
-            _keycloakTokenHelper = new KeycloakTokenHelper(settings.BaseUrl, settings.ClientId, settings.ClientSecret, settings.Proxy, settings.ProxyAddresURL, settings.KeycloakDemoMode);
-
-            var creds = db.KeycloakCredentials.FirstOrDefault(x => x.CredentialType == CredentialType.Egress);
-            if (creds != null)
+          _apiEndpointSettings = apiEndpointSettings.Value;
+          _keycloakSettings = settings.CurrentValue;
+            var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
+            _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId, _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode);
+            
+            if (CheckCredsAreAvailable())
             {
-                _username = creds.UserName;
-                _password = encDec.Decrypt(creds.PasswordEnc);
+                _username = _keycloakSettings.Username;
+                _password = encDec.Decrypt(_keycloakSettings.PasswordEnc);
                 _requiredRole = "dare-tre-admin";
             }
 
@@ -30,7 +32,7 @@ namespace Agent.Api.Services
 
         public bool CheckCredsAreAvailable()
         {
-            return CredDb.KeycloakCredentials.Any(x => x.CredentialType == CredentialType.Egress);
+            return !string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc);
         }
     }
 }

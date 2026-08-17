@@ -434,56 +434,6 @@ namespace Submission.Api.Controllers
         }
 
         /// <summary>
-        /// GetServiceInfo provides information about the service, such as storage details, resource availability, and  other documentation.
-        /// </summary>
-        /// <response code="200"></response>
-        [HttpGet]
-        [AllowAnonymous]
-        [Route("/v1/get_test_tes")]
-        [ValidateModelState]
-        [SwaggerOperation("GetTestTes")]
-        [SwaggerResponse(statusCode: 200, type: typeof(string), description: "")]
-        public virtual IActionResult GetTestTes()
-        {
-            try { 
-				var test = new TesTask()
-				{
-				   
-					Name = "Atest",
-					Executors = new List<TesExecutor>()
-					{
-						new TesExecutor()
-						{
-							Image = @"\\minio\justin1.crate",
-						  
-						}
-					},
-					Tags = new Dictionary<string, string>()
-					{
-						{ "project", "Head" },
-						{ "tres", "SAIL|DPUK" }
-					}
-
-				};
-
-
-				return StatusCode(200, test);
-
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "GetTestTES");
-                throw;
-            }
-
-        }
-
-
-
-
-       
-
-        /// <summary>
         /// Get a task. TaskView is requested as such: \&quot;v1/tasks/{id}?view&#x3D;FULL\&quot;
         /// </summary>
         /// <param name="id">The id of the <see cref="TesTask"/> to get</param>

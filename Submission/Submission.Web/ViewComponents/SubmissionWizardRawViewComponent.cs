@@ -17,8 +17,8 @@ namespace Submission.Web.ViewComponents
         {
             var paramlist = new Dictionary<string, string>();
             paramlist.Add("projectId", projectId.ToString());
-            var project = _clientHelper.CallAPIWithoutModel<Project?>(
-                "/api/Project/GetProject/", paramlist).Result;
+            var project = await _clientHelper.CallAPIWithoutModel<Project.ProjectDetailsDto>(
+                "/api/Project/GetProject/", paramlist);
             var SelectTresOptions = project.Tres.ToList();
             List<TreInfo> treInfoList = new List<TreInfo>();
             foreach (var param in SelectTresOptions)

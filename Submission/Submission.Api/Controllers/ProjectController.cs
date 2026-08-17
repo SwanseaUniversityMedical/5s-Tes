@@ -28,16 +28,18 @@ namespace Submission.Api.Controllers
         private readonly MinioSettings _minioSettings;
         private readonly IMinioHelper _minioHelper;
         private readonly IKeycloakMinioUserService _keycloakMinioUserService;
+        private readonly IProjectS3AccessKeyService _projectS3AccessKeyService;
         protected readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ControllerHelpers _controllerHelpers;
 
-        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IHttpContextAccessor httpContextAccessor, ControllerHelpers controllerHelpers)
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor)
         {
 
             _DbContext = applicationDbContext;
             _minioSettings = minioSettings;
             _minioHelper = minioHelper;
             _keycloakMinioUserService = keycloakMinioUserService;
+            _projectS3AccessKeyService = projectS3AccessKeyService;
             _httpContextAccessor = httpContextAccessor;
             _controllerHelpers = controllerHelpers;
         }
@@ -60,6 +62,7 @@ namespace Submission.Api.Controllers
                 project.StartDate = project.StartDate.ToUniversalTime();
                 project.EndDate = project.EndDate.ToUniversalTime();
                 project.ProjectDescription = project.ProjectDescription.Trim();
+                
                project.FormData = data.FormIoString;
                 
 
@@ -108,6 +111,20 @@ namespace Submission.Api.Controllers
                                 Log.Error("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.", "SaveProject", project.OutputBucket);
                                 throw new Exception("{Function} CreateBucketPolicy: Failed to create policy for bucket {name}.");
                             }
+                        }
+
+                        // Provision scoped S3 credentials for this project (stored in Submission Vault).
+                        // Treated as a required step: if it fails we roll back the whole project (below)
+                        // so the admin gets a clear error rather than a project the TRE can never access.
+                        var projectS3Credentials = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                            project.Id,
+                            project.Name,
+                            project.SubmissionBucket,
+                            project.OutputBucket);
+                        if (projectS3Credentials == null)
+                        {
+                            Log.Error("{Function} Failed to create scoped S3 credentials for project {ProjectId}", "SaveProject", project.Id);
+                            throw new Exception($"Failed to create scoped S3 credentials for project {project.Id}.");
                         }
                     }
                     catch (Exception ex)
@@ -541,19 +558,30 @@ namespace Submission.Api.Controllers
 
         }
 
-        [HttpGet("GetProjectsForCurrentUser")]
-        public List<Project> GetProjectsForCurrentUser()
+        [HttpGet("GetProjectsSummaryForCurrentUser")]
+        public async Task<IActionResult> GetProjectsSummaryForCurrentUser()
         {
             try
             {
                 var preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+                var summaryProjects = await _DbContext.Projects
+                  .AsNoTracking()
+                  .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
+                  .Select(p => new Project.ProjectSummary
+                  {
+                    Id = p.Id,
+                    Name = p.Name,
+                    StartDate = p.StartDate,
+                    EndDate = p.EndDate,
+                    ProjectDescription = p.ProjectDescription,
+                    SubmissionCount = p.Submissions.Count(s => s.Parent == null),
+                    UserCount = p.Users.Count(),
+                    TreCount = p.Tres.Count(),
+                  })
+                  .ToListAsync();
+              
 
-                var userProjects = _DbContext.Projects
-                    .Where(x => x.Users.Any(u => u.Name.ToLower() == preferredUsername))
-                    .Distinct()
-                    .ToList();
-
-                return userProjects;
+                return Ok(summaryProjects);
             }
             catch (Exception ex)
             {
@@ -637,13 +665,10 @@ namespace Submission.Api.Controllers
         [Authorize(Roles = "dare-tre-admin")]
         public async Task<BoolReturn> SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
-            var aresult = new BoolReturn();
-            aresult.Result = true;
-            return aresult;
             try
             {
                 var result = new BoolReturn();
-                var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
+                // var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
                 var tre = await _controllerHelpers.GetUserTre(User);
 
                 foreach (var item in decisions)
@@ -664,10 +689,9 @@ namespace Submission.Api.Controllers
                     tredecision.Decision = item.Decision;
                 }
                 _DbContext.SaveChanges();
-
-
+                
                 result.Result = true;
-                Log.Information("{Function} Tre {TreName} membership decisions synched", "SyncTreMembershipDecisions", tre.Name);
+                Log.Information("{Function} Tre {TreName} membership decisions synced", "SyncTreMembershipDecisions", tre.Name);
                 return result;
             }
             catch (Exception ex)
@@ -700,31 +724,6 @@ namespace Submission.Api.Controllers
             Random random = new Random();
             string randomName = prefix + random.Next(1000, 9999);
             return randomName;
-        }
-
-        //For testing FetchAndStoreS3Object
-        public class testFetch
-        {
-            public string url { get; set; }
-            public string bucketName { get; set; }
-            public string key { get; set; }
-        }
-
-        [Authorize(Roles = "dare-control-admin")]
-        [HttpPost("TestFetchAndStoreObject")]
-        public async Task<IActionResult> TestFetchAndStoreObject(testFetch testf)
-        {
-            try
-            {
-                await _minioHelper.FetchAndStoreObject(testf.url, testf.bucketName, testf.key);
-
-                return Ok();
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Crashed", "TestFetchAandStoreObject");
-                throw;
-            }
         }
         
         [HttpGet("IsUserOnProject")]
@@ -810,14 +809,6 @@ namespace Submission.Api.Controllers
         {
             try
             {
-
-                //List<Project> searchResults = _DbContext.Projects
-                //    .Include(c => c.Users)
-                //    .Include(c => c.Submissions)
-                //     .Include(c => c.Tres)
-                //    .Where(c => c.Name.ToLower().Contains(searchString.Trim().ToLower()) ||
-                //    c.Users.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) ||
-                //    c.Tres.Any(t => t.Name.ToLower().Contains(searchString.Trim().ToLower())) || c.Submissions.Any(s => s.TesName.Contains(searchString.Trim().ToLower()))).ToList();
                 string normalizedSearchString = $"%{searchString.Trim()}%";
                 List<Project> searchResults = _DbContext.Projects
 
@@ -849,8 +840,97 @@ namespace Submission.Api.Controllers
 
         }
 
+        /// <summary>
+        /// Returns scoped S3 credentials for a project to an authenticated TRE admin.
+        /// Creates the RustFS user/policy on Submission if they do not exist yet.
+        /// </summary>
+        [HttpGet("GetProjectS3Credentials/{projectId}")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<ActionResult<ProjectS3AccessKey>> GetProjectS3Credentials(int projectId)
+        {
+            try
+            {
+                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var project = await _DbContext.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
+                if (project == null)
+                {
+                    return NotFound();
+                }
 
-        //End
-        
+                var isAssignedToTre = await _DbContext.Projects
+                    .AnyAsync(p => p.Id == projectId && p.Tres.Any(t => t.Id == tre.Id));
+                if (!isAssignedToTre)
+                {
+                    return Forbid();
+                }
+
+                if (string.IsNullOrWhiteSpace(project.SubmissionBucket) ||
+                    string.IsNullOrWhiteSpace(project.OutputBucket))
+                {
+                    return BadRequest("Project is missing S3 bucket configuration.");
+                }
+
+                // Returns full credential bundle (access key + secret + buckets), creating on RustFS if missing.
+                var projectS3Credentials = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                    project.Id,
+                    project.Name,
+                    project.SubmissionBucket,
+                    project.OutputBucket);
+
+                if (projectS3Credentials == null)
+                {
+                    return StatusCode(500, "Failed to ensure scoped S3 access key for project.");
+                }
+
+                return Ok(projectS3Credentials);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed for project {ProjectId}", "GetProjectS3Credentials", projectId);
+                throw;
+            }
+        }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("BackfillS3AccessKeys")]
+        public async Task<BoolReturn> BackfillS3AccessKeys()
+        {
+            var result = new BoolReturn { Result = true };
+            try
+            {
+                var projects = await _DbContext.Projects
+                    .Where(p => p.SubmissionBucket != null && p.OutputBucket != null)
+                    .ToListAsync();
+
+                var created = 0;
+                foreach (var project in projects)
+                {
+                    var accessKey = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
+                        project.Id,
+                        project.Name,
+                        project.SubmissionBucket!,
+                        project.OutputBucket!);
+
+                    if (accessKey != null)
+                    {
+                        created++;
+                    }
+                }
+
+                Log.Information(
+                    "{Function} Backfilled scoped S3 access keys for {Created}/{Total} projects",
+                    "BackfillS3AccessKeys",
+                    created,
+                    projects.Count);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed", "BackfillS3AccessKeys");
+                result.Result = false;
+            }
+
+            return result;
+        }
+
     }
 }
