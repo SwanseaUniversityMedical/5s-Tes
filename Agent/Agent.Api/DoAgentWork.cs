@@ -532,8 +532,20 @@ namespace Agent.Api
                                     try
                                     {
                                         var project = aSubmission.Project.Name;
+
+                                        // Ephemeral S3 credentials are scoped to the project's TRE
+                                        // buckets, so pass them on the kickoff payload for the DMN to
+                                        // emit into the s3 credential branch. The workload-facing S3
+                                        // endpoint is taken from config (MinioTRESettings) rather than
+                                        // hardcoded, so it travels with the credential too.
+                                        var treProjectForCreds = _dbContext.Projects
+                                            .FirstOrDefault(x => x.SubmissionProjectId == aSubmission.Project.Id);
+
                                         await TriggerStartCredentialsAsync(aSubmission.Id, project,
-                                            aSubmission.SubmittedBy.Id);
+                                            aSubmission.SubmittedBy.Id,
+                                            treProjectForCreds?.SubmissionBucketTre,
+                                            treProjectForCreds?.OutputBucketTre,
+                                            _config["MinioTRESettings:Url"]);
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);
                                     }
                                     catch (Exception ex)
@@ -889,6 +901,61 @@ namespace Agent.Api
                                                 Log.Information(
                                                     $"Injected credentials into environment variables for {aSubmission.Id}");
                                             }
+
+                                            // S3/RustFS ephemeral credentials are also exposed under the
+                                            // conventional AWS/MinIO env var names so a standard S3 client in
+                                            // the workload container picks them up without bespoke wiring. The
+                                            // generic loop above still injects the raw accessKey/secretKey/
+                                            // endPoint/bucket keys for tools that read those directly.
+                                            if (credentials != null &&
+                                                credentials.TryGetValue("s3", out var s3Creds) && s3Creds != null)
+                                            {
+                                                string S3Val(string k) =>
+                                                    s3Creds.TryGetValue(k, out var v) ? v?.ToString() ?? string.Empty
+                                                                                      : string.Empty;
+
+                                                var s3AccessKey = S3Val("accessKey");
+                                                var s3SecretKey = S3Val("secretKey");
+                                                var s3Endpoint = S3Val("endPoint");
+                                                var s3SubmissionBucket = S3Val("submissionBucket");
+                                                var s3OutputBucket = S3Val("outputBucket");
+
+                                                if (!string.IsNullOrEmpty(s3AccessKey))
+                                                {
+                                                    Executor.Env["AWS_ACCESS_KEY_ID"] = s3AccessKey;
+                                                    Executor.Env["MINIO_ACCESS_KEY"] = s3AccessKey;
+                                                }
+
+                                                if (!string.IsNullOrEmpty(s3SecretKey))
+                                                {
+                                                    Executor.Env["AWS_SECRET_ACCESS_KEY"] = s3SecretKey;
+                                                    Executor.Env["MINIO_SECRET_KEY"] = s3SecretKey;
+                                                }
+
+                                                if (!string.IsNullOrEmpty(s3Endpoint))
+                                                {
+                                                    Executor.Env["AWS_ENDPOINT_URL"] = s3Endpoint;
+                                                    Executor.Env["AWS_S3_ENDPOINT"] = s3Endpoint;
+                                                    Executor.Env["MINIO_ENDPOINT"] = s3Endpoint;
+                                                }
+
+                                                // Region comes from config (MinioTRESettings); standard
+                                                // S3 SDKs require one. Fall back to the RustFS/MinIO default.
+                                                var s3Region = _config["MinioTRESettings:AWSRegion"];
+                                                if (string.IsNullOrEmpty(s3Region)) s3Region = "us-east-1";
+                                                Executor.Env["AWS_REGION"] = s3Region;
+                                                Executor.Env["AWS_DEFAULT_REGION"] = s3Region;
+
+                                                if (!string.IsNullOrEmpty(s3SubmissionBucket))
+                                                    Executor.Env["SUBMISSION_BUCKET"] = s3SubmissionBucket;
+
+                                                if (!string.IsNullOrEmpty(s3OutputBucket))
+                                                    Executor.Env["OUTPUT_BUCKET"] = s3OutputBucket;
+
+                                                Log.Information(
+                                                    "Injected standard S3 env vars for submission {SubId}",
+                                                    aSubmission.Id);
+                                            }
                                         }
 
                                         else
@@ -968,7 +1035,8 @@ namespace Agent.Api
             }
         }
 
-        private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
+        private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId,
+            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null)
         {
             var payload = new
             {
@@ -978,7 +1046,10 @@ namespace Agent.Api
                     {
                         project = projectName,
                         user = userId.ToString(),
-                        submissionId = submissionId.ToString()
+                        submissionId = submissionId.ToString(),
+                        submissionBucket = submissionBucket ?? string.Empty,
+                        outputBucket = outputBucket ?? string.Empty,
+                        endPoint = endPoint ?? string.Empty
                     }
                 }
             };
