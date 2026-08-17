@@ -43,7 +43,7 @@ if (string.IsNullOrWhiteSpace(encryptionSettings.Key))
 builder.Services.AddSingleton(encryptionSettings);
 builder.Services.AddScoped<IEncDecHelper, EncDecHelper>();
 
-builder.Services.AddSingleton(new AutomaticRetryAttribute() { Attempts = 3 });
+builder.Services.AddSingleton(new AutomaticRetryAttribute() { Attempts = 0 });
 
 string hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
 builder.Services.AddHangfire((provider, config) =>
