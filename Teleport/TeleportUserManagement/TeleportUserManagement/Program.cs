@@ -20,7 +20,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHttpContextAccessor();
 
-builder.Services.AddSingleton<ILdapService, LdapService>();
+builder.Services.AddScoped<ILdapService, LdapService>();
 builder.Services.AddScoped<IUserService, UserService>();
 builder.Services.AddScoped<ISubmissionClientHelper, SubmissionClientHelper>();
 

@@ -28,7 +28,7 @@ namespace TeleportUserManagement.Services
         List<string> GetGroupMemberUsernames(string groupName);
     }
 
-    public class LdapService : ILdapService
+    public class LdapService : ILdapService, IDisposable
     {
         private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly ILogger log;
@@ -663,5 +663,11 @@ namespace TeleportUserManagement.Services
         }
 
         #endregion
+
+        public void Dispose()
+        {
+            ldapConnection?.Disconnect(); 
+            GC.SuppressFinalize(this);
+        }
     }
 }
