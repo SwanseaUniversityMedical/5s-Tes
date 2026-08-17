@@ -1,4 +1,4 @@
-using System.Security.Claims;
+﻿using System.Security.Claims;
 using FiveSafesTes.Core.Models;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.EntityFrameworkCore;
@@ -31,26 +31,29 @@ namespace Submission.Api.Services
 
         public async Task<Tre> GetUserTre(ClaimsPrincipal loggedInUser)
         {
-            var userName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = await dbContext.Tres
-              .FirstOrDefaultAsync(x => x.AdminUsername.ToLower() == userName.ToLower()) || (("service-account-" + x.KeycloakClientId).ToLower() == userName.ToLower()));
+          var userName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
+          var tre = await dbContext.Tres
+            .FirstOrDefaultAsync(x =>
+              x.AdminUsername.ToLower() == userName.ToLower() ||
+              (("service-account-" + x.KeycloakClientId).ToLower() == userName.ToLower()));
 
-            if (tre == null)
-            {
-                throw new Exception("User " + userName + " doesn't have a tre");
-            }
+          if (tre == null)
+          {
+            throw new Exception("User " + userName + " doesn't have a tre");
+          }
 
-            return tre;
+          return tre;
         }
 
         /// <summary>
         /// Determine whether a user has a TRE without throwing an exception.
         /// </summary>
-        public static bool IsUserAssignedTRE(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
+        public async Task<bool> IsUserAssignedTRE(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
         {
             try
             {
-                Tre? tre = GetUserTre(loggedInUser, dbContext);
+                Tre? tre = await GetUserTre(loggedInUser);
+                
                 return true;
             }
             catch (Exception)

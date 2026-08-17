@@ -32,7 +32,7 @@ namespace Submission.Api.Controllers
         protected readonly IHttpContextAccessor _httpContextAccessor;
         private readonly ControllerHelpers _controllerHelpers;
 
-        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor)
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor, ControllerHelpers controllerHelpers)
         {
 
             _DbContext = applicationDbContext;
@@ -62,7 +62,6 @@ namespace Submission.Api.Controllers
                 project.StartDate = project.StartDate.ToUniversalTime();
                 project.EndDate = project.EndDate.ToUniversalTime();
                 project.ProjectDescription = project.ProjectDescription.Trim();
-                
                project.FormData = data.FormIoString;
                 
 
@@ -668,7 +667,7 @@ namespace Submission.Api.Controllers
             try
             {
                 var result = new BoolReturn();
-                // var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
+                var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
                 var tre = await _controllerHelpers.GetUserTre(User);
 
                 foreach (var item in decisions)
@@ -850,7 +849,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var tre = await _controllerHelpers.GetUserTre(User);
                 var project = await _DbContext.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
                 if (project == null)
                 {
