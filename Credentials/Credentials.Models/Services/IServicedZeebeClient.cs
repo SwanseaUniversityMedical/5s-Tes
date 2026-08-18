@@ -10,6 +10,8 @@ namespace Credentials.Models.Services
 
         Task PublishMessageAsync(string messageName, string correlationKey, object variables);
 
+        Task CreateProcessInstanceAsync(string bpmnProcessId, object variables);
+
         Task PrintTopologyAsync();
     }
 }
