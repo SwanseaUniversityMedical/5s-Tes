@@ -1,11 +1,12 @@
-using Serilog;
-using Credentials.Camunda.Extensions;
-using Credentials.Camunda.Settings;
-using Zeebe.Client;
 using System.Reflection;
-using Zeebe.Client.Accelerator.Extensions;
+using Credentials.Camunda.Extensions;
+using Credentials.Camunda.Models;
 using Credentials.Camunda.Services;
+using Credentials.Camunda.Settings;
+using Serilog;
 using Serilog.Events;
+using Zeebe.Client;
+using Zeebe.Client.Accelerator.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 var configuration = GetConfiguration();
@@ -56,7 +57,13 @@ await Host.CreateDefaultBuilder(args)
 
         services.Configure<LdapSettings>(configuration.GetSection("LdapSettings"));
         services.Configure<VaultSettings>(configuration.GetSection("VaultSettings"));
-        services.AddHttpClient();
+
+      var FlowSettings = new FlowSettings();
+      configuration.GetSection(nameof(FlowSettings)).Bind(FlowSettings);
+      services.AddSingleton(FlowSettings);
+
+
+      services.AddHttpClient();
         services.AddBusinessServices(configuration);
         services.ConfigureCamunda(configuration);        
 
