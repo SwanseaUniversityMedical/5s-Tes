@@ -1,11 +1,16 @@
-﻿using Agent.Api.Repositories.DbContexts;
+using System.Text.Json;
+using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
+using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
+using Serilog;
 
 namespace Agent.Api.Controllers
 {
@@ -14,25 +19,56 @@ namespace Agent.Api.Controllers
     [ApiController]
     public class SubmissionCredentialsController : Controller
     {
-
-        private readonly ApplicationDbContext _DbContext;
         private readonly IEncDecHelper _encDecHelper;
         private readonly KeycloakTokenHelper _keycloakTokenHelper;
+        private readonly IConfigurationService _configurationService;
+        private readonly VaultConfigurationProvider _vaultConfigProvider;
+        private readonly SubmissionKeyCloakSettings _keycloakSettings;
+        private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
+        private readonly IDareClientWithoutTokenHelper _clientHelper;
 
-        public SubmissionCredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, SubmissionKeyCloakSettings keycloakSettings)
+        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IOptionsMonitor<TreOnboardingConfig> onboardingConfig, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
         {
+            _keycloakSettings = settings.CurrentValue;
+            _onboardingConfig = onboardingConfig;
+
             _encDecHelper = encDec;
-            _DbContext = applicationDbContext;
-            _keycloakTokenHelper = new KeycloakTokenHelper(keycloakSettings.BaseUrl, keycloakSettings.ClientId,
-                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakSettings.KeycloakDemoMode);
-            
+            var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
+            _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
+                _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode);
+            _configurationService = configurationService;
+            _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
+            _clientHelper = clientHelper;
         }
 
         [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("CheckCredentialsAreValid")]
         public async Task<BoolReturn> CheckCredentialsAreValidAsync()
         {
-            return await ControllerHelpers.CheckCredentialsAreValid(_keycloakTokenHelper, _encDecHelper, _DbContext, CredentialType.Submission);
+            try
+            {
+                var result = new BoolReturn() { Result = false };
+
+                if (_onboardingConfig.CurrentValue.IsConfigurationImported
+                    || _keycloakSettings.ConfigInputMethod == ConfigInputMethod.Upload)
+                {
+                    result.Result = true;
+                    return result;
+                }
+
+                if (!string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc))
+                {
+                    var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _encDecHelper.Decrypt(_keycloakSettings.PasswordEnc), "dare-tre-admin");
+                    result.Result = !string.IsNullOrWhiteSpace(token.token);
+                }
+
+                return result;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash", "CheckCredentialsAreValid");
+                throw;
+            }
         }
 
         
@@ -41,8 +77,58 @@ namespace Agent.Api.Controllers
         [HttpPost("UpdateCredentials")]
         public async Task<KeycloakCredentials> UpdateCredentials(KeycloakCredentials creds)
         {
-            creds = await ControllerHelpers.UpdateCredentials(creds, _keycloakTokenHelper, _DbContext, _encDecHelper, CredentialType.Submission, "dare-tre-admin");
+            var token = await _keycloakTokenHelper.GetTokenForUser(creds.UserName, creds.PasswordEnc, "dare-tre-admin");
+
+            if (string.IsNullOrWhiteSpace(token.token))
+            {
+                Log.Information($"UpdateCredentials creds.Valid = false  for {creds.UserName}");
+                creds.ErrorMessage = token.Errorstring;
+                creds.Valid = false;
+                return creds;
+            }
+
+            creds.Valid = true;
+
+            object credsToSave = new
+            {
+                Username = creds.UserName,
+                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc),
+                ConfigInputMethod = ConfigInputMethod.Manual
+            };
+
+            object uploadDataToSave = new { IsConfigurationImported = true };
+
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(SubmissionKeyCloakSettings));
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
+
+            // Reload config to apply updated credentials immediately.
+            await _vaultConfigProvider.LoadAsync();
+
             return creds;
+        }
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpPost("WipeVaultCredentials")]
+        public async Task<BoolReturn> WipeVaultCredentials()
+        {
+            // Wipe any previously uploaded keycloak settings from vault.
+            await _configurationService.RemoveConfigurationFromVault(nameof(SubmissionKeyCloakSettings));
+
+            // We no longer have any config so set imported to false.
+            object uploadDataToSave = new { IsConfigurationImported = false };
+            await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(uploadDataToSave), nameof(TreOnboardingConfig));
+
+            // Reload config to reflect changes.
+            await _vaultConfigProvider.LoadAsync();
+            return new() { Result = true };
+        }
+
+
+        [Authorize(Roles = "dare-tre-admin")]
+        [HttpGet("IsUserAssignedTRE")]
+        public async Task<BoolReturn> IsUserAssignedTRE()
+        {
+            return await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Tre/IsUserAssignedTRE");
         }
     }
 }
