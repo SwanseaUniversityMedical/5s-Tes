@@ -1,0 +1,103 @@
+{{- if .Values.web.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-web
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: web
+spec:
+  replicas: {{ .Values.web.replicas }}
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: web
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: web
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+        - name: tmp
+          emptyDir: {}
+        - name: next-cache
+          emptyDir: {}
+      containers:
+        - name: web
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.web.image.pullPolicy }}
+          volumeMounts:
+            {{- if .Values.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.trustClusterCa.mountPath }}
+              subPath: {{ .Values.trustClusterCa.key }}
+            {{- end }}
+            - name: tmp
+              mountPath: /tmp
+            - name: next-cache
+              mountPath: /app/.next/cache
+          ports:
+            - name: http
+              containerPort: {{ .Values.web.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+            initialDelaySeconds: 5
+          env:
+            {{- if .Values.trustClusterCa.enabled }}
+            # Node does not read the system trust store; point it at the
+            # mounted bundle.
+            - name: NODE_EXTRA_CA_CERTS
+              value: "{{ .Values.trustClusterCa.mountPath }}"
+            {{- end }}
+            - name: AGENT_API_URL
+              value: "{{ .Values.web.apiAddress }}"
+            - name: BETTER_AUTH_URL
+              value: "{{ .Values.web.publicUrl }}"
+            - name: BETTER_AUTH_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.web.secretName }}
+                  key: betterAuthSecret
+            - name: KEYCLOAK_URL
+              value: "{{ .Values.global.config.treKeycloak.url }}"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "{{ .Values.web.keycloak.clientId }}"
+            - name: KEYCLOAK_CLIENT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.web.secretName }}
+                  key: keycloakClientSecret
+            - name: NEXT_PUBLIC_KEYCLOAK_URL
+              value: "{{ .Values.global.config.treKeycloak.url }}"
+            - name: NEXT_PUBLIC_KEYCLOAK_REALM
+              value: "{{ .Values.global.config.treKeycloak.realm }}"
+            - name: NEXT_PUBLIC_HELPDESK_URL
+              value: "{{ .Values.web.helpdeskUrl }}"
+          resources:
+            {{- toYaml .Values.web.resources | nindent 12 }}
+{{- end }}

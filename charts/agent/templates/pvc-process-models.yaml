@@ -1,0 +1,22 @@
+{{- if or .Values.api.enabled .Values.camundaWorker.enabled -}}
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "agent.fullname" . }}-process-models
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    {{- with .Values.persistentVolumeLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  {{- if typeIs "string" .Values.processModelsStorage.storageClassName }}
+  storageClassName: {{ .Values.processModelsStorage.storageClassName | quote }}
+  {{- end }}
+  # ReadWriteMany: the API and the Camunda worker pods both read and write
+  # the DMN process models.
+  accessModes:
+    - ReadWriteMany
+  resources:
+    requests:
+      storage: {{ .Values.processModelsStorage.size | quote }}
+{{- end }}

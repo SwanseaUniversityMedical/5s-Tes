@@ -1,0 +1,249 @@
+# Default values for the standalone `agent` chart.
+# The agent-stack chart overrides these through an ArgoCD `Application`.
+# The defaults below are local development settings, so that
+# `helm template ./charts/agent` renders without any extra input.
+
+nameOverride: ""
+# The stack sets this so that service DNS names stay `agent-<component>`.
+fullnameOverride: "agent"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podSecurityContext:
+  fsGroup: 1000
+
+# Organisation security baseline. Do not weaken this without a reason
+# written in the pull request.
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Mounts a cluster certificate bundle over every container's trust store, so
+# the apps trust internal HTTPS addresses. The ConfigMap is provided by the
+# cluster, not created by this chart.
+trustClusterCa:
+  enabled: true
+  configMapName: overlay-castore
+  key: ca-certificates.crt
+  mountPath: /etc/ssl/certs/ca-certificates.crt
+
+# Labels put on every PersistentVolumeClaim. The cluster's backup tool uses
+# these to decide what to back up; the labels alone do nothing.
+persistentVolumeLabels:
+  hiru.io/backup: "enabled"
+
+# DMN process models, shared read-write by the API (which edits them through
+# the UI) and the Camunda worker (which executes them). Requires a
+# ReadWriteMany-capable storage class.
+processModelsStorage:
+  size: "1Gi"
+  # null means "use the cluster default". Set a string to choose one.
+  storageClassName: null
+  mountPath: /app/ProcessModels
+
+# Prometheus pushgateway the .NET components push metrics to.
+monitoring:
+  enabled: true
+  pushgatewayUrl: "http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics"
+
+global:
+  # Image tag used when a component does not pin its own.
+  tag: "3.1.1"
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  # Settings that more than one component needs. Defined once, here.
+  config:
+    seqUrl: "http://seq:5341"
+    logLevel: "Information"
+    # Keycloak that holds the TRE realm (and the egress realm).
+    treKeycloak:
+      url: "http://keycloak.localtest.me:8085"
+      realm: "Dare-TRE"
+    keycloakDemoMode: false
+    # Public URL of the agent API; used in onboarding data and by the UIs.
+    treApiPublicUrl: "http://agent-api.localtest.me"
+    rabbitmq:
+      host: "rabbitmq"
+      username: "rabbitmq"
+    vault:
+      url: "http://vault:8200"
+      secretEngine: "secret"
+    # Zeebe gRPC gateway of the Camunda the API and worker connect to.
+    zeebeGatewayAddress: "orchestration:26500"
+    proxy:
+      enabled: false
+      url: ""
+      bypass: "agent-api,seq"
+
+# --------------------------------------------------------------------
+# One block per component. Only the settings unique to that component.
+# --------------------------------------------------------------------
+
+api:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  # Must match the port the ASP.NET app listens on inside the container.
+  containerPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
+  service:
+    type: ClusterIP
+  secretName: agent-api-secret
+  ingress:
+    enabled: true
+    host: "agent-api.localtest.me"
+  # Address of the remote Submission API this TRE serves. An external URL,
+  # not an in-cluster name, unless both layers share a cluster.
+  submissionApiUrl: "http://submission-api.localtest.me"
+  treName: "SAIL"
+  treKeycloak:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
+  # Keycloak that holds the Submission (control) realm, on the Submission
+  # side. Often a different Keycloak from the TRE one.
+  submissionKeycloak:
+    url: "http://keycloak.localtest.me:8085"
+    realm: "Dare-Control"
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+  vaultConfigPath: "config"
+  egress:
+    apiAddress: "http://egress-api"
+    keycloak:
+      realm: "Data-Egress"
+      clientId: "Data-Egress-API"
+  tes:
+    useTesk: true
+    apiUrl: "http://tesk.localtest.me/v1/tasks"
+    outputBucketPrefix: "s3://"
+  jobs:
+    syncSchedule: 10
+    scanSchedule: 10
+    healthCheckSchedule: 1
+    daysBeforeHealthLogDeletion: 30
+  hangfire:
+    enableExternal: true
+    username: "admin"
+  s3Tre:
+    url: "http://rustfs-tre:9002"
+    adminConsole: "http://rustfs-tre:9003"
+  s3Sub:
+    # S3 API of the Submission layer's object store; an external URL in a
+    # normal split deployment.
+    url: "http://rustfs-submission.localtest.me"
+  credentialWebhooks:
+    start: "http://connectors:8080/inbound/StartCredentials"
+    revoke: "http://connectors:8080/inbound/RevokeCredentials"
+  features:
+    seedDemoData: false
+    ephemeralCredentials: true
+  onboardingConfigImported: false
+
+ui:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-ui
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  containerPort: 8080
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
+  service:
+    type: ClusterIP
+  secretName: agent-ui-secret
+  ingress:
+    enabled: true
+    host: "agent.localtest.me"
+  apiAddress: "http://agent-api"
+  uiName: "Five Safes TES"
+  keycloak:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
+  sslCookies: false
+  httpsRedirect: false
+
+web:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  containerPort: 3000
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
+  service:
+    type: ClusterIP
+  secretName: agent-web-secret
+  ingress:
+    enabled: true
+    host: "agent-web.localtest.me"
+  apiAddress: "http://agent-api"
+  # Public URL of this UI itself; better-auth builds callbacks from it.
+  publicUrl: "http://agent-web.localtest.me"
+  keycloak:
+    clientId: "Dare-TRE-UI"
+  helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
+
+camundaWorker:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/credentials-camunda
+    tag: ""
+    pullPolicy: IfNotPresent
+  replicas: 1
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+      ephemeral-storage: 256Mi
+    limits:
+      memory: 1Gi
+      ephemeral-storage: 1Gi
+  secretName: agent-camunda-worker-secret
+  ldap:
+    host: "openldap"
+    port: 389
+    adminDn: "cn=admin,dc=camundaephemeral,dc=local"
+    baseDn: "dc=camundaephemeral,dc=local"
+    userOu: "ou=Users"
+    useSsl: false

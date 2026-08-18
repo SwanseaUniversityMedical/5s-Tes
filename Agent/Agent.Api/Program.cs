@@ -26,6 +26,7 @@ using Microsoft.FeatureManagement;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
+using Prometheus;
 using Serilog;
 using Serilog.Events;
 using VaultSharp;
@@ -48,6 +49,8 @@ if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntif
         .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
         .DisableAutomaticKeyGeneration();
 }
+
+builder.Services.AddHealthChecks();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
@@ -265,6 +268,16 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new MetricPusher(new MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto
@@ -338,6 +351,7 @@ app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
+app.MapHealthChecks("/health");
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

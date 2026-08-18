@@ -1,0 +1,257 @@
+{{- if .Values.api.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-api
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  replicas: {{ .Values.api.replicas }}
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      automountServiceAccountToken: false
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        {{- if .Values.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+        - name: process-models
+          persistentVolumeClaim:
+            claimName: {{ include "agent.fullname" . }}-process-models
+        - name: tmp
+          emptyDir: {}
+      containers:
+        - name: api
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          volumeMounts:
+            {{- if .Values.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.trustClusterCa.mountPath }}
+              subPath: {{ .Values.trustClusterCa.key }}
+            {{- end }}
+            - name: process-models
+              mountPath: {{ .Values.processModelsStorage.mountPath }}
+            - name: tmp
+              mountPath: /tmp
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+          env:
+            {{- if .Values.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-{{ include "agent.fullname" . }}-api
+            {{- end }}
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: KeycloakDemoMode
+              value: "{{ .Values.global.config.keycloakDemoMode }}"
+            - name: TreName
+              value: "{{ .Values.api.treName }}"
+            - name: Features__SeedDemoData
+              value: "{{ .Values.api.features.seedDemoData }}"
+            - name: Features__EphemeralCredentials
+              value: "{{ .Values.api.features.ephemeralCredentials }}"
+            - name: TreOnboardingConfig__IsConfigurationImported
+              value: "{{ .Values.api.onboardingConfigImported }}"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: connectionString
+            - name: ConnectionStrings__CredentialsConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: credentialsConnectionString
+            - name: EncryptionSettings__Key
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: encryptionKey
+            - name: RabbitMQ__HostAddress
+              value: "{{ .Values.global.config.rabbitmq.host }}"
+            - name: RabbitMQ__Username
+              value: "{{ .Values.global.config.rabbitmq.username }}"
+            - name: RabbitMQ__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitPassword
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vault.url }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: vaultToken
+            - name: VaultSettings__TimeoutSeconds
+              value: "30"
+            - name: VaultSettings__SecretEngine
+              value: "{{ .Values.global.config.vault.secretEngine }}"
+            - name: VaultSettings__EnableRetry
+              value: "true"
+            - name: VaultSettings__MaxRetryAttempts
+              value: "3"
+            - name: VaultSettings__VaultConfigPath
+              value: "{{ .Values.api.vaultConfigPath }}"
+            - name: VaultSettings__VaultConfigReloadInterval
+              value: "10"
+            - name: ApiEndpoints__SubmissionApiUrl
+              value: "{{ .Values.api.submissionApiUrl }}"
+            - name: ApiEndpoints__EgressApiUrl
+              value: "{{ .Values.api.egress.apiAddress }}"
+            - name: ApiEndpoints__TreApiUrl
+              value: "{{ .Values.global.config.treApiPublicUrl }}"
+            - name: AgentSettings__UseTESK
+              value: "{{ .Values.api.tes.useTesk }}"
+            - name: AgentSettings__TESKAPIURL
+              value: "{{ .Values.api.tes.apiUrl }}"
+            - name: AgentSettings__TESKOutputBucketPrefix
+              value: "{{ .Values.api.tes.outputBucketPrefix }}"
+            - name: JobSettings__syncSchedule
+              value: "{{ .Values.api.jobs.syncSchedule }}"
+            - name: JobSettings__scanSchedule
+              value: "{{ .Values.api.jobs.scanSchedule }}"
+            - name: JobSettings__healthCheckSchedule
+              value: "{{ .Values.api.jobs.healthCheckSchedule }}"
+            - name: JobSettings__DaysBeforeHealthLogDeletion
+              value: "{{ .Values.api.jobs.daysBeforeHealthLogDeletion }}"
+            - name: Hangfire__EnableExternalHangfire
+              value: "{{ .Values.api.hangfire.enableExternal }}"
+            - name: Hangfire__Username
+              value: "{{ .Values.api.hangfire.username }}"
+            - name: Hangfire__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: hangfirePassword
+            - name: MinioTRESettings__Url
+              value: "{{ .Values.api.s3Tre.url }}"
+            - name: MinioTRESettings__AdminConsole
+              value: "{{ .Values.api.s3Tre.adminConsole }}"
+            - name: MinioTRESettings__AccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3TreAccessKey
+            - name: MinioTRESettings__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3TreSecretKey
+            - name: MinioSubSettings__Url
+              value: "{{ .Values.api.s3Sub.url }}"
+            - name: TreKeyCloakSettings__Authority
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
+            - name: TreKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}/.well-known/openid-configuration"
+            - name: TreKeyCloakSettings__BaseUrl
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.global.config.treKeycloak.realm }}"
+            - name: TreKeyCloakSettings__ClientId
+              value: "{{ .Values.api.treKeycloak.clientId }}"
+            - name: TreKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: treKeycloakClientSecret
+            - name: TreKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.treKeycloak.validAudiences }}"
+            - name: TreKeyCloakSettings__Proxy
+              value: "{{ .Values.global.config.proxy.enabled }}"
+            - name: TreKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.global.config.proxy.url }}"
+            - name: TreKeyCloakSettings__BypassProxy
+              value: "{{ .Values.global.config.proxy.bypass }}"
+            - name: DataEgressKeyCloakSettings__BaseUrl
+              value: "{{ .Values.global.config.treKeycloak.url }}/realms/{{ .Values.api.egress.keycloak.realm }}"
+            - name: DataEgressKeyCloakSettings__ClientId
+              value: "{{ .Values.api.egress.keycloak.clientId }}"
+            - name: DataEgressKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: egressKeycloakClientSecret
+            - name: DataEgressKeyCloakSettings__Proxy
+              value: "{{ .Values.global.config.proxy.enabled }}"
+            - name: DataEgressKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.global.config.proxy.url }}"
+            - name: SubmissionKeyCloakSettings__Authority
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__BaseUrl
+              value: "{{ .Values.api.submissionKeycloak.url }}/realms/{{ .Values.api.submissionKeycloak.realm }}"
+            - name: SubmissionKeyCloakSettings__ClientId
+              value: "{{ .Values.api.submissionKeycloak.clientId }}"
+            - name: SubmissionKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: submissionKeycloakClientSecret
+            - name: SubmissionKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.submissionKeycloak.validAudiences }}"
+            - name: SubmissionKeyCloakSettings__Proxy
+              value: "{{ .Values.global.config.proxy.enabled }}"
+            - name: SubmissionKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.global.config.proxy.url }}"
+            - name: SubmissionKeyCloakSettings__BypassProxy
+              value: "{{ .Values.global.config.proxy.bypass }}"
+            - name: CredentialAPISettings__StartWebhookUrl
+              value: "{{ .Values.api.credentialWebhooks.start }}"
+            - name: CredentialAPISettings__RevokeWebhookUrl
+              value: "{{ .Values.api.credentialWebhooks.revoke }}"
+            - name: DmnPath__Path
+              value: "{{ .Values.processModelsStorage.mountPath }}"
+            - name: ZeebeBootstrap__Client__GatewayAddress
+              value: "{{ .Values.global.config.zeebeGatewayAddress }}"
+            - name: ZeebeBootstrap__Worker__MaxJobsActive
+              value: "5"
+            - name: ZeebeBootstrap__Worker__TimeoutInMilliseconds
+              value: "5000"
+            - name: ZeebeBootstrap__Worker__PollIntervalInMilliseconds
+              value: "1000"
+            - name: ZeebeBootstrap__Worker__PollingTimeoutInMilliseconds
+              value: "5000"
+            - name: ZeebeBootstrap__Worker__RetryTimeoutInMilliseconds
+              value: "5000"
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- end }}

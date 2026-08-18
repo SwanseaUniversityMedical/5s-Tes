@@ -1,4 +1,5 @@
 using Microsoft.IdentityModel.Logging;
+using Prometheus;
 using Serilog;
 using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
@@ -297,6 +298,17 @@ try
         "Program", treKeyCloakSettings.Authority, treKeyCloakSettings.MetadataAddress, treKeyCloakSettings.ClientId,
         treKeyCloakSettings.ValidAudiences);
     var app = builder.Build();
+
+    if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+    {
+        var pusher = new MetricPusher(new MetricPusherOptions
+        {
+            Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+            Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+        });
+        pusher.Start();
+    }
+
     app.UseCors();
     app.UseForwardedHeaders();
 
