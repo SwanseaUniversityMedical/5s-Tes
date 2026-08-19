@@ -726,11 +726,11 @@ namespace FiveSafesTes.Core.Services
                 if (string.IsNullOrEmpty(secretKey))
                 {
                     // Generate secret key automatically
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 }
                 else
                 {
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey} {secretKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)} {ShellQuote(secretKey)}";
                 }
 
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
@@ -1041,7 +1041,8 @@ namespace FiveSafesTes.Core.Services
         {
             if (!_isMinioClientInitialized)
             {
-                var command = $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {_minioSettings.AccessKey} {_minioSettings.SecretKey}";
+                var command =
+                    $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {ShellQuote(_minioSettings.AccessKey)} {ShellQuote(_minioSettings.SecretKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -1058,6 +1059,9 @@ namespace FiveSafesTes.Core.Services
             }
             return true;
         }
+
+        private static string ShellQuote(string value) =>
+            "'" + value.Replace("'", "'\\''") + "'";
 
         private async Task<MinioCommandResult> ExecuteMinioCommandAsync(string command, CancellationToken cancellationToken = default)
         {
