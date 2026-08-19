@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Credentials.Models.Models.Zeebe;
+using Serilog;
 using Zeebe.Client;
 
 namespace Credentials.Models.Services
@@ -78,15 +79,25 @@ namespace Credentials.Models.Services
         // Variables are serialised to JSON and passed as the initial process variables.
         public async Task CreateProcessInstanceAsync(string bpmnProcessId, object variables)
         {
+            Log.Information("Inside CreateProcessInstanceAsync");
             var variablesJson = JsonSerializer.Serialize(variables);
-
-            await _IZeebeClient.NewCreateProcessInstanceCommand()
+            try
+            {
+              Log.Information("Creating ProcessInstance {processid}",bpmnProcessId);
+              await _IZeebeClient.NewCreateProcessInstanceCommand()
                 .BpmnProcessId(bpmnProcessId)
                 .LatestVersion()
                 .Variables(variablesJson)
                 .Send();
 
-            Console.WriteLine($"Created process instance: {bpmnProcessId}");
+              Log.Information($"Created process instance: {bpmnProcessId}");
+            }
+            catch (Exception e)
+            {
+              Log.Error(e, "Failed to create process instance");
+              throw;
+            }
+           
         }
 
         private static IServiceProvider serviceProvider;
