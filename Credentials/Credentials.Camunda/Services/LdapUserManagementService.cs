@@ -27,28 +27,27 @@ namespace Credentials.Camunda.Services
             LdapDirectoryIdentifier identifier = null;
             if (_config.Port == -1)
             {
-                Log.Information("_config.Host > " + _config.Host + " _config.connectionless >  " + _config.connectionless);
+                Log.Debug("Connecting via {Host}, connectionless {Connectionless}", _config.Host, _config.connectionless);
                 identifier = new LdapDirectoryIdentifier(_config.Host, fullyQualifiedDnsHostName : true, _config.connectionless);
             }
             else
             {
-                Log.Information("_config.Host > " + _config.Host + " _config.Port >  " + _config.Port);
+                Log.Debug("Connecting via {Host}:{Port}", _config.Host, _config.Port);
                 identifier = new LdapDirectoryIdentifier(_config.Host, _config.Port);
             }
 
             // Always use the identifier which contains both host and port information
             var connection = new LdapConnection(identifier);
 
-    
+
             connection.SessionOptions.ProtocolVersion = 3;
-            Log.Information("_config.UseSSL > " + _config.UseSSL);
+            Log.Debug("UseSSL {UseSSL}", _config.UseSSL);
             if (_config.UseSSL)
             {
                 connection.SessionOptions.SecureSocketLayer = true;
             }
 
             connection.AuthType = AuthType.Basic;
-            Log.Information("admin DN > " + _config.AdminDn);
 
             connection.Credential = new NetworkCredential(_config.AdminDn, _config.AdminPassword);
 
