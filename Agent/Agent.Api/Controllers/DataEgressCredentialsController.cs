@@ -15,16 +15,14 @@ namespace Agent.Api.Controllers
     [ApiController]
     public class DataEgressCredentialsController : Controller
     {
-        private readonly IEncDecHelper _encDecHelper;
         private readonly IConfigurationService _configurationService;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
         private readonly DataEgressKeyCloakSettings _keycloakSettings;
         public KeycloakTokenHelper _keycloakTokenHelper { get; set; }
         
 
-        public DataEgressCredentialsController(IEncDecHelper encDec, IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config)
+        public DataEgressCredentialsController(IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config)
         {
-            _encDecHelper = encDec;
             _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
@@ -55,7 +53,7 @@ namespace Agent.Api.Controllers
                 if (!string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc))
                 {
 
-                    var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _encDecHelper.Decrypt(_keycloakSettings.PasswordEnc), "dare-tre-admin");
+                    var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _keycloakSettings.PasswordEnc, "dare-tre-admin");
                     result.Result = !string.IsNullOrWhiteSpace(token.token);
                 }
 
@@ -87,7 +85,7 @@ namespace Agent.Api.Controllers
             object credsToSave = new
             {
                 Username = creds.UserName,
-                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc)
+                PasswordEnc = creds.PasswordEnc
             };
 
             await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave), nameof(DataEgressKeyCloakSettings));
