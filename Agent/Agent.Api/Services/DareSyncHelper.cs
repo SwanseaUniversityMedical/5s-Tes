@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Agent.Api.Repositories.DbContexts;
 using Credentials.Models.DbContexts;
 using FiveSafesTes.Core.Models;
@@ -261,10 +261,6 @@ namespace Agent.Api.Services
 
         }
 
-        /// <summary>
-        /// For each project assigned to this TRE, ensure scoped Submission S3 credentials
-        /// are present in TRE Vault (fetches from Submission Layer only when missing).
-        /// </summary>
         private async Task SyncProjectS3AccessKeys(List<Project> subprojs)
         {
             // Each sync handles its own errors and returns null on failure, so it is safe to fan out.

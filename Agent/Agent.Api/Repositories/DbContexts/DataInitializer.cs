@@ -1,7 +1,8 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Microsoft.Extensions.Options;
 using Serilog;
@@ -75,7 +76,10 @@ namespace Agent.Api.Repositories.DbContexts
           await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave),
             nameof(DataEgressKeyCloakSettings));
         }
-
+        object configurationFlag = new { IsConfigurationImported = true };
+        await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(configurationFlag),
+          nameof(TreOnboardingConfig));
+        
         // Refresh configuration with new values
         await _vaultConfigProvider.LoadAsync();
       }
