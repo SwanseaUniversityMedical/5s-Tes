@@ -534,6 +534,7 @@ namespace Agent.Api
                                     try
                                     {
                                         var project = aSubmission.Project.Name;
+                                        
                                         await TriggerStartCredentialsAsync(aSubmission.Id, project,
                                             aSubmission.SubmittedBy.Id);
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);
@@ -975,6 +976,7 @@ namespace Agent.Api
         // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)
         {
+          Log.Information("Inside Trigger StartCredentials creating dictionary");
             var variables = new Dictionary<string, object>
             {
                 ["project"] = projectName,
@@ -991,8 +993,18 @@ namespace Agent.Api
                 }
             };
 
-            await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
-            Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
+            Log.Information(variables.ToString());
+            try
+            {
+              await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
+              Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}",
+                submissionId);
+
+            }
+            catch (Exception ex)
+            {
+              Log.Error(ex.ToString());
+            }
         }
 
 
@@ -1064,6 +1076,7 @@ namespace Agent.Api
         // timer controls how long (seconds) the revoke process waits before expiring credentials.
         private async Task TriggerRevokeCredentialsAsync(int submissionId, string projectName, int user, int timer)
         {
+            
             var variables = new Dictionary<string, object>
             {
                 ["submissionId"] = submissionId.ToString(),
