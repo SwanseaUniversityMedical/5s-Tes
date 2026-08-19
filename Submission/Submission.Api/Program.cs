@@ -247,6 +247,7 @@ using (var scope = app.Services.CreateScope())
     var userService = scope.ServiceProvider.GetRequiredService<IKeycloakMinioUserService>();
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
 
+    
     db.Database.Migrate();
     var keycloakAdminService = scope.ServiceProvider.GetRequiredService<IKeycloakAdminService>();
     var vaultCredentialsService = scope.ServiceProvider.GetRequiredService<IVaultCredentialsService>();
