@@ -235,7 +235,7 @@ builder.Services.AddAuthentication(options =>
         options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
 
         options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata; 
-        options.IncludeErrorDetails = true;
+        options.IncludeErrorDetails = environment.IsDevelopment();
 
         options.TokenValidationParameters = TVP;
     });
