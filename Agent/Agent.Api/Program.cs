@@ -448,15 +448,10 @@ void AddServices(WebApplicationBuilder builder)
     }
 }
 
-var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
-
-if (extHangfire != null && extHangfire.ToLower() == "true")
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        Authorization = new List<IDashboardAuthorizationFilter>()
+    Authorization = new List<IDashboardAuthorizationFilter>()
         {
-            //new LocalRequestsOnlyAuthorizationFilter(),
             new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
             {
                 RequireSsl = false,
@@ -471,14 +466,8 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                     },
                 },
             }),
-        },
-        //IsReadOnlyFunc = (DashboardContext context) => true,
-    });
-}
-else
-{
-    app.UseHangfireDashboard();
-}
+        }
+});
 
 string healthCheckJobName = jobSettings.HealthCheckJobName;
 if (jobSettings.healthCheckSchedule == 0)
