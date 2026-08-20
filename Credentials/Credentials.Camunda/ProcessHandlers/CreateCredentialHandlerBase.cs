@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +8,7 @@ using Credentials.Models.DbContexts;
 using Credentials.Models.Models;
 using Credentials.Models.Models.Zeebe;
 using Zeebe.Client.Accelerator.Abstractions;
+using System.Security.Cryptography;
 
 namespace Credentials.Camunda.ProcessHandlers
 {
@@ -173,9 +174,7 @@ namespace Credentials.Camunda.ProcessHandlers
         protected static string GenerateSecurePassword()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-            var random = new Random();
-            return new string(Enumerable.Repeat(chars, 16)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
+            return new string(Enumerable.Repeat(0, 16).Select(_ => chars[RandomNumberGenerator.GetInt32(chars.Length)]).ToArray());
         }
 
         /// <summary>
