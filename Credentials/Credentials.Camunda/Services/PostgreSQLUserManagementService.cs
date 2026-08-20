@@ -264,6 +264,15 @@ namespace Credentials.Camunda.Services
         private async Task GrantSchemaPermissionsInternalAsync(NpgsqlConnection connection, string username,
             string schemaName, DatabasePermissions permissions)
         {
+            if (!IsValidUsername(username))
+            {
+                throw new ArgumentException($"Invalid username: '{username}'", nameof(username));
+            }
+            if (!IsValidSchemaName(schemaName))
+            {
+                throw new ArgumentException($"Invalid schema name: '{schemaName}'", nameof(schemaName));
+            }
+
             var commands = new List<string>();
 
             // Always grant USAGE on schema first
@@ -326,16 +335,9 @@ namespace Credentials.Camunda.Services
         
         private async Task EnsureSchemaExistsAsync(NpgsqlConnection connection, string schemaName)
         {
-            if (string.IsNullOrWhiteSpace(schemaName))
-            {
-                Log.Warning("Schema name is empty, skipping EnsureSchemaExistsAsync");
-                return;
-            }
-
             if (!IsValidSchemaName(schemaName))
             {
-                Log.Warning("Invalid schema name: {SchemaName}, skipping creation", schemaName);
-                return;
+                throw new ArgumentException($"Invalid schema name: '{schemaName}'", nameof(schemaName));
             }
 
             // Use double quotes to preserve case-sensitivity and allow names starting with digits
