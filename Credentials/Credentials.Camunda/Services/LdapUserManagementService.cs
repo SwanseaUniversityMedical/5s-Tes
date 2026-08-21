@@ -83,7 +83,7 @@ namespace Credentials.Camunda.Services
                 var escapedCn = EscapeDnValue(request.Username);
                 var userDn = $"cn={escapedCn},{_config.UserOu},{_config.BaseDn}";
 
-                Log.Information("userDn >" + userDn);
+                Log.Debug("Created user entry {UserDn}", userDn);
 
                 var addAttrs = new List<DirectoryAttribute>
                 {
@@ -121,8 +121,6 @@ namespace Credentials.Camunda.Services
                     // ─────────────────────────────
                     var groupCn = $"{_config.GroupCn},{_config.BaseDn}";
 
-                    Log.Information("groupCn >" + groupCn);
-        
                     // TODO: add support for ldap servers that use 'memberUid' instead of 'member' attribute
                     // Will require querying the ldap server to see what it uses
                     var mod = new DirectoryAttributeModification
