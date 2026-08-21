@@ -210,7 +210,7 @@ namespace Credentials.Camunda.Services
             {
                 var searchRequest = new SearchRequest(
               $"{_config.UserOu},{_config.BaseDn}",
-              $"(cn={username})",
+              $"(cn={LdapFilterEscape(username)})",
               SearchScope.OneLevel,
               "cn");
 
@@ -220,6 +220,18 @@ namespace Credentials.Camunda.Services
             catch (System.DirectoryServices.Protocols.DirectoryOperationException ex) {
                 return false;
             }
+        }
+
+        private static string LdapFilterEscape(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            // Escapes special characters for an LDAP filter
+            return input
+                .Replace("\\", "\\5c")
+                .Replace("*", "\\2a")
+                .Replace("(", "\\28")
+                .Replace(")", "\\29")
+                .Replace("\0", "\\00");
         }
 
         private static string EscapeDnValue(string value)
