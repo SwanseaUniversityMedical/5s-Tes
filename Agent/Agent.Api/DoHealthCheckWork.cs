@@ -182,10 +182,13 @@ public class DoHealthCheckWork(
         message = "Not connected to RabbitMQ broker.";
       }
     }
-    catch (Exception)
+    catch (Exception ex)
     {
       isHealthy = false;
-      message = "Failed to reach RabbitMQ broker.";
+      // The real cause (bad credentials, missing vhost, etc.) is usually on the inner exception,
+      // so include it to make the logged reason actionable instead of a generic failure message.
+      string detail = ex.InnerException != null ? $"{ex.Message} ({ex.InnerException.Message})" : ex.Message;
+      message = $"Failed to reach RabbitMQ broker: {detail}";
     }
 
     // Log health status for the RabbitMQ broker in the database.
