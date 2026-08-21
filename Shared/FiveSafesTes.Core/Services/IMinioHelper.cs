@@ -40,5 +40,16 @@ namespace FiveSafesTes.Core.Services
 
         Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string submissionBucket, string outputBucket);
         Task<bool> AttachPolicyToUserAsync(string policyName, string accessKey, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a canned policy from the object store (cleanup for the per-key policy created
+        /// alongside an ephemeral S3 access key). Removing the user detaches but does not delete it.
+        /// </summary>
+        Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns true when an S3 access key (user) already exists on the object store.
+        /// </summary>
+        Task<bool> UserExistsAsync(string accessKey, CancellationToken cancellationToken = default);
     }
 }
