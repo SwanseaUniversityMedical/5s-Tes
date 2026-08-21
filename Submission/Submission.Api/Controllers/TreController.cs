@@ -1,4 +1,4 @@
-using Newtonsoft.Json;
+﻿using Newtonsoft.Json;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Serilog;
@@ -28,11 +28,12 @@ namespace Submission.Api.Controllers
         private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly SubmissionKeyCloakSettings _keycloakSettings;
         private readonly IConfiguration _configuration;
+        private readonly ControllerHelpers _controllerHelpers;
 
 
         public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor,
             IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService,
-            SubmissionKeyCloakSettings keycloakSettings, IConfiguration configuration)
+            SubmissionKeyCloakSettings keycloakSettings, IConfiguration configuration, ControllerHelpers controllerHelpers)
         {
 
             _DbContext = applicationDbContext;
@@ -41,7 +42,7 @@ namespace Submission.Api.Controllers
             _vaultCredentialsService = vaultCredentialsService;
             _keycloakSettings = keycloakSettings;
             _configuration = configuration;
-
+            _controllerHelpers = controllerHelpers;
         }     
 
         [Authorize(Roles = "dare-control-admin")]
@@ -368,7 +369,7 @@ namespace Submission.Api.Controllers
         [HttpGet("IsUserAssignedTRE")]
         public async Task<BoolReturn> IsUserAssignedTRE()
         {
-            return new BoolReturn() { Result = ControllerHelpers.IsUserAssignedTRE(User, _DbContext) };
+            return new BoolReturn() { Result = await _controllerHelpers.IsUserAssignedTRE(User, _DbContext) };
         }
     }
 }

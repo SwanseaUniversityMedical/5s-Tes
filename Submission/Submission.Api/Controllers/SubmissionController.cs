@@ -30,15 +30,15 @@ namespace Submission.Api.Controllers
         private readonly IBus _rabbit;
         private readonly IMinioHelper _minioHelper;
         private readonly IDareEmailService _IDareEmailService;
+        private readonly ControllerHelpers _controllerHelpers;
 
-        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService)
+        public SubmissionController(ApplicationDbContext repository, IBus rabbit, IMinioHelper minioHelper, IDareEmailService IDareEmailService, ControllerHelpers controllerHelpers)
         {
             _DbContext = repository;
             _rabbit = rabbit;
             _minioHelper = minioHelper;
             _IDareEmailService = IDareEmailService;
-
-
+            _controllerHelpers = controllerHelpers;
         }
         
         
@@ -48,18 +48,18 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetWaitingSubmissionsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetWaitingSubmissionsForTre()
+        public virtual async Task<IActionResult> GetWaitingSubmissionsForTre()
         {
-
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.WaitingForAgentToTransfer).ToList();
-
-
-            return StatusCode(200, results);
+          var tre = await _controllerHelpers.GetUserTre(User);
+          
+          tre.LastHeartBeatReceived = DateTime.UtcNow;
+          await _DbContext.SaveChangesAsync();
+          
+          var results = tre.Submissions
+              .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                        && x.Status == StatusType.WaitingForAgentToTransfer).ToList();
+        
+          return StatusCode(200, results);
         }
 
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]
@@ -68,18 +68,18 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetRequestCancelSubsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetRequestCancelSubsForTre()
+        public virtual async Task<IActionResult> GetRequestCancelSubsForTre()
         {
+          var tre = await _controllerHelpers.GetUserTre(User);
 
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+          tre.LastHeartBeatReceived = DateTime.UtcNow;
+          await _DbContext.SaveChangesAsync();
+          var results = tre.Submissions
+            .Where(x => x.Tre != null && x.Tre.Id == tre.Id
+                                      && x.Status == StatusType.RequestCancellation)
+            .ToList();
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
-
-
-            return StatusCode(200, results);
+          return StatusCode(200, results);
         }
 
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]
@@ -99,11 +99,9 @@ namespace Submission.Api.Controllers
             return StatusCode(200, new APIReturn() { ReturnType = ReturnType.voidReturn });
         }
 
-        private FiveSafesTes.Core.Models.Submission UpdateStatusForTreGuts(string subId, StatusType statusType, string? description)
+        private async Task<FiveSafesTes.Core.Models.Submission> UpdateStatusForTreGuts(string subId, StatusType statusType, string? description)
         {
-            var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+            var tre = await _controllerHelpers.GetUserTre(User);
 
             var sub = _DbContext.Submissions.FirstOrDefault(x => x.Id == int.Parse(subId) && x.Tre == tre);
             if (sub == null)
@@ -156,7 +154,7 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("CloseSubmissionForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(APIReturn), description: "")]
-        public IActionResult CloseSubmissionForTre(string subId, StatusType statusType, string? finalFile, string? description)
+        public async Task<IActionResult> CloseSubmissionForTre(string subId, StatusType statusType, string? finalFile, string? description)
         {
             if (!UpdateSubmissionStatus.SubCompleteTypes.Contains(statusType) && statusType != StatusType.Failure)
             {
@@ -169,7 +167,7 @@ namespace Submission.Api.Controllers
                 _DbContext.SaveChanges();
                 statusType = StatusType.Failed;
             }
-            var sub = UpdateStatusForTreGuts(subId, statusType, description);
+            var sub = await UpdateStatusForTreGuts(subId, statusType, description);
             sub.FinalOutputFile = finalFile;
             _DbContext.SaveChanges();
             
@@ -369,10 +367,6 @@ namespace Submission.Api.Controllers
                 StatusType.PackagingApprovedResults,
                 StatusType.Complete,
                 StatusType.Failure,
-
-
-
-
 
             };
             Dictionary<int, List<StatusType>> stage3Dict = new Dictionary<int, List<StatusType>>();
