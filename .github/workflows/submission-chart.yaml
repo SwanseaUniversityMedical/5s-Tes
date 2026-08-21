@@ -1,0 +1,40 @@
+name: Build Submission Helm Chart
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/submission-chart.yaml'
+      - 'charts/submission/**'
+  push:
+    branches:
+      - 'main'
+    paths:
+      - '.github/workflows/submission-chart.yaml'
+      - 'charts/submission/**'
+
+permissions:
+  contents: write
+  pull-requests: write
+  actions: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  submission-helm-chart:
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/pr-and-release-chart.yaml@v4.0.0-charts
+    with:
+      job-name: submission-helm-chart
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+      registry-user: ${{ vars.HARBOR_USER }}
+      registry-project: ${{ vars.HARBOR_PROJECT }}
+      registry-repo: submission
+      release-tag-format: 'Submission-Chart-${version}'
+      notation-cert: ${{ vars.NOTATION_CERT }}
+      chart: charts/submission
+      test-command: |
+        helm template $CHART --debug
+    secrets:
+      notation-key: ${{ secrets.NOTATION_KEY }}
+      registry-token: ${{ secrets.HARBOR_TOKEN }}
