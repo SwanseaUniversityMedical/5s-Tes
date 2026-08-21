@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Agent.Api.Services;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
@@ -44,7 +44,7 @@ namespace Agent.Api.Repositories.DbContexts
           object credsToSave = new
           {
             Username = "accessfromtretosubmission",
-            PasswordEnc = _encDecHelper.Encrypt(password)
+            PasswordEnc = password
           };
 
           await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave),
@@ -70,7 +70,7 @@ namespace Agent.Api.Repositories.DbContexts
           object credsToSave = new
           {
             Username = "accessfromtretoegress",
-            PasswordEnc = _encDecHelper.Encrypt(password)
+            PasswordEnc = password
           };
 
           await _configurationService.AddConfigurationToVault(JsonSerializer.Serialize(credsToSave),

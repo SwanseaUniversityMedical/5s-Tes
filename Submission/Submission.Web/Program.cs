@@ -20,9 +20,12 @@ using Microsoft.AspNetCore.DataProtection;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
-IdentityModelEventSource.ShowPII = true;
 ConfigurationManager configuration = builder.Configuration;
 IWebHostEnvironment environment = builder.Environment;
+if (environment.IsDevelopment())
+{
+    IdentityModelEventSource.ShowPII = true;
+}
 
 Log.Logger = CreateSerilogLogger(configuration, environment);
 try
@@ -248,16 +251,6 @@ builder.Services.AddAuthentication(options =>
                         Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
                         Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
 
-                        foreach (var header in context.HttpContext.Request.Headers)
-                        {
-                            Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                        }
-
-                        foreach (var header in context.HttpContext.Response.Headers)
-                        {
-                            Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                        }
-
                         if (submissionKeyCloakSettings.UseRedirectURL)
                         {
                             context.ProtocolMessage.RedirectUri = submissionKeyCloakSettings.RedirectURL;
@@ -269,7 +262,7 @@ builder.Services.AddAuthentication(options =>
                     }
                 };
                 //options.MetadataAddress = submissionKeyCloakSettings.MetadataAddress;
-                Log.Information("{Function} Keycloak Settings Auth {Auth}, Client {Client}, Secret {Secret}, Meta {Meta}", "Main", submissionKeyCloakSettings.Authority, submissionKeyCloakSettings.ClientId, submissionKeyCloakSettings.ClientSecret, submissionKeyCloakSettings.MetadataAddress);
+                Log.Information("{Function} Keycloak Settings Auth {Auth}, Client {Client}, Meta {Meta}", "Main", submissionKeyCloakSettings.Authority, submissionKeyCloakSettings.ClientId, submissionKeyCloakSettings.MetadataAddress);
                 options.RequireHttpsMetadata = submissionKeyCloakSettings.RequireHttpsMetadata;
                 options.SaveTokens = true;
                 options.Scope.Add("openid");

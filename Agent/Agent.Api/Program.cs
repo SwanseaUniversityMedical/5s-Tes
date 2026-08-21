@@ -85,9 +85,13 @@ AddVaultServices(builder, configuration);
 
 builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
 builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
+
+var rabbitSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSetting>();
+var sslPart = rabbitSettings.UseSsl ? $";ssl=true;sslserverName={configuration["RabbitMQ:HostAddress"]}" : "";
+
 var bus =
     builder.Services.AddSingleton(RabbitHutch.CreateBus(
-        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}"));
+        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}{sslPart}"));
 await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"],
     configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
 
@@ -235,7 +239,7 @@ builder.Services.AddAuthentication(options =>
         options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
 
         options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata; 
-        options.IncludeErrorDetails = true;
+        options.IncludeErrorDetails = environment.IsDevelopment();
 
         options.TokenValidationParameters = TVP;
     });
@@ -444,15 +448,10 @@ void AddServices(WebApplicationBuilder builder)
     }
 }
 
-var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
-
-if (extHangfire != null && extHangfire.ToLower() == "true")
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        Authorization = new List<IDashboardAuthorizationFilter>()
+    Authorization = new List<IDashboardAuthorizationFilter>()
         {
-            //new LocalRequestsOnlyAuthorizationFilter(),
             new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
             {
                 RequireSsl = false,
@@ -467,14 +466,8 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                     },
                 },
             }),
-        },
-        //IsReadOnlyFunc = (DashboardContext context) => true,
-    });
-}
-else
-{
-    app.UseHangfireDashboard();
-}
+        }
+});
 
 string healthCheckJobName = jobSettings.HealthCheckJobName;
 if (jobSettings.healthCheckSchedule == 0)
