@@ -56,8 +56,17 @@ namespace Submission.Api.Controllers
 
             tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
             _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.WaitingForAgentToTransfer).ToList();
+            // Include submissions the Agent has already started transferring (picked up / processing
+            // credentials) so the Agent keeps re-picking them until dispatch completes. These are the
+            // pre-dispatch TRE stages; once a submission reaches "Sent to TES" it drops out of this set.
+            var results = tre.Submissions.Where(x =>
+                x.Status == StatusType.WaitingForAgentToTransfer ||
+                x.Status == StatusType.AgentTransferringToPod ||
+                x.Status == StatusType.ProcessingCredentials).ToList();
 
+            Log.Information(
+                "{Function} TRE {TreName} (id {TreId}, user {User}) checked in and is scanning for jobs — {WaitingCount} submission(s) waiting or mid-transfer",
+                "GetWaitingSubmissionsForTre", tre.Name, tre.Id, usersName, results.Count);
 
             return StatusCode(200, results);
         }
@@ -78,6 +87,9 @@ namespace Submission.Api.Controllers
             _DbContext.SaveChanges();
             var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
 
+            Log.Information(
+                "{Function} TRE {TreName} (id {TreId}, user {User}) checked in — {CancelCount} submission(s) awaiting cancellation",
+                "GetRequestCancelSubsForTre", tre.Name, tre.Id, usersName, results.Count);
 
             return StatusCode(200, results);
         }
@@ -259,6 +271,7 @@ namespace Submission.Api.Controllers
                       {
                         Id = child.Id,
                         Status = child.Status,
+                        StatusDescription = child.StatusDescription,
                         LastStatusUpdate = child.LastStatusUpdate,
                         StartTime = child.StartTime,
                         EndTime = child.EndTime,
@@ -333,14 +346,14 @@ namespace Submission.Api.Controllers
             stage2List.stageNumber = 2;
             stage2List.statusTypeList = new List<StatusType>
             {
+                StatusType.AgentTransferringToPod,
+                StatusType.ProcessingCredentials,
                 StatusType.TransferredToPod,
                 StatusType.InvalidUser,
                 StatusType.TRENotAuthorisedForProject,
-                StatusType.AgentTransferringToPod,
-                StatusType.TransferToPodFailed,               
+                StatusType.TransferToPodFailed,
                 StatusType.TreCrateValidated,
                 StatusType.TreCrateValidationFailed,
-                StatusType.TreCrateValidated,
 
 
             };
@@ -349,7 +362,7 @@ namespace Submission.Api.Controllers
             stage2List.stagesDict = stage2Dict;
 
             var stage3List = new StageInfo();
-            stage3List.stageName = "Query Processing";
+            stage3List.stageName = "Task Processing";
             stage3List.stageNumber = 3;
             stage3List.statusTypeList = new List<StatusType>
             {
