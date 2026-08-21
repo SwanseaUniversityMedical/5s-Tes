@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Newtonsoft.Json;
 using Serilog;
@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services;
 using Submission.Api.Services.Contract;
+using System.Text.Json;
 
 namespace Submission.Api.Controllers
 {
@@ -936,5 +937,35 @@ namespace Submission.Api.Controllers
             return result;
         }
 
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpGet("GetApprovedUsersForProject/{projectName}")]
+        public List<string> GetApprovedUsersForProject(string projectName)
+        {
+            Project? project = _DbContext.Projects.Where(x => x.Name == projectName).FirstOrDefault();
+            if (project == null) return null;
+
+            // Return the project users that have been approved by all project TREs
+            var approvedUsers = project.Users.Where(user => project.Tres.Count > 0 && project.Tres.All(tre => project.MembershipTreDecision.Any(d =>
+                d.User.Id == user.Id &&
+                d.Tre.Id == tre.Id &&
+                d.Decision == FiveSafesTes.Core.Models.Enums.Decision.Approved)));
+
+            List<string> users = [];
+            foreach (User user in approvedUsers)
+            {
+                // Extract the required details for Active Directory
+                var userDto = new
+                {
+                    Username = user.Name,
+                    FullName = user.FullName,
+                    Email = user.Email
+                };
+
+                string userJson = System.Text.Json.JsonSerializer.Serialize(userDto);
+                users.Add(userJson);
+            }
+
+            return users;
+        }
     }
 }
