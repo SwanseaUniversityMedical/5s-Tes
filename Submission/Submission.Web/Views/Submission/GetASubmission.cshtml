@@ -284,13 +284,13 @@
                                                                                     <span class="text-start">
                                                                                         <span class="mb-1">Failed</span>
                                                                                         <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                        @if (!string.IsNullOrWhiteSpace(child.StatusDescription))
+                                                                                        {
+                                                                                        <span class="font-monospace small d-block">@child.StatusDescription</span>
+                                                                                        }
                                                                                     </span>
                                                                                 </span>
                                                                             </h6>
-                                                                                    @if (!string.IsNullOrWhiteSpace(child.StatusDescription))
-                                                                                    {
-                                                                                <span class="text-danger small d-block mt-1">@child.StatusDescription</span>
-                                                                                    }
                                                                                 }
                                                                                 else if (
                                                                                 status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Cancelled)
