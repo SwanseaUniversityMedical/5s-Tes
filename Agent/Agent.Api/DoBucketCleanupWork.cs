@@ -15,14 +15,11 @@ public interface IDoBucketCleanupWork
 }
 
 /// <summary>
-/// Deletes the S3 buckets belonging to expired projects. A project is eligible once it is archived
-/// (no longer returned by the Submission layer) AND past the grace window
-/// (<see cref="JobSettings.DaysAfterExpiryBeforeBucketDeletion"/>) measured from its expiry date,
-/// falling back to its archive date when the expiry date is still in the future (e.g. a project
-/// deleted from Submission before its end date). Deletes the TRE-owned buckets directly and asks the
-/// Submission layer to delete its own buckets for the same project. Enabled via
-/// <see cref="JobSettings.bucketCleanupSchedule"/> (0 disables; a non-zero value is the hour of
-/// day the job runs daily), so the job is only scheduled at all when that value is non-zero.
+/// Deletes the S3 buckets belonging to expired projects. A project is eligible once it is past the
+/// grace window (<see cref="JobSettings.DaysAfterExpiryBeforeBucketDeletion"/>) measured from its
+/// expiry date. Deletes the TRE-owned buckets directly and asks the Submission layer to delete its
+/// own buckets for the same project. Enabled via <see cref="JobSettings.bucketCleanupSchedule"/>
+/// (0 disables; a non-zero value is the hour of day the job runs daily).
 /// </summary>
 public class DoBucketCleanupWork(
     ApplicationDbContext dbContext,
@@ -37,14 +34,11 @@ public class DoBucketCleanupWork(
         var cutoff = now.AddDays(-jobSettings.DaysAfterExpiryBeforeBucketDeletion);
 
         Log.Information(
-            "Bucket cleanup job started (grace {Days} day(s); a project is eligible when archived and expired/archived before {Cutoff:u})",
+            "Bucket cleanup job started (grace {Days} day(s); a project is eligible when its expiry date is before {Cutoff:u})",
             jobSettings.DaysAfterExpiryBeforeBucketDeletion, cutoff);
 
         var eligible = await dbContext.Projects
-            .Where(p => p.Archived
-                        && !p.BucketsCleaned
-                        && (p.ProjectExpiryDate < cutoff
-                            || (p.ProjectExpiryDate >= now && p.ArchivedOn != null && p.ArchivedOn < cutoff)))
+            .Where(p => !p.BucketsCleaned && p.ProjectExpiryDate < cutoff)
             .ToListAsync();
 
         if (eligible.Count == 0)
