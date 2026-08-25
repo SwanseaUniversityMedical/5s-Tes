@@ -110,7 +110,6 @@ builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(
   configuration, "SubmissionKeyCloakSettings");
 builder.Services.Configure<ApiEndpointSettings>(
   builder.Configuration.GetSection("ApiEndpoints"));
-var apiEndpointSettings = configuration.GetSection("ApiEndpoints").Get<ApiEndpointSettings>();
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
 builder.Services.AddSingleton(HasuraSettings);
@@ -251,23 +250,6 @@ Log.Information(
 // - authorize here
 
 
-// Enable CORS
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-        policy =>
-        {
-          if (apiEndpointSettings != null)
-            policy.WithOrigins(
-                apiEndpointSettings.TreApiUrl
-              )
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-        });
-});
-
 var app = builder.Build();
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
@@ -339,7 +321,6 @@ app.UseRouting();
 //    Secure = CookieSecurePolicy.Always
 //});
 
-app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(

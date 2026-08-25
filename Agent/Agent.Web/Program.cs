@@ -72,28 +72,6 @@ try
 
     JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
 
-    var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
-    builder.Services.AddCors(options =>
-    {
-        options.AddDefaultPolicy(
-            builder =>
-            {
-                builder
-                    .AllowAnyOrigin()
-                    .AllowAnyMethod()
-                    .AllowAnyHeader();
-            });
-        options.AddPolicy(name: MyAllowSpecificOrigins,
-            policy =>
-            {
-                policy.WithOrigins(configuration["TreAPISettings:InternalApiBaseUrl"])
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-            });
-    });
-
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
         options.ForwardedHeaders = ForwardedHeaders.XForwardedFor | ForwardedHeaders.XForwardedProto |
@@ -296,7 +274,6 @@ try
         "Program", treKeyCloakSettings.Authority, treKeyCloakSettings.MetadataAddress, treKeyCloakSettings.ClientId,
         treKeyCloakSettings.ValidAudiences);
     var app = builder.Build();
-    app.UseCors();
     app.UseForwardedHeaders();
 
     if (app.Environment.IsDevelopment())
