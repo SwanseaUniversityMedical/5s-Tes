@@ -36,6 +36,10 @@ public class DoBucketCleanupWork(
         var now = DateTime.UtcNow;
         var cutoff = now.AddDays(-jobSettings.DaysAfterExpiryBeforeBucketDeletion);
 
+        Log.Information(
+            "Bucket cleanup job started (grace {Days} day(s); a project is eligible when archived and expired/archived before {Cutoff:u})",
+            jobSettings.DaysAfterExpiryBeforeBucketDeletion, cutoff);
+
         var eligible = await dbContext.Projects
             .Where(p => p.Archived
                         && !p.BucketsCleaned
@@ -45,6 +49,7 @@ public class DoBucketCleanupWork(
 
         if (eligible.Count == 0)
         {
+            Log.Information("Bucket cleanup: no expired projects eligible for deletion");
             return;
         }
 
