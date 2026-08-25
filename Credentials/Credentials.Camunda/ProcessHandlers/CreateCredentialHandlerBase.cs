@@ -194,6 +194,24 @@ namespace Credentials.Camunda.ProcessHandlers
         }
 
         /// <summary>
+        /// Removes a Vault secret to prevent it from being orphaned after an account creation failure.
+        /// </summary>
+        /// <param name="vaultPath">The path in Vault at which the secret is stored.</param>
+        /// <param name="credentialType">The type of credential we are rolling back.</param>
+        /// <returns></returns>
+        protected async Task RollBackVaultCredentialAsync(string vaultPath, string credentialType)
+        {
+            try
+            {
+                await _vaultCredentialsService.RemoveCredentialAsync(vaultPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Failed to roll back Vault secret at {VaultPath} for {CredentialType} after account creation failure", vaultPath, credentialType);
+            }
+        }
+
+        /// <summary>
         /// Build credential data dictionary from environment list, replacing password if generated
         /// </summary>
         protected static Dictionary<string, object> BuildCredentialData(
