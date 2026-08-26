@@ -53,7 +53,7 @@ namespace Credentials.Camunda.Services
 
             var zeebeClient = ZeebeClient.Builder()
                 .UseGatewayAddress(gatewayAddress)
-                .UsePlainText()
+                .UseTransportEncryption()
                 .Build();
 
             await zeebeClient.TopologyRequest().Send();

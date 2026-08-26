@@ -38,6 +38,13 @@ namespace Credentials.Camunda.ProcessHandlers
                 submissionId = extraction.SubmissionId;
                 parentProcessKey = extraction.ParentProcessKey;
 
+                // Refuse to provision unless this submission was approved by Agent.Api
+                if (!await IsSubmissionApprovedAsync(extraction))
+                {
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres", "No matching approved submission record found");
+                    return CreateStatusResponse("ERROR: Submission not approved.");
+                }
+
                 if (extraction.EnvList?.FirstOrDefault() == null)
                 {
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",

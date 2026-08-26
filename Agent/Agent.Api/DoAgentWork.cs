@@ -534,6 +534,18 @@ namespace Agent.Api
                                     try
                                     {
                                         var project = aSubmission.Project.Name;
+
+                                        // Record this submission db so it can be verified by Credentials.Camunda
+                                        _credsDbContext.ApprovedSubmissions.Add(new()
+                                        {
+                                            SubmissionId = aSubmission.Id,
+                                            Project = project,
+                                            UserId = aSubmission.SubmittedBy.Id,
+                                            CreatedAt = DateTime.UtcNow
+                                        });
+
+                                        await _credsDbContext.SaveChangesAsync();
+
                                         await TriggerStartCredentialsAsync(aSubmission.Id, project,
                                             aSubmission.SubmittedBy.Id);
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);

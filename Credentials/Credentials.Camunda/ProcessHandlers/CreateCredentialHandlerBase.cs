@@ -198,7 +198,6 @@ namespace Credentials.Camunda.ProcessHandlers
         /// </summary>
         /// <param name="vaultPath">The path in Vault at which the secret is stored.</param>
         /// <param name="credentialType">The type of credential we are rolling back.</param>
-        /// <returns></returns>
         protected async Task RollBackVaultCredentialAsync(string vaultPath, string credentialType)
         {
             try
@@ -209,6 +208,25 @@ namespace Credentials.Camunda.ProcessHandlers
             {
                 _logger.LogError(ex,"Failed to roll back Vault secret at {VaultPath} for {CredentialType} after account creation failure", vaultPath, credentialType);
             }
+        }
+
+        /// <summary>
+        /// Verifies that job variables correspond to real, approved records.
+        /// </summary>
+        /// <param name="extraction">The DTO containing the extracted credentials.</param>
+        protected async Task<bool> IsSubmissionApprovedAsync(CredentialExtraction extraction) 
+        {
+            if (string.IsNullOrEmpty(extraction.SubmissionId) || !int.TryParse(extraction.SubmissionId, out var submissionId)) 
+            {
+                return false;
+            }
+
+            if (!int.TryParse(extraction.User, out var userId)) 
+            {
+                return false;
+            }
+
+            return await _credentialsDbContext.ApprovedSubmissions.AnyAsync(x => !x.IsProcessed && x.SubmissionId == submissionId && x.Project == extraction.Project && x.UserId == userId);
         }
 
         /// <summary>
