@@ -30,8 +30,9 @@ namespace Submission.Api.Controllers
         private readonly IKeycloakMinioUserService _keycloakMinioUserService;
         private readonly IProjectS3AccessKeyService _projectS3AccessKeyService;
         protected readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ControllerHelpers _controllerHelpers;
 
-        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor)
+        public ProjectController(ApplicationDbContext applicationDbContext, MinioSettings minioSettings, IMinioHelper minioHelper, IKeycloakMinioUserService keycloakMinioUserService, IProjectS3AccessKeyService projectS3AccessKeyService, IHttpContextAccessor httpContextAccessor, ControllerHelpers controllerHelpers)
         {
 
             _DbContext = applicationDbContext;
@@ -40,6 +41,7 @@ namespace Submission.Api.Controllers
             _keycloakMinioUserService = keycloakMinioUserService;
             _projectS3AccessKeyService = projectS3AccessKeyService;
             _httpContextAccessor = httpContextAccessor;
+            _controllerHelpers = controllerHelpers;
         }
 
         [Authorize(Roles = "dare-control-admin")]
@@ -60,7 +62,6 @@ namespace Submission.Api.Controllers
                 project.StartDate = project.StartDate.ToUniversalTime();
                 project.EndDate = project.EndDate.ToUniversalTime();
                 project.ProjectDescription = project.ProjectDescription.Trim();
-                
                project.FormData = data.FormIoString;
                 
 
@@ -591,13 +592,11 @@ namespace Submission.Api.Controllers
 
         [HttpGet("GetAllProjectsForTre")]
         [Authorize(Roles = "dare-tre-admin")]
-        public List<Project> GetAllProjectsForTre()
+        public async Task<List<Project>> GetAllProjectsForTre()
         {
             try
             {
-
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+                var tre = await _controllerHelpers.GetUserTre(User);
                 var allProjects = tre.Projects;
 
                 Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
@@ -609,48 +608,43 @@ namespace Submission.Api.Controllers
                 throw;
             }
 
-
         }
-
-        
-
-
         [HttpPost("SyncTreProjectDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
+        public async Task<BoolReturn> SyncTreProjectDecisions([FromBody] List<ProjectTreDecisionsDTO> decisions)
         {
             try
             {
                 Log.Information("SyncTreProjectDecisions called with  " + decisions.Count);
 
                 var result = new BoolReturn();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
-
+                var tre = await _controllerHelpers.GetUserTre(User);
+                
                 foreach (var item in decisions)
                 {
                     Log.Information("SyncTreProjectDecisions item > ProjectId  " + item.ProjectId  + " Decision  > " + item.Decision);
 
-                    var dbproj = _DbContext.Projects.FirstOrDefault(x => x.Id == item.ProjectId);
+                    var dbproj = await _DbContext.Projects.FirstOrDefaultAsync(x => x.Id == item.ProjectId);
                     if (dbproj == null)
                     {
                         Log.Error($"no Projects with ID of {item.ProjectId}");
                         continue;
                     }
-                    var tredecision = _DbContext.ProjectTreDecisions.FirstOrDefault(x => x.SubmissionProj == dbproj && x.Tre == tre);
-                    if (tredecision == null)
+                    var treDecision = await _DbContext.ProjectTreDecisions.FirstOrDefaultAsync(x => x.SubmissionProj == dbproj && x.Tre == tre);
+                    if (treDecision == null)
                     {
                         Log.Information("SyncTreProjectDecisions add new  tredecision " + decisions.Count);
 
-                        tredecision = new ProjectTreDecision()
+                        treDecision = new ProjectTreDecision()
                         {
                             SubmissionProj = dbproj,
                             Tre = tre,
                         };
-                        _DbContext.ProjectTreDecisions.Add(tredecision);
+                        _DbContext.ProjectTreDecisions.Add(treDecision);
                     }
-                    tredecision.Decision = item.Decision;
+                    treDecision.Decision = item.Decision;
                 }
-                _DbContext.SaveChanges();
+                await _DbContext.SaveChangesAsync();
 
 
                 result.Result = true;
@@ -668,12 +662,13 @@ namespace Submission.Api.Controllers
 
         [HttpPost("SyncTreMembershipDecisions")]
         [Authorize(Roles = "dare-tre-admin")]
-        public BoolReturn SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
+        public async Task<BoolReturn> SyncTreMembershipDecisions([FromBody] List<MembershipTreDecisionDTO> decisions)
         {
             try
             {
                 var result = new BoolReturn();
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
+                var tre = await _controllerHelpers.GetUserTre(User);
 
                 foreach (var item in decisions)
                 {
@@ -854,7 +849,7 @@ namespace Submission.Api.Controllers
         {
             try
             {
-                var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var tre = await _controllerHelpers.GetUserTre(User);
                 var project = await _DbContext.Projects.FirstOrDefaultAsync(p => p.Id == projectId);
                 if (project == null)
                 {
