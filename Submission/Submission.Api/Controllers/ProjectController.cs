@@ -990,5 +990,41 @@ namespace Submission.Api.Controllers
             return result;
         }
 
+
+        [AllowAnonymous]
+        [HttpGet("GetProjectS3Info")]
+        public async Task<IActionResult> GetProjectS3Info(string projectName)
+        {
+          try
+          {
+            var projectOutputBucket = await _DbContext.Projects
+              .AsNoTracking()
+              .Where(p => p.Name == projectName)
+              .Select(p => new Project.ProjectDetailsDto()
+              {
+                OutputBucket = p.OutputBucket,
+              })
+              .FirstOrDefaultAsync();
+
+            if (projectOutputBucket == null || projectOutputBucket.OutputBucket == null)
+            {
+              return NotFound();
+            }
+
+            var result = new ProjectS3Info()
+            {
+              ApiUrl = _minioSettings.Url,
+              OutputBucket = projectOutputBucket.OutputBucket
+            };
+  
+            return Ok(result);
+          }
+          catch (Exception ex)
+          {
+            Log.Error(ex, "{Function} Crashed", "GetProjectS3Info");
+          }
+          return NotFound();
+        }
+
     }
 }
