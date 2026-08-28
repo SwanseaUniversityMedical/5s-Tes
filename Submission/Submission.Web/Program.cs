@@ -1,6 +1,7 @@
 
 using Microsoft.AspNetCore.Authentication.OpenIdConnect;
 using Microsoft.IdentityModel.Protocols.OpenIdConnect;
+using Prometheus;
 using System.Net;
 using FiveSafesTes.Core.Models.Services;
 using FiveSafesTes.Core.Models.Settings;
@@ -335,6 +336,17 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new MetricPusher(new MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
+
 app.UseCors();
 app.UseForwardedHeaders();
 

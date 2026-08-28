@@ -1,0 +1,31 @@
+{{- if and .Values.api.enabled .Values.api.ingress.enabled .Values.global.ingress.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ include "submission.fullname" . }}-api
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.ingress.certClusterIssuer }}
+    nginx.ingress.kubernetes.io/backend-protocol: HTTP
+spec:
+  ingressClassName: {{ .Values.global.ingress.className }}
+  {{- if .Values.global.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ .Values.api.ingress.host }}
+      secretName: {{ include "submission.fullname" . }}-api-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.api.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ include "submission.fullname" . }}-api
+                port:
+                  number: 80
+{{- end }}

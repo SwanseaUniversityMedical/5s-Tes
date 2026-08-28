@@ -1,3 +1,4 @@
+using Prometheus;
 using Submission.Api.Repositories.DbContexts;
 using Submission.Api.Services.Contract;
 using Submission.Api.Services;
@@ -198,6 +199,16 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new MetricPusher(new MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 
 var serviceScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
 app.MapHealthChecks("/health");
