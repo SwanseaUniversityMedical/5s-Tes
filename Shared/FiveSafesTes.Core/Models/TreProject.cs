@@ -25,6 +25,15 @@ namespace FiveSafesTes.Core.Models
         public Decision Decision { get; set; }
         public bool Archived { get; set; }
 
+        [Display(Name = "Date Archived")]
+        public DateTime? ArchivedOn { get; set; }
+
+        [Display(Name = "Buckets Cleaned")]
+        public bool BucketsCleaned { get; set; }
+
+        [Display(Name = "Date Buckets Cleaned")]
+        public DateTime? BucketsCleanedOn { get; set; }
+
         [Display(Name = "Approved By")]
         public string? ApprovedBy { get; set; }
 

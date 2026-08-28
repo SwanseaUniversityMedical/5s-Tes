@@ -612,6 +612,60 @@ namespace Submission.Api.Controllers
 
         }
 
+        /// <summary>
+        /// Deletes the Submission-side object-store buckets (submission + output) for an expired
+        /// project. Called by the TRE Agent's bucket-cleanup job once it deems the project expired.
+        /// Idempotent: a missing project or already-deleted bucket is treated as success. As a
+        /// server-side safety guard the project's EndDate must be in the past before anything is
+        /// deleted, so a live project's buckets can never be removed.
+        /// </summary>
+        [HttpPost("CleanupBuckets/{submissionProjectId}")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<BoolReturn> CleanupBuckets(int submissionProjectId)
+        {
+            try
+            {
+                var project = _DbContext.Projects.FirstOrDefault(x => x.Id == submissionProjectId);
+                if (project == null)
+                {
+                    Log.Warning("{Function} Project {ProjectId} not found; nothing to clean up",
+                        "CleanupBuckets", submissionProjectId);
+                    return new BoolReturn { Result = true };
+                }
+
+                if (project.EndDate.ToUniversalTime() >= DateTime.UtcNow)
+                {
+                    Log.Warning(
+                        "{Function} Refusing to clean up buckets for project {ProjectId}: EndDate {EndDate} has not passed",
+                        "CleanupBuckets", submissionProjectId, project.EndDate);
+                    return new BoolReturn { Result = false };
+                }
+
+                var success = true;
+                foreach (var bucket in new[] { project.SubmissionBucket, project.OutputBucket })
+                {
+                    if (!string.IsNullOrWhiteSpace(bucket))
+                    {
+                        var deleted = await _minioHelper.DeleteBucketAsync(bucket);
+                        success &= deleted;
+                        if (deleted)
+                            Log.Information("{Function} Deleted bucket {Bucket} for project {ProjectId}",
+                                "CleanupBuckets", bucket, submissionProjectId);
+                        else
+                            Log.Error("{Function} Failed to delete bucket {Bucket} for project {ProjectId}",
+                                "CleanupBuckets", bucket, submissionProjectId);
+                    }
+                }
+
+                return new BoolReturn { Result = success };
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crashed for project {ProjectId}", "CleanupBuckets", submissionProjectId);
+                return new BoolReturn { Result = false };
+            }
+        }
+
         
 
 

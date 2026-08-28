@@ -31,6 +31,18 @@ namespace FiveSafesTes.Core.Services
         Task<bool> BucketPolicySetPublic(string bucketName);
 
         Task DeleteObject(string bucketName, string objectKey);
+
+        /// <summary>
+        /// Removes every object from a bucket without removing the bucket itself.
+        /// </summary>
+        Task<bool> EmptyBucketAsync(string bucketName);
+
+        /// <summary>
+        /// Deletes a bucket entirely (empties it first, since S3 requires an empty bucket).
+        /// Idempotent: returns true when the bucket does not exist.
+        /// </summary>
+        Task<bool> DeleteBucketAsync(string bucketName);
+
         Task WriteToStore(string bucketName, string objectKey, MemoryStream file);
 
         Task<MinioCommandResult> CreateMinioSecretAsync(string accessKey, string secretKey = "", CancellationToken cancellationToken = default);
