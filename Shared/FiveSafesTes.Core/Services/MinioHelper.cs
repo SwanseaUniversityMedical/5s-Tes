@@ -726,11 +726,11 @@ namespace FiveSafesTes.Core.Services
                 if (string.IsNullOrEmpty(secretKey))
                 {
                     // Generate secret key automatically
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 }
                 else
                 {
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey} {secretKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)} {ShellQuote(secretKey)}";
                 }
 
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
@@ -942,6 +942,22 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
+        /// Returns true when an S3 access key (user) already exists on the object store.
+        /// Wraps <see cref="GetMinioSecretAsync"/> (mc admin user info), which succeeds only
+        /// when the user is present.
+        /// </summary>
+        public async Task<bool> UserExistsAsync(string accessKey, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(accessKey))
+            {
+                return false;
+            }
+
+            var result = await GetMinioSecretAsync(accessKey, cancellationToken);
+            return result.Success;
+        }
+
+        /// <summary>
         /// Attaches a canned policy to an S3 access key user.
         /// </summary>
         public async Task<bool> AttachPolicyToUserAsync(
@@ -979,6 +995,44 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
+        /// <summary>
+        /// Removes a canned policy from the object store. Used to clean up the per-key policy
+        /// created alongside an ephemeral S3 access key when that key is revoked, so policies
+        /// don't accumulate. Removing the access-key user detaches the policy but leaves the
+        /// canned policy itself behind, hence this explicit cleanup.
+        /// </summary>
+        public async Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(policyName))
+            {
+                return false;
+            }
+
+            try
+            {
+                await EnsureMinioClientInitializedAsync(cancellationToken);
+
+                var command = $"mc admin policy rm {_minioSettings.Alias} {policyName}";
+                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+
+                if (result.Success)
+                {
+                    Log.Information("Removed S3 policy {PolicyName}", policyName);
+                    return true;
+                }
+
+                Log.Warning(
+                    "Failed to remove S3 policy {PolicyName}. Error: {Error}",
+                    policyName, result.Error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Exception removing S3 policy {PolicyName}", policyName);
+                return false;
+            }
+        }
+
         #endregion
 
         #region MinIO Client Helper Methods
@@ -987,7 +1041,8 @@ namespace FiveSafesTes.Core.Services
         {
             if (!_isMinioClientInitialized)
             {
-                var command = $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {_minioSettings.AccessKey} {_minioSettings.SecretKey}";
+                var command =
+                    $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {ShellQuote(_minioSettings.AccessKey)} {ShellQuote(_minioSettings.SecretKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -1004,6 +1059,9 @@ namespace FiveSafesTes.Core.Services
             }
             return true;
         }
+
+        private static string ShellQuote(string value) =>
+            "'" + value.Replace("'", "'\\''") + "'";
 
         private async Task<MinioCommandResult> ExecuteMinioCommandAsync(string command, CancellationToken cancellationToken = default)
         {
