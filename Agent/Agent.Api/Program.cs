@@ -8,6 +8,7 @@ using Agent.Api.Services;
 using Credentials.Models.DbContexts;
 using EasyNetQ;
 using FiveSafesTes.Core.Extensions;
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Rabbit;
@@ -125,11 +126,7 @@ configuration.Bind(nameof(MinioTRESettings), minioTRESettings);
 builder.Services.AddSingleton(minioTRESettings);
 
 
-var DmnPath = new FiveSafesTes.Core.Models.DmnPath();
-configuration.Bind(nameof(DmnPath), DmnPath);
-builder.Services.AddSingleton(DmnPath);
-
-
+builder.Services.Configure<DmnPath>(builder.Configuration.GetSection("DmnPath"));
 
 var AuthenticationSetting = new AuthenticationSettings();
 configuration.Bind(nameof(AuthenticationSetting), AuthenticationSetting);
