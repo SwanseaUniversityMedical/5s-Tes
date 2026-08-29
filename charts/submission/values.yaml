@@ -56,10 +56,7 @@ global:
     enabled: false
     pushgatewayUrl: ""
 
-  # Base domain. api and ui each get their own subdomain of it, since they
-  # are separate public endpoints (distinct ports/URLs in compose; neither
-  # app configures a path base, so a shared host with path-splitting would
-  # break routes and Swagger).
+  # Base domain; api and ui each get their own subdomain of it.
   ingress:
     enabled: true
     className: "nginx"

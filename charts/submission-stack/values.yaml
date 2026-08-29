@@ -116,10 +116,10 @@ vault:
 rabbitmq:
   replicas: 1
   storageSize: "10Gi"
-  # Default user from Vault, via the RabbitMQ Cluster Operator's own
-  # secretBackend.vault (no VaultSecret in between). Production-legitimate
-  # to turn off: false makes the operator generate "rabbitmq-default-user"
-  # instead, with a random password, on a cluster with no Vault.
+  # Extra rabbitmq.conf lines, passed to the operator verbatim.
+  additionalConfig: ""
+  # Set false only on a cluster without Vault (local dev); the operator
+  # then generates "rabbitmq-default-user" instead.
   vaultDefaultUser: true
 
 postgres:

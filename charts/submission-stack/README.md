@@ -82,9 +82,7 @@ fills; the two must agree.
 `rabbitmq.vaultDefaultUser` (default `true`) gates only the `RabbitmqCluster`'s
 `secretBackend.vault` block — production keeps Vault-backed credentials. Set it `false`
 only on a cluster with no Vault to read from; the RabbitMQ Cluster Operator then
-generates its own `rabbitmq-default-user` Secret with a random password instead. This is
-a production-legitimate option (mirrors `serp-provisioning-stack`'s
-`rabbitmq.vaultDefaultUser`), not a dev-only toggle.
+generates its own `rabbitmq-default-user` Secret with a random password instead.
 
 `Shared/FiveSafesTes.Core/Rabbit/SetUpRabbitMQ.cs` connects with
 `EasyNetQ.Management.Client`'s `ManagementClient(hostname, username, password)`, which
@@ -236,6 +234,7 @@ With today's defaults, real data sits in two places with different protection:
 |---|---|---|
 | `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
 | `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
+| `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
 | `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead. See **RabbitMQ** above. | `true` |
 
 ### postgres

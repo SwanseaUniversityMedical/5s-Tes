@@ -39,34 +39,36 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client) |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-control-admin` realm role so admin-gated pages/endpoints work |
 | S3 (RustFS) access/secret key | `s3-submission` / `s3-submission-pass` | `submission-api-secret.s3AccessKey`/`s3SecretKey` + `submission-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | `MinioSettings__AccessKey`/`SecretKey`; RustFS chart's own root credentials |
-| Vault token | `dev-only-token` | `submission-api-secret.vaultToken` | `VaultSettings__Token` — see **RabbitMQ and Vault** below |
-| RabbitMQ default user | `submission` / `password123` | `submission-api-secret.rabbitUsername`/`rabbitPassword` only | `RabbitMQ__Username`/`Password` — see **RabbitMQ and Vault** below, this does not yet authenticate against a real broker |
+| Vault token | `dev-only-token` | `submission-api-secret.vaultToken` | `VaultSettings__Token` — unused with `vault.enabled=false` (see **Local install**); no local Vault runs to hold it |
+| RabbitMQ default user | `submission` / `password123` | `submission-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
 | Keycloak admin console | `admin` / `admin` | `keycloak-admin-secret` | Keycloak's own `auth.existingSecret` |
 | Seq first-run admin | `admin` / `admin` | `seq-admin-password-secret` | Seq's own `firstRunAdminPasswordSecret` |
 | Adminer admin | `admin` / `admin` | `adminer-admin-password` | Adminer's own `auth.existingSecret` |
 
-## RabbitMQ and Vault: a known local-dev gap
+## Local install
 
-`submission-stack`'s `RabbitmqCluster` always sets `secretBackend.vault` (there is no
-`vaultDefaultUser`-style toggle here, unlike `serp-provisioning-stack`), so its default
-user credentials are never a Kubernetes `Secret` this chart can stand in for — the
-RabbitMQ Cluster Operator reads them directly from Vault via its own native integration.
-(Checked: per the RabbitMQ Cluster Operator docs, when no `secretBackend` is set at all
-the operator instead generates a `<cluster-name>-default-user` Secret — i.e.
-`rabbitmq-default-user` here — with `username`/`password` keys. That fallback does not
-apply to this stack, because `rabbitmq.yaml` always configures `secretBackend.vault`.)
+Install this chart first, then `submission-stack` configured to hand off to its static
+Secrets and reach the local Keycloak, e.g.:
 
-`submission-stack` also deploys its own app-owned Vault (`templates/vault.yaml`, see that
-chart's README), which starts sealed and must be initialised/unsealed by hand — the same
-Vault instance is used locally and in production. Once that local Vault is up, seed it at
-`{{ .Values.vault.secretPath }}/rabbitmq` (default `kvv2/data/prod/prod/submission/rabbitmq`)
-with `rabbit_username: submission` / `rabbit_password: password123` — matching this
-chart's `submission-api-secret` values above — plus Vault Kubernetes-auth enabled with a
-role named `{{ .Values.vault.role }}` (default `submission`), so the operator can actually
-authenticate. None of that Vault bootstrapping is automated by any chart today; until it
-is (a future `dev-env-setup/` task, mirroring `serp-provisioning`'s local Argo overrides),
-RabbitMQ login will fail on a fresh local install even though the credentials in
-`submission-api-secret` are internally consistent.
+```
+--set global.oidc.authority=http://keycloak.localtest.me/realms/Dare-Control
+--set vault.enabled=false
+--set rabbitmq.vaultDefaultUser=false
+--set-string rabbitmq.additionalConfig="default_user = submission
+default_pass = password123
+loopback_users.submission = false"
+```
+
+- `vault.enabled=false` drops the stack's own Vault `Application` and every `VaultSecret`
+  under `templates/secrets/`, so this chart's static Secrets are the only thing producing
+  those names/keys.
+- `rabbitmq.vaultDefaultUser=false` drops the `RabbitmqCluster`'s `secretBackend.vault`
+  block. The `additionalConfig` lines then set the broker's own default user to
+  `submission`/`password123` — the same values as this chart's `submission-api-secret`
+  (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
+  once and reused into the broker, not redefined.
+- `global.oidc.authority` must point at the local Keycloak's realm URL; the stack chart's
+  own default is the production authority, which does not exist locally.
 
 ## What the local cluster must already have
 
@@ -82,9 +84,8 @@ before both charts:
 ## Local Keycloak
 
 - URL: `https://keycloak.localtest.me` (admin console), realm `Dare-Control`.
-- The standalone chart's default `global.oidc.authority` is `http://keycloak/realms/Dare-Control`
-  — the in-cluster Service name `keycloak` this chart's Application creates — so no override
-  is needed for a local install.
+- `submission-stack`'s `global.oidc.authority` must be overridden to reach this Keycloak
+  — see **Local install** above.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-Control`,
   same three client IDs, same `dare-tre-admin` role name so `KeycloakAdmin__ServiceAccountRole`
   behaves identically) but is a hand-written, minimal stand-in: no protocol mappers, no
@@ -104,8 +105,7 @@ before both charts:
 
 - The dev realm is a minimal starting point: three clients, two users, two realm roles.
   No protocol mappers or client scopes — `api.oidc.validAudiences`'s `Dare-Control-Minio`
-  entry (see `charts/submission/values.yaml`) is a pre-existing app config value with no
-  matching client in this realm; audience validation was out of this chart's scope.
-  Extend the realm by editing `templates/keycloak-realm.yaml`.
+  entry is only an accepted audience string in token validation, not a client; the realm
+  needs no client by that name. Extend the realm by editing `templates/keycloak-realm.yaml`.
 - This chart is installed from the working tree; it is not published to Harbor and has no
   release workflow.
