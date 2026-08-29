@@ -136,8 +136,9 @@ charts:
   loopback. This needs a cluster DNS mapping to the ingress controller; a CoreDNS rewrite
   is planned for the dev-env bootstrap but not yet implemented. Until then, map it manually
   in cluster DNS (or `/etc/hosts` on every node) before the login flow will work.
-- The standalone chart still appends `/.well-known/openid-configuration` to this authority for
-  `SubmissionKeyCloakSettings__Authority` — matching compose, deliberate: `Submission.Api` sets
+- The standalone chart renders `SubmissionKeyCloakSettings__Authority` as this authority plus a
+  trailing slash (no well-known suffix), and `__MetadataAddress` as the
+  `/.well-known/openid-configuration` URL — matching compose, deliberate: `Submission.Api` sets
   `TokenValidationParameters.ValidateIssuer = false` (`Submission.Api/Program.cs:117`), so
   `Authority`'s shape has no bearing on issuer validation.
 

@@ -181,9 +181,10 @@ The external realm at `global.oidc.authority` must already have:
   API logs in as to call the Keycloak Admin REST API (`KeycloakAdminService`). Its
   username/password are `keycloakAdminUsername`/`keycloakAdminPassword` above.
 
-`SubmissionKeyCloakSettings__Authority` renders as `<realm>/.well-known/openid-configuration`,
-matching compose — deliberate: `Submission.Api` sets `TokenValidationParameters.ValidateIssuer =
-false` (`Submission.Api/Program.cs:117`), so `Authority`'s shape has no bearing on issuer validation.
+`SubmissionKeyCloakSettings__Authority` renders as `<realm>/` (trailing slash, no well-known
+suffix) and `__MetadataAddress` as `<realm>/.well-known/openid-configuration`, matching compose
+— deliberate: `Submission.Api` sets `TokenValidationParameters.ValidateIssuer = false`
+(`Submission.Api/Program.cs:117`), so `Authority`'s shape has no bearing on issuer validation.
 
 ## CloudNativePG: why a `Database` object, not `bootstrap.initdb.database`
 
