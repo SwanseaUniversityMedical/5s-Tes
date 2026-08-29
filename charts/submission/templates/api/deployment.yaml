@@ -1,0 +1,207 @@
+{{- if .Values.api.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "submission.fullname" . }}-api
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  # Shared ReadWriteOnce dataprotection PVC; cannot scale past one replica.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "submission.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "submission.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "submission.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        # The mc CLI writes $HOME/.mc.
+        - name: home-app
+          emptyDir: {}
+        - name: dataprotection
+          persistentVolumeClaim:
+            claimName: submission-dataprotection
+        {{- if .Values.global.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.global.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+      containers:
+        - name: api
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: home-app
+              mountPath: /home/app
+            - name: dataprotection
+              mountPath: {{ .Values.dataProtection.keysPath }}
+            {{- if .Values.global.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.global.trustClusterCa.mountPath }}
+              subPath: {{ .Values.global.trustClusterCa.key }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "{{ .Values.global.config.aspnetEnvironment }}"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: connectionString
+            - name: RabbitMQ__HostAddress
+              value: "{{ .Values.api.rabbitmqHost }}"
+            - name: RabbitMQ__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitUsername
+            - name: RabbitMQ__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitPassword
+            - name: MinioSettings__Url
+              value: "{{ .Values.api.s3Url }}"
+            - name: MinioSettings__AdminConsole
+              value: "{{ .Values.api.s3ConsoleUrl }}"
+            - name: MinioSettings__AccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3AccessKey
+            - name: MinioSettings__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3SecretKey
+            - name: SubmissionKeyCloakSettings__Authority
+              value: "{{ .Values.global.oidc.authority }}/"
+            - name: SubmissionKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.global.oidc.authority }}/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__BaseUrl
+              value: "{{ .Values.global.oidc.authority }}"
+            - name: SubmissionKeyCloakSettings__ClientId
+              value: "{{ .Values.api.oidc.clientId }}"
+            - name: SubmissionKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: keycloakClientSecret
+            - name: SubmissionKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.oidc.validAudiences }}"
+            - name: SubmissionKeyCloakSettings__Server
+              value: "{{ .Values.api.oidc.server }}"
+            - name: SubmissionKeyCloakSettings__Protocol
+              value: "{{ .Values.api.oidc.protocol }}"
+            - name: SubmissionKeyCloakSettings__Realm
+              value: "{{ .Values.api.oidc.realm }}"
+            - name: SubmissionKeyCloakSettings__TokenRefreshSeconds
+              value: "{{ .Values.api.oidc.tokenRefreshSeconds }}"
+            - name: SubmissionKeyCloakSettings__AutoTrustKeycloakCert
+              value: "{{ .Values.api.oidc.autoTrustKeycloakCert }}"
+            - name: SubmissionKeyCloakSettings__ValidIssuer
+              value: "{{ .Values.api.oidc.validIssuer }}"
+            - name: SubmissionKeyCloakSettings__RedirectURL
+              value: "{{ .Values.api.oidc.redirectUrl }}"
+            - name: SubmissionKeyCloakSettings__UseRedirectURL
+              value: "{{ .Values.api.oidc.useRedirectUrl }}"
+            - name: SubmissionKeyCloakSettings__Proxy
+              value: "{{ .Values.api.oidc.proxy }}"
+            - name: SubmissionKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.api.oidc.proxyAddresUrl }}"
+            - name: SubmissionKeyCloakSettings__BypassProxy
+              value: "{{ .Values.api.oidc.bypassProxy }}"
+            - name: KeycloakAdmin__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: keycloakAdminUsername
+            - name: KeycloakAdmin__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: keycloakAdminPassword
+            - name: KeycloakAdmin__ServiceAccountRole
+              value: "{{ .Values.api.keycloakAdmin.serviceAccountRole }}"
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.api.vaultUrl }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: vaultToken
+            - name: VaultSettings__TimeoutSeconds
+              value: "{{ .Values.api.vault.timeoutSeconds }}"
+            - name: VaultSettings__SecretEngine
+              value: "{{ .Values.api.vault.secretEngine }}"
+            - name: VaultSettings__EnableRetry
+              value: "{{ .Values.api.vault.enableRetry }}"
+            - name: VaultSettings__MaxRetryAttempts
+              value: "{{ .Values.api.vault.maxRetryAttempts }}"
+            - name: SubmissionApiUrl
+              value: "{{ .Values.api.publicUrl }}"
+            - name: Features__SeedDemoData
+              value: "{{ .Values.api.features.seedDemoData }}"
+            - name: KeycloakDemoMode
+              value: "{{ .Values.api.keycloakDemoMode }}"
+            - name: SuppressAntiforgery
+              value: "{{ .Values.api.suppressAntiforgery }}"
+            - name: DataProtectionSettings__PersistKeys
+              value: "true"
+            - name: DataProtectionSettings__KeysPath
+              value: "{{ .Values.dataProtection.keysPath }}"
+            - name: EmailSettings__Enabled
+              value: "{{ .Values.api.email.enabled }}"
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            {{- if .Values.global.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-submission-api
+            {{- end }}
+            {{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- end }}
