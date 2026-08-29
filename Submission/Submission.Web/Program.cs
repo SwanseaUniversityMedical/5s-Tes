@@ -64,6 +64,7 @@ builder.Services.AddSingleton(UIName);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks();
 if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntiforgery"].ToLower() == "true")
 {
     Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
@@ -335,6 +336,15 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 app.UseCors();
 app.UseForwardedHeaders();
 
@@ -427,6 +437,9 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseCors();
 app.MapControllerRoute(
