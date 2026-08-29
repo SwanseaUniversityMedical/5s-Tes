@@ -1,4 +1,5 @@
 {{- if and .Values.api.enabled .Values.api.ingress.enabled -}}
+{{- $host := .Values.api.ingress.host | default (printf "submission-api.%s" .Values.global.ingress.host) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -10,14 +11,18 @@ metadata:
     cert-manager.io/cluster-issuer: {{ .Values.global.ingress.certClusterIssuer }}
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
 spec:
-  # TLS for this shared host is declared on the ui Ingress; nginx-ingress
-  # merges the certificate across every Ingress object for the same host.
   ingressClassName: {{ .Values.global.ingress.className }}
+  {{- if .Values.global.ingress.tls }}
+  tls:
+    - hosts:
+        - {{ $host }}
+      secretName: submission-api-tls
+  {{- end }}
   rules:
-    - host: {{ .Values.global.ingress.host }}
+    - host: {{ $host }}
       http:
         paths:
-          - path: {{ .Values.api.ingress.path }}
+          - path: /
             pathType: Prefix
             backend:
               service:

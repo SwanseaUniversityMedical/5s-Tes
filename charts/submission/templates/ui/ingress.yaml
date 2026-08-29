@@ -1,4 +1,5 @@
 {{- if and .Values.ui.enabled .Values.ui.ingress.enabled -}}
+{{- $host := .Values.ui.ingress.host | default (printf "submission.%s" .Values.global.ingress.host) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
@@ -14,14 +15,14 @@ spec:
   {{- if .Values.global.ingress.tls }}
   tls:
     - hosts:
-        - {{ .Values.global.ingress.host }}
-      secretName: {{ include "submission.fullname" . }}-ui-tls
+        - {{ $host }}
+      secretName: submission-tls
   {{- end }}
   rules:
-    - host: {{ .Values.global.ingress.host }}
+    - host: {{ $host }}
       http:
         paths:
-          - path: {{ .Values.ui.ingress.path }}
+          - path: /
             pathType: Prefix
             backend:
               service:

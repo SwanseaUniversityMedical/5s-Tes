@@ -103,9 +103,9 @@ Settings shared by more than one component. Defined once.
 | `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway. | `false` |
 | `global.monitoring.pushgatewayUrl` | Pushgateway address, used when `global.monitoring.enabled` is `true`. | `""` |
 | `global.ingress.className` | Ingress controller class for every Ingress. | `"nginx"` |
-| `global.ingress.host` | Shared external hostname. The api and ui Ingresses answer on this one host at different paths. | `"submission.localtest.me"` |
-| `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues the TLS certificate. | `"ca-issuer"` |
-| `global.ingress.tls` | Terminate TLS at the ingress. The certificate is declared on the ui Ingress; nginx-ingress applies it to every Ingress for the same host, including api's. | `true` |
+| `global.ingress.host` | Base domain. `api.ingress.host`/`ui.ingress.host` default to a subdomain of this when left empty. api and ui are separate public endpoints, each with their own Ingress and hostname. | `"localtest.me"` |
+| `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues each Ingress's TLS certificate. | `"ca-issuer"` |
+| `global.ingress.tls` | Terminate TLS at the ingress. Each Ingress declares its own certificate. | `true` |
 | `global.trustClusterCa.enabled` | Mount a cluster CA bundle over both containers' trust store. Both components call Keycloak over HTTPS. | `false` |
 | `global.trustClusterCa.configMapName` | ConfigMap holding the bundle. Provided by the cluster, not by this chart. | `overlay-castore` |
 | `global.trustClusterCa.key` | Key inside that ConfigMap. Also used as the mount `subPath`. | `ca-certificates.crt` |
@@ -124,7 +124,7 @@ Settings shared by more than one component. Defined once.
 | `api.service.type` | API Service type. | `ClusterIP` |
 | `api.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `submission-api-secret` |
 | `api.ingress.enabled` | Create an Ingress for the API. | `true` |
-| `api.ingress.path` | Path prefix the API answers on, under `global.ingress.host`. | `/api` |
+| `api.ingress.host` | Hostname for the API Ingress. Empty computes `submission-api.<global.ingress.host>`. | `""` |
 | `api.rabbitmqHost` | RabbitMQ host address. Read into `RabbitMQ__HostAddress`. | `rabbitmq` |
 | `api.s3Url` | In-cluster RustFS S3 endpoint. Read into `MinioSettings__Url`. | `http://rustfs-svc:9000` |
 | `api.s3ConsoleUrl` | Public RustFS console URL shown to users. Read into `MinioSettings__AdminConsole`. | `http://localhost:9001` |
@@ -147,7 +147,7 @@ Settings shared by more than one component. Defined once.
 | `api.vault.secretEngine` | Vault secret engine mount. | `secret` |
 | `api.vault.enableRetry` | Retry failed Vault calls. | `true` |
 | `api.vault.maxRetryAttempts` | Maximum Vault retry attempts. | `3` |
-| `api.publicUrl` | Public URL embedded in TRE onboarding JSON. Read into `SubmissionApiUrl`. | `http://submission.localtest.me/api` |
+| `api.publicUrl` | Public URL embedded in TRE onboarding JSON. Read into `SubmissionApiUrl`. | `http://submission-api.localtest.me` |
 | `api.features.seedDemoData` | Seed demo data on startup. | `"false"` |
 | `api.keycloakDemoMode` | Run the API's Keycloak integration in demo mode. | `"false"` |
 | `api.suppressAntiforgery` | Disable antiforgery checks. | `"false"` |
@@ -167,7 +167,7 @@ Settings shared by more than one component. Defined once.
 | `ui.service.type` | UI Service type. | `ClusterIP` |
 | `ui.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `submission-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |
-| `ui.ingress.path` | Path prefix the UI answers on, under `global.ingress.host`. | `/` |
+| `ui.ingress.host` | Hostname for the UI Ingress. Empty computes `submission.<global.ingress.host>`. | `""` |
 | `ui.appName` | Display name shown in the UI. | `Five Safes TES` |
 | `ui.keycloakDemoMode` | Run the UI's Keycloak integration in demo mode. | `"false"` |
 | `ui.sslCookies` | Mark cookies secure. Requires HTTPS end-to-end if `true`. | `"false"` |

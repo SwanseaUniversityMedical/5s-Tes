@@ -58,11 +58,13 @@ global:
     enabled: false
     pushgatewayUrl: ""
 
-  # api and ui share one external host; the API sits at a subpath so the
-  # whole product answers on one domain.
+  # Base domain. api and ui each get their own subdomain of it, since they
+  # are separate public endpoints (distinct ports/URLs in compose; neither
+  # app configures a path base, so a shared host with path-splitting would
+  # break routes and Swagger).
   ingress:
     className: "nginx"
-    host: "submission.localtest.me"
+    host: "localtest.me"
     certClusterIssuer: "ca-issuer"
     tls: true
 
@@ -94,7 +96,8 @@ api:
   secretName: submission-api-secret
   ingress:
     enabled: true
-    path: /api
+    # Empty computes "submission-api.<global.ingress.host>".
+    host: ""
 
   rabbitmqHost: "rabbitmq"
   s3Url: "http://rustfs-svc:9000"
@@ -127,7 +130,7 @@ api:
     maxRetryAttempts: 3
 
   # Public URL embedded in TRE onboarding JSON.
-  publicUrl: "http://submission.localtest.me/api"
+  publicUrl: "http://submission-api.localtest.me"
 
   features:
     seedDemoData: "false"
@@ -156,7 +159,8 @@ ui:
   secretName: submission-ui-secret
   ingress:
     enabled: true
-    path: /
+    # Empty computes "submission.<global.ingress.host>".
+    host: ""
 
   appName: "Five Safes TES"
   keycloakDemoMode: "false"
