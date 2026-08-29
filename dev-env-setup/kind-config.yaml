@@ -1,0 +1,16 @@
+# Host ports 80/443 land on the ingress controller's hostPort;
+# *.localtest.me resolves to 127.0.0.1 on the host. Single-node only - see
+# cluster-setup.sh's RWX provisioner patch.
+name: 5s-tes
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+nodes:
+- role: control-plane
+  extraPortMappings:
+  - containerPort: 80
+    hostPort: 80
+    protocol: TCP
+  - containerPort: 443
+    hostPort: 443
+    protocol: TCP
+  # --- Task 5.2 adds NodePort mappings here for the VS Code local-run flow. ---

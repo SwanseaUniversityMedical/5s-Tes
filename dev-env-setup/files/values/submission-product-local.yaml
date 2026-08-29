@@ -1,0 +1,32 @@
+# Values for `helm install submission charts/submission` directly from
+# this working tree. submission-stack's own templates/submission.yaml
+# Application is disabled locally (submission.enabled: false in
+# submission-stack-local.yaml) because nothing is published to Harbor yet
+# (charts/submission-stack targets harbor.federated-analytics.ac.uk, a
+# literal, not a value). This file reproduces the same valuesObject that
+# Application would have rendered, for our local settings. See README.
+dataProtection:
+  accessModes:
+    - ReadWriteMany
+
+global:
+  config:
+    aspnetEnvironment: "Production"
+  oidc:
+    authority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  ingress:
+    host: "submission.localtest.me"
+    tls: false
+
+api:
+  image:
+    repository: 5s-tes/submission-api
+    tag: local
+  s3ConsoleUrl: "http://rustfs.submission.localtest.me"
+  publicUrl: "http://submission-api.submission.localtest.me"
+
+ui:
+  image:
+    repository: 5s-tes/submission-ui
+    tag: local
+  s3ConsoleUrl: "http://rustfs.submission.localtest.me"

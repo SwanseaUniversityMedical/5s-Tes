@@ -49,7 +49,13 @@ this stack's own Vault Service) to override the redhatcop operator's own default
 which otherwise points at the platform Vault.
 
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`). Every
-step below is manual; no bootstrap script exists yet.
+step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equivalent
+(init/unseal/`secret` mount/token).
+
+**Known hazard, on a cluster also running `submission-stack`'s Vault**: the two releases'
+`ClusterRoleBinding`s collide (identical cluster-scoped name, one release's naming choice
+away from a real fix) — see `submission-stack`'s README **Vault** section for the detail.
+Vault itself keeps working; only ArgoCD's sync status for one of the two is affected.
 
 1. **Init and unseal** (first time only):
 

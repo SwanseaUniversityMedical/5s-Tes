@@ -1,0 +1,38 @@
+# In-cluster pods resolving *.localtest.me would hit their own loopback.
+# Rewrite the Keycloak hosts to the ingress controller, not the Keycloak
+# Services: the preserved Host header routes via the controller to the right
+# family's Keycloak. Both submission-api/agent-api (OIDC discovery/token
+# validation) and agent-api (cross-realm Submission OIDC check) resolve
+# these in-cluster.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: coredns
+  namespace: kube-system
+data:
+  Corefile: |
+    .:53 {
+        errors
+        health {
+           lameduck 5s
+        }
+        ready
+        rewrite name exact keycloak.submission.localtest.me ingress-nginx-controller.ingress-nginx.svc.cluster.local
+        rewrite name exact keycloak.agent.localtest.me ingress-nginx-controller.ingress-nginx.svc.cluster.local
+        kubernetes cluster.local in-addr.arpa ip6.arpa {
+           pods insecure
+           fallthrough in-addr.arpa ip6.arpa
+           ttl 30
+        }
+        prometheus :9153
+        forward . /etc/resolv.conf {
+           max_concurrent 1000
+        }
+        cache 30 {
+           disable success cluster.local
+           disable denial cluster.local
+        }
+        loop
+        reload
+        loadbalance
+    }

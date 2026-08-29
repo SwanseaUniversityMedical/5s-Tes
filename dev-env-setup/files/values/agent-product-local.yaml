@@ -1,0 +1,42 @@
+# Values for `helm install agent charts/agent` directly from this working
+# tree. See submission-product-local.yaml for why (agent-stack's own
+# templates/agent.yaml Application is disabled locally, same reason).
+processModels:
+  accessModes:
+    - ReadWriteMany
+
+global:
+  config:
+    aspnetEnvironment: "Production"
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+  ingress:
+    host: "agent.localtest.me"
+    tls: false
+
+submission:
+  oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  apiUrl: "http://submission-api.submission.localtest.me"
+  s3Url: "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"
+
+api:
+  image:
+    repository: 5s-tes/agent-api
+    tag: local
+  publicUrl: "http://agent-api.agent.localtest.me"
+
+ui:
+  image:
+    repository: 5s-tes/agent-ui
+    tag: local
+
+web:
+  image:
+    repository: 5s-tes/agent-web
+    tag: local
+  publicUrl: "http://agent.agent.localtest.me"
+
+camunda:
+  image:
+    repository: 5s-tes/credentials-camunda
+    tag: local

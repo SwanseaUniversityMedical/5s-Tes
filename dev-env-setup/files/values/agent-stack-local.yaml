@@ -1,0 +1,36 @@
+# Encodes charts/agent-devstack/README.md's "Local install" recipe as a
+# values file. See submission-stack-local.yaml for the accessModes-drop and
+# agent.enabled=false rationale (same reasons, same mechanism).
+global:
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+  ingress:
+    host: "agent.localtest.me"
+    tls: false
+  storageClass: "standard"
+  trustClusterCa:
+    enabled: false
+  veleroBackup:
+    enabled: false
+  monitoring:
+    enabled: false
+
+vault:
+  secretsEnabled: false
+
+rabbitmq:
+  vaultDefaultUser: false
+  additionalConfig: |
+    default_user = agent
+    default_pass = password123
+    loopback_users.agent = false
+
+agent:
+  enabled: false
+
+# Cross-link to the co-located Submission product, in its own namespace on
+# this same cluster (in-cluster DNS), not its (nonexistent locally) public URL.
+submission:
+  oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  apiUrl: "http://submission-api.submission.localtest.me"
+  s3Url: "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"

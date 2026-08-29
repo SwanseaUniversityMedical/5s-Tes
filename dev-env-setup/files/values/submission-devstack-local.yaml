@@ -1,0 +1,11 @@
+# Distinct per-family ingress host suffix: submission-devstack and
+# agent-devstack both render keycloak.{{global.ingress.host}} and
+# adminer.{{global.ingress.host}} Ingress hosts, and submission-stack and
+# agent-stack both render seq./rustfs.{{global.ingress.host}}. Running both
+# families on one shared *.localtest.me cluster needs them to differ, or
+# ingress-nginx silently picks one Ingress per host and drops the other's.
+# See README "Local install" for the single-family (host: localtest.me)
+# recipe this overrides.
+global:
+  ingress:
+    host: "submission.localtest.me"

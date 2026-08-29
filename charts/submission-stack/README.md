@@ -51,7 +51,23 @@ instance, you can do with this section of the CR" —
 `main` branch, checked 2026-08-29).
 
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`).
-Every step below is manual; no bootstrap script exists yet.
+Every step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev
+equivalent (init/unseal/`secret` mount/token, not the `kvv2`/Kubernetes-auth steps below,
+which only matter where `vault.secretsEnabled=true`).
+
+**Known hazard, any cluster running both this stack and `agent-stack`'s Vault**: the
+hashicorp/vault chart names its `ClusterRoleBinding` (`system:auth-delegator`) from the
+Helm release name alone (`{{ vault.fullname }}-server-binding`), with no namespace in it.
+Both stacks' `templates/vault.yaml` name their Vault Application/release `vault`, so on a
+shared cluster the two releases compute the identical cluster-scoped name
+`vault-server-binding` and fight over it (ArgoCD reports one as permanently `OutOfSync`,
+`SharedResourceWarning`). Vault itself keeps working — this only matters if something
+locally uses Kubernetes-auth-based login, which `vault.secretsEnabled=false` deployments
+don't. Not fixed here: a real fix means giving each release a distinct
+`fullnameOverride`, which also renames the Vault Service (`vault.address` and every
+in-cluster `http://vault:8200` reference in both stacks and both standalone charts) —
+out of scope for a bootstrap task. Found by `dev-env-setup`'s local boot (both stacks on
+one cluster); it applies equally to a shared production cluster running both products.
 
 1. **Init and unseal** (first time only):
 

@@ -1,0 +1,50 @@
+# Chart version is pinned in cluster-setup.sh.
+apiVersionOverrides:
+  certmanager: "cert-manager.io/v1"
+
+global:
+  domain: "argocd.localtest.me"
+
+configs:
+  cm:
+    create: true
+    url: "http://argocd.localtest.me"
+
+    kustomize.buildOptions: |
+      --enable-helm
+
+    resource.customizations: |
+      argoproj.io/Application:
+        health.lua: |
+          hs = {}
+          hs.status = "Progressing"
+          hs.message = ""
+          if obj.status ~= nil then
+            if obj.status.health ~= nil then
+              hs.status = obj.status.health.status
+              if obj.status.health.message ~= nil then
+                hs.message = obj.status.health.message
+              end
+            end
+          end
+          return hs
+
+  params:
+    # let argo watch all namespaces
+    application.namespaces: '*'
+    server.insecure: true
+    controller.status.processors: 100
+    controller.operation.processors: 50
+
+  secret:
+    # default password for dev env is "admin"
+    argocdServerAdminPassword: "$2a$10$335CAiV08.lMIbC093WhSel3X8wKJlVRpL/EYIHnb8ShUR9YeIj06"
+
+server:
+  ingress:
+    enabled: true
+    ingressClassName: "nginx"
+    annotations:
+      nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    hostname: "argocd.localtest.me"
+    tls: false

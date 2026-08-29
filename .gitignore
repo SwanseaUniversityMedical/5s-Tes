@@ -486,3 +486,5 @@ $RECYCLE.BIN/
 *.swp
 
 .superpowers/
+
+dev-env-setup/.vault-keys*

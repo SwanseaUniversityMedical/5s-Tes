@@ -64,11 +64,25 @@ e.g. (mirrors `serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
 --set-string rabbitmq.additionalConfig="default_user = submission
 default_pass = password123
 loopback_users.submission = false"
---set 'submission.dataProtection.accessModes[0]=ReadWriteOnce'
 ```
 
-A future `dev-env-setup/` values file is planned to carry this set; until it exists, this
-recipe is canonical.
+`dev-env-setup/files/values/submission-devstack-local.yaml` and `submission-stack-local.yaml`
+carry this set (plus the per-family host suffix below) for the two-family bootstrap; this
+recipe stays canonical for running Submission alone.
+
+**Running Submission alongside Agent on one cluster** (what `dev-env-setup/cluster-setup.sh`
+does): both devstack charts render a Keycloak Ingress at `keycloak.<global.ingress.host>` and
+an Adminer Ingress at `adminer.<global.ingress.host>`, and both stack charts render Seq/RustFS
+the same way - one shared `localtest.me` host means ingress-nginx keeps only one family's
+Ingress per host and silently drops the other. Give each family its own suffix instead (still
+under the `*.localtest.me` wildcard, which resolves any subdomain to `127.0.0.1`):
+`global.ingress.host=submission.localtest.me` (and `keycloak.agent.localtest.me` for Agent's
+own realm URL, not this one). See `dev-env-setup/README.md`.
+
+**Fallback only**: on a cluster without `dev-env-setup`'s RWX provisioner patch (step 2 of
+`cluster-setup.sh`), add `--set 'submission.dataProtection.accessModes[0]=ReadWriteOnce'` -
+the stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
+`local-path-provisioner`.
 
 - `global.oidc.authority` must point at the local Keycloak's realm URL; the stack chart's
   own default is the production authority, which does not exist locally.
@@ -88,12 +102,11 @@ recipe is canonical.
   source for bootstrap Secrets. `vault.secretsEnabled=false` drops only the five
   `VaultSecret`s across the four files under `templates/secrets/`, so this chart's static
   Secrets are the only thing producing those names/keys.
-- The local Vault still starts sealed and needs init/unseal (a helper script is planned;
-  see `submission-stack`'s README **Vault** section for the manual steps). Its runtime
-  token is `submission-api-secret.vaultToken` (`dev-only-token` — see **Credentials**
-  above): either configure the freshly-initialized local Vault with a token equal to that
-  value, or update this chart's `templates/secrets/static.yaml` to match whatever token
-  init actually produced.
+- The local Vault still starts sealed and needs init/unseal:
+  `dev-env-setup/vault-init.sh` does this (init, unseal, enable the `secret` mount, and
+  create a `dev-only-token` root-policy token matching this Secret's `vaultToken` — see its
+  README section). See `submission-stack`'s README **Vault** section for the manual/prod
+  steps this mirrors.
 - `rabbitmq.vaultDefaultUser=false` drops the `RabbitmqCluster`'s `secretBackend.vault`
   block. The `additionalConfig` lines then set the broker's own default user to
   `submission`/`password123` — the same values as this chart's `submission-api-secret`
@@ -130,12 +143,14 @@ charts:
   `oidc-audience-mapper` adding `Dare-Control-API` to its tokens' audience, mirroring
   production's `Dare-Control-API-cs` client scope
   (`DeploymentStack/Submission/config/realm-config/sub-layer.json`).
-- **Known local constraint**: server-side OIDC calls made from inside pods (the API and UI
-  reaching `global.oidc.authority`) resolve `keycloak.localtest.me` to `127.0.0.1`, not the
-  ingress controller — `localtest.me` is a wildcard domain that always resolves to
-  loopback. This needs a cluster DNS mapping to the ingress controller; a CoreDNS rewrite
-  is planned for the dev-env bootstrap but not yet implemented. Until then, map it manually
-  in cluster DNS (or `/etc/hosts` on every node) before the login flow will work.
+- **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
+  inside pods (the API and UI reaching `global.oidc.authority`) would otherwise resolve
+  `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —
+  `*.localtest.me` is a wildcard domain that always resolves to loopback.
+  `dev-env-setup/cluster-setup.sh` rewrites CoreDNS (`files/deps/coredns.yaml`) so both
+  families' Keycloak hosts resolve in-cluster to the ingress controller Service instead.
+  Installing this chart outside that bootstrap still needs the equivalent mapping done
+  manually (cluster DNS rewrite, or `/etc/hosts` on every node).
 - The standalone chart renders `SubmissionKeyCloakSettings__Authority` as this authority plus a
   trailing slash (no well-known suffix), and `__MetadataAddress` as the
   `/.well-known/openid-configuration` URL — matching compose, deliberate: `Submission.Api` sets
