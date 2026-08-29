@@ -28,8 +28,9 @@ yet been seeded (both images bake in the same files). The initContainer mounts t
 source without the (empty, on first boot) PVC hiding them. The seed check looks for the
 sentinel file `/models/credentials.dmn` rather than testing directory emptiness, so it is
 immune to a stray `lost+found` entry on an ext4-formatted volume; the copy writes every
-other file first and `credentials.dmn` last, so a container killed mid-copy leaves the
-sentinel absent and the next run retries. It is idempotent, so it is safe to run
+other file first and writes `credentials.dmn` last, atomically (copy to a temp name, then
+`mv` into place), so a container killed mid-copy — or mid-write of the sentinel itself —
+leaves the sentinel absent and the next run retries. It is idempotent, so it is safe to run
 unconditionally from both components — `api` alone still seeds the PVC correctly when
 `camunda.enabled` is `false`. `api` and `camunda`'s main containers then both mount the PVC
 at `/app/ProcessModels`.

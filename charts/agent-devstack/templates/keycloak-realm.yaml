@@ -61,7 +61,7 @@ data:
         "realm": [
           {
             "name": "dare-tre-admin",
-            "description": "Gates every page in agent-web behind authcheck(\"dare-tre-admin\") (Agent/agent-web/lib/auth-helpers.ts)."
+            "description": "Gates every page in agent-web behind authcheck(\"dare-tre-admin\") (Agent/agent-web/lib/auth-helpers.ts) and every [Authorize(Roles = \"dare-tre-admin\")] controller in Agent.Api and Agent.Web (e.g. Agent/Agent.Api/Controllers/OnboardingController.cs:11)."
           }
         ]
       },

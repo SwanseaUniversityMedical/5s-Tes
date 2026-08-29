@@ -38,9 +38,11 @@ spec:
         persistentVolumeLabels:
           {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
 
-        # Multi-node prod cluster: api and camunda cannot both land on the
-        # same node with a ReadWriteOnce claim. Requires an RWX-capable
-        # storage class; see agent.processModels.storageClassName.
+        # Deployment-specific: a multi-node prod cluster needs RWX (api and
+        # camunda cannot both land on the same node with a ReadWriteOnce
+        # claim, and RWX needs an RWX-capable storage class; see
+        # agent.processModels.storageClassName). A single-node local cluster
+        # overrides to RWO; see agent.processModels.accessModes.
         processModels:
           accessModes:
             {{- toYaml .Values.agent.processModels.accessModes | nindent 12 }}

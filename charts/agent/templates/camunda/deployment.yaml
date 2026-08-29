@@ -49,7 +49,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.camunda.image.repository }}:{{ .Values.camunda.image.tag | default .Values.global.tag }}"
           imagePullPolicy: {{ .Values.camunda.image.pullPolicy }}
-          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then find /app/ProcessModels -mindepth 1 -maxdepth 1 ! -name credentials.dmn -exec cp -r {} /models/ \\; ; cp /app/ProcessModels/credentials.dmn /models/; fi"]
+          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then find /app/ProcessModels -mindepth 1 -maxdepth 1 ! -name credentials.dmn -exec cp -r {} /models/ \\; ; cp /app/ProcessModels/credentials.dmn /models/.credentials.dmn.tmp && mv /models/.credentials.dmn.tmp /models/credentials.dmn; fi"]
           volumeMounts:
             - name: process-models
               mountPath: /models

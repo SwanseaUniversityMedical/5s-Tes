@@ -145,16 +145,6 @@ TESK environment, then set `agent.api.tesApiUrl` on `agent-stack` to its `tesk-a
 do not enable `agent-stack`'s own `tesk.enabled` for this purpose (see its README, **GA4GH TES
 backend**). A local GA4GH Funnel instance is an equally valid substitute if you have one.
 
-### Known gap: the shared processmodels PVC needs ReadWriteMany
-
-`agent-stack`'s `templates/agent.yaml` hard-codes `processModels.accessModes: [ReadWriteMany]`
-(api and camunda share the PVC) regardless of environment. kind's default `standard`
-`StorageClass` (`local-path-provisioner`) is ReadWriteOnce-only, so this PVC will not bind on
-an unmodified local cluster. Either install an RWX-capable provisioner (e.g. an NFS
-provisioner) in the bootstrap script and set `agent.processModels.storageClassName` to it, or
-run api and camunda pinned to the same node so a ReadWriteOnce claim happens to work — neither
-is wired up by this devstack chart yet.
-
 ## What the local cluster must already have
 
 With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD are

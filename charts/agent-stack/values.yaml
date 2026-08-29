@@ -59,13 +59,13 @@ agent:
     # Public URL of the Next.js app, used by Better Auth. Empty computes
     # "<scheme>://agent.<global.ingress.host>" from global.ingress.
     publicUrl: ""
-  # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
-  # null uses the cluster default, which is typically RWO-only (ceph-block)
-  # and will not bind a ReadWriteMany claim. See README.
-  # accessModes: deployment-specific (multi-node prod is RWX; single-node
-  # kind is RWO-only). See README.
   processModels:
+    # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
+    # null uses the cluster default, which is typically RWO-only (ceph-block)
+    # and will not bind a ReadWriteMany claim. See README.
     storageClassName: null
+    # Deployment-specific: multi-node prod is RWX; single-node kind is
+    # RWO-only. See README.
     accessModes:
       - ReadWriteMany
   # External Active Directory settings for the Credentials Camunda worker.
