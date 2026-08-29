@@ -45,10 +45,14 @@ spec:
           {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
 
         # Multi-node prod cluster: api and ui cannot both land on the same
-        # node with a ReadWriteOnce claim.
+        # node with a ReadWriteOnce claim. Requires an RWX-capable storage
+        # class; see submission.dataProtection.storageClassName.
         dataProtection:
           accessModes:
             - ReadWriteMany
+          {{- with .Values.submission.dataProtection.storageClassName }}
+          storageClassName: {{ . | quote }}
+          {{- end }}
 
         global:
           tag: "{{ .Values.submission.imageVersion }}"

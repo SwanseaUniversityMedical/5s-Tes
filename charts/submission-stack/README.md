@@ -32,12 +32,11 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
 
 ## Vault
 
-This stack deploys its own Vault instance (`templates/vault.yaml`) to hold Submission's
-own application secrets, separate from the platform's Keycloak/Harbor Vault on the
-`management` cluster. **This is a deliberate design decision for this stack and has not
-been confirmed against precedent** — neither `serp-provisioning-stack` nor `airlock-stack`
-deploy their own Vault; both read from an already-running Vault instead. Confirm this is
-really wanted before this chart goes to production.
+This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned
+runtime Vault**, holding ephemeral researcher credentials — not the platform Vault on
+the `management` cluster. This is a confirmed product decision (Alex, 2026-08-29) and
+is why this stack differs from `serp-provisioning-stack`/`airlock-stack`, where Vault is
+platform-side and the stack only reads from it.
 
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`).
 Bring it up by hand the first time:
@@ -75,6 +74,7 @@ fills; the two must agree.
 | `.../rustfs` | `access_key` | `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../submission-api`'s `s3_access_key` |
 | `.../rustfs` | `secret_key` | `submission-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../submission-api`'s `s3_secret_key` |
 | `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
+| `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below. |
 
 ### RabbitMQ: the default user needs management permissions
 
@@ -111,6 +111,16 @@ needs the `Database` CRD, added in CloudNativePG 1.25; verified present in the
 ships in the CRD bundle at the version `dev-env-setup/cluster-setup.sh` installs, app
 version 1.30.0).
 
+## The shared `submission-dataprotection` PVC needs an RWX storage class
+
+`dataProtection.accessModes` is wired to `[ReadWriteMany]` (api and ui both mount it, on
+a multi-node prod cluster), but `global.storageClass` (`ceph-block`) is typically
+RWO-only. Set `submission.dataProtection.storageClassName` to the cluster's RWX-capable
+class (e.g. its CephFS class) before deploying, or the PVC will not bind. Left `null` by
+default — the standalone chart then omits `storageClassName` entirely and falls back to
+whatever the cluster's default class is, which will fail for `ReadWriteMany` on a
+default class that is RWO-only.
+
 ## Backups
 
 **Off by default for PostgreSQL** (`postgres.backups.enabled: false`): no destination S3
@@ -118,20 +128,23 @@ bucket has been set up for this stack yet. **On by default for volumes**
 (`global.veleroBackup.enabled: true`), which the shared prod cluster's Velero picks up
 by the `persistentVolumeLabels` selector.
 
-With today's defaults, real data sits in three places with different protection:
+With today's defaults, real data sits in two places with different protection:
 
 - **`postgres` (the CNPG `Cluster`)** — its own data. Not backed up until
-  `postgres.backups.enabled`, `destinationPath`, `endpointURL`, `existingSecret` (an
-  S3-credentials Secret with `ACCESS_KEY_ID`/`ACCESS_SECRET_KEY`) and
-  `endpointCASecretName` (a Secret with `ca.crt` for the destination's certificate) are
-  all set — none of these render a `Certificate`; the Secret must already exist.
-- **The `submission-dataprotection` PVC** — ASP.NET data-protection keys. Labelled with
-  `persistentVolumeLabels`, so covered by the Velero `Schedule` above.
-- **RustFS's own storage** — uploaded files. The RustFS chart's PVCs are **not** labelled
-  with `persistentVolumeLabels` by this chart (the chart's `commonLabels` value was not
-  wired), so they are not covered by the Velero `Schedule` either, even though
-  `global.veleroBackup.enabled` is `true`. Confirm whether this needs fixing before real
-  files land there.
+  `postgres.backups.enabled`, `destinationPath`, `endpointURL`, `endpointCASecretName`
+  (a Secret with `ca.crt` for the destination's certificate — not created by this chart,
+  must already exist) and `postgres.backups.vault.path`/`accessKeyField`/`secretKeyField`
+  are all set. The S3 credentials themselves are **not** a separate Secret: they are a
+  second `vaultSecretDefinitions` entry (aliased `backup`) on the same `postgres-secret`
+  VaultSecret, reading `postgres.backups.vault.path` and filling `backupAccessKey`/
+  `backupSecretKey` — the exact mechanism `serp-provisioning-stack` uses
+  (`templates/secrets/postgres.yaml:19-27,33-36`, `templates/postgres.yaml:135-141`;
+  same shape in `airlock-stack`'s `postgres.backups.vault.*` values), not a new one.
+- **The `submission-dataprotection` PVC and RustFS's own storage** — ASP.NET
+  data-protection keys and uploaded files. Both are labelled with
+  `persistentVolumeLabels` (RustFS via its chart's `commonLabels` value, confirmed
+  present and applied to its PVCs by `helm show values`/the chart's own
+  `templates/pvc.yaml`), so both are covered by the Velero `Schedule` above.
 
 ## Values reference
 
@@ -177,7 +190,10 @@ With today's defaults, real data sits in three places with different protection:
 | `submission.imageVersion` | Image tag for both `submission-api` and `submission-ui`. | `3.2.0` |
 | `submission.s3ConsoleUrl` | Public RustFS console URL. Empty computes one from `global.ingress`. | `""` |
 | `submission.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
+| `submission.dataProtection.storageClassName` | RWX-capable storage class for the shared `submission-dataprotection` PVC. `null` omits the field (cluster default, usually RWO-only). See above. | `null` |
 
 ### rustfs / seq / vault / rabbitmq / postgres
 
 See `values.yaml`; each block's keys map to the template file of the same name.
+`postgres.backups.vault.path`/`accessKeyField`/`secretKeyField` name the Vault location
+of the `ObjectStore`'s S3 credentials; see **Backups** above.

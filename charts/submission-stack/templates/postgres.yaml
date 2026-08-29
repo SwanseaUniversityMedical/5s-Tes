@@ -134,11 +134,11 @@ spec:
       key: ca.crt
     s3Credentials:
       accessKeyId:
-        name: {{ .Values.postgres.backups.existingSecret }}
-        key: ACCESS_KEY_ID
+        name: postgres-secret
+        key: backupAccessKey
       secretAccessKey:
-        name: {{ .Values.postgres.backups.existingSecret }}
-        key: ACCESS_SECRET_KEY
+        name: postgres-secret
+        key: backupSecretKey
     wal:
       compression: gzip
   retentionPolicy: "{{ .Values.postgres.backups.retention }}"

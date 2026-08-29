@@ -48,6 +48,11 @@ submission:
     # Public URL embedded in TRE onboarding JSON. Empty computes
     # "<scheme>://submission-api.<global.ingress.host>" from global.ingress.
     publicUrl: ""
+  dataProtection:
+    # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
+    # null uses the cluster default, which is typically RWO-only (ceph-block)
+    # and will not bind a ReadWriteMany claim.
+    storageClassName: null
 
 # --------------------------------------------------------------------
 # Dependencies installed from somebody else's chart.
@@ -129,10 +134,16 @@ postgres:
     enabled: false
     destinationPath: ""
     endpointURL: ""
-    # Secret holding ACCESS_KEY_ID and ACCESS_SECRET_KEY for that bucket.
-    existingSecret: ""
     # Secret holding ca.crt for the object storage endpoint's certificate.
+    # Not created by this chart; must already exist.
     endpointCASecretName: ""
     retention: "30d"
     # SIX fields, seconds first.
     schedule: "0 0 0 * * *"
+    # Where the backup destination's S3 credentials live in Vault. Same
+    # mechanism as serp-provisioning-stack/airlock-stack: a second
+    # vaultSecretDefinitions entry on postgres-secret, aliased "backup".
+    vault:
+      path: ""
+      accessKeyField: access_key
+      secretKeyField: secret_key

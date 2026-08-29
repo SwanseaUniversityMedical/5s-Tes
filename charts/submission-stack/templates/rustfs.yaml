@@ -44,6 +44,11 @@ spec:
         secret:
           existingSecret: submission-rustfs-secret
 
+        # Labels every object the chart creates, including its PVCs, so the
+        # Velero Schedule's selector in backup.yaml covers rustfs's own data.
+        commonLabels:
+          {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
+
         storageclass:
           name: {{ .Values.global.storageClass }}
           dataStorageSize: {{ .Values.rustfs.storageSize }}
