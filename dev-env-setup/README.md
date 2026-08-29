@@ -150,6 +150,10 @@ to the same host port.
 **Changing `kind-config.yaml` needs a cluster recreation** (`kind create cluster` reads it only
 at cluster creation) - `./clean-up.sh && ./cluster-setup.sh`, not a plain re-run.
 
+Per-app `appsettings.Development_Kind.json` profiles (and `agent-web/.env.kind.example`) that
+consume these ports to run each app from VS Code are documented in the root README's "Running
+apps from VS Code against kind".
+
 ## Known local constraints
 
 - **GA4GH TES backend** (Agent): `agent.api.tesApiUrl` is left at the standalone chart's own
