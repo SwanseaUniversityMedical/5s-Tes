@@ -1,0 +1,94 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-import
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+data:
+  # Wildcard redirectUris and ROPC are dev shortcuts; never copy for a real realm.
+  dare-tre.json: |-
+    {
+      "realm": "Dare-TRE",
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "clients": [
+        {
+          "clientId": "Dare-TRE-API",
+          "name": "Agent API (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-tre-api",
+          "standardFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        },
+        {
+          "clientId": "Dare-TRE-UI",
+          "name": "Agent UI/Web (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-tre-ui",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        },
+        {
+          "clientId": "Dare-TRE-S3",
+          "name": "Agent S3 console (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-tre-s3",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }
+      ],
+      "roles": {
+        "realm": [
+          {
+            "name": "dare-tre-admin",
+            "description": "Admin access in agent-web (authcheck(\"dare-tre-admin\") on every gated page) and the Agent API's Dare-TRE-API service account."
+          }
+        ]
+      },
+      "users": [
+        {
+          "username": "service-account-dare-tre-api",
+          "enabled": true,
+          "serviceAccountClientId": "Dare-TRE-API",
+          "realmRoles": ["dare-tre-admin"]
+        },
+        {
+          "username": "dev",
+          "enabled": true,
+          "email": "dev@localtest.me",
+          "emailVerified": true,
+          "firstName": "Dev",
+          "lastName": "User",
+          "realmRoles": [
+            "default-roles-dare-tre",
+            "dare-tre-admin"
+          ],
+          "credentials": [
+            {
+              "type": "password",
+              "value": "password123",
+              "temporary": false
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}
