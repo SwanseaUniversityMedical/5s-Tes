@@ -22,14 +22,17 @@ node — fine on a single-node kind cluster, but a multi-node cluster must set
 `processModels.accessModes: [ReadWriteMany]`.
 
 Both `api` and `camunda`'s Deployments run a `seed-process-models` initContainer that
-copies the image's own `/app/ProcessModels` into the shared PVC the first time it is
-empty (both images bake in the same files). The initContainer mounts the PVC at
-`/models`, not `/app/ProcessModels`, so it can read the image's baked-in files as the
-copy source without the (empty, on first boot) PVC hiding them. The seed check looks for
-`/models/credentials.dmn` rather than testing directory emptiness, so it is immune to a
-stray `lost+found` entry on an ext4-formatted volume. It is idempotent, so running it
-from both components — including when `camunda.enabled` is `false` — is safe. `api` and
-`camunda`'s main containers then both mount the PVC at `/app/ProcessModels`.
+copies the image's own `/app/ProcessModels` into the shared PVC the first time it has not
+yet been seeded (both images bake in the same files). The initContainer mounts the PVC at
+`/models`, not `/app/ProcessModels`, so it can read the image's baked-in files as the copy
+source without the (empty, on first boot) PVC hiding them. The seed check looks for the
+sentinel file `/models/credentials.dmn` rather than testing directory emptiness, so it is
+immune to a stray `lost+found` entry on an ext4-formatted volume; the copy writes every
+other file first and `credentials.dmn` last, so a container killed mid-copy leaves the
+sentinel absent and the next run retries. It is idempotent, so it is safe to run
+unconditionally from both components — `api` alone still seeds the PVC correctly when
+`camunda.enabled` is `false`. `api` and `camunda`'s main containers then both mount the PVC
+at `/app/ProcessModels`.
 
 ## What must already exist
 

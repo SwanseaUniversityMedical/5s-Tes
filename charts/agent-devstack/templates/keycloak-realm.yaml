@@ -8,6 +8,8 @@ metadata:
     {{- include "agent-devstack.labels" . | nindent 4 }}
 data:
   # Wildcard redirectUris and ROPC are dev shortcuts; never copy for a real realm.
+  # No client-credentials grant for Dare-TRE-API's service account: no verified
+  # consumer of one exists in this codebase (README, agent-web role gating).
   dare-tre.json: |-
     {
       "realm": "Dare-TRE",
@@ -59,17 +61,11 @@ data:
         "realm": [
           {
             "name": "dare-tre-admin",
-            "description": "Admin access in agent-web (authcheck(\"dare-tre-admin\") on every gated page) and the Agent API's Dare-TRE-API service account."
+            "description": "Gates every page in agent-web behind authcheck(\"dare-tre-admin\") (Agent/agent-web/lib/auth-helpers.ts)."
           }
         ]
       },
       "users": [
-        {
-          "username": "service-account-dare-tre-api",
-          "enabled": true,
-          "serviceAccountClientId": "Dare-TRE-API",
-          "realmRoles": ["dare-tre-admin"]
-        },
         {
           "username": "dev",
           "enabled": true,

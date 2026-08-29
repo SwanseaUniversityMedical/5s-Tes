@@ -50,7 +50,7 @@ spec:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
           imagePullPolicy: {{ .Values.api.image.pullPolicy }}
-          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then cp -r /app/ProcessModels/. /models/; fi"]
+          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then find /app/ProcessModels -mindepth 1 -maxdepth 1 ! -name credentials.dmn -exec cp -r {} /models/ \\; ; cp /app/ProcessModels/credentials.dmn /models/; fi"]
           volumeMounts:
             - name: process-models
               mountPath: /models

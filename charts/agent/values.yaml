@@ -264,6 +264,8 @@ web:
   # `RUN chown -R nextjs:nodejs /app` comment says why. An emptyDir cannot
   # cover /app without hiding the app itself, so only this component keeps a
   # writable root filesystem. Merged over the baseline in securityContext.
+  # To reset to the baseline, set web.securityContext: {} — null fails to
+  # render (mergeOverwrite needs a map).
   securityContext:
     readOnlyRootFilesystem: false
   service:

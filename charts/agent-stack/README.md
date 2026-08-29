@@ -274,12 +274,15 @@ This needs the `Database` CRD, added in CloudNativePG 1.25 (same mechanism as
 
 ## The shared `agent-processmodels` PVC needs an RWX storage class
 
-`processModels.accessModes` is wired to `[ReadWriteMany]` (api and camunda both mount it, on a
-multi-node prod cluster), but `global.storageClass` (`ceph-block`) is typically RWO-only. Set
-`agent.processModels.storageClassName` to the cluster's RWX-capable class (e.g. its CephFS
-class) before deploying, or the PVC will not bind. Left `null` by default — the standalone
-chart then omits `storageClassName` entirely and falls back to whatever the cluster's default
-class is, which will fail for `ReadWriteMany` on a default class that is RWO-only.
+`agent.processModels.accessModes` defaults to `[ReadWriteMany]` (api and camunda both mount
+it, on a multi-node prod cluster), but is deployment-specific: a single-node kind cluster's
+default provisioner is RWO-only, so local install overrides it to `[ReadWriteOnce]` (see
+`agent-devstack`'s README). `global.storageClass` (`ceph-block`) is also typically RWO-only.
+Set `agent.processModels.storageClassName` to the cluster's RWX-capable class (e.g. its
+CephFS class) before deploying with the default `[ReadWriteMany]`, or the PVC will not
+bind. Left `null` by default — the standalone chart then omits `storageClassName` entirely
+and falls back to whatever the cluster's default class is, which will fail for
+`ReadWriteMany` on a default class that is RWO-only.
 
 ## Backups
 
@@ -373,6 +376,7 @@ only in-flight workflow instance state, not the system of record.
 | `agent.api.tesApiUrl` | **REQUIRED for production.** External TES backend URL — the recommended production path. Empty leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster. See **GA4GH TES backend** above. | `""` |
 | `agent.web.publicUrl` | Public URL of the Next.js app, used by Better Auth. Empty computes one from `global.ingress`. | `""` |
 | `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
+| `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
 | `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |
 
 ### Submission cross-link

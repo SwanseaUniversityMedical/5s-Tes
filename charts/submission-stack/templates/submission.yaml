@@ -43,7 +43,7 @@ spec:
         # class; see submission.dataProtection.storageClassName.
         dataProtection:
           accessModes:
-            - ReadWriteMany
+            {{- toYaml .Values.submission.dataProtection.accessModes | nindent 12 }}
           {{- with .Values.submission.dataProtection.storageClassName }}
           storageClassName: {{ . | quote }}
           {{- end }}

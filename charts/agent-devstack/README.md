@@ -34,7 +34,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Credential | Value | Where it's set | Where it's read |
 |---|---|---|---|
 | PostgreSQL superuser | `postgres` / `password123` | `postgres-secret` | `agent-stack`'s CNPG `Cluster` superuserSecret; also embedded in `agent-api-secret`'s/`credentials-camunda-secret`'s connection strings |
-| `Dare-TRE-API` client secret | `devsecret-tre-api` | realm import only | Not directly consumed by any app Secret — `Dare-TRE-API` is a valid audience for `Dare-TRE-UI` tokens (`api.oidc.validAudiences`), not a client the chart authenticates as. Its service account exists for the realm design (mirrors the external prod realm's shape) |
+| `Dare-TRE-API` client secret | `devsecret-tre-api` | realm import only | Not directly consumed by any app Secret — `Dare-TRE-API` is a valid audience for `Dare-TRE-UI` tokens (`api.oidc.validAudiences`), not a client the chart authenticates as. `serviceAccountsEnabled` stays on to mirror the prod realm's client shape, but has no realm role grant: no verified consumer of a client-credentials token exists in this codebase |
 | `Dare-TRE-UI` client secret | `devsecret-tre-ui` | realm import + `agent-api-secret.treKeycloakClientSecret`, `agent-ui-secret.keycloakClientSecret`, `agent-web-secret.keycloakClientSecret` | `TREKeyCloakSettings__ClientSecret` (api), `KEYCLOAK_CLIENT_SECRET` (ui, web) — the single client used by api, ui and web |
 | `Dare-TRE-S3` client secret | `devsecret-tre-s3` | realm import only | Not yet consumed by any app Secret — the client exists for a future S3-console SSO wire-up, same status as `submission-devstack`'s `Dare-Control-S3` |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-tre-admin` realm role so agent-web's role-gated pages work (`authcheck("dare-tre-admin")`, see **agent-web role gating** below) |
@@ -82,6 +82,7 @@ drop the objects a local cluster doesn't have, and reach the local Keycloak, e.g
 --set-string rabbitmq.additionalConfig="default_user = agent
 default_pass = password123
 loopback_users.agent = false"
+--set 'agent.processModels.accessModes[0]=ReadWriteOnce'
 ```
 
 A future `dev-env-setup/` values file is planned to carry this set; until it exists, this
@@ -117,6 +118,9 @@ recipe is canonical.
   `agent`/`password123` — the same values as this chart's `agent-api-secret`
   (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
   once and reused into the broker, not redefined.
+- `agent.processModels.accessModes[0]=ReadWriteOnce`: kind's default provisioner
+  (`local-path-provisioner`) only binds `ReadWriteOnce` claims; the stack's own default
+  (`[ReadWriteMany]`) never binds locally.
 
 ### Optional: local OpenLDAP
 

@@ -43,7 +43,7 @@ spec:
         # storage class; see agent.processModels.storageClassName.
         processModels:
           accessModes:
-            - ReadWriteMany
+            {{- toYaml .Values.agent.processModels.accessModes | nindent 12 }}
           {{- with .Values.agent.processModels.storageClassName }}
           storageClassName: {{ . | quote }}
           {{- end }}

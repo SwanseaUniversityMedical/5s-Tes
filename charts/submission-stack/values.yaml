@@ -53,6 +53,10 @@ submission:
     # null uses the cluster default, which is typically RWO-only (ceph-block)
     # and will not bind a ReadWriteMany claim.
     storageClassName: null
+    # Deployment-specific: multi-node prod is RWX; single-node kind is
+    # RWO-only. See README.
+    accessModes:
+      - ReadWriteMany
 
 # --------------------------------------------------------------------
 # Dependencies installed from somebody else's chart.

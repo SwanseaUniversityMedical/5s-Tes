@@ -181,13 +181,15 @@ version 1.30.0).
 
 ## The shared `submission-dataprotection` PVC needs an RWX storage class
 
-`dataProtection.accessModes` is wired to `[ReadWriteMany]` (api and ui both mount it, on
-a multi-node prod cluster), but `global.storageClass` (`ceph-block`) is typically
+`submission.dataProtection.accessModes` defaults to `[ReadWriteMany]` (api and ui both mount
+it, on a multi-node prod cluster), but is deployment-specific: a single-node kind cluster's
+default provisioner is RWO-only, so local install overrides it to `[ReadWriteOnce]` (see
+`submission-devstack`'s README). `global.storageClass` (`ceph-block`) is also typically
 RWO-only. Set `submission.dataProtection.storageClassName` to the cluster's RWX-capable
-class (e.g. its CephFS class) before deploying, or the PVC will not bind. Left `null` by
-default — the standalone chart then omits `storageClassName` entirely and falls back to
-whatever the cluster's default class is, which will fail for `ReadWriteMany` on a
-default class that is RWO-only.
+class (e.g. its CephFS class) before deploying with the default `[ReadWriteMany]`, or the
+PVC will not bind. Left `null` by default — the standalone chart then omits
+`storageClassName` entirely and falls back to whatever the cluster's default class is,
+which will fail for `ReadWriteMany` on a default class that is RWO-only.
 
 ## Backups
 
@@ -263,11 +265,12 @@ With today's defaults, real data sits in two places with different protection:
 | Name | Description | Default |
 |---|---|---|
 | `submission.enabled` | Create the `submission` `Application`. | `true` |
-| `submission.chartVersion` | Version of the `submission` chart in Harbor. Not published yet — the first real publish lands via Task 4.1's CI; `1.0.0` is a placeholder pin. | `1.0.0` |
+| `submission.chartVersion` | Version of the `submission` chart in Harbor. Not published yet — first publish happens via the chart CI workflow; `1.0.0` is a placeholder pin. | `1.0.0` |
 | `submission.imageVersion` | Image tag for both `submission-api` and `submission-ui`. | `3.2.0` |
 | `submission.s3ConsoleUrl` | Public RustFS console URL. Empty computes one from `global.ingress`. | `""` |
 | `submission.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
 | `submission.dataProtection.storageClassName` | RWX-capable storage class for the shared `submission-dataprotection` PVC. `null` omits the field (cluster default, usually RWO-only). See above. | `null` |
+| `submission.dataProtection.accessModes` | Access mode(s) for the shared `submission-dataprotection` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
 
 ### rustfs
 
@@ -291,7 +294,7 @@ With today's defaults, real data sits in two places with different protection:
 | `seq.chart` | Chart name within that repo. | `seq` |
 | `seq.chartVersion` | Seq chart version. | `2025.2.1` |
 | `seq.storageSize` | Size of Seq's data PVC. | `10Gi` |
-| `seq.requireAuthForIngestion` | Require an API key for HTTP log ingestion. No `seqApiKey` is wired into either component's Secret, so leave `false` (mirrors airlock-stack) — `true` here rejects every app log. | `false` |
+| `seq.requireAuthForIngestion` | Require an API key for HTTP log ingestion (Seq's `firstRunRequireAuthenticationForHttpIngestion`, applied only on Seq's first run — changing it after Seq's data volume already has data has no effect). No `seqApiKey` is wired into either component's Secret, so leave `false` (mirrors airlock-stack) — `true` here rejects every app log. | `false` |
 | `seq.resources.requests.cpu` | CPU request. | `250m` |
 | `seq.resources.requests.memory` | Memory request. | `512Mi` |
 | `seq.resources.limits.memory` | Memory limit. | `512Mi` |

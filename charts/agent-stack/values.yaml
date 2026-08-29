@@ -62,8 +62,12 @@ agent:
   # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
   # null uses the cluster default, which is typically RWO-only (ceph-block)
   # and will not bind a ReadWriteMany claim. See README.
+  # accessModes: deployment-specific (multi-node prod is RWX; single-node
+  # kind is RWO-only). See README.
   processModels:
     storageClassName: null
+    accessModes:
+      - ReadWriteMany
   # External Active Directory settings for the Credentials Camunda worker.
   # Defaults match the openldap.yaml Application below, for a deployment that
   # enables it instead of a real AD. Production sets these to the real AD.

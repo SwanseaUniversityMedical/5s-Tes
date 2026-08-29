@@ -64,6 +64,7 @@ e.g. (mirrors `serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
 --set-string rabbitmq.additionalConfig="default_user = submission
 default_pass = password123
 loopback_users.submission = false"
+--set 'submission.dataProtection.accessModes[0]=ReadWriteOnce'
 ```
 
 A future `dev-env-setup/` values file is planned to carry this set; until it exists, this
@@ -84,9 +85,9 @@ recipe is canonical.
   `templates/postgres.yaml` renders no `PodMonitor`s.
 - `vault.enabled` stays `true`: the stack's own Vault `Application` still deploys — it's a
   runtime dependency, the API calls it directly for ephemeral credentials, not just a
-  source for bootstrap Secrets. `vault.secretsEnabled=false` drops only the four
-  `VaultSecret`s under `templates/secrets/`, so this chart's static Secrets are the only
-  thing producing those names/keys.
+  source for bootstrap Secrets. `vault.secretsEnabled=false` drops only the five
+  `VaultSecret`s across the four files under `templates/secrets/`, so this chart's static
+  Secrets are the only thing producing those names/keys.
 - The local Vault still starts sealed and needs init/unseal (a helper script is planned;
   see `submission-stack`'s README **Vault** section for the manual steps). Its runtime
   token is `submission-api-secret.vaultToken` (`dev-only-token` — see **Credentials**
@@ -98,6 +99,9 @@ recipe is canonical.
   `submission`/`password123` — the same values as this chart's `submission-api-secret`
   (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
   once and reused into the broker, not redefined.
+- `submission.dataProtection.accessModes[0]=ReadWriteOnce`: kind's default provisioner
+  (`local-path-provisioner`) only binds `ReadWriteOnce` claims; the stack's own default
+  (`[ReadWriteMany]`) never binds locally.
 
 ## What the local cluster must already have
 
