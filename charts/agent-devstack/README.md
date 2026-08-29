@@ -196,6 +196,35 @@ charts:
   by the OIDC metadata's fetched `Issuer` field, not a literal match against `Authority`
   (`Agent.Api/Program.cs:196-198,237,241`).
 
+## Host access for development
+
+`templates/dev-access.yaml` (gated on `devAccess.enabled`, default `true`) creates parallel
+`dev-*` NodePort Services carrying `agent-stack`'s own Service selectors, so a natively-running
+app (e.g. VS Code) reaches every dependency at `localhost:<port>` without port-forwarding.
+`agent-stack`'s own Services are never patched. Fixed nodePorts, matched by
+`dev-env-setup/kind-config.yaml`'s `extraPortMappings` (changing that file needs a cluster
+recreation):
+
+| Service | Dependency | Container port | nodePort / host port |
+|---|---|---|---|
+| `dev-pg-pooler` | `pg-pooler` (pgbouncer) | 5432 | 31432 |
+| `dev-rabbitmq` | `rabbitmq` (amqp) | 5672 | 30673 |
+| `dev-rabbitmq` | `rabbitmq` (management) | 15672 | 31673 |
+| `dev-rustfs` | `rustfs-svc` (endpoint) | 9000 | 30902 |
+| `dev-seq` | `seq` (ingestion) | 5341 | 31341 |
+| `dev-vault` | `agent-vault` (http) | 8200 | 31200 |
+| `dev-camunda-zeebe-gateway` | `camunda-zeebe-gateway` (grpc) | 26500 | 30500 |
+| `dev-openldap` | the OpenLDAP chart's `openldap` Service (ldap-port) | 389 | 30389 |
+
+`dev-openldap` always renders — its selector (`app.kubernetes.io/component: openldap`,
+`release: openldap`, matching the `jp-gouin/helm-openldap` chart at release name `openldap`)
+only matches pods once `agent-stack`'s own `openldap.enabled` is also `true` (see **Optional:
+local OpenLDAP** above); with it off, the Service simply has no endpoints. No console port for
+RustFS here (unlike `submission-devstack`'s `dev-rustfs`) — not part of this task's port map.
+
+Keycloak and other web UIs need no NodePort — ingress plus `*.localtest.me` already reach them
+from the host.
+
 ## Values
 
 | Value | Description | Default |
@@ -206,6 +235,7 @@ charts:
 | `adminer.*` | Chart pin | `0.1.8` |
 | `tredata.*` | Bitnami PostgreSQL chart pin + org image mirror, dev stand-in for the external TRE data database | `16.7.21` / `harbor.ukserp.ac.uk` |
 | `openldap.enabled` | Render `agent-openldap-secret`. Set alongside `agent-stack`'s own `openldap.enabled` — see **Optional: local OpenLDAP** | `false` |
+| `devAccess.enabled` | Render the `dev-*` NodePort Services, see **Host access for development** | `true` |
 
 ## Limits
 

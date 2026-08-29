@@ -1,0 +1,159 @@
+{{- if .Values.devAccess.enabled }}
+# Host-side NodePort access for a natively-running app (VS Code) to reach
+# every in-cluster dependency at localhost:<port>. Parallel Services with
+# the target's own selector copied in - agent-stack's Services are never
+# patched. Fixed nodePorts match dev-env-setup/kind-config.yaml's
+# extraPortMappings; see dev-env-setup/README.md "Host access for
+# development".
+#
+# dev-openldap always renders: its selector only matches pods when
+# agent-stack's openldap.enabled is also true (see this chart's README,
+# "Optional: local OpenLDAP"). No cross-chart gating - an unmatched
+# selector is harmless, it just has no endpoints.
+{{- $ns := .Values.global.namespace }}
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-pg-pooler
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    cnpg.io/poolerName: pg-pooler
+  ports:
+    - name: pgbouncer
+      port: 5432
+      targetPort: pgbouncer
+      nodePort: 31432
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-rabbitmq
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/name: rabbitmq
+  ports:
+    - name: amqp
+      port: 5672
+      targetPort: 5672
+      nodePort: 30673
+    - name: management
+      port: 15672
+      targetPort: 15672
+      nodePort: 31673
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-rustfs
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/instance: rustfs
+    app.kubernetes.io/name: rustfs
+  ports:
+    - name: endpoint
+      port: 9000
+      targetPort: 9000
+      nodePort: 30902
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-seq
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app: seq
+    release: seq
+  ports:
+    - name: ingestion
+      port: 5341
+      targetPort: ingestion
+      nodePort: 31341
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-vault
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/instance: agent-vault
+    app.kubernetes.io/name: vault
+    component: server
+  ports:
+    - name: http
+      port: 8200
+      targetPort: 8200
+      nodePort: 31200
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-camunda-zeebe-gateway
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app: camunda-platform
+    app.kubernetes.io/component: zeebe-broker
+    app.kubernetes.io/instance: camunda
+    app.kubernetes.io/managed-by: Helm
+    app.kubernetes.io/name: camunda-platform
+    app.kubernetes.io/part-of: camunda-platform
+  ports:
+    - name: grpc
+      port: 26500
+      targetPort: 26500
+      nodePort: 30500
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: dev-openldap
+  namespace: {{ $ns }}
+  labels:
+    {{- include "agent-devstack.labels" . | nindent 4 }}
+spec:
+  type: NodePort
+  selector:
+    app.kubernetes.io/component: openldap
+    release: openldap
+  ports:
+    - name: ldap-port
+      port: 389
+      targetPort: ldap-port
+      nodePort: 30389
+{{- end }}

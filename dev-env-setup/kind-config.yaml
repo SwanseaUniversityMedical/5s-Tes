@@ -13,4 +13,52 @@ nodes:
   - containerPort: 443
     hostPort: 443
     protocol: TCP
-  # --- Task 5.2 adds NodePort mappings here for the VS Code local-run flow. ---
+  # dev-access NodePorts (Task 5.2) - one per charts/*-devstack/templates/dev-access.yaml
+  # Service, so a natively-running app (VS Code) reaches every dependency at
+  # localhost:<port>. Submission (5s-tes-submission):
+  - containerPort: 30432
+    hostPort: 30432
+    protocol: TCP
+  - containerPort: 30672
+    hostPort: 30672
+    protocol: TCP
+  - containerPort: 31672
+    hostPort: 31672
+    protocol: TCP
+  - containerPort: 30900
+    hostPort: 30900
+    protocol: TCP
+  - containerPort: 30901
+    hostPort: 30901
+    protocol: TCP
+  - containerPort: 30341
+    hostPort: 30341
+    protocol: TCP
+  - containerPort: 30200
+    hostPort: 30200
+    protocol: TCP
+  # Agent (5s-tes-agent):
+  - containerPort: 31432
+    hostPort: 31432
+    protocol: TCP
+  - containerPort: 30673
+    hostPort: 30673
+    protocol: TCP
+  - containerPort: 31673
+    hostPort: 31673
+    protocol: TCP
+  - containerPort: 30902
+    hostPort: 30902
+    protocol: TCP
+  - containerPort: 31341
+    hostPort: 31341
+    protocol: TCP
+  - containerPort: 31200
+    hostPort: 31200
+    protocol: TCP
+  - containerPort: 30500
+    hostPort: 30500
+    protocol: TCP
+  - containerPort: 30389
+    hostPort: 30389
+    protocol: TCP

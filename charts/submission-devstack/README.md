@@ -154,6 +154,28 @@ charts:
   `TokenValidationParameters.ValidateIssuer = false` (`Submission.Api/Program.cs:117`), so
   `Authority`'s shape has no bearing on issuer validation.
 
+## Host access for development
+
+`templates/dev-access.yaml` (gated on `devAccess.enabled`, default `true`) creates parallel
+`dev-*` NodePort Services carrying `submission-stack`'s own Service selectors, so a
+natively-running app (e.g. VS Code) reaches every dependency at `localhost:<port>` without
+port-forwarding. `submission-stack`'s own Services are never patched. Fixed nodePorts, matched
+by `dev-env-setup/kind-config.yaml`'s `extraPortMappings` (changing that file needs a cluster
+recreation):
+
+| Service | Dependency | Container port | nodePort / host port |
+|---|---|---|---|
+| `dev-pg-pooler` | `pg-pooler` (pgbouncer) | 5432 | 30432 |
+| `dev-rabbitmq` | `rabbitmq` (amqp) | 5672 | 30672 |
+| `dev-rabbitmq` | `rabbitmq` (management) | 15672 | 31672 |
+| `dev-rustfs` | `rustfs-svc` (endpoint) | 9000 | 30900 |
+| `dev-rustfs` | `rustfs-svc` (console) | 9001 | 30901 |
+| `dev-seq` | `seq` (ingestion) | 5341 | 30341 |
+| `dev-vault` | `submission-vault` (http) | 8200 | 30200 |
+
+Keycloak and other web UIs need no NodePort — ingress plus `*.localtest.me` already reach them
+from the host.
+
 ## Values
 
 | Value | Description | Default |
@@ -162,6 +184,7 @@ charts:
 | `global.ingress.host` / `className` | Local DNS suffix and ingress class | `localtest.me` / `nginx` |
 | `keycloak.*` | Bitnami chart pin + org image mirror | `25.4.0` / `harbor.ukserp.ac.uk` |
 | `adminer.*` | Chart pin | `0.1.8` |
+| `devAccess.enabled` | Render the `dev-*` NodePort Services, see **Host access for development** | `true` |
 
 ## Limits
 

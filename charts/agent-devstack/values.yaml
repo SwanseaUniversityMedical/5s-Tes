@@ -38,3 +38,8 @@ tredata:
 # agent-stack's own openldap.enabled toggle, set separately on that chart.
 openldap:
   enabled: false
+
+# Host-side NodePort Services for a natively-running app (VS Code) to reach
+# in-cluster dependencies. See README "Host access for development".
+devAccess:
+  enabled: true

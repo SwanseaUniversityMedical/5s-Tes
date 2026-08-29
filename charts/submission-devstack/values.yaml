@@ -21,3 +21,8 @@ adminer:
   chart: adminer
   # renovate: datasource=helm depName=adminer registryUrl=https://startechnica.github.io/apps
   chartVersion: "0.1.8"
+
+# Host-side NodePort Services for a natively-running app (VS Code) to reach
+# in-cluster dependencies. See README "Host access for development".
+devAccess:
+  enabled: true

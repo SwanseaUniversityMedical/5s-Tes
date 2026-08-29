@@ -138,6 +138,18 @@ cluster and needs real init/unseal.
 Delete `dev-env-setup/.vault-keys-<namespace>` only together with that Vault's PVC (e.g. via
 `./clean-up.sh`) - an orphaned keys file for an already-initialised Vault cannot unseal it.
 
+## Host access for development
+
+Each family's devstack chart (`charts/submission-devstack`, `charts/agent-devstack`,
+`templates/dev-access.yaml`) renders `dev-*` NodePort Services for its stack's dependencies, so
+a natively-running app (e.g. VS Code, not yet in-cluster) reaches every one of them at
+`localhost:<port>` - see each devstack README's own "Host access for development" section for
+the full port table. `kind-config.yaml`'s `extraPortMappings` map each nodePort straight through
+to the same host port.
+
+**Changing `kind-config.yaml` needs a cluster recreation** (`kind create cluster` reads it only
+at cluster creation) - `./clean-up.sh && ./cluster-setup.sh`, not a plain re-run.
+
 ## Known local constraints
 
 - **GA4GH TES backend** (Agent): `agent.api.tesApiUrl` is left at the standalone chart's own
