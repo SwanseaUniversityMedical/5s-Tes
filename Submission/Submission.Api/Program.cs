@@ -198,9 +198,19 @@ builder.Services.AddAuthentication(options =>
 builder.Services.AddAuthorization();
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 
 var serviceScopeFactory = app.Services.GetRequiredService<IServiceScopeFactory>();
-app.MapHealthChecks("/health");
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
