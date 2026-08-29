@@ -20,6 +20,10 @@ for production.
 
 - The two Secrets listed below.
 - A reachable Keycloak realm at `global.oidc.authority`.
+- `SubmissionKeyCloakSettings__Authority`/`__MetadataAddress` render as
+  `<realm>/.well-known/openid-configuration`, matching compose exactly — deliberate: `Submission.Api`
+  sets `TokenValidationParameters.ValidateIssuer = false` (`Submission.Api/Program.cs:117`), so
+  `Authority`'s shape has no bearing on issuer validation at all.
 - A reachable RabbitMQ broker, PostgreSQL database, RustFS (S3-compatible) endpoint,
   Vault and Seq instance, at the addresses given by `api.rabbitmqHost`, the
   `connectionString` secret, `api.s3Url`, `api.vaultUrl` and `global.config.seqUrl`.

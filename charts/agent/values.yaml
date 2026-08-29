@@ -268,6 +268,9 @@ web:
   # render (mergeOverwrite needs a map).
   securityContext:
     readOnlyRootFilesystem: false
+    # agent-web's image runs as nextjs uid/gid 1001, not the baseline's 1000 (agent-web/Dockerfile:21-22).
+    runAsUser: 1001
+    runAsGroup: 1001
   service:
     type: ClusterIP
   # Expected keys: betterAuthSecret, keycloakClientSecret. See README Secrets

@@ -8,8 +8,10 @@ metadata:
     {{- include "agent-devstack.labels" . | nindent 4 }}
 data:
   # Wildcard redirectUris and ROPC are dev shortcuts; never copy for a real realm.
-  # No client-credentials grant for Dare-TRE-API's service account: no verified
-  # consumer of one exists in this codebase (README, agent-web role gating).
+  # Dare-TRE-API's serviceAccountsEnabled mirrors the production client shape; this
+  # realm grants that service account no role, and no chart consumer uses the
+  # client-credentials grant — the only grant_type in Agent/ is "password"
+  # (Agent.Api/Services/IKeyCloakService.cs:133).
   dare-tre.json: |-
     {
       "realm": "Dare-TRE",
@@ -41,7 +43,20 @@ data:
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": false,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "audience-dare-tre-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Dare-TRE-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]
         },
         {
           "clientId": "Dare-TRE-S3",

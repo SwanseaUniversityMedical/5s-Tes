@@ -92,8 +92,11 @@ spec:
           {{- with .Values.agent.api.treName }}
           treName: {{ . | quote }}
           {{- end }}
-          {{- with .Values.agent.api.tesApiUrl }}
-          tesApiUrl: {{ . | quote }}
+          {{- if .Values.agent.api.tesApiUrl }}
+          tesApiUrl: {{ .Values.agent.api.tesApiUrl | quote }}
+          {{- else if .Values.tesk.enabled }}
+          {{- /* Verified: tesk-api:8080, base path /ga4gh/tes/v1 (tesk chart 0.1.0, task 3.2 report). */}}
+          tesApiUrl: "http://tesk-api:8080/ga4gh/tes/v1/tasks"
           {{- end }}
 
         ui:

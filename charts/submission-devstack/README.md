@@ -124,15 +124,22 @@ charts:
   — see **Local install** above.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-Control`,
   same three client IDs, same `dare-tre-admin` role name so `KeycloakAdmin__ServiceAccountRole`
-  behaves identically) but is a hand-written, minimal stand-in: no protocol mappers, no
-  audience scopes, `sslRequired: none`, and pure wildcard `redirectUris`/`webOrigins`
-  (`["*"]`) — dev shortcuts, never to be copied into a real realm.
+  behaves identically) but is a hand-written, minimal stand-in: `sslRequired: none` and pure
+  wildcard `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a
+  real realm. One protocol mapper is carried over: `Dare-Control-UI` gets an
+  `oidc-audience-mapper` adding `Dare-Control-API` to its tokens' audience, mirroring
+  production's `Dare-Control-API-cs` client scope
+  (`DeploymentStack/Submission/config/realm-config/sub-layer.json`).
 - **Known local constraint**: server-side OIDC calls made from inside pods (the API and UI
   reaching `global.oidc.authority`) resolve `keycloak.localtest.me` to `127.0.0.1`, not the
   ingress controller — `localtest.me` is a wildcard domain that always resolves to
   loopback. This needs a cluster DNS mapping to the ingress controller; a CoreDNS rewrite
   is planned for the dev-env bootstrap but not yet implemented. Until then, map it manually
   in cluster DNS (or `/etc/hosts` on every node) before the login flow will work.
+- The standalone chart still appends `/.well-known/openid-configuration` to this authority for
+  `SubmissionKeyCloakSettings__Authority` — matching compose, deliberate: `Submission.Api` sets
+  `TokenValidationParameters.ValidateIssuer = false` (`Submission.Api/Program.cs:117`), so
+  `Authority`'s shape has no bearing on issuer validation.
 
 ## Values
 
@@ -146,7 +153,8 @@ charts:
 ## Limits
 
 - The dev realm is a minimal starting point: three clients, three users (including the
-  `Dare-Control-API` service account), two realm roles. No protocol mappers or client
+  `Dare-Control-API` service account), two realm roles, one protocol mapper (the
+  `Dare-Control-UI` audience mapper, see **Local Keycloak** above). No other client
   scopes — `api.oidc.validAudiences`'s `Dare-Control-Minio` entry is only an accepted
   audience string in token validation, not a client; the realm needs no client by that
   name. Extend the realm by editing `templates/keycloak-realm.yaml`.

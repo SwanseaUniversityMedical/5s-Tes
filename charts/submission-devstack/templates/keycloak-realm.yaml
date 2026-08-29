@@ -39,7 +39,20 @@ data:
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": false,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "audience-dare-control-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Dare-Control-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]
         },
         {
           "clientId": "Dare-Control-S3",

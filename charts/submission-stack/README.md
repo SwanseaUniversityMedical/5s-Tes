@@ -69,6 +69,19 @@ Every step below is manual; no bootstrap script exists yet.
    kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=kvv2 kv-v2
    ```
 
+   Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
+   `v1/{mount}/data/{path}`, the KV v2 shape: `Shared/FiveSafesTes.Core/Services/VaultCredentialsService.cs:38,60,82,117`),
+   at `api.vault.secretEngine`/`VaultSettings__SecretEngine`'s default (`secret`, compose
+   parity):
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=secret -version=2 kv
+   ```
+
+   `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
+   operator-read store the redhatcop `VaultSecret`s pull deploy-time app Secrets from;
+   `secret` is the store `api` reads and writes at runtime (via `VaultCredentialsService`).
+
 3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
 
    ```bash
@@ -167,6 +180,10 @@ The external realm at `global.oidc.authority` must already have:
 - **A `dare-control-realm-user` admin user** — a realm user (not a service account) the
   API logs in as to call the Keycloak Admin REST API (`KeycloakAdminService`). Its
   username/password are `keycloakAdminUsername`/`keycloakAdminPassword` above.
+
+`SubmissionKeyCloakSettings__Authority` renders as `<realm>/.well-known/openid-configuration`,
+matching compose — deliberate: `Submission.Api` sets `TokenValidationParameters.ValidateIssuer =
+false` (`Submission.Api/Program.cs:117`), so `Authority`'s shape has no bearing on issuer validation.
 
 ## CloudNativePG: why a `Database` object, not `bootstrap.initdb.database`
 

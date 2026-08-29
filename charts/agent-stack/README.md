@@ -67,6 +67,20 @@ step below is manual; no bootstrap script exists yet.
    kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=kvv2 kv-v2
    ```
 
+   Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
+   `v1/{mount}/data/{path}`, the KV v2 shape: `Shared/FiveSafesTes.Core/Services/VaultCredentialsService.cs:38,60,82,117`),
+   at `api.vault.secretEngine`/`VaultSettings__SecretEngine`'s default (`secret`, compose
+   parity):
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=secret -version=2 kv
+   ```
+
+   `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
+   operator-read store the redhatcop `VaultSecret`s pull deploy-time app Secrets from;
+   `secret` is the store `api`/`camunda` read and write at runtime (ephemeral researcher
+   credentials, via `VaultCredentialsService`).
+
 3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
 
    ```bash
@@ -181,6 +195,10 @@ The api also validates tokens from the Submission product's **`Dare-Control`** r
 `submissionKeycloakClientSecret`/`agent-api-secret`. This is a cross-realm trust: `Dare-Control`
 belongs to the Submission deployment, not to this stack, and must already exist there.
 
+`*KeyCloakSettings__Authority` renders as `<realm>/.well-known/openid-configuration`, matching
+compose — deliberate: issuer validation is satisfied by the OIDC metadata's fetched `Issuer`
+field, not a literal match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
+
 ### External AD (or OpenLDAP)
 
 The Credentials Camunda worker binds to a directory named by `agent.ldap.*`. Production points
@@ -201,13 +219,17 @@ defaults (or set them to match) itself.
 ## GA4GH TES backend
 
 `api.tesApiUrl`/`AgentSettings__TESKAPIURL` names the TES (Task Execution Service) backend the
-Agent submits work to. **The recommended production path is an external TES URL** — set
+Agent submits work to; the API POSTs task-creation requests straight to this URL and appends
+`/{taskId}?view=BASIC` to poll it (`Agent.Api/DoAgentWork.cs:138,210`), so it must be the full
+`tasks` collection endpoint. **The recommended production path is an external TES URL** — set
 `agent.api.tesApiUrl` to it. `tesk.enabled` (default `false`) is the alternative: an in-cluster
 TESK (GA4GH TES-K8s reference implementation) deployment, reproducing the same Harbor OCI chart
 coordinates as `director-wfs`'s `tesk-standalone-stack`
-(`harbor.ukserp.ac.uk/tesk/chart/tesk`, version `0.1.0`). Its `tesk-api` Service listens on port
-`8080` at base path `/ga4gh/tes/v1`; wire `agent.api.tesApiUrl` to it yourself if you enable it
-(this stack does not auto-wire the two, for the same reason `openldap` isn't auto-wired above).
+(`harbor.ukserp.ac.uk/tesk/chart/tesk`, version `0.1.0`). Its `tesk-api` Service (static name,
+not release-scoped — verified by rendering the pinned chart) listens on port `8080` at base path
+`/ga4gh/tes/v1` (`OPENAPI_TASKEXECUTIONSERVICE_BASE_PATH`, same render). When `tesk.enabled` is
+`true` and `agent.api.tesApiUrl` is empty, `templates/agent.yaml` derives
+`http://tesk-api:8080/ga4gh/tes/v1/tasks`; an explicit `agent.api.tesApiUrl` always wins.
 
 **For local TES testing, use `director-wfs.sh`** (`/Users/alex/Devel/feda/director-wfs`) to
 bring up a disposable kind-based TESK environment — do not enable `tesk.enabled` here for that
@@ -373,7 +395,7 @@ only in-flight workflow instance state, not the system of record.
 | `agent.imageVersion` | Image tag for `api`, `ui`, `web` and `camunda`. | `3.2.0` |
 | `agent.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
 | `agent.api.treName` | **REQUIRED for production.** Name of this TRE deployment. Empty leaves the standalone chart's dev default (`DEV`) in place. | `""` |
-| `agent.api.tesApiUrl` | **REQUIRED for production.** External TES backend URL — the recommended production path. Empty leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster. See **GA4GH TES backend** above. | `""` |
+| `agent.api.tesApiUrl` | **REQUIRED for production** unless `tesk.enabled` is `true`. External TES backend URL — the recommended production path. Empty with `tesk.enabled: false` leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster; empty with `tesk.enabled: true` derives the in-cluster TESK URL instead. See **GA4GH TES backend** above. | `""` |
 | `agent.web.publicUrl` | Public URL of the Next.js app, used by Better Auth. Empty computes one from `global.ingress`. | `""` |
 | `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
 | `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |

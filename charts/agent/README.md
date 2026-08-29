@@ -28,12 +28,13 @@ yet been seeded (both images bake in the same files). The initContainer mounts t
 source without the (empty, on first boot) PVC hiding them. The seed check looks for the
 sentinel file `/models/credentials.dmn` rather than testing directory emptiness, so it is
 immune to a stray `lost+found` entry on an ext4-formatted volume; the copy writes every
-other file first and writes `credentials.dmn` last, atomically (copy to a temp name, then
-`mv` into place), so a container killed mid-copy — or mid-write of the sentinel itself —
-leaves the sentinel absent and the next run retries. It is idempotent, so it is safe to run
-unconditionally from both components — `api` alone still seeds the PVC correctly when
-`camunda.enabled` is `false`. `api` and `camunda`'s main containers then both mount the PVC
-at `/app/ProcessModels`.
+other file first and writes `credentials.dmn` last, atomically (copy to a per-pod temp name,
+`.credentials.dmn.tmp.$HOSTNAME`, then `mv` into place), so a container killed mid-copy — or
+mid-write of the sentinel itself — leaves the sentinel absent and the next run retries, and
+two pods racing on first boot don't collide on the same temp file. It is idempotent, so it is
+safe to run unconditionally from both components — `api` alone still seeds the PVC correctly
+when `camunda.enabled` is `false`. `api` and `camunda`'s main containers then both mount the
+PVC at `/app/ProcessModels`.
 
 ## What must already exist
 
@@ -41,6 +42,9 @@ at `/app/ProcessModels`.
 - A reachable Keycloak realm at `global.oidc.authority` (Dare-TRE) and, for the
   cross-stack settings, the Submission product's Keycloak realm, API and S3 endpoint at
   `submission.oidcAuthority`/`submission.apiUrl`/`submission.s3Url`.
+- `*KeyCloakSettings__Authority`/`__MetadataAddress` render as `<realm>/.well-known/openid-configuration`,
+  matching compose exactly — deliberate: issuer validation is satisfied by the OIDC metadata's
+  fetched `Issuer` field, not by a literal string match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
 - A reachable RabbitMQ broker, PostgreSQL database(s), RustFS (S3-compatible) endpoint,
   Vault, Seq, Zeebe gateway and OpenLDAP (or external AD) directory, at the addresses
   given by `api.rabbitmqHost`, the `connectionString*` secrets, `api.s3Url`,
@@ -294,6 +298,7 @@ chart.
 | `web.containerPort` | Port the Next.js app listens on inside the container. | `3000` |
 | `web.resources` | Container resource requests/limits. | `{}` |
 | `web.securityContext.readOnlyRootFilesystem` | Overrides the org baseline. Next.js standalone writes under `/app` at runtime (the Dockerfile's `chown -R nextjs:nodejs /app` exists for exactly this), and an emptyDir cannot cover `/app` without hiding the app itself. Merged over `securityContext`; every other field of the baseline still applies to `web`. | `false` |
+| `web.securityContext.runAsUser`/`runAsGroup` | Overrides the org baseline's `1000`. The image's `nextjs` user is uid/gid `1001` (`agent-web/Dockerfile:21-22`, which also `chown -R`s `/app` to it); the baseline's `1000` would EACCES on `/app` writes. | `1001` |
 | `web.service.type` | Web Service type. | `ClusterIP` |
 | `web.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `agent-web-secret` |
 | `web.ingress.enabled` | Create an Ingress for the Web UI. | `true` |

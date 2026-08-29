@@ -168,15 +168,21 @@ charts:
   (`charts/agent/templates/web/deployment.yaml:2,84-86`), so the realm's last path segment
   must be exactly `Dare-TRE`.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-TRE`, same
-  three client IDs) but is a hand-written, minimal stand-in: no protocol mappers, no audience
-  scopes, `sslRequired: none`, and pure wildcard `redirectUris`/`webOrigins` (`["*"]`) — dev
-  shortcuts, never to be copied into a real realm.
+  three client IDs) but is a hand-written, minimal stand-in: `sslRequired: none` and pure
+  wildcard `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a
+  real realm. One protocol mapper is carried over: `Dare-TRE-UI` gets an `oidc-audience-mapper`
+  adding `Dare-TRE-API` to its tokens' audience, mirroring production's `DARE-TRE-API` client
+  scope (`DemoStack/config/realm-config/tre-layer.json`, `clientScopes[].name == "DARE-TRE-API"`).
 - **Known local constraint**: server-side OIDC calls made from inside pods (api, ui and web
   reaching `global.oidc.authority`) resolve `keycloak.localtest.me` to `127.0.0.1`, not the
   ingress controller — `localtest.me` is a wildcard domain that always resolves to
   loopback. This needs a cluster DNS mapping to the ingress controller; a CoreDNS rewrite
   is planned for the dev-env bootstrap but not yet implemented. Until then, map it manually
   in cluster DNS (or `/etc/hosts` on every node) before the login flow will work.
+- The standalone chart still appends `/.well-known/openid-configuration` to this authority for
+  `*KeyCloakSettings__Authority` — matching compose, deliberate: issuer validation is satisfied
+  by the OIDC metadata's fetched `Issuer` field, not a literal match against `Authority`
+  (`Agent.Api/Program.cs:196-198,237,241`).
 
 ## Values
 
@@ -192,8 +198,9 @@ charts:
 ## Limits
 
 - The dev realm is a minimal starting point: three clients, two users (including the
-  `Dare-TRE-API` service account), one realm role. No protocol mappers or client scopes.
-  Extend the realm by editing `templates/keycloak-realm.yaml`.
+  `Dare-TRE-API` service account), one realm role, one protocol mapper (the `Dare-TRE-UI`
+  audience mapper, see **Local Keycloak** above). No other client scopes. Extend the realm
+  by editing `templates/keycloak-realm.yaml`.
 - Keycloak only imports a realm on first start; it skips an existing one. To apply a
   `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
   `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and
