@@ -29,9 +29,14 @@ try
     {
         Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
         builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+    }
+
+    var dpSection = builder.Configuration.GetSection("DataProtectionSettings");
+    if (bool.TryParse(dpSection["PersistKeys"], out var persistKeys) && persistKeys)
+    {
         builder.Services.AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-            .DisableAutomaticKeyGeneration();
+            .PersistKeysToFileSystem(new DirectoryInfo(dpSection["KeysPath"] ?? "/keys"))
+            .SetApplicationName("agent");
     }
     //builder.Host.UseSerilog();
     IdentityModelEventSource.ShowPII = true;
