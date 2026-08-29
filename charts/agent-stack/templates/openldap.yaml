@@ -35,6 +35,14 @@ spec:
       valuesObject:
         replicaCount: {{ .Values.openldap.replicas }}
 
+        # The chart's own replication.enabled default (true) tries to
+        # configure multi-provider sync on a single replica, which fails
+        # ("<olcMultiProvider> database is not a shadow", found live) and
+        # crashes the container before it ever reaches the custom-LDIF step
+        # below. Meaningless below 2 replicas anyway.
+        replication:
+          enabled: false
+
         global:
           ldapDomain: "{{ .Values.openldap.ldapDomain }}"
           # Keys LDAP_ADMIN_PASSWORD and LDAP_CONFIG_ADMIN_PASSWORD, per this
@@ -53,4 +61,32 @@ spec:
           enabled: false
         phpldapadmin:
           enabled: false
+
+        # The chart's own warning: the root organisation object is NOT
+        # created for you when customLdifFiles is used. DN components reuse
+        # agent.ldap.baseDn/userOu (the same values LdapSettings' defaults
+        # are built from - see LdapUserManagementService.cs:85,123,183,215)
+        # so the seeded tree can never drift from what the worker looks up.
+        # ou=groups/cn=trinogroup have no chart value of their own (matches
+        # LdapSettings' own fixed appsettings.json default) - kept literal.
+        customLdifFiles:
+          00-root.ldif: |-
+            dn: {{ .Values.agent.ldap.baseDn }}
+            objectClass: dcObject
+            objectClass: organization
+            o: {{ first (splitList "." .Values.openldap.ldapDomain) }}
+            dc: {{ first (splitList "." .Values.openldap.ldapDomain) }}
+          01-ou-users.ldif: |-
+            dn: {{ .Values.agent.ldap.userOu }},{{ .Values.agent.ldap.baseDn }}
+            objectClass: organizationalUnit
+            ou: Users
+          02-ou-groups.ldif: |-
+            dn: ou=groups,{{ .Values.agent.ldap.baseDn }}
+            objectClass: organizationalUnit
+            ou: groups
+          03-group-trinogroup.ldif: |-
+            dn: cn=trinogroup,ou=groups,{{ .Values.agent.ldap.baseDn }}
+            objectClass: groupOfNames
+            cn: trinogroup
+            member: {{ .Values.agent.ldap.adminDn }}
 {{- end }}

@@ -66,7 +66,8 @@ real dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault, Zeebe, LDAP, Keycloak
 then run natively from VS Code / `dotnet run` / `npm run dev` against those dependencies, using
 an `appsettings.Development_Kind.json` profile (or, for `agent-web`, `.env.kind.example`) that
 sets the same keys as `appsettings.Development.json` to kind's localhost NodePorts (the as-built
-table in `dev-env-setup/README.md`'s "Host access for development") and ingress hosts. Values are
+tables in `charts/submission-devstack/README.md` and `charts/agent-devstack/README.md`'s own
+"Host access for development" sections) and ingress hosts. Values are
 the `*-devstack` charts' fixed dev Secrets and realm — the documented dev/prod interface, not new
 secret material.
 
@@ -146,16 +147,17 @@ afterwards.
   `keycloak.agent.localtest.me` completed a real BetterAuth session (`get-session` returned the
   `dev` user).
 - **Credentials.Camunda**: boot log showed `Connected to Zeebe cluster`, 9 job workers created,
-  and all 4 BPMN process models deployed to the kind Zeebe. LDAP bind with the devstack's
-  `cn=admin,dc=camundaephemeral,dc=local`/`admin` authenticated correctly (verified with
-  `ldapsearch`); the base DN itself has no seeded entries in a fresh `openldap-stack-ha` install
-  (a chart/data-seeding gap, not an app-config one). Vault read/write with `dev-only-token`
-  verified directly. `ConnectionStrings:TREPostgresConnection` (the `tredata` stand-in database)
-  has no dev-access NodePort from Task 5.2's scope — reach it with a manual
-  `kubectl port-forward -n 5s-tes-agent svc/tredata-postgresql 5433:5432 --context kind-5s-tes`
-  first if a workflow needs it; `appsettings.Development_Kind.json` assumes port `5433`.
+  and all 4 BPMN process models deployed to the kind Zeebe. LDAP now has a real seeded tree
+  (`dc=camundaephemeral,dc=local`, `ou=Users`, `ou=groups`, `cn=trinogroup` — see
+  `charts/agent-stack/templates/openldap.yaml`'s `customLdifFiles`); `ConnectionStrings:TREPostgresConnection`
+  reaches the `tredata` stand-in database on its own dev-access NodePort (`localhost:31433`,
+  `dev-tredata`). Vault read/write with `dev-only-token` verified directly.
 - In-cluster `submission`/`agent` were restored afterward; all ArgoCD Applications in both
   namespaces reported `Synced`/`Healthy` and all Deployments `Available`.
+
+See `.superpowers/sdd/2026-08-29-helm-chart-families/task-5.3-report.md` for the full battery
+evidence, including the round-1 fix verification (dev exception page under `Development_Kind`,
+`dev-tredata`, the LDAP seed, and the trimmed `_Kind` files).
 
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes

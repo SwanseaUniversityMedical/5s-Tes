@@ -215,12 +215,16 @@ recreation):
 | `dev-vault` | `agent-vault` (http) | 8200 | 31200 |
 | `dev-camunda-zeebe-gateway` | `camunda-zeebe-gateway` (grpc) | 26500 | 30500 |
 | `dev-openldap` | the OpenLDAP chart's `openldap` Service (ldap-port) | 389 | 30389 |
+| `dev-tredata` | `tredata-postgresql` (tcp-postgresql) | 5432 | 31433 |
 
 `dev-openldap` always renders — its selector (`app.kubernetes.io/component: openldap`,
 `release: openldap`, matching the `jp-gouin/helm-openldap` chart at release name `openldap`)
 only matches pods once `agent-stack`'s own `openldap.enabled` is also `true` (see **Optional:
 local OpenLDAP** above); with it off, the Service simply has no endpoints. No console port for
 RustFS here (unlike `submission-devstack`'s `dev-rustfs`) — not part of this task's port map.
+`dev-tredata` is the one exception to "carrying `agent-stack`'s own Service selectors" above —
+`tredata-postgresql` is this chart's (`agent-devstack`'s) own `tredata` Application, the
+dev stand-in for the external TRE data database, not one of `agent-stack`'s dependencies.
 
 Keycloak and other web UIs need no NodePort — ingress plus `*.localtest.me` already reach them
 from the host.

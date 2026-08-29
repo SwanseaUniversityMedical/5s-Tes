@@ -345,7 +345,7 @@ try
         });
     }
 
-    if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Development_Kind"))
     {
         app.UseDeveloperExceptionPage();
     }

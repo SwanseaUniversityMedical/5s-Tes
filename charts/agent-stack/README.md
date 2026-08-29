@@ -223,6 +223,13 @@ never the production path. Its defaults already match `agent.ldap.*`'s own defau
 `agent.ldap.*`. A deployment using the bundled OpenLDAP must leave `agent.ldap.*` at its
 defaults (or set them to match) itself.
 
+`templates/openldap.yaml` seeds the root organisation object, `ou=Users`, `ou=groups`, and
+`cn=trinogroup` via `customLdifFiles` — the chart does not create the root object itself, and a
+fresh install has no directory data otherwise. It also forces `replication.enabled: false`: the
+chart's own default tries to configure multi-provider sync even at `replicaCount: 1`, which fails
+(`<olcMultiProvider> database is not a shadow`) and crashes the container before the custom LDIF
+ever loads — meaningless below 2 replicas regardless.
+
 ## GA4GH TES backend
 
 `api.tesApiUrl`/`AgentSettings__TESKAPIURL` names the TES (Task Execution Service) backend the
