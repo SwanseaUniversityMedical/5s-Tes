@@ -39,7 +39,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client) |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-control-admin` realm role so admin-gated pages/endpoints work |
 | S3 (RustFS) access/secret key | `s3-submission` / `s3-submission-pass` | `submission-api-secret.s3AccessKey`/`s3SecretKey` + `submission-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | `MinioSettings__AccessKey`/`SecretKey`; RustFS chart's own root credentials |
-| Vault token | `dev-only-token` | `submission-api-secret.vaultToken` | `VaultSettings__Token` — unused with `vault.enabled=false` (see **Local install**); no local Vault runs to hold it |
+| Vault token | `dev-only-token` | `submission-api-secret.vaultToken` | `VaultSettings__Token` — the local Vault runs (`vault.enabled` stays `true`; see **Local install**) and must be configured with a token equal to this value after init/unseal, or this Secret's value updated to match the real token |
 | RabbitMQ default user | `submission` / `password123` | `submission-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
 | Keycloak admin console | `admin` / `admin` | `keycloak-admin-secret` | Keycloak's own `auth.existingSecret` |
 | Seq first-run admin | `admin` / `admin` | `seq-admin-password-secret` | Seq's own `firstRunAdminPasswordSecret` |
@@ -59,7 +59,7 @@ e.g. (mirrors `serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
 --set global.trustClusterCa.enabled=false
 --set global.veleroBackup.enabled=false
 --set global.monitoring.enabled=false
---set vault.enabled=false
+--set vault.secretsEnabled=false
 --set rabbitmq.vaultDefaultUser=false
 --set-string rabbitmq.additionalConfig="default_user = submission
 default_pass = password123
@@ -82,9 +82,17 @@ recipe is canonical.
   `templates/backup.yaml` renders no `Schedule`.
 - `global.monitoring.enabled=false`: no Prometheus Operator runs locally; with it `false`,
   `templates/postgres.yaml` renders no `PodMonitor`s.
-- `vault.enabled=false` drops the stack's own Vault `Application` and every `VaultSecret`
-  under `templates/secrets/`, so this chart's static Secrets are the only thing producing
-  those names/keys.
+- `vault.enabled` stays `true`: the stack's own Vault `Application` still deploys — it's a
+  runtime dependency, the API calls it directly for ephemeral credentials, not just a
+  source for bootstrap Secrets. `vault.secretsEnabled=false` drops only the four
+  `VaultSecret`s under `templates/secrets/`, so this chart's static Secrets are the only
+  thing producing those names/keys.
+- The local Vault still starts sealed and needs init/unseal (a helper script is planned;
+  see `submission-stack`'s README **Vault** section for the manual steps). Its runtime
+  token is `submission-api-secret.vaultToken` (`dev-only-token` — see **Credentials**
+  above): either configure the freshly-initialized local Vault with a token equal to that
+  value, or update this chart's `templates/secrets/static.yaml` to match whatever token
+  init actually produced.
 - `rabbitmq.vaultDefaultUser=false` drops the `RabbitmqCluster`'s `secretBackend.vault`
   block. The `additionalConfig` lines then set the broker's own default user to
   `submission`/`password123` — the same values as this chart's `submission-api-secret`
@@ -115,6 +123,12 @@ charts:
   behaves identically) but is a hand-written, minimal stand-in: no protocol mappers, no
   audience scopes, `sslRequired: none`, and pure wildcard `redirectUris`/`webOrigins`
   (`["*"]`) — dev shortcuts, never to be copied into a real realm.
+- **Known local constraint**: server-side OIDC calls made from inside pods (the API and UI
+  reaching `global.oidc.authority`) resolve `keycloak.localtest.me` to `127.0.0.1`, not the
+  ingress controller — `localtest.me` is a wildcard domain that always resolves to
+  loopback. This needs a cluster DNS mapping to the ingress controller; a CoreDNS rewrite
+  is planned for the dev-env bootstrap but not yet implemented. Until then, map it manually
+  in cluster DNS (or `/etc/hosts` on every node) before the login flow will work.
 
 ## Values
 
@@ -127,9 +141,14 @@ charts:
 
 ## Limits
 
-- The dev realm is a minimal starting point: three clients, two users, two realm roles.
-  No protocol mappers or client scopes — `api.oidc.validAudiences`'s `Dare-Control-Minio`
-  entry is only an accepted audience string in token validation, not a client; the realm
-  needs no client by that name. Extend the realm by editing `templates/keycloak-realm.yaml`.
+- The dev realm is a minimal starting point: three clients, three users (including the
+  `Dare-Control-API` service account), two realm roles. No protocol mappers or client
+  scopes — `api.oidc.validAudiences`'s `Dare-Control-Minio` entry is only an accepted
+  audience string in token validation, not a client; the realm needs no client by that
+  name. Extend the realm by editing `templates/keycloak-realm.yaml`.
+- Keycloak only imports a realm on first start; it skips an existing one. To apply a
+  `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
+  `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and
+  let ArgoCD re-sync.
 - This chart is installed from the working tree; it is not published to Harbor and has no
   release workflow.

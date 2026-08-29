@@ -36,6 +36,7 @@ spec:
         global:
           imageRegistry: "{{ .Values.keycloak.imageRegistry }}"
           security:
+            # Required for any non-Bitnami registry (our Harbor mirror).
             allowInsecureImages: true
 
         auth:

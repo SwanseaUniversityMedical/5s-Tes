@@ -84,6 +84,6 @@ spec:
 
         ui:
           s3ConsoleUrl: "{{ .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
-          # TLS terminates at the ingress; mark cookies secure.
-          sslCookies: "true"
+          # Secure cookies require HTTPS end-to-end; follows ingress TLS.
+          sslCookies: "{{ .Values.global.ingress.tls }}"
 {{- end }}

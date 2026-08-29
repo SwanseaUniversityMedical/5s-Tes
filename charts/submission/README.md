@@ -73,7 +73,7 @@ Set by `ui.secretName`.
 | `serviceAccount.create` | Create a service account for the pods. | `true` |
 | `serviceAccount.annotations` | Annotations on the ServiceAccount. | `{}` |
 | `serviceAccount.name` | Overrides the ServiceAccount name. Empty uses the chart's fullname. | `""` |
-| `podSecurityContext` | Pod-level securityContext. | `{}` |
+| `podSecurityContext` | Pod-level securityContext. `fsGroup`/`fsGroupChangePolicy` let UID 1000 (`securityContext.runAsUser`) write the shared `dataProtection` PVC regardless of the volume's own GID. | `{fsGroup: 1000, fsGroupChangePolicy: OnRootMismatch}` |
 | `securityContext.runAsUser` | User ID both containers run as. | `1000` |
 | `securityContext.runAsGroup` | Group ID both containers run as. | `1000` |
 | `securityContext.runAsNonRoot` | Stop containers running as root. Do not change without a reason in the pull request. | `true` |

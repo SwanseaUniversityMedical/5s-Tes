@@ -11,7 +11,11 @@ serviceAccount:
   annotations: {}
   name: ""
 
-podSecurityContext: {}
+# UID 1000 (securityContext.runAsUser) must be able to write the shared
+# dataProtection PVC, whatever GID the volume's storage class hands it.
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
 
 # Org security baseline. Do not weaken without a reason in the pull request.
 securityContext:

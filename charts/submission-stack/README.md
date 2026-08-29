@@ -38,20 +38,76 @@ the `management` cluster. This is a confirmed product decision (Alex, 2026-08-29
 is why this stack differs from `serp-provisioning-stack`/`airlock-stack`, where Vault is
 platform-side and the stack only reads from it.
 
+Because it isn't the platform Vault, the redhatcop operator's own default connection
+(the standard `VAULT_ADDR`-style environment variables on the operator's Deployment,
+pointed at the platform Vault) is the wrong instance. Every `VaultSecret` below sets
+`vaultSecretDefinitions[].connection.address` to `vault.address` (default
+`http://vault:8200`, this stack's own Vault Service) to override that default per
+definition — the field the redhat-cop/vault-config-operator's `VaultSecretDefinition`
+type exposes for exactly this ("if you need to ... connect to a different Vault
+instance, you can do with this section of the CR" —
+`api/v1alpha1/vaultsecret_types.go`/`api/v1alpha1/utils/commons.go`,
+[redhat-cop/vault-config-operator](https://github.com/redhat-cop/vault-config-operator),
+`main` branch, checked 2026-08-29).
+
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`).
-Bring it up by hand the first time:
+Every step below is manual; no bootstrap script exists yet.
 
-```bash
-kubectl exec -n <namespace> -it vault-0 -- vault operator init
-# Record the five unseal keys and the root token somewhere safe (not Git).
-kubectl exec -n <namespace> -it vault-0 -- vault operator unseal   # x3, different keys
-```
+1. **Init and unseal** (first time only):
 
-After init, write the app's own Vault token into Vault itself, at
-`{{ .Values.vault.secretPath }}/submission-api`, key `vault_token`, so the
-`submission-api-secret` VaultSecret can inject it as `vaultToken` (read by
-`VaultSettings__Token`, used by the app's own runtime calls to this Vault instance via
-`IVaultCredentialsService`).
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault operator init
+   # Record the five unseal keys and the root token somewhere safe (not Git).
+   kubectl exec -n <namespace> -it vault-0 -- vault operator unseal   # x3, different keys
+   ```
+
+2. **Enable the kv-v2 mount** at the path base — the first segment of
+   `vault.secretPath` (`kvv2` by default):
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault login   # root token from step 1
+   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=kvv2 kv-v2
+   ```
+
+3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault auth enable -path=kubernetes kubernetes
+   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/config \
+     kubernetes_host="https://kubernetes.default.svc"
+   ```
+
+4. **Create the policy and role** (`vault.role`), bound to the namespace's `default`
+   ServiceAccount — every VaultSecret's `authentication.serviceAccount.name` is
+   `default`:
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault policy write submission - <<'EOF'
+   path "kvv2/data/prod/prod/submission/*" {
+     capabilities = ["read"]
+   }
+   EOF
+   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/role/submission \
+     bound_service_account_names=default \
+     bound_service_account_namespaces=<namespace> \
+     policies=submission \
+     ttl=1h
+   ```
+
+   Adjust the policy path to match `vault.secretPath` if it's overridden.
+
+5. **Write the app secrets**, one per row of the paths table below. The `vault kv put`
+   CLI inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
+
+   ```bash
+   kubectl exec -n <namespace> -it vault-0 -- vault kv put kvv2/prod/prod/submission/postgres \
+     postgres_password='...'
+   ```
+
+   Last, write the app's own Vault token, at `{{ .Values.vault.secretPath }}/submission-api`,
+   key `vault_token`, so the `submission-api-secret` VaultSecret can inject it as
+   `vaultToken` (read by `VaultSettings__Token`, used by the app's own runtime calls to
+   this Vault instance via `IVaultCredentialsService`).
 
 ### Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/submission`)
 
@@ -96,9 +152,9 @@ fails silently on every restart.
 
 ## Cookies
 
-TLS terminates at the ingress for every deployment of this stack, so `templates/submission.yaml`
-wires `ui.sslCookies: "true"` as a fact directly in `valuesObject` — it is not a stack value,
-since it would never legitimately differ between deployments of this chart.
+`templates/submission.yaml` wires `ui.sslCookies: "{{ .Values.global.ingress.tls }}"` — secure
+cookies require HTTPS end-to-end, so this follows `global.ingress.tls` rather than being its own
+stack value.
 
 ## Keycloak
 
@@ -139,6 +195,10 @@ default class that is RWO-only.
 bucket has been set up for this stack yet. **On by default for volumes**
 (`global.veleroBackup.enabled: true`), which the shared prod cluster's Velero picks up
 by the `persistentVolumeLabels` selector.
+
+Turning `postgres.backups.enabled` on also requires the `barman-cloud.cloudnative-pg.io`
+CNPG plugin installed in the cluster; `templates/postgres.yaml`'s `Cluster.spec.plugins`
+references it by name but does not install it.
 
 With today's defaults, real data sits in two places with different protection:
 
@@ -189,7 +249,9 @@ With today's defaults, real data sits in two places with different protection:
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `submission` |
 | `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/submission` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.enabled` | Deploy this stack's own Vault `Application` AND every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
+| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address` so the redhatcop operator's platform-Vault default doesn't apply. See **Vault** above. | `http://vault:8200` |
+| `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (the API calls it directly for ephemeral credentials), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
+| `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |
 | `vault.chart` | Chart name within that repo. | `vault` |
 | `vault.chartVersion` | hashicorp/vault chart version. | `0.34.1` |
@@ -229,7 +291,7 @@ With today's defaults, real data sits in two places with different protection:
 | `seq.chart` | Chart name within that repo. | `seq` |
 | `seq.chartVersion` | Seq chart version. | `2025.2.1` |
 | `seq.storageSize` | Size of Seq's data PVC. | `10Gi` |
-| `seq.requireAuthForIngestion` | Require authentication for HTTP log ingestion. | `true` |
+| `seq.requireAuthForIngestion` | Require an API key for HTTP log ingestion. No `seqApiKey` is wired into either component's Secret, so leave `false` (mirrors airlock-stack) — `true` here rejects every app log. | `false` |
 | `seq.resources.requests.cpu` | CPU request. | `250m` |
 | `seq.resources.requests.memory` | Memory request. | `512Mi` |
 | `seq.resources.limits.memory` | Memory limit. | `512Mi` |
@@ -249,7 +311,7 @@ With today's defaults, real data sits in two places with different protection:
 |---|---|---|
 | `postgres.database` | Name of the real application database (the `Database` object). See **CloudNativePG** above. | `DARE-Control` |
 | `postgres.instances` | CNPG `Cluster` instance count. | `1` |
-| `postgres.version` | PostgreSQL major/minor version. Changing this on a running cluster is a major upgrade. | `16.1` |
+| `postgres.version` | PostgreSQL major/minor version. Changing this on a running cluster is a major upgrade. | `16.15` |
 | `postgres.storageSize` | Size of the `Cluster`'s data PVC. | `10Gi` |
 | `postgres.connectionPooler.instances` | `Pooler` (pgbouncer) instance count. | `1` |
 | `postgres.connectionPooler.maxClientConn` | pgbouncer `max_client_conn`. | `3000` |

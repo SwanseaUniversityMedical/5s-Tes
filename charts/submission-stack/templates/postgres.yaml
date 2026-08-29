@@ -40,9 +40,6 @@ spec:
 
 ---
 
-# Requires CNPG >= 1.25 for the Database CRD. Verified present: the
-# cloudnative-pg chart the cluster installs (see dev-env-setup/cluster-setup.sh,
-# unpinned "latest") is currently app version 1.30.0.
 apiVersion: postgresql.cnpg.io/v1
 kind: Database
 metadata:

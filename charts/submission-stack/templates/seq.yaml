@@ -33,7 +33,8 @@ spec:
     targetRevision: "{{ .Values.seq.chartVersion }}"
     helm:
       valuesObject:
-        listenURI: "http://localhost:80,http://localhost:5341"
+        # All interfaces: a Service can't reach a process bound to loopback.
+        listenURI: "http://*:80,http://*:5341"
 
         firstRunAdminUsername: "admin"
         firstRunAdminPasswordSecret:

@@ -79,7 +79,9 @@ seq:
   # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
   chartVersion: "2025.2.1"
   storageSize: "10Gi"
-  requireAuthForIngestion: true
+  # No seqApiKey is wired into either component's Secret yet, so leave off
+  # (mirrors airlock-stack): true here with no key rejects every app log.
+  requireAuthForIngestion: false
   resources:
     requests:
       cpu: "250m"
@@ -93,12 +95,19 @@ vault:
   role: submission
   secretPath: kvv2/data/prod/prod/submission
   authPath: kubernetes
+  # This stack's own Vault (templates/vault.yaml), not the redhatcop
+  # operator's default (platform) connection. Every VaultSecret below sets
+  # this explicitly via vaultSecretDefinitions[].connection.address.
+  address: "http://vault:8200"
 
-  # Deploys this stack's own Vault Application AND every VaultSecret under
-  # templates/secrets/. Set false only where something else provides the
-  # Secrets those VaultSecrets would otherwise create (e.g. the devstack's
-  # static Secrets) — mirrors serp-provisioning-stack's vault.enabled.
+  # Deploys this stack's own Vault Application. Runtime dependency: the API
+  # calls this Vault directly for ephemeral credentials, so this stays true
+  # even where vault.secretsEnabled is false (e.g. local dev).
   enabled: true
+  # Gates every VaultSecret under templates/secrets/. False only where
+  # something else provides the Secrets those VaultSecrets would otherwise
+  # create (e.g. the devstack's static Secrets).
+  secretsEnabled: true
   repoURL: "https://helm.releases.hashicorp.com"
   chart: vault
   # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
@@ -128,7 +137,7 @@ postgres:
   instances: 1
   # Changing this on a running cluster is a major upgrade, not a text edit.
   # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
-  version: "16.1"
+  version: "16.15"
   storageSize: "10Gi"
   connectionPooler:
     instances: 1
