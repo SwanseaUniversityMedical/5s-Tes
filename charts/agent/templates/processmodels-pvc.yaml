@@ -1,0 +1,20 @@
+{{- if or .Values.api.enabled .Values.camunda.enabled }}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: agent-processmodels
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    {{- with .Values.persistentVolumeLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.processModels.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.processModels.size | quote }}
+  {{- if typeIs "string" .Values.processModels.storageClassName }}
+  storageClassName: {{ .Values.processModels.storageClassName | quote }}
+  {{- end }}
+{{- end }}

@@ -1,0 +1,21 @@
+{{- if .Values.api.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  # Static: ui's TreAPISettings__InternalApiBaseUrl and web's AGENT_API_URL
+  # are template literals pointing here.
+  name: agent-api
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  type: {{ .Values.api.service.type }}
+  ports:
+    - port: 80
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "agent.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+{{- end }}

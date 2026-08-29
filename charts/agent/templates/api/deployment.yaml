@@ -1,0 +1,302 @@
+{{- if .Values.api.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-api
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: api
+spec:
+  # Shared ReadWriteOnce processmodels PVC and Hangfire; cannot scale past
+  # one replica.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: api
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: api
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: process-models
+          persistentVolumeClaim:
+            claimName: agent-processmodels
+        {{- if .Values.global.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.global.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+      containers:
+        - name: api
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: process-models
+              mountPath: /app/ProcessModels
+            {{- if .Values.global.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.global.trustClusterCa.mountPath }}
+              subPath: {{ .Values.global.trustClusterCa.key }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.api.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "{{ .Values.global.config.aspnetEnvironment }}"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: connectionStringDefault
+            - name: ConnectionStrings__CredentialsConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: connectionStringCredentials
+            - name: RabbitMQ__HostAddress
+              value: "{{ .Values.api.rabbitmqHost }}"
+            - name: RabbitMQ__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitUsername
+            - name: RabbitMQ__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: rabbitPassword
+            - name: TreKeyCloakSettings__Authority
+              value: "{{ .Values.global.oidc.authority }}/.well-known/openid-configuration"
+            - name: TreKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.global.oidc.authority }}/.well-known/openid-configuration"
+            - name: TreKeyCloakSettings__BaseUrl
+              value: "{{ .Values.global.oidc.authority }}"
+            - name: TreKeyCloakSettings__ClientId
+              value: "{{ .Values.api.oidc.clientId }}"
+            - name: TreKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: treKeycloakClientSecret
+            - name: TreKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.oidc.validAudiences }}"
+            - name: TreKeyCloakSettings__UseRedirectURL
+              value: "{{ .Values.api.oidc.useRedirectUrl }}"
+            - name: TreKeyCloakSettings__Proxy
+              value: "{{ .Values.api.oidc.proxy }}"
+            - name: TreKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.api.oidc.proxyAddresUrl }}"
+            - name: TreKeyCloakSettings__BypassProxy
+              value: "{{ .Values.api.oidc.bypassProxy }}"
+            - name: SubmissionKeyCloakSettings__Authority
+              value: "{{ .Values.submission.oidcAuthority }}/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.submission.oidcAuthority }}/.well-known/openid-configuration"
+            - name: SubmissionKeyCloakSettings__BaseUrl
+              value: "{{ .Values.submission.oidcAuthority }}"
+            - name: SubmissionKeyCloakSettings__ClientId
+              value: "{{ .Values.api.submissionOidc.clientId }}"
+            - name: SubmissionKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: submissionKeycloakClientSecret
+            - name: SubmissionKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.submissionOidc.validAudiences }}"
+            - name: SubmissionKeyCloakSettings__UseRedirectURL
+              value: "{{ .Values.api.submissionOidc.useRedirectUrl }}"
+            - name: SubmissionKeyCloakSettings__Proxy
+              value: "{{ .Values.api.submissionOidc.proxy }}"
+            - name: SubmissionKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.api.submissionOidc.proxyAddresUrl }}"
+            - name: SubmissionKeyCloakSettings__BypassProxy
+              value: "{{ .Values.api.submissionOidc.bypassProxy }}"
+            {{- if .Values.api.egress.enabled }}
+            - name: DataEgressKeyCloakSettings__Authority
+              value: "{{ .Values.api.egress.authority }}/.well-known/openid-configuration"
+            - name: DataEgressKeyCloakSettings__MetadataAddress
+              value: "{{ .Values.api.egress.authority }}/.well-known/openid-configuration"
+            - name: DataEgressKeyCloakSettings__BaseUrl
+              value: "{{ .Values.api.egress.authority }}"
+            - name: DataEgressKeyCloakSettings__ClientId
+              value: "{{ .Values.api.egress.clientId }}"
+            - name: DataEgressKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: egressKeycloakClientSecret
+            - name: DataEgressKeyCloakSettings__ValidAudiences
+              value: "{{ .Values.api.egress.validAudiences }}"
+            - name: DataEgressKeyCloakSettings__TokenExpiredAddress
+              value: "{{ .Values.api.egress.tokenExpiredAddress }}"
+            - name: DataEgressKeyCloakSettings__RedirectURL
+              value: "{{ .Values.api.egress.redirectUrl }}"
+            - name: DataEgressKeyCloakSettings__UseRedirectURL
+              value: "{{ .Values.api.egress.useRedirectUrl }}"
+            - name: DataEgressKeyCloakSettings__Proxy
+              value: "{{ .Values.api.egress.proxy }}"
+            - name: DataEgressKeyCloakSettings__ProxyAddresURL
+              value: "{{ .Values.api.egress.proxyAddresUrl }}"
+            - name: DataEgressKeyCloakSettings__BypassProxy
+              value: "{{ .Values.api.egress.bypassProxy }}"
+            - name: ApiEndpoints__EgressApiUrl
+              value: "{{ .Values.api.egress.apiUrl }}"
+            {{- end }}
+            - name: ApiEndpoints__SubmissionApiUrl
+              value: "{{ .Values.submission.apiUrl }}"
+            - name: ApiEndpoints__TreApiUrl
+              value: "{{ .Values.api.publicUrl }}"
+            - name: MinioTRESettings__Url
+              value: "{{ .Values.api.s3Url }}"
+            - name: MinioTRESettings__AccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3AccessKey
+            - name: MinioTRESettings__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3SecretKey
+            - name: MinioSubSettings__Url
+              value: "{{ .Values.submission.s3Url }}"
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vaultUrl }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: vaultToken
+            - name: VaultSettings__TimeoutSeconds
+              value: "{{ .Values.api.vault.timeoutSeconds }}"
+            - name: VaultSettings__SecretEngine
+              value: "{{ .Values.api.vault.secretEngine }}"
+            - name: VaultSettings__EnableRetry
+              value: "{{ .Values.api.vault.enableRetry }}"
+            - name: VaultSettings__MaxRetryAttempts
+              value: "{{ .Values.api.vault.maxRetryAttempts }}"
+            - name: VaultSettings__VaultConfigPath
+              value: "{{ .Values.api.vault.configPath }}"
+            - name: VaultSettings__VaultConfigReloadInterval
+              value: "{{ .Values.api.vault.configReloadInterval }}"
+            - name: ZeebeBootstrap__Client__GatewayAddress
+              value: "{{ .Values.global.config.zeebeGatewayAddress }}"
+            - name: ZeebeBootstrap__Worker__MaxJobsActive
+              value: "{{ .Values.api.zeebe.worker.maxJobsActive }}"
+            - name: ZeebeBootstrap__Worker__TimeoutInMilliseconds
+              value: "{{ .Values.api.zeebe.worker.timeoutInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__PollIntervalInMilliseconds
+              value: "{{ .Values.api.zeebe.worker.pollIntervalInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__PollingTimeoutInMilliseconds
+              value: "{{ .Values.api.zeebe.worker.pollingTimeoutInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__RetryTimeoutInMilliseconds
+              value: "{{ .Values.api.zeebe.worker.retryTimeoutInMilliseconds }}"
+            - name: DmnPath__Path
+              value: "/app/ProcessModels"
+            - name: EncryptionSettings__Key
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: encryptionKey
+            - name: Hangfire__EnableExternalHangfire
+              value: "{{ .Values.api.hangfire.enableExternal }}"
+            - name: Hangfire__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: hangfireUsername
+            - name: Hangfire__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: hangfirePassword
+            - name: JobSettings__scanSchedule
+              value: "{{ .Values.api.jobs.scanSchedule }}"
+            - name: JobSettings__syncSchedule
+              value: "{{ .Values.api.jobs.syncSchedule }}"
+            - name: JobSettings__healthCheckSchedule
+              value: "{{ .Values.api.jobs.healthCheckSchedule }}"
+            - name: JobSettings__DaysBeforeHealthLogDeletion
+              value: "{{ .Values.api.jobs.daysBeforeHealthLogDeletion }}"
+            - name: AgentSettings__UseTESK
+              value: "{{ .Values.api.useTesk }}"
+            - name: AgentSettings__TESKAPIURL
+              value: "{{ .Values.api.tesApiUrl }}"
+            - name: AgentSettings__TESKOutputBucketPrefix
+              value: "{{ .Values.api.teskOutputBucketPrefix }}"
+            - name: TreName
+              value: "{{ .Values.api.treName }}"
+            - name: Features__SeedDemoData
+              value: "{{ .Values.api.features.seedDemoData }}"
+            - name: Features__EphemeralCredentials
+              value: "{{ .Values.api.features.ephemeralCredentials }}"
+            - name: KeycloakDemoMode
+              value: "{{ .Values.api.keycloakDemoMode }}"
+            - name: DemoModeDefaultP
+              value: "{{ .Values.api.demoModeDefaultP }}"
+            - name: TreOnboardingConfig__IsConfigurationImported
+              value: "{{ .Values.api.onboarding.isConfigurationImported }}"
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: HasuraSettings__IsEnabled
+              value: "{{ .Values.api.hasura.enabled }}"
+            {{- if .Values.api.hasura.enabled }}
+            - name: HasuraSettings__HasuraURL
+              value: "{{ .Values.api.hasura.url }}"
+            - name: HasuraSettings__HasuraAdminSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: hasuraAdminSecret
+            {{- end }}
+            - name: DataProtectionSettings__PersistKeys
+              value: "{{ .Values.api.dataProtection.persistKeys }}"
+            - name: DataProtectionSettings__KeysPath
+              value: "{{ .Values.api.dataProtection.keysPath }}"
+            {{- if .Values.global.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-agent-api
+            {{- end }}
+            {{- with .Values.api.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
+{{- end }}

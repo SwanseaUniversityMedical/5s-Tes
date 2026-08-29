@@ -1,0 +1,325 @@
+# Defaults are the local-dev settings, so `helm template` renders with no
+# input. The agent-stack chart overrides environment-specific keys.
+
+nameOverride: ""
+fullnameOverride: "agent"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# UID 1000 (securityContext.runAsUser) must be able to write the shared
+# processmodels PVC, whatever GID the volume's storage class hands it.
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+
+# Org security baseline. Do not weaken without a reason in the pull request.
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# Labels put on every PersistentVolumeClaim. The cluster's backup tool uses
+# these to decide what to back up.
+persistentVolumeLabels:
+  hiru.io/backup: "enabled"
+
+# Camunda's DMN/BPMN process models, shared by api and camunda so either pod
+# sees the same files. Both stay at replicas: 1 because this PVC is
+# ReadWriteOnce. A multi-node cluster must set
+# processModels.accessModes: [ReadWriteMany].
+processModels:
+  accessModes:
+    - ReadWriteOnce
+  size: 100Mi
+  storageClassName: null
+
+global:
+  # renovate: datasource=docker depName=5s-tes/agent-api registryUrl=https://harbor.federated-analytics.ac.uk
+  tag: "3.2.0"
+
+  config:
+    aspnetEnvironment: "Development"
+    seqUrl: "http://seq:5341"
+    logLevel: "Information"
+    # Shared by api and camunda: if Vault moves, both move together.
+    vaultUrl: "http://vault:8200"
+    # Shared by api and camunda: if the Zeebe gateway moves, both move
+    # together. Task 3.2 verifies the real rendered Camunda service name.
+    zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
+
+  # Full Dare-TRE realm URL every component authenticates against.
+  oidc:
+    authority: "http://keycloak/realms/Dare-TRE"
+
+  monitoring:
+    enabled: false
+    pushgatewayUrl: ""
+
+  # Base domain; api, ui and web each get their own subdomain of it.
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "localtest.me"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  # Off by default so `helm template` renders with no cluster present. The
+  # agent-stack chart turns this on for real clusters.
+  trustClusterCa:
+    enabled: false
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+# Cross-stack link to the Submission product. The api calls the Submission
+# API and its S3 endpoint, and validates tokens issued by its Keycloak realm.
+# Production points these at the real Submission deployment's addresses.
+submission:
+  oidcAuthority: "http://keycloak/realms/Dare-Control"
+  apiUrl: "http://submission-api.localtest.me"
+  s3Url: "http://submission-rustfs-svc:9000"
+
+# --------------------------------------------------------------------
+# One block per component. Only the settings unique to that component.
+# --------------------------------------------------------------------
+
+api:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  # Expected keys: connectionStringDefault, connectionStringCredentials,
+  # rabbitUsername, rabbitPassword, treKeycloakClientSecret,
+  # submissionKeycloakClientSecret, egressKeycloakClientSecret,
+  # s3AccessKey, s3SecretKey, vaultToken, encryptionKey, hangfireUsername,
+  # hangfirePassword, hasuraAdminSecret. See README Secrets section.
+  secretName: agent-api-secret
+  ingress:
+    enabled: true
+    # Empty computes "agent-api.<global.ingress.host>".
+    host: ""
+
+  rabbitmqHost: "rabbitmq"
+
+  oidc:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  submissionOidc:
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  # Off by default: not every TRE deployment has a Data Egress layer. The
+  # whole DataEgressKeyCloakSettings/EgressApiUrl env group is left unset
+  # when disabled, so an inert deployment sets nothing.
+  egress:
+    enabled: false
+    authority: ""
+    clientId: "Data-Egress-API"
+    validAudiences: "Data-Egress-UI,Data-Egress-API"
+    tokenExpiredAddress: ""
+    redirectUrl: ""
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+    apiUrl: ""
+
+  s3Url: "http://rustfs-svc:9000"
+
+  # Public URL embedded in TRE onboarding JSON.
+  publicUrl: "http://agent-api.localtest.me"
+
+  vault:
+    timeoutSeconds: 30
+    secretEngine: "secret"
+    enableRetry: true
+    maxRetryAttempts: 3
+    configPath: "config"
+    configReloadInterval: 10
+
+  zeebe:
+    worker:
+      maxJobsActive: 5
+      timeoutInMilliseconds: 5000
+      pollIntervalInMilliseconds: 1000
+      pollingTimeoutInMilliseconds: 5000
+      retryTimeoutInMilliseconds: 5000
+
+  hangfire:
+    enableExternal: "true"
+
+  # Production cadences (deployment repo's TRE .env.example).
+  jobs:
+    scanSchedule: 10
+    syncSchedule: 10
+    healthCheckSchedule: 10
+    daysBeforeHealthLogDeletion: 30
+
+  useTesk: "true"
+  tesApiUrl: "http://localhost:8000/v1/tasks"
+  teskOutputBucketPrefix: "s3://"
+
+  treName: "DEV"
+
+  features:
+    seedDemoData: "false"
+    ephemeralCredentials: "true"
+
+  keycloakDemoMode: "false"
+  demoModeDefaultP: ""
+
+  onboarding:
+    isConfigurationImported: "false"
+
+  # Off by default. HasuraURL/HasuraAdminSecret are only read when enabled.
+  hasura:
+    enabled: false
+    url: ""
+
+  # Agent apps do not persist data-protection keys across restarts.
+  dataProtection:
+    persistKeys: "false"
+    keysPath: "/keys"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+ui:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-ui
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  # Expected key: keycloakClientSecret. See README Secrets section.
+  secretName: agent-ui-secret
+  ingress:
+    enabled: true
+    # Empty computes "agent-ui.<global.ingress.host>".
+    host: ""
+
+  appName: "Five Safes TES"
+  keycloakDemoMode: "false"
+  sslCookies: "false"
+  # TLS terminates at the ingress, so the app itself does not redirect.
+  httpsRedirect: "false"
+
+  oidc:
+    clientId: "Dare-TRE-UI"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
+
+  # Agent apps do not persist data-protection keys across restarts.
+  dataProtection:
+    persistKeys: "false"
+    keysPath: "/keys"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+web:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-web
+    tag: ""
+    pullPolicy: IfNotPresent
+  # Stateless Next.js app: the only component that may run more than one
+  # replica.
+  replicas: 1
+  containerPort: 3000
+  resources: {}
+  service:
+    type: ClusterIP
+  # Expected keys: betterAuthSecret, keycloakClientSecret. See README Secrets
+  # section.
+  secretName: agent-web-secret
+  ingress:
+    enabled: true
+    # Empty computes "agent.<global.ingress.host>". This is the primary
+    # user-facing UI for the Agent product.
+    host: ""
+
+  publicUrl: "http://agent.localtest.me"
+
+  # Keycloak BASE URL, without a realm path: lib/auth.ts and
+  # lib/constants/index.ts append "/realms/<realm>" themselves. Keep the host
+  # in step with global.oidc.authority.
+  keycloakBaseUrl: "http://keycloak"
+
+  oidc:
+    clientId: "Dare-TRE-UI"
+    realm: "Dare-TRE"
+
+  helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+camunda:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/credentials-camunda
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  # Expected keys: ldapAdminPassword, vaultToken,
+  # connectionStringCredentials, connectionStringTreData. See README Secrets
+  # section.
+  secretName: credentials-camunda-secret
+
+  zeebe:
+    worker:
+      maxJobsActive: 5
+      timeoutInMilliseconds: 5000
+      pollIntervalInMilliseconds: 1000
+      pollingTimeoutInMilliseconds: 5000
+      retryTimeoutInMilliseconds: 5000
+
+  # Local OpenLDAP. Production overrides these to an external AD.
+  ldap:
+    host: "openldap"
+    port: 389
+    adminDn: "cn=admin,dc=camundaephemeral,dc=local"
+    baseDn: "dc=camundaephemeral,dc=local"
+    userOu: "ou=Users"
+    useSsl: false
+
+  vault:
+    timeoutSeconds: 30
+    secretEngine: "secret"
+    enableRetry: true
+    maxRetryAttempts: 3
