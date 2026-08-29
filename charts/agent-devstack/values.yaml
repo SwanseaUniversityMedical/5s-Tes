@@ -31,7 +31,7 @@ tredata:
   repoURL: "harbor.ukserp.ac.uk/bitnami/chart"
   chart: postgresql
   # renovate: datasource=helm-oci depName=bitnamicharts/postgresql registryUrl=https://registry-1.docker.io
-  chartVersion: "18.8.13"
+  chartVersion: "16.7.21"
   imageRegistry: "harbor.ukserp.ac.uk"
 
 # Gates agent-openldap-secret only. The OpenLDAP Application itself is
