@@ -50,6 +50,7 @@ if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntif
 }
 
 // Add services to the container.
+builder.Services.AddHealthChecks();
 builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
 {
     options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
@@ -265,6 +266,15 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto
@@ -338,6 +348,8 @@ app.UseRouting();
 app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
