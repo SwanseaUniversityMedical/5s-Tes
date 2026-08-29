@@ -1,0 +1,56 @@
+{{- if .Values.openldap.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openldap
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.openldap.repoURL }}"
+    chart: "{{ .Values.openldap.chart }}"
+    # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
+    targetRevision: "{{ .Values.openldap.chartVersion }}"
+    helm:
+      valuesObject:
+        replicaCount: {{ .Values.openldap.replicas }}
+
+        global:
+          ldapDomain: "{{ .Values.openldap.ldapDomain }}"
+          # Keys LDAP_ADMIN_PASSWORD and LDAP_CONFIG_ADMIN_PASSWORD, per this
+          # chart's own existingSecret contract. Produced by
+          # templates/secrets/agent.yaml.
+          existingSecret: "agent-openldap-secret"
+
+        persistence:
+          enabled: true
+          storageClass: {{ .Values.global.storageClass }}
+          size: "{{ .Values.openldap.storageSize }}"
+
+        # Password-reset UI and phpLDAPadmin default on with example.com
+        # ingress hosts; neither is needed for the Credentials Camunda worker.
+        ltb-passwd:
+          enabled: false
+        phpldapadmin:
+          enabled: false
+{{- end }}

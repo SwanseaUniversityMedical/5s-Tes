@@ -1,0 +1,246 @@
+global:
+  argoProject: agent
+  namespace: 5s-tes-agent
+
+  oidc:
+    authority: "https://keycloak.example.ac.uk/realms/Dare-TRE"
+
+  ingress:
+    enabled: true
+    host: "example.ac.uk"
+    className: "nginx"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  storageClass: "ceph-block"
+
+  trustClusterCa:
+    enabled: true
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+  # Volume backups only; PostgreSQL backs itself up via the postgres block.
+  veleroBackup:
+    enabled: true
+    namespace: "hiru-mgmt-velero"
+    schedule: "0 1 * * *"
+    ttl: "168h0m0s"
+
+  persistentVolumeLabels:
+    hiru.io/backup: "enabled"
+
+  monitoring:
+    enabled: true
+    pushgatewayUrl: "http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics"
+
+# ---- Our own C# code ----
+agent:
+  enabled: true
+  # renovate: datasource=helm-oci depName=5s-tes/chart/agent registryUrl=https://harbor.federated-analytics.ac.uk
+  chartVersion: "1.0.0"
+  # renovate: datasource=docker depName=5s-tes/agent-api registryUrl=https://harbor.federated-analytics.ac.uk
+  imageVersion: "3.2.0"
+  api:
+    # Public API URL embedded in TRE onboarding JSON. Empty computes
+    # "<scheme>://agent-api.<global.ingress.host>" from global.ingress.
+    publicUrl: ""
+    # Name of this TRE deployment. Left empty renders nothing, so the
+    # standalone chart's own default ("DEV") stands until a deployment sets it.
+    treName: ""
+    # External TES backend URL. Recommended production path (see README);
+    # empty leaves the standalone chart's own default. TESK-in-cluster
+    # (tesk.enabled) is the alternative.
+    tesApiUrl: ""
+  web:
+    # Public URL of the Next.js app, used by Better Auth. Empty computes
+    # "<scheme>://agent.<global.ingress.host>" from global.ingress.
+    publicUrl: ""
+  # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
+  # null uses the cluster default, which is typically RWO-only (ceph-block)
+  # and will not bind a ReadWriteMany claim. See README.
+  processModels:
+    storageClassName: null
+  # External Active Directory settings for the Credentials Camunda worker.
+  # Defaults match the openldap.yaml Application below, for a deployment that
+  # enables it instead of a real AD. Production sets these to the real AD.
+  ldap:
+    host: "openldap"
+    port: 389
+    adminDn: "cn=admin,dc=camundaephemeral,dc=local"
+    baseDn: "dc=camundaephemeral,dc=local"
+    userOu: "ou=Users"
+    useSsl: false
+
+# Cross-stack link to the Submission product. It runs in its own namespace
+# (or cluster); these are always external addresses, never in-namespace
+# static service names. Production points these at the real Submission
+# deployment.
+submission:
+  oidcAuthority: "https://keycloak.example.ac.uk/realms/Dare-Control"
+  apiUrl: "https://submission-api.example.ac.uk"
+  # The Submission product's S3 endpoint. Cross-namespace in-cluster DNS if
+  # co-located on this cluster (e.g. "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"),
+  # otherwise its public URL. Not this stack's own rustfs.
+  s3Url: "https://submission-rustfs.example.ac.uk"
+
+# --------------------------------------------------------------------
+# Dependencies installed from somebody else's chart.
+# --------------------------------------------------------------------
+
+rustfs:
+  enabled: true
+  repoURL: "https://rustfs.github.io/helm/"
+  chart: rustfs
+  # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
+  chartVersion: "1.0.0-rc.4"
+  storageSize: "10Gi"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+seq:
+  enabled: true
+  repoURL: "https://helm.datalust.co"
+  chart: seq
+  # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
+  chartVersion: "2025.2.1"
+  storageSize: "10Gi"
+  # No seqApiKey is wired into any component's Secret yet, so leave off
+  # (mirrors airlock-stack/submission-stack): true here rejects every app log.
+  requireAuthForIngestion: false
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+# The Agent's own Camunda 8 (Zeebe only). Identity, webModeler and the
+# Keycloak-backed identity provider are all off: this deployment only needs
+# the Zeebe broker/gateway for the Credentials Camunda worker.
+camunda:
+  enabled: true
+  repoURL: "https://helm.camunda.io"
+  chart: camunda-platform
+  # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
+  chartVersion: "13.4.1"
+
+# Local/test OpenLDAP, standing in for an external Active Directory. Off by
+# default: production points agent.ldap.* at the real AD instead. See README.
+openldap:
+  enabled: false
+  repoURL: "https://jp-gouin.github.io/helm-openldap/"
+  chart: openldap-stack-ha
+  # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
+  chartVersion: "4.3.3"
+  replicas: 1
+  storageSize: "1Gi"
+  # global.ldapDomain (dot form) for the chart. Keep the domain component in
+  # step with agent.ldap.baseDn above if both are left at their defaults.
+  ldapDomain: "camundaephemeral.local"
+
+# Optional in-cluster TESK (GA4GH TES) backend. Off by default: the
+# recommended production path is an external TES URL via agent.api.tesApiUrl.
+# See README.
+tesk:
+  enabled: false
+  repoURL: "harbor.ukserp.ac.uk/tesk/chart"
+  chart: tesk
+  # renovate: datasource=helm-oci depName=tesk/chart/tesk registryUrl=https://harbor.ukserp.ac.uk
+  chartVersion: "0.1.0"
+  # renovate: datasource=docker depName=tesk/tesk-api registryUrl=https://harbor.ukserp.ac.uk
+  image: "harbor.ukserp.ac.uk/tesk/tesk-api:1.0.1"
+  taskmasterImage:
+    name: "harbor.ukserp.ac.uk/tesk/tesk-core-taskmaster"
+    # renovate: datasource=docker depName=tesk/tesk-core-taskmaster registryUrl=https://harbor.ukserp.ac.uk
+    version: "v0.10.5"
+  filerImage:
+    name: "harbor.ukserp.ac.uk/tesk/tesk-core-filer"
+    # renovate: datasource=docker depName=tesk/tesk-core-filer registryUrl=https://harbor.ukserp.ac.uk
+    version: "v0.10.5"
+
+# Where this stack's own secrets come from (role/secretPath/authPath), and
+# the vault.yaml Application that deploys this stack's own Vault instance.
+vault:
+  role: agent
+  secretPath: kvv2/data/prod/prod/agent
+  authPath: kubernetes
+  # This stack's own Vault (templates/vault.yaml), not the redhatcop
+  # operator's default (platform) connection. Every VaultSecret below sets
+  # this explicitly via vaultSecretDefinitions[].connection.address.
+  address: "http://vault:8200"
+
+  # Deploys this stack's own Vault Application. Runtime dependency: the api
+  # and camunda worker both call this Vault directly for ephemeral
+  # credentials, so this stays true even where vault.secretsEnabled is false
+  # (e.g. local dev).
+  enabled: true
+  # Gates every VaultSecret under templates/secrets/. False only where
+  # something else provides the Secrets those VaultSecrets would otherwise
+  # create (e.g. the devstack's static Secrets).
+  secretsEnabled: true
+  repoURL: "https://helm.releases.hashicorp.com"
+  chart: vault
+  # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
+  chartVersion: "0.34.1"
+  dataStorageSize: "10Gi"
+  # The Vault Agent Injector webhook. Off by default: nothing in this chart
+  # needs agent-injected secrets, everything goes through VaultSecret.
+  injector:
+    enabled: false
+
+# --------------------------------------------------------------------
+# Dependencies that are operator objects, not charts.
+# --------------------------------------------------------------------
+
+rabbitmq:
+  replicas: 1
+  storageSize: "10Gi"
+  # Extra rabbitmq.conf lines, passed to the operator verbatim.
+  additionalConfig: ""
+  # Set false only on a cluster without Vault (local dev); the operator
+  # then generates "rabbitmq-default-user" instead.
+  vaultDefaultUser: true
+
+postgres:
+  # The api's own database. See postgres.yaml.
+  database: "DARE-Tre"
+  # The database shared by api and the Credentials Camunda worker. Production's
+  # TRE data database (ConnectionStrings__TREPostgresConnection) is external;
+  # no Database object for it exists in this chart.
+  credentialsDatabase: "TRE_Credentials"
+  instances: 1
+  # Changing this on a running cluster is a major upgrade, not a text edit.
+  # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
+  version: "16.15"
+  storageSize: "10Gi"
+  connectionPooler:
+    instances: 1
+    maxClientConn: 3000
+    defaultPoolSize: 120
+    reservePoolSize: 20
+    reservePoolTimeout: 5
+    serverIdleTimeout: 300
+  # PostgreSQL backs itself up to object storage, through CloudNativePG.
+  # Off by default: no destination bucket is configured for this stack yet.
+  backups:
+    enabled: false
+    destinationPath: ""
+    endpointURL: ""
+    # Secret holding ca.crt for the object storage endpoint's certificate.
+    # Not created by this chart; must already exist.
+    endpointCASecretName: ""
+    retention: "30d"
+    # SIX fields, seconds first.
+    schedule: "0 0 0 * * *"
+    # Where the backup destination's S3 credentials live in Vault. Same
+    # mechanism as submission-stack/serp-provisioning-stack: a second
+    # vaultSecretDefinitions entry on postgres-secret, aliased "backup".
+    vault:
+      path: ""
+      accessKeyField: access_key
+      secretKeyField: secret_key

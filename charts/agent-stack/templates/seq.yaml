@@ -1,0 +1,84 @@
+{{- if .Values.seq.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: seq
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.seq.repoURL }}"
+    chart: "{{ .Values.seq.chart }}"
+    # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
+    targetRevision: "{{ .Values.seq.chartVersion }}"
+    helm:
+      valuesObject:
+        # All interfaces: a Service can't reach a process bound to loopback.
+        listenURI: "http://*:80,http://*:5341"
+
+        firstRunAdminUsername: "admin"
+        firstRunAdminPasswordSecret:
+          name: "seq-admin-password-secret"
+          key: "password"
+        firstRunRequireAuthenticationForHttpIngestion: {{ .Values.seq.requireAuthForIngestion }}
+
+        {{- if .Values.global.ingress.enabled }}
+        {{- if .Values.global.ingress.tls }}
+        baseURI: "https://seq.{{ .Values.global.ingress.host }}/"
+        {{- else }}
+        baseURI: "http://seq.{{ .Values.global.ingress.host }}/"
+        {{- end }}
+
+        ui:
+          ingress:
+            enabled: true
+            path: /
+            hosts:
+              - seq.{{ .Values.global.ingress.host }}
+
+        ingress:
+          className: "{{ .Values.global.ingress.className }}"
+          annotations:
+            {{- if .Values.global.ingress.tls }}
+            cert-manager.io/cluster-issuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+            {{- end }}
+          {{- if .Values.global.ingress.tls }}
+          tls:
+            - hosts:
+              - seq.{{ .Values.global.ingress.host }}
+              secretName: seq-tls
+          {{- end }}
+        {{- end }}
+
+        persistence:
+          enabled: true
+          storageClass: {{ .Values.global.storageClass }}
+          size: "{{ .Values.seq.storageSize }}"
+
+        resources:
+          requests:
+            cpu: {{ .Values.seq.resources.requests.cpu }}
+            memory: {{ .Values.seq.resources.requests.memory }}
+          limits:
+            memory: {{ .Values.seq.resources.limits.memory }}
+{{- end }}
