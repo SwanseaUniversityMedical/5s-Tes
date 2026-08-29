@@ -48,6 +48,7 @@ configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSetting
 var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
 submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(submissionKeyCloakSettings);
+builder.Services.AddSingleton<BaseKeyCloakSettings>(submissionKeyCloakSettings);
 
 var formIOSettings = new FormIOSettings();
 configuration.Bind(nameof(formIOSettings), formIOSettings);

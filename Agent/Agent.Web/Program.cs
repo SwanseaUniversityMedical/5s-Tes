@@ -57,6 +57,7 @@ try
     var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
     treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
     builder.Services.AddSingleton(treKeyCloakSettings);
+    builder.Services.AddSingleton<BaseKeyCloakSettings>(treKeyCloakSettings);
     Log.Information("{Function} Step 1 Authority {Authority}","Main",  treKeyCloakSettings.Authority);
     var UIName = new UIName();
     configuration.Bind(nameof(UIName), UIName);
