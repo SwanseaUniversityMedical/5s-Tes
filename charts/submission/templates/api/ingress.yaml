@@ -1,4 +1,4 @@
-{{- if and .Values.api.enabled .Values.api.ingress.enabled -}}
+{{- if and .Values.global.ingress.enabled .Values.api.enabled .Values.api.ingress.enabled -}}
 {{- $host := .Values.api.ingress.host | default (printf "submission-api.%s" .Values.global.ingress.host) -}}
 apiVersion: networking.k8s.io/v1
 kind: Ingress

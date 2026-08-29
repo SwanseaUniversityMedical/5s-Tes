@@ -11,6 +11,10 @@ Both components share one PersistentVolumeClaim, `submission-dataprotection`, th
 ASP.NET data-protection keys, and both stay at `replicas: 1` because that PVC is
 `ReadWriteOnce` and the UI keeps its session store in memory. If `api.enabled` is
 `false`, `submission-dataprotection` still renders: it is not owned by either component.
+With the default `ReadWriteOnce` access mode, both pods must land on the same node —
+fine on a single-node kind cluster, but a multi-node cluster must set
+`dataProtection.accessModes: [ReadWriteMany]`, which the `submission-stack` chart does
+for production.
 
 ## What must already exist
 
@@ -102,6 +106,7 @@ Settings shared by more than one component. Defined once.
 | `global.oidc.authority` | Full Keycloak realm URL both components authenticate against. | `"http://keycloak/realms/Dare-Control"` |
 | `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway. | `false` |
 | `global.monitoring.pushgatewayUrl` | Pushgateway address, used when `global.monitoring.enabled` is `true`. | `""` |
+| `global.ingress.enabled` | Create an Ingress for either component at all. | `true` |
 | `global.ingress.className` | Ingress controller class for every Ingress. | `"nginx"` |
 | `global.ingress.host` | Base domain. `api.ingress.host`/`ui.ingress.host` default to a subdomain of this when left empty. api and ui are separate public endpoints, each with their own Ingress and hostname. | `"localtest.me"` |
 | `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues each Ingress's TLS certificate. | `"ca-issuer"` |
