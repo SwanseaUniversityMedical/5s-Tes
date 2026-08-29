@@ -273,6 +273,13 @@ deployment.
 
 ### Web parameters
 
+`KEYCLOAK_URL`/`NEXT_PUBLIC_KEYCLOAK_URL` and `NEXT_PUBLIC_KEYCLOAK_REALM` are derived from
+`global.oidc.authority`, not their own values: the chart parses it with `urlParse` for
+`<scheme>://<host>` (`lib/auth.ts` and `lib/constants/index.ts` append `/realms/<realm>`
+themselves) and takes the last path segment as the realm name. Keeping one source of truth
+means the web UI can never point at a different Keycloak host or realm than the rest of the
+chart.
+
 | **Name** | **Description** | **Value** |
 |---|---|---|
 | `web.enabled` | Deploy the Web component. | `true` |
@@ -288,9 +295,7 @@ deployment.
 | `web.ingress.enabled` | Create an Ingress for the Web UI. | `true` |
 | `web.ingress.host` | Hostname for the Web Ingress. Empty computes `agent.<global.ingress.host>`: this is the primary UI. | `""` |
 | `web.publicUrl` | Public URL of this app, used by Better Auth. Read into `BETTER_AUTH_URL`. | `http://agent.localtest.me` |
-| `web.keycloakBaseUrl` | Keycloak BASE URL, with no realm path — `lib/auth.ts` and `lib/constants/index.ts` append `/realms/<realm>` themselves. Keep the host in step with `global.oidc.authority`. Read into `KEYCLOAK_URL` and `NEXT_PUBLIC_KEYCLOAK_URL`. | `http://keycloak` |
 | `web.oidc.clientId` | Keycloak client ID. Read into `KEYCLOAK_CLIENT_ID`. | `Dare-TRE-UI` |
-| `web.oidc.realm` | Keycloak realm name. Read into `NEXT_PUBLIC_KEYCLOAK_REALM`. | `Dare-TRE` |
 | `web.helpdeskUrl` | Helpdesk URL shown in the UI. Read into `NEXT_PUBLIC_HELPDESK_URL`. | `https://ukserp.atlassian.net/servicedesk/customer/portal/3` |
 | `web.extraEnv` | Rare one-off environment variables. Anything the app always needs is a named value above instead. | `[]` |
 

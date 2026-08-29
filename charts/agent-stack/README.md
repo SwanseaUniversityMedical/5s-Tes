@@ -213,6 +213,47 @@ coordinates as `director-wfs`'s `tesk-standalone-stack`
 bring up a disposable kind-based TESK environment — do not enable `tesk.enabled` here for that
 purpose.
 
+### TESK prerequisites this stack does not supply
+
+Enabling `tesk.enabled` installs the `tesk` chart, but `director-wfs.sh` and its
+`tesk-standalone-stack` chart create two more things out-of-band that this stack does not
+reproduce. Verified by reading the pulled chart
+(`oci://harbor.ukserp.ac.uk/tesk/chart/tesk:0.1.0`) and `director-wfs.sh`/
+`tesk-standalone-stack/templates/tesk-configs.yaml`:
+
+- **An `aws-secret` Secret**, keys `config` and `credentials` (AWS CLI-style INI content: an
+  `[default]` section with `endpoint_url` in `config`, `aws_access_key_id`/
+  `aws_secret_access_key` in `credentials`). The `tesk` chart only creates this Secret itself
+  when `storage.authType` is `file`, reading the values from files baked into the chart
+  package (`templates/storage/aws-secret.yaml`, gated `and (eq .Values.storage.type "s3") (eq
+  .Values.storage.authType "file")`) — not usable from a `valuesObject`. This stack, like
+  `director-wfs.sh`, sets `storage.authType: extraManifests` specifically to skip that
+  chart-bundled path; **whoever enables `tesk.enabled` must create the `aws-secret` Secret in
+  `global.namespace` themselves**, pointed at this stack's own `agent-rustfs-secret`
+  credentials (`director-wfs.sh`'s `apply_tesk_aws_secret` function is the reference shape).
+- **A `tesk-security-context-configmap` ConfigMap** (`data.securityContext`, e.g. `fsGroup:
+  1000`) plus two `tesk.extraEnv` entries pointing taskmaster at it
+  (`TESK_API_TASKMASTER_ENVIRONMENT_CONFIGMAP` and `CONFIGMAP`, both set to the ConfigMap's
+  name). `director-wfs` creates this ConfigMap itself
+  (`tesk-standalone-stack/templates/tesk-configs.yaml`) because its cluster runs Gatekeeper
+  policies that require task-executor pods to carry a securityContext; this stack's
+  `templates/tesk.yaml` does not create the ConfigMap or wire `tesk.extraEnv`.
+
+**Evidence this is a documentation gap, not a startup-blocking one:** the `tesk` chart's own
+`tesk-api`/taskmaster Deployment template does not reference either
+`TESK_API_TASKMASTER_ENVIRONMENT_CONFIGMAP` or `CONFIGMAP` itself — they only reach the
+container via `.Values.tesk.extraEnv`, a plain passthrough list the chart's Deployment template
+appends verbatim. `helm template` against the pinned chart renders cleanly with neither set (no
+missing-value errors, `tesk-api` Deployment present). The risk is downstream: taskmaster
+launches one Kubernetes Job per TES task at runtime, and without the ConfigMap/extraEnv wiring
+those per-task pods get no securityContext at all — likely rejected by this cluster's own
+Pod Security admission if it enforces the org's usual non-root baseline (doc 03). **If you
+enable `tesk.enabled` on a security-restricted namespace, create both the ConfigMap and set
+`tesk.taskmasterImage`/`tesk.filerImage` alongside your own `aws-secret`, mirroring
+`tesk-standalone-stack`'s two templates** — this stack intentionally keeps `tesk.yaml`'s
+`valuesObject` minimal (per the brief) rather than reproducing director-wfs's cluster-hardening
+layer (Gatekeeper, trust-manager, Falco) as well.
+
 ## CloudNativePG: two databases, one external
 
 CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and a role both
@@ -272,6 +313,14 @@ StatefulSet `volumeClaimTemplate`) is **not** covered by the Velero `Schedule` �
 `openldap-stack-ha` chart's `commonLabels` value does not reach `volumeClaimTemplates`. Treat
 any enabled OpenLDAP as ephemeral/test-only data.
 
+**The `camunda` Application's own PVCs — the Zeebe broker's data volume and Elasticsearch's —
+are also not covered by the Velero `Schedule`.** `templates/camunda.yaml` does not pass
+`persistentVolumeLabels` into the camunda-platform chart's `valuesObject` (same gap as
+`airlock-stack`), so neither Zeebe's nor Elasticsearch's storage carries the label the
+`Schedule`'s selector matches. This is consistent with the Credentials Camunda worker's data
+model: process state lives in the two CNPG databases above, and Zeebe/Elasticsearch here hold
+only in-flight workflow instance state, not the system of record.
+
 ## Values reference
 
 ### Global
@@ -320,8 +369,8 @@ any enabled OpenLDAP as ephemeral/test-only data.
 | `agent.chartVersion` | Version of the `agent` chart in Harbor. | `1.0.0` |
 | `agent.imageVersion` | Image tag for `api`, `ui`, `web` and `camunda`. | `3.2.0` |
 | `agent.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
-| `agent.api.treName` | Name of this TRE deployment. Empty leaves the standalone chart's own default (`DEV`) in place. | `""` |
-| `agent.api.tesApiUrl` | External TES backend URL — the recommended production path. Empty leaves the standalone chart's own default. See **GA4GH TES backend** above. | `""` |
+| `agent.api.treName` | **REQUIRED for production.** Name of this TRE deployment. Empty leaves the standalone chart's dev default (`DEV`) in place. | `""` |
+| `agent.api.tesApiUrl` | **REQUIRED for production.** External TES backend URL — the recommended production path. Empty leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster. See **GA4GH TES backend** above. | `""` |
 | `agent.web.publicUrl` | Public URL of the Next.js app, used by Better Auth. Empty computes one from `global.ingress`. | `""` |
 | `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
 | `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |

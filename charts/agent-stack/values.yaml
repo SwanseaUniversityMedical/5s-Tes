@@ -45,12 +45,15 @@ agent:
     # Public API URL embedded in TRE onboarding JSON. Empty computes
     # "<scheme>://agent-api.<global.ingress.host>" from global.ingress.
     publicUrl: ""
-    # Name of this TRE deployment. Left empty renders nothing, so the
-    # standalone chart's own default ("DEV") stands until a deployment sets it.
+    # REQUIRED for production. Name of this TRE deployment. Left empty
+    # renders nothing, so the standalone chart's own dev default ("DEV")
+    # stands silently until a deployment sets this.
     treName: ""
-    # External TES backend URL. Recommended production path (see README);
-    # empty leaves the standalone chart's own default. TESK-in-cluster
-    # (tesk.enabled) is the alternative.
+    # REQUIRED for production. External TES backend URL — the recommended
+    # path (see README). Left empty renders nothing, so the standalone
+    # chart's own dev default ("http://localhost:8000/v1/tasks") stands
+    # silently — a broken TES endpoint once actually in-cluster. TESK-in-
+    # cluster (tesk.enabled) is the alternative.
     tesApiUrl: ""
   web:
     # Public URL of the Next.js app, used by Better Auth. Empty computes

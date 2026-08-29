@@ -54,7 +54,7 @@ global:
     # Shared by api and camunda: if Vault moves, both move together.
     vaultUrl: "http://vault:8200"
     # Shared by api and camunda: if the Zeebe gateway moves, both move
-    # together. Task 3.2 verifies the real rendered Camunda service name.
+    # together. Verified: camunda-zeebe-gateway:26500 at camunda-platform 13.4.1.
     zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
 
   # Full Dare-TRE realm URL every component authenticates against.
@@ -279,14 +279,8 @@ web:
 
   publicUrl: "http://agent.localtest.me"
 
-  # Keycloak BASE URL, without a realm path: lib/auth.ts and
-  # lib/constants/index.ts append "/realms/<realm>" themselves. Keep the host
-  # in step with global.oidc.authority.
-  keycloakBaseUrl: "http://keycloak"
-
   oidc:
     clientId: "Dare-TRE-UI"
-    realm: "Dare-TRE"
 
   helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
 

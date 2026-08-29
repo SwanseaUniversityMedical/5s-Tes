@@ -55,9 +55,7 @@ spec:
             aspnetEnvironment: "Production"
             seqUrl: "http://seq:5341"
             vaultUrl: "{{ .Values.vault.address }}"
-            # Verified against a render of camunda.yaml's pinned chart
-            # version: the Service the camunda-platform chart creates for
-            # the Application named "camunda". See task report.
+            # Verified: camunda-zeebe-gateway:26500 at camunda-platform 13.4.1.
             zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
 
           oidc:
@@ -86,9 +84,7 @@ spec:
           s3Url: "{{ .Values.submission.s3Url }}"
 
         api:
-          # Verified against a render of rustfs.yaml's pinned chart version:
-          # the Service the rustfs chart creates for the Application named
-          # "rustfs". See task report.
+          # Verified: rustfs-svc:9000 at the rustfs chart's pinned version.
           s3Url: "http://rustfs-svc:9000"
           publicUrl: "{{ .Values.agent.api.publicUrl | default (printf "%s://agent-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
           {{- with .Values.agent.api.treName }}

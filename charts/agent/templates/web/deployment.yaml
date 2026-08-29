@@ -1,4 +1,5 @@
 {{- if .Values.web.enabled -}}
+{{- $kc := urlParse .Values.global.oidc.authority }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -71,7 +72,7 @@ spec:
             - name: BETTER_AUTH_URL
               value: "{{ .Values.web.publicUrl }}"
             - name: KEYCLOAK_URL
-              value: "{{ .Values.web.keycloakBaseUrl }}"
+              value: "{{ $kc.scheme }}://{{ $kc.host }}"
             - name: KEYCLOAK_CLIENT_ID
               value: "{{ .Values.web.oidc.clientId }}"
             - name: KEYCLOAK_CLIENT_SECRET
@@ -80,9 +81,9 @@ spec:
                   name: {{ .Values.web.secretName }}
                   key: keycloakClientSecret
             - name: NEXT_PUBLIC_KEYCLOAK_URL
-              value: "{{ .Values.web.keycloakBaseUrl }}"
+              value: "{{ $kc.scheme }}://{{ $kc.host }}"
             - name: NEXT_PUBLIC_KEYCLOAK_REALM
-              value: "{{ .Values.web.oidc.realm }}"
+              value: "{{ last (splitList "/" (trimSuffix "/" $kc.path)) }}"
             - name: NEXT_PUBLIC_HELPDESK_URL
               value: "{{ .Values.web.helpdeskUrl }}"
             # api's static Service name.
