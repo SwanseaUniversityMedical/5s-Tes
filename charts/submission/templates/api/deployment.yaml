@@ -1,4 +1,5 @@
 {{- if .Values.api.enabled -}}
+{{- $keycloakUrl := urlParse .Values.global.oidc.authority }}
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -125,9 +126,10 @@ spec:
             - name: SubmissionKeyCloakSettings__ValidAudiences
               value: "{{ .Values.api.oidc.validAudiences }}"
             - name: SubmissionKeyCloakSettings__Server
-              value: "{{ .Values.api.oidc.server }}"
+              # Derived from global.oidc.authority: the chart already knows this.
+              value: "{{ $keycloakUrl.host }}"
             - name: SubmissionKeyCloakSettings__Protocol
-              value: "{{ .Values.api.oidc.protocol }}"
+              value: "{{ $keycloakUrl.scheme }}"
             - name: SubmissionKeyCloakSettings__Realm
               value: "{{ .Values.api.oidc.realm }}"
             - name: SubmissionKeyCloakSettings__TokenRefreshSeconds

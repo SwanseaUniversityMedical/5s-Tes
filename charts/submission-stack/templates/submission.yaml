@@ -34,12 +34,6 @@ spec:
     targetRevision: "{{ .Values.submission.chartVersion }}"
     helm:
       valuesObject:
-        trustClusterCa:
-          enabled: {{ .Values.global.trustClusterCa.enabled }}
-          configMapName: "{{ .Values.global.trustClusterCa.configMapName }}"
-          key: "{{ .Values.global.trustClusterCa.key }}"
-          mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
-
         # Must match the selector on the Velero Schedule in backup.yaml.
         persistentVolumeLabels:
           {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
@@ -75,6 +69,12 @@ spec:
             certClusterIssuer: "{{ .Values.global.ingress.certClusterIssuer }}"
             tls: {{ .Values.global.ingress.tls }}
 
+          trustClusterCa:
+            enabled: {{ .Values.global.trustClusterCa.enabled }}
+            configMapName: "{{ .Values.global.trustClusterCa.configMapName }}"
+            key: "{{ .Values.global.trustClusterCa.key }}"
+            mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
+
         api:
           rabbitmqHost: "rabbitmq"
           s3Url: "http://rustfs-svc:9000"
@@ -84,4 +84,6 @@ spec:
 
         ui:
           s3ConsoleUrl: "{{ .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+          # TLS terminates at the ingress; mark cookies secure.
+          sslCookies: "true"
 {{- end }}

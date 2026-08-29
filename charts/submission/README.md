@@ -103,7 +103,7 @@ Settings shared by more than one component. Defined once.
 | `global.config.aspnetEnvironment` | Value of `ASPNETCORE_ENVIRONMENT` in both components. | `"Development"` |
 | `global.config.seqUrl` | Address of the Seq instance both components log to. Read into `Serilog__SeqServerUrl`. | `"http://seq:5341"` |
 | `global.config.logLevel` | Default log level. Read into `Serilog__MinimumLevel__Default` and `Logging__LogLevel__Default`. | `"Information"` |
-| `global.oidc.authority` | Full Keycloak realm URL both components authenticate against. | `"http://keycloak/realms/Dare-Control"` |
+| `global.oidc.authority` | Full Keycloak realm URL both components authenticate against. Also the source of `SubmissionKeyCloakSettings__Server`/`__Protocol` (the API's legacy in-code Keycloak calls), parsed out with `urlParse` rather than set separately. | `"http://keycloak/realms/Dare-Control"` |
 | `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway. | `false` |
 | `global.monitoring.pushgatewayUrl` | Pushgateway address, used when `global.monitoring.enabled` is `true`. | `""` |
 | `global.ingress.enabled` | Create an Ingress for either component at all. | `true` |
@@ -135,8 +135,6 @@ Settings shared by more than one component. Defined once.
 | `api.s3ConsoleUrl` | Public RustFS console URL shown to users. Read into `MinioSettings__AdminConsole`. | `http://localhost:9001` |
 | `api.oidc.clientId` | Keycloak client ID for the API. | `Dare-Control-API` |
 | `api.oidc.validAudiences` | Accepted token audiences. | `Dare-Control-UI,Dare-Control-API,Dare-Control-Minio` |
-| `api.oidc.server` | Keycloak server host:port, used by legacy in-code Keycloak calls. | `keycloak:8080` |
-| `api.oidc.protocol` | Scheme used to reach `api.oidc.server`. | `http` |
 | `api.oidc.realm` | Keycloak realm name. | `Dare-Control` |
 | `api.oidc.tokenRefreshSeconds` | Token refresh interval in seconds. | `"3600"` |
 | `api.oidc.autoTrustKeycloakCert` | Trust Keycloak's certificate without validation. Keep `false`; use `global.trustClusterCa` instead. | `"false"` |

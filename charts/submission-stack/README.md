@@ -74,6 +74,7 @@ fills; the two must agree.
 | `.../rustfs` | `access_key` | `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../submission-api`'s `s3_access_key` |
 | `.../rustfs` | `secret_key` | `submission-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../submission-api`'s `s3_secret_key` |
 | `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
+| `.../seq` | `admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`), not a Submission app secret |
 | `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below. |
 
 ### RabbitMQ: the default user needs management permissions
@@ -87,6 +88,12 @@ The Vault-supplied default user at `{{ .Values.vault.secretPath }}/rabbitmq` (re
 `rabbit_username`/`rabbit_password`) must therefore carry the `management` tag /
 administrator permissions, not just messaging permissions, or vhost/exchange/queue setup
 fails silently on every restart.
+
+## Cookies
+
+TLS terminates at the ingress for every deployment of this stack, so `templates/submission.yaml`
+wires `ui.sslCookies: "true"` as a fact directly in `valuesObject` — it is not a stack value,
+since it would never legitimately differ between deployments of this chart.
 
 ## Keycloak
 
@@ -165,6 +172,7 @@ With today's defaults, real data sits in two places with different protection:
 | `global.veleroBackup.enabled` | Create the Velero `Schedule`. | `true` |
 | `global.veleroBackup.namespace` | Namespace the `Schedule` is created in. | `hiru-mgmt-velero` |
 | `global.veleroBackup.schedule` | Five-field cron for the volume snapshot. | `0 1 * * *` |
+| `global.veleroBackup.ttl` | How long Velero keeps each backup. | `168h0m0s` |
 | `global.persistentVolumeLabels` | Labels passed to the standalone chart's PVC and the `Schedule`'s selector. | `{hiru.io/backup: "enabled"}` |
 | `global.monitoring.enabled` | Push metrics to a Pushgateway; create PodMonitors. | `true` |
 | `global.monitoring.pushgatewayUrl` | Pushgateway address. | see values.yaml |
@@ -192,8 +200,56 @@ With today's defaults, real data sits in two places with different protection:
 | `submission.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
 | `submission.dataProtection.storageClassName` | RWX-capable storage class for the shared `submission-dataprotection` PVC. `null` omits the field (cluster default, usually RWO-only). See above. | `null` |
 
-### rustfs / seq / vault / rabbitmq / postgres
+### rustfs
 
-See `values.yaml`; each block's keys map to the template file of the same name.
-`postgres.backups.vault.path`/`accessKeyField`/`secretKeyField` name the Vault location
-of the `ObjectStore`'s S3 credentials; see **Backups** above.
+| Name | Description | Default |
+|---|---|---|
+| `rustfs.enabled` | Deploy the `rustfs` `Application`. | `true` |
+| `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
+| `rustfs.storageSize` | Size of both the data and log PVCs. | `10Gi` |
+| `rustfs.resources.requests.cpu` | CPU request. | `250m` |
+| `rustfs.resources.requests.memory` | Memory request. | `512Mi` |
+| `rustfs.resources.limits.memory` | Memory limit. | `512Mi` |
+
+### seq
+
+| Name | Description | Default |
+|---|---|---|
+| `seq.enabled` | Deploy the `seq` `Application`. | `true` |
+| `seq.chartVersion` | Seq chart version. | `2025.2.1` |
+| `seq.storageSize` | Size of Seq's data PVC. | `10Gi` |
+| `seq.requireAuthForIngestion` | Require authentication for HTTP log ingestion. | `true` |
+| `seq.resources.requests.cpu` | CPU request. | `250m` |
+| `seq.resources.requests.memory` | Memory request. | `512Mi` |
+| `seq.resources.limits.memory` | Memory limit. | `512Mi` |
+
+### rabbitmq
+
+| Name | Description | Default |
+|---|---|---|
+| `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
+| `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
+
+### postgres
+
+| Name | Description | Default |
+|---|---|---|
+| `postgres.database` | Name of the real application database (the `Database` object). See **CloudNativePG** above. | `DARE-Control` |
+| `postgres.instances` | CNPG `Cluster` instance count. | `1` |
+| `postgres.version` | PostgreSQL major/minor version. Changing this on a running cluster is a major upgrade. | `16.1` |
+| `postgres.storageSize` | Size of the `Cluster`'s data PVC. | `10Gi` |
+| `postgres.connectionPooler.instances` | `Pooler` (pgbouncer) instance count. | `1` |
+| `postgres.connectionPooler.maxClientConn` | pgbouncer `max_client_conn`. | `3000` |
+| `postgres.connectionPooler.defaultPoolSize` | pgbouncer `default_pool_size`. | `120` |
+| `postgres.connectionPooler.reservePoolSize` | pgbouncer `reserve_pool_size`. | `20` |
+| `postgres.connectionPooler.reservePoolTimeout` | pgbouncer `reserve_pool_timeout` (seconds). | `5` |
+| `postgres.connectionPooler.serverIdleTimeout` | pgbouncer `server_idle_timeout` (seconds). | `300` |
+| `postgres.backups.enabled` | Turn on CNPG's own `barman-cloud` backup (`ObjectStore`/`ScheduledBackup`). See **Backups** above. | `false` |
+| `postgres.backups.destinationPath` | `s3://` path backups are written to. | `""` |
+| `postgres.backups.endpointURL` | S3-compatible endpoint URL for the destination. | `""` |
+| `postgres.backups.endpointCASecretName` | Secret with `ca.crt` for the destination's certificate. Not created by this chart. | `""` |
+| `postgres.backups.retention` | How long CloudNativePG keeps backups in the bucket. | `30d` |
+| `postgres.backups.schedule` | Six-field cron (seconds first) for the base backup. | `0 0 0 * * *` |
+| `postgres.backups.vault.path` | Vault path holding the destination's S3 credentials. | `""` |
+| `postgres.backups.vault.accessKeyField` | Field name at that path for the access key. | `access_key` |
+| `postgres.backups.vault.secretKeyField` | Field name at that path for the secret key. | `secret_key` |
