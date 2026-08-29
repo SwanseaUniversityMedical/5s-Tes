@@ -131,9 +131,6 @@ stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
   `agent`/`password123` — the same values as this chart's `agent-api-secret`
   (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
   once and reused into the broker, not redefined.
-- `agent.processModels.accessModes[0]=ReadWriteOnce`: kind's default provisioner
-  (`local-path-provisioner`) only binds `ReadWriteOnce` claims; the stack's own default
-  (`[ReadWriteMany]`) never binds locally.
 
 ### Optional: local OpenLDAP
 
@@ -222,8 +219,7 @@ charts:
   let ArgoCD re-sync.
 - This chart is installed from the working tree; it is not published to Harbor and has no
   release workflow.
-- `tredata`'s pod may show `ImagePullBackOff`: `harbor.ukserp.ac.uk/bitnami/postgresql`
-  does not mirror every image tag the chart's own default resolves to (found by local
-  boot, no working tag identified without registry credentials to browse the mirror).
-  Non-blocking - only `credentials-camunda-secret.connectionStringTreData`-dependent
-  behaviour is affected.
+- The postgresql chart's own default `image.tag` (`17.5.0-debian-12-r20`) is not mirrored
+  at `harbor.ukserp.ac.uk/bitnami/postgresql` (found by local boot: kubelet
+  `ImagePullBackOff`, "not found"). `templates/tredata.yaml` pins `image.tag` to a tag
+  confirmed present on that mirror instead (anonymous pull verified).

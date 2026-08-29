@@ -112,9 +112,6 @@ the stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
   `submission`/`password123` — the same values as this chart's `submission-api-secret`
   (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
   once and reused into the broker, not redefined.
-- `submission.dataProtection.accessModes[0]=ReadWriteOnce`: kind's default provisioner
-  (`local-path-provisioner`) only binds `ReadWriteOnce` claims; the stack's own default
-  (`[ReadWriteMany]`) never binds locally.
 
 ## What the local cluster must already have
 

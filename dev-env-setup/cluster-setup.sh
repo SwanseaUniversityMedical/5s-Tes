@@ -9,6 +9,11 @@ on_error() {
   echo >&2
   echo " Run it again with tracing to see the failing command:" >&2
   echo "   bash -x $0 2>&1 | tail -40" >&2
+  echo >&2
+  echo " Re-running this script picks up where it left off (idempotent) - the kind cluster" >&2
+  echo " and everything already installed is reused. Only if a PARTIALLY created kind" >&2
+  echo " cluster itself looks broken (e.g. it exists but core components never came up)," >&2
+  echo " run ./clean-up.sh first to delete it and start clean." >&2
   echo "===============================================================================" >&2
   exit "$code"
 }
@@ -127,18 +132,12 @@ wait_for_argocd_apps() {
     # never leaves OutOfSync even though Vault itself runs fine (nothing
     # locally uses vault's Kubernetes-auth path this depends on -
     # vault.secretsEnabled=false). See README "Known limitations".
-    # "tredata" (agent family only) is excluded: harbor.ukserp.ac.uk's
-    # bitnami/postgresql image mirror does not carry the chart's own
-    # default image tag at any version tried - a mirror-completeness gap,
-    # not a chart bug, and not fixable without registry credentials this
-    # script doesn't have. It never becomes Healthy locally. See README.
-    not_ready=$(printf '%s\n' "$app_rows" | awk -F'|' '$1 != "tredata" && NF && $3 != "Healthy"')
+    not_ready=$(printf '%s\n' "$app_rows" | awk -F'|' 'NF && $3 != "Healthy"')
 
     if [ -z "$not_ready" ] && [ "$total" -eq "$last_total" ]; then
       stable=$(( stable + 1 ))
       if [ "$stable" -ge "$stable_needed" ]; then
-        echo "  all $total Applications in $ns are Healthy, except any named exceptions below"
-        printf '%s\n' "$app_rows" | awk -F'|' '$1 == "tredata" {printf "  note: tredata health=%s - known mirror gap, see README\n", $3}'
+        echo "  all $total Applications in $ns are Healthy"
         printf '%s\n' "$app_rows" | awk -F'|' '$2 != "Synced" {printf "  note: %s is Healthy but sync=%s (see README)\n", $1, $2}'
         return 0
       fi

@@ -1,9 +1,10 @@
-# In-cluster pods resolving *.localtest.me would hit their own loopback.
-# Rewrite the Keycloak hosts to the ingress controller, not the Keycloak
-# Services: the preserved Host header routes via the controller to the right
-# family's Keycloak. Both submission-api/agent-api (OIDC discovery/token
-# validation) and agent-api (cross-realm Submission OIDC check) resolve
-# these in-cluster.
+# In-cluster pods resolving *.localtest.me would otherwise hit their own
+# loopback (that's the whole point of the localtest.me wildcard domain).
+# Rewrite every *.localtest.me query to the ingress controller, not the
+# individual Services: the preserved Host header routes via the controller
+# to the right family's component. Covers both families' Keycloak hosts
+# (submission-api/agent-api OIDC discovery/token validation, agent-api's
+# cross-realm Submission OIDC check) and anything else added later.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -17,8 +18,7 @@ data:
            lameduck 5s
         }
         ready
-        rewrite name exact keycloak.submission.localtest.me ingress-nginx-controller.ingress-nginx.svc.cluster.local
-        rewrite name exact keycloak.agent.localtest.me ingress-nginx-controller.ingress-nginx.svc.cluster.local
+        rewrite name regex (.*)\.localtest\.me ingress-nginx-controller.ingress-nginx.svc.cluster.local answer auto
         kubernetes cluster.local in-addr.arpa ip6.arpa {
            pods insecure
            fallthrough in-addr.arpa ip6.arpa

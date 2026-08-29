@@ -28,8 +28,11 @@ rabbitmq:
 agent:
   enabled: false
 
-# Cross-link to the co-located Submission product, in its own namespace on
-# this same cluster (in-cluster DNS), not its (nonexistent locally) public URL.
+# Cross-link to the co-located Submission product, on this same cluster.
+# oidcAuthority/apiUrl reach the ingress-routed hostnames (CoreDNS rewrites
+# *.localtest.me to the ingress controller in-cluster too - see
+# files/deps/coredns.yaml), not Submission's (nonexistent locally) public
+# URL. s3Url is the one genuine in-cluster Service DNS name (cross-namespace).
 submission:
   oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
   apiUrl: "http://submission-api.submission.localtest.me"

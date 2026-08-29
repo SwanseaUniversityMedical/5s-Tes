@@ -10,8 +10,9 @@ install steps as a secondary reference.
 ```
 
 Re-running it is safe: an existing `5s-tes` kind cluster is reused, and every `helm upgrade
---install` and `kubectl apply` is idempotent. `./clean-up.sh` deletes the cluster and the
-saved Vault keys for a clean rebuild.
+--install` and `kubectl apply` is idempotent. If it stops partway through, just run it again
+first; only reach for `./clean-up.sh` (deletes the cluster and the saved Vault keys) if the
+kind cluster itself looks broken rather than just mid-install.
 
 ## What it does
 
@@ -21,22 +22,23 @@ saved Vault keys for a clean rebuild.
    issue). This is why both product charts' RWX defaults
    (`submission.dataProtection.accessModes`, `agent.processModels.accessModes`) are left at
    `[ReadWriteMany]` in the local values files instead of overridden to `ReadWriteOnce`.
-3. Installs ingress-nginx, cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the
-   CloudNativePG operator, the RabbitMQ Cluster Operator, and ArgoCD.
-4. Rewrites CoreDNS so `keycloak.submission.localtest.me`/`keycloak.agent.localtest.me`
-   resolve in-cluster to the ingress controller (`files/deps/coredns.yaml`) - otherwise every
-   pod's own loopback answers first, since `*.localtest.me` is a wildcard to `127.0.0.1`.
-5. Builds the six app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
+3. Installs ingress-nginx.
+4. Rewrites CoreDNS so `*.localtest.me` resolves in-cluster to the ingress controller
+   (`files/deps/coredns.yaml`) - otherwise every pod's own loopback answers first, since
+   `*.localtest.me` is a wildcard to `127.0.0.1`.
+5. Installs cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the CloudNativePG
+   operator, the RabbitMQ Cluster Operator, and ArgoCD.
+6. Builds the six app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
    `agent-web`, `credentials-camunda`) from this working tree and loads them into kind -
    nothing is published to Harbor yet (see **Why the product charts are installed directly**).
-6. Installs, in order: `submission-devstack` → `submission-stack` → `agent-devstack` →
+7. Installs, in order: `submission-devstack` → `submission-stack` → `agent-devstack` →
    `agent-stack`, each from its local chart directory with its `files/values/*-local.yaml`.
-7. Waits for every ArgoCD Application, the CNPG `postgres` Cluster, and the `rabbitmq`
-   RabbitmqCluster to be healthy in both namespaces.
 8. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.
-9. Installs `submission` and `agent` (the standalone product charts) directly, and waits for
-   their Deployments.
-10. Prints a URL summary.
+9. Waits for every ArgoCD Application, the CNPG `postgres` Cluster, and the `rabbitmq`
+   RabbitmqCluster to be healthy in both namespaces.
+10. Installs `submission` and `agent` (the standalone product charts) directly, and waits for
+    their Deployments.
+11. Prints a URL summary.
 
 ## Why both families use a per-family ingress host suffix, not `localtest.me` directly
 
@@ -145,6 +147,3 @@ Delete `dev-env-setup/.vault-keys-<namespace>` only together with that Vault's P
   `OutOfSync` forever (Vault itself keeps working). See `submission-stack`'s README **Vault**
   section for the detail and why it isn't fixed here. `cluster-setup.sh` gates on ArgoCD
   Health, not Sync, because of this.
-- **`tredata` `ImagePullBackOff`** (Agent only): `harbor.ukserp.ac.uk/bitnami/postgresql`
-  doesn't mirror the chart's resolved image tag at any version tried. Named exception in
-  `cluster-setup.sh`'s health wait; see `agent-devstack`'s README **Limits**.
