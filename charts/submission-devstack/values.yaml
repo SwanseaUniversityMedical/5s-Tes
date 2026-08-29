@@ -1,0 +1,23 @@
+global:
+  argoProject: submission
+  namespace: 5s-tes-submission
+
+  ingress:
+    host: "localtest.me"
+    className: "nginx"
+
+keycloak:
+  enabled: true
+  repoURL: "harbor.ukserp.ac.uk/bitnami/chart"
+  chart: keycloak
+  # renovate: datasource=helm-oci depName=bitnamicharts/keycloak registryUrl=https://registry-1.docker.io
+  chartVersion: "25.4.0"
+  # Org mirror for all Bitnami images.
+  imageRegistry: "harbor.ukserp.ac.uk"
+
+adminer:
+  enabled: true
+  repoURL: "https://startechnica.github.io/apps"
+  chart: adminer
+  # renovate: datasource=helm depName=adminer registryUrl=https://startechnica.github.io/apps
+  chartVersion: "0.1.8"

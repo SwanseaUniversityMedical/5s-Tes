@@ -1,0 +1,97 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.keycloak.repoURL }}"
+    chart: "{{ .Values.keycloak.chart }}"
+    # renovate: datasource=helm-oci depName=bitnamicharts/keycloak registryUrl=https://registry-1.docker.io
+    targetRevision: "{{ .Values.keycloak.chartVersion }}"
+    helm:
+      valuesObject:
+        global:
+          imageRegistry: "{{ .Values.keycloak.imageRegistry }}"
+          security:
+            allowInsecureImages: true
+
+        auth:
+          adminUser: admin
+          existingSecret: keycloak-admin-secret
+          passwordSecretKey: password
+
+        # Static passwords: ArgoCD re-renders the chart on every sync, so a
+        # generated password would drift from the one the volume was
+        # initialised with.
+        postgresql:
+          enabled: true
+          auth:
+            postgresPassword: "password123"
+            password: "password123"
+
+        extraEnvVars:
+          - name: KEYCLOAK_EXTRA_ARGS
+            value: "--import-realm"
+
+        # The chart's "small" resourcesPreset limit OOMs the JVM during the
+        # realm import; explicit resources override the preset.
+        resources:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: "2"
+            memory: 2Gi
+
+        # The realm import makes first start very slow; give it up to 15
+        # minutes before the kubelet may kill the pod.
+        startupProbe:
+          enabled: true
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 90
+        livenessProbe:
+          initialDelaySeconds: 0
+        readinessProbe:
+          initialDelaySeconds: 0
+
+        extraVolumes:
+          - name: realm-import
+            configMap:
+              name: keycloak-realm-import
+        extraVolumeMounts:
+          - name: realm-import
+            mountPath: /opt/bitnami/keycloak/data/import
+
+        ingress:
+          enabled: true
+          ingressClassName: "{{ .Values.global.ingress.className }}"
+          hostname: "keycloak.{{ .Values.global.ingress.host }}"
+          annotations:
+            nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+            nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "256k"
+{{- end }}
