@@ -79,6 +79,13 @@ fills; the two must agree.
 
 ### RabbitMQ: the default user needs management permissions
 
+`rabbitmq.vaultDefaultUser` (default `true`) gates only the `RabbitmqCluster`'s
+`secretBackend.vault` block — production keeps Vault-backed credentials. Set it `false`
+only on a cluster with no Vault to read from; the RabbitMQ Cluster Operator then
+generates its own `rabbitmq-default-user` Secret with a random password instead. This is
+a production-legitimate option (mirrors `serp-provisioning-stack`'s
+`rabbitmq.vaultDefaultUser`), not a dev-only toggle.
+
 `Shared/FiveSafesTes.Core/Rabbit/SetUpRabbitMQ.cs` connects with
 `EasyNetQ.Management.Client`'s `ManagementClient(hostname, username, password)`, which
 defaults to **port 15672 over plain HTTP** — the RabbitMQ **management HTTP API**, not
@@ -184,7 +191,7 @@ With today's defaults, real data sits in two places with different protection:
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `submission` |
 | `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/submission` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.enabled` | Deploy this stack's own Vault `Application`. | `true` |
+| `vault.enabled` | Deploy this stack's own Vault `Application` AND every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.chartVersion` | hashicorp/vault chart version. | `0.34.1` |
 | `vault.dataStorageSize` | Vault's own data PVC size. | `10Gi` |
 | `vault.injector.enabled` | Enable the Vault Agent Injector webhook. | `false` |
@@ -229,6 +236,7 @@ With today's defaults, real data sits in two places with different protection:
 |---|---|---|
 | `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
 | `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
+| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead. See **RabbitMQ** above. | `true` |
 
 ### postgres
 

@@ -94,6 +94,10 @@ vault:
   secretPath: kvv2/data/prod/prod/submission
   authPath: kubernetes
 
+  # Deploys this stack's own Vault Application AND every VaultSecret under
+  # templates/secrets/. Set false only where something else provides the
+  # Secrets those VaultSecrets would otherwise create (e.g. the devstack's
+  # static Secrets) — mirrors serp-provisioning-stack's vault.enabled.
   enabled: true
   repoURL: "https://helm.releases.hashicorp.com"
   chart: vault
@@ -112,6 +116,11 @@ vault:
 rabbitmq:
   replicas: 1
   storageSize: "10Gi"
+  # Default user from Vault, via the RabbitMQ Cluster Operator's own
+  # secretBackend.vault (no VaultSecret in between). Production-legitimate
+  # to turn off: false makes the operator generate "rabbitmq-default-user"
+  # instead, with a random password, on a cluster with no Vault.
+  vaultDefaultUser: true
 
 postgres:
   # Owned by the "app" role CNPG's default bootstrap creates. See postgres.yaml.

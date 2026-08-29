@@ -10,7 +10,9 @@ spec:
   persistence:
     storageClassName: {{ .Values.global.storageClass }}
     storage: {{ .Values.rabbitmq.storageSize }}
+  {{- if .Values.rabbitmq.vaultDefaultUser }}
   secretBackend:
     vault:
       role: {{ .Values.vault.role }}
       defaultUserPath: {{ .Values.vault.secretPath }}/rabbitmq
+  {{- end }}
