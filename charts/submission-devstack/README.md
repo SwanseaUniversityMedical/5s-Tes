@@ -48,10 +48,17 @@ secret in the realm import string-matches the value in `templates/secrets/static
 ## Local install
 
 Install this chart first, then `submission-stack` configured to hand off to its static
-Secrets and reach the local Keycloak, e.g.:
+Secrets, drop the objects a local cluster doesn't have, and reach the local Keycloak,
+e.g. (mirrors `serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
 
 ```
 --set global.oidc.authority=http://keycloak.localtest.me/realms/Dare-Control
+--set global.ingress.host=localtest.me
+--set global.ingress.tls=false
+--set global.storageClass=standard
+--set global.trustClusterCa.enabled=false
+--set global.veleroBackup.enabled=false
+--set global.monitoring.enabled=false
 --set vault.enabled=false
 --set rabbitmq.vaultDefaultUser=false
 --set-string rabbitmq.additionalConfig="default_user = submission
@@ -59,6 +66,22 @@ default_pass = password123
 loopback_users.submission = false"
 ```
 
+A future `dev-env-setup/` values file is planned to carry this set; until it exists, this
+recipe is canonical.
+
+- `global.oidc.authority` must point at the local Keycloak's realm URL; the stack chart's
+  own default is the production authority, which does not exist locally.
+- `global.ingress.host=localtest.me` matches this chart's own `global.ingress.host`, so
+  `submission`/`submission-api` land on the same local DNS suffix as `keycloak`/`adminer`.
+- `global.ingress.tls=false`: no cert-manager `ClusterIssuer` exists locally by default.
+- `global.storageClass=standard`: kind's built-in default `StorageClass` (via
+  `local-path-provisioner`), replacing the stack's Ceph-specific default.
+- `global.trustClusterCa.enabled=false`: no `overlay-castore` ConfigMap exists locally;
+  with it `false`, the standalone chart mounts no certs-overlay volume.
+- `global.veleroBackup.enabled=false`: no Velero runs locally; with it `false`,
+  `templates/backup.yaml` renders no `Schedule`.
+- `global.monitoring.enabled=false`: no Prometheus Operator runs locally; with it `false`,
+  `templates/postgres.yaml` renders no `PodMonitor`s.
 - `vault.enabled=false` drops the stack's own Vault `Application` and every `VaultSecret`
   under `templates/secrets/`, so this chart's static Secrets are the only thing producing
   those names/keys.
@@ -67,23 +90,26 @@ loopback_users.submission = false"
   `submission`/`password123` — the same values as this chart's `submission-api-secret`
   (`rabbitUsername`/`rabbitPassword` above), so the app's RabbitMQ credential is defined
   once and reused into the broker, not redefined.
-- `global.oidc.authority` must point at the local Keycloak's realm URL; the stack chart's
-  own default is the production authority, which does not exist locally.
 
 ## What the local cluster must already have
 
-The setup script (`dev-env-setup/`, not yet created in this repo) is expected to install,
-before both charts:
+With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD are
+**not** required locally (nothing renders that needs them). The setup script
+(`dev-env-setup/`, not yet created in this repo) is expected to install, before both
+charts:
 
 - ingress-nginx,
-- cert-manager with a self-signed `ClusterIssuer` (`ca-issuer`),
 - ArgoCD, watching `Application`s in `5s-tes-submission`, with a matching `AppProject`,
 - the CloudNativePG operator,
 - the RabbitMQ Cluster Operator.
 
 ## Local Keycloak
 
-- URL: `https://keycloak.localtest.me` (admin console), realm `Dare-Control`.
+- URL: `http://keycloak.localtest.me` (admin console), realm `Dare-Control`. Plain HTTP:
+  `templates/keycloak.yaml`'s `ingress` block sets no `tls` key, and the pinned Bitnami
+  chart's own `ingress.tls` default is `false` (checked via `helm show values
+  bitnami/keycloak --version 25.2.0`, the nearest available release to this chart's pin —
+  Bitnami no longer serves `25.4.0` itself; the schema is unchanged between the two).
 - `submission-stack`'s `global.oidc.authority` must be overridden to reach this Keycloak
   — see **Local install** above.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-Control`,
