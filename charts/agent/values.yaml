@@ -260,6 +260,12 @@ web:
   replicas: 1
   containerPort: 3000
   resources: {}
+  # Next.js standalone writes under /app at runtime; the Dockerfile's own
+  # `RUN chown -R nextjs:nodejs /app` comment says why. An emptyDir cannot
+  # cover /app without hiding the app itself, so only this component keeps a
+  # writable root filesystem. Merged over the baseline in securityContext.
+  securityContext:
+    readOnlyRootFilesystem: false
   service:
     type: ClusterIP
   # Expected keys: betterAuthSecret, keycloakClientSecret. See README Secrets
@@ -323,3 +329,7 @@ camunda:
     secretEngine: "secret"
     enableRetry: true
     maxRetryAttempts: 3
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []

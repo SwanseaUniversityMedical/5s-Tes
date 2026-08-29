@@ -21,10 +21,14 @@ With the default `ReadWriteOnce` access mode, `api` and `camunda` must land on t
 node — fine on a single-node kind cluster, but a multi-node cluster must set
 `processModels.accessModes: [ReadWriteMany]`.
 
-`camunda`'s Deployment runs a `seed-process-models` initContainer that copies the image's
-own `/app/ProcessModels` into the shared PVC the first time it is empty. The initContainer
-mounts the PVC at `/models`, not `/app/ProcessModels`, so it can read the image's baked-in
-files as the copy source without the (empty, on first boot) PVC hiding them. `api` and
+Both `api` and `camunda`'s Deployments run a `seed-process-models` initContainer that
+copies the image's own `/app/ProcessModels` into the shared PVC the first time it is
+empty (both images bake in the same files). The initContainer mounts the PVC at
+`/models`, not `/app/ProcessModels`, so it can read the image's baked-in files as the
+copy source without the (empty, on first boot) PVC hiding them. The seed check looks for
+`/models/credentials.dmn` rather than testing directory emptiness, so it is immune to a
+stray `lost+found` entry on an ext4-formatted volume. It is idempotent, so running it
+from both components — including when `camunda.enabled` is `false` — is safe. `api` and
 `camunda`'s main containers then both mount the PVC at `/app/ProcessModels`.
 
 ## What must already exist
@@ -117,7 +121,7 @@ Set by `camunda.secretName`.
 | `securityContext.runAsUser` | User ID every container runs as. | `1000` |
 | `securityContext.runAsGroup` | Group ID every container runs as. | `1000` |
 | `securityContext.runAsNonRoot` | Stop containers running as root. Do not change without a reason in the pull request. | `true` |
-| `securityContext.readOnlyRootFilesystem` | Make the container filesystem read only. | `true` |
+| `securityContext.readOnlyRootFilesystem` | Make the container filesystem read only. `web` overrides this to `false` (see `web.securityContext.readOnlyRootFilesystem`); every other component keeps `true`. | `true` |
 | `securityContext.allowPrivilegeEscalation` | Stop a process gaining more privileges than the one that started it. | `false` |
 | `securityContext.capabilities.drop` | Linux capabilities dropped from every container. | `["ALL"]` |
 | `persistentVolumeLabels` | Labels put on `agent-processmodels`. The cluster's backup tool uses these. Set to `{}` on a cluster with no such tool. | `{hiru.io/backup: "enabled"}` |
@@ -278,6 +282,7 @@ deployment.
 | `web.replicas` | Number of copies. Stateless Next.js app; the only component that may run more than one. | `1` |
 | `web.containerPort` | Port the Next.js app listens on inside the container. | `3000` |
 | `web.resources` | Container resource requests/limits. | `{}` |
+| `web.securityContext.readOnlyRootFilesystem` | Overrides the org baseline. Next.js standalone writes under `/app` at runtime (the Dockerfile's `chown -R nextjs:nodejs /app` exists for exactly this), and an emptyDir cannot cover `/app` without hiding the app itself. Merged over `securityContext`; every other field of the baseline still applies to `web`. | `false` |
 | `web.service.type` | Web Service type. | `ClusterIP` |
 | `web.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `agent-web-secret` |
 | `web.ingress.enabled` | Create an Ingress for the Web UI. | `true` |
@@ -318,3 +323,4 @@ calls directly.
 | `camunda.vault.secretEngine` | Vault secret engine mount. | `secret` |
 | `camunda.vault.enableRetry` | Retry failed Vault calls. | `true` |
 | `camunda.vault.maxRetryAttempts` | Maximum Vault retry attempts. | `3` |
+| `camunda.extraEnv` | Rare one-off environment variables. Anything the app always needs is a named value above instead. | `[]` |

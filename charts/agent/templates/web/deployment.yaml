@@ -34,8 +34,10 @@ spec:
       {{- end }}
       containers:
         - name: web
+          # Merges the org baseline with this component's override (Next.js
+          # standalone needs a writable /app; see values.yaml).
           securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
+            {{- toYaml (mergeOverwrite (deepCopy .Values.securityContext) .Values.web.securityContext) | nindent 12 }}
           image: "{{ .Values.web.image.repository }}:{{ .Values.web.image.tag | default .Values.global.tag }}"
           imagePullPolicy: {{ .Values.web.image.pullPolicy }}
           {{- if .Values.global.trustClusterCa.enabled }}

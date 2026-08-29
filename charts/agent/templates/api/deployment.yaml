@@ -39,6 +39,23 @@ spec:
             name: {{ .Values.global.trustClusterCa.configMapName }}
             defaultMode: 420
         {{- end }}
+      initContainers:
+        # Seeds the shared PVC from the image's own /app/ProcessModels on
+        # first boot. Mounted at /models, not /app/ProcessModels, so the
+        # source files (baked into the image) are not hidden by the empty
+        # volume it is copying into. Idempotent, so it is safe to run from
+        # both api and camunda even if camunda is disabled.
+        - name: seed-process-models
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.api.image.repository }}:{{ .Values.api.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.api.image.pullPolicy }}
+          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then cp -r /app/ProcessModels/. /models/; fi"]
+          volumeMounts:
+            - name: process-models
+              mountPath: /models
+          resources:
+            {{- toYaml .Values.api.resources | nindent 12 }}
       containers:
         - name: api
           securityContext:
