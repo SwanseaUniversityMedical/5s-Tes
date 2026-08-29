@@ -34,7 +34,10 @@ spec:
     helm:
       valuesObject:
         # All interfaces: a Service can't reach a process bound to loopback.
-        listenURI: "http://*:80,http://*:5341"
+        # "*" is not a valid URI host (Seq parses this with System.Uri, which
+        # rejects it - "Invalid URI: The hostname could not be parsed" at
+        # startup); 0.0.0.0 is both a valid URI host and binds every interface.
+        listenURI: "http://0.0.0.0:80,http://0.0.0.0:5341"
 
         firstRunAdminUsername: "admin"
         firstRunAdminPasswordSecret:
