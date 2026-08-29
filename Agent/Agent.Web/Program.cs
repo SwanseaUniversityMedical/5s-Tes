@@ -61,6 +61,7 @@ try
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
+    builder.Services.AddHealthChecks();
 
 
 //add services here
@@ -297,6 +298,15 @@ try
         "Program", treKeyCloakSettings.Authority, treKeyCloakSettings.MetadataAddress, treKeyCloakSettings.ClientId,
         treKeyCloakSettings.ValidAudiences);
     var app = builder.Build();
+    if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+    {
+        var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+        {
+            Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+            Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+        });
+        pusher.Start();
+    }
     app.UseCors();
     app.UseForwardedHeaders();
 
@@ -386,6 +396,8 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
+    // Anonymous: probed by Kubernetes, which cannot authenticate.
+    app.MapHealthChecks("/health").AllowAnonymous();
 
     app.MapControllerRoute(
         name: "default",
