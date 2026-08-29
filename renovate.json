@@ -12,9 +12,10 @@
       ],
       "matchStringsStrategy": "any",
       "matchStrings": [
-        "# renovate: datasource=(?<datasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?\\s*\\r?\\n\\s*[\\w.]+:\\s*\"(?<currentValue>[^\"/:]+)\"",
-        "# renovate: datasource=(?<datasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?\\s*\\r?\\n\\s*[\\w.]+:\\s*\"[^\"]*:(?<currentValue>[^\"/:]+)\""
-      ]
+        "# renovate: datasource=(?<rawDatasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?[ \\t]*\\r?\\n[ \\t]*[\\w.]+:[ \\t]*\"(?<currentValue>[^\"/:]+)\"",
+        "# renovate: datasource=(?<rawDatasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?[ \\t]*\\r?\\n[ \\t]*[\\w.]+:[ \\t]*\"[^\"]*:(?<currentValue>[^\"/:]+)\""
+      ],
+      "datasourceTemplate": "{{#if (equals rawDatasource 'helm-oci')}}docker{{else}}{{rawDatasource}}{{/if}}"
     }
   ],
   "hostRules": [
