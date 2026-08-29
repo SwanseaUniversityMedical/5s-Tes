@@ -221,7 +221,7 @@ deployment.
 | `api.zeebe.worker.pollingTimeoutInMilliseconds` | Long-poll timeout per request. | `5000` |
 | `api.zeebe.worker.retryTimeoutInMilliseconds` | Retry timeout on a failed job. | `5000` |
 | `api.hangfire.enableExternal` | Use the external Hangfire dashboard/storage. | `"true"` |
-| `api.jobs.scanSchedule` | Minutes between scans of the Submission layer for available submissions. | `10` |
+| `api.jobs.scanSchedule` | Minutes between scans of the Submission layer for available submissions. | `1` |
 | `api.jobs.syncSchedule` | Minutes between project/user syncs between TRE and Submission layers. | `10` |
 | `api.jobs.healthCheckSchedule` | Minutes between health checks. | `10` |
 | `api.jobs.daysBeforeHealthLogDeletion` | Days a health check log is kept before deletion. | `30` |

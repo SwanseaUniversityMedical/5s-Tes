@@ -174,7 +174,7 @@ api:
 
   # Production cadences (deployment repo's TRE .env.example).
   jobs:
-    scanSchedule: 10
+    scanSchedule: 1
     syncSchedule: 10
     healthCheckSchedule: 10
     daysBeforeHealthLogDeletion: 30
