@@ -114,7 +114,14 @@ is outside this task's scope - flagged here for whoever picks up S3 provisioning
 Each family's own Vault (`vault.enabled` stays `true`, `vault.secretsEnabled=false` locally -
 see both devstack READMEs' **Local install**) runs in the stack's own prod mode
 (`server.standalone`, not `server.dev` - Decision 5), so it starts sealed on every fresh
-cluster and needs real init/unseal. `vault-init.sh <namespace> <kube-context>`:
+cluster and needs real init/unseal.
+`vault-init.sh <namespace> <kube-context> <vault-release-name>` (the third argument is
+`submission-vault`/`agent-vault` - R33, see `charts/*-stack/templates/vault.yaml`):
+
+```bash
+./vault-init.sh 5s-tes-submission kind-5s-tes submission-vault
+./vault-init.sh 5s-tes-agent kind-5s-tes agent-vault
+```
 
 1. Initialises with `-key-shares=1 -key-threshold=1` (single operator, local dev only) if not
    already initialised, saving the unseal key and root token to
