@@ -154,7 +154,7 @@ Settings shared by more than one component. Defined once.
 | `global.config.aspnetEnvironment` | Value of `ASPNETCORE_ENVIRONMENT` in `api` and `ui`. | `"Development"` |
 | `global.config.seqUrl` | Address of the Seq instance every .NET component logs to. Read into `Serilog__SeqServerUrl`. | `"http://seq:5341"` |
 | `global.config.logLevel` | Default log level. Read into `Serilog__MinimumLevel__Default` and `Logging__LogLevel__Default`. | `"Information"` |
-| `global.config.vaultUrl` | Vault base URL, used by `api` and `camunda`. Read into `VaultSettings__BaseUrl`. | `"http://vault:8200"` |
+| `global.config.vaultUrl` | Vault base URL, used by `api` and `camunda`. Read into `VaultSettings__BaseUrl`. | `"http://agent-vault:8200"` |
 | `global.config.zeebeGatewayAddress` | Zeebe gateway address, used by `api` and `camunda`. Read into `ZeebeBootstrap__Client__GatewayAddress`. | `"camunda-zeebe-gateway:26500"` |
 | `global.oidc.authority` | Full Dare-TRE realm URL every component authenticates against. | `"http://keycloak/realms/Dare-TRE"` |
 | `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway from `api`, `ui` and `camunda`. Not read by `web`. | `false` |

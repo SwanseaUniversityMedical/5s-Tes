@@ -141,9 +141,3 @@ Delete `dev-env-setup/.vault-keys-<namespace>` only together with that Vault's P
   `agent-stack-local.yaml` (see `agent-devstack`'s README).
 - **RWX and single-node only**: the provisioner patch in step 2 is documented as single-node
   only by kind itself; it is not a fix for a real multi-node RWX requirement.
-- **Vault `ClusterRoleBinding` collision** (both families, real cluster-scoped resource, not
-  local-only): submission's and agent's Vault releases both compute the cluster-scoped name
-  `vault-server-binding` and fight over it - one Application's ArgoCD sync status stays
-  `OutOfSync` forever (Vault itself keeps working). See `submission-stack`'s README **Vault**
-  section for the detail and why it isn't fixed here. `cluster-setup.sh` gates on ArgoCD
-  Health, not Sync, because of this.

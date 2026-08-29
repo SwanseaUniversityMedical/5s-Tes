@@ -80,7 +80,7 @@ spec:
         api:
           rabbitmqHost: "rabbitmq"
           s3Url: "http://rustfs-svc:9000"
-          vaultUrl: "http://vault:8200"
+          vaultUrl: "{{ .Values.vault.address }}"
           s3ConsoleUrl: "{{ .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
           publicUrl: "{{ .Values.submission.api.publicUrl | default (printf "%s://submission-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
 

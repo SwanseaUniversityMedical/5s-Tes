@@ -42,8 +42,8 @@ Because it isn't the platform Vault, the redhatcop operator's own default connec
 (the standard `VAULT_ADDR`-style environment variables on the operator's Deployment,
 pointed at the platform Vault) is the wrong instance. Every `VaultSecret` below sets
 `vaultSecretDefinitions[].connection.address` to `vault.address` (default
-`http://vault:8200`, this stack's own Vault Service) to override that default per
-definition — the field the redhat-cop/vault-config-operator's `VaultSecretDefinition`
+`http://submission-vault:8200`, this stack's own Vault Service) to override that default
+per definition — the field the redhat-cop/vault-config-operator's `VaultSecretDefinition`
 type exposes for exactly this ("if you need to ... connect to a different Vault
 instance, you can do with this section of the CR" —
 `api/v1alpha1/vaultsecret_types.go`/`api/v1alpha1/utils/commons.go`,
@@ -55,34 +55,30 @@ Every step below is manual; `dev-env-setup/vault-init.sh` automates the local-de
 equivalent (init/unseal/`secret` mount/token, not the `kvv2`/Kubernetes-auth steps below,
 which only matter where `vault.secretsEnabled=true`).
 
-**Known hazard, any cluster running both this stack and `agent-stack`'s Vault**: the
-hashicorp/vault chart names its `ClusterRoleBinding` (`system:auth-delegator`) from the
-Helm release name alone (`{{ vault.fullname }}-server-binding`), with no namespace in it.
-Both stacks' `templates/vault.yaml` name their Vault Application/release `vault`, so on a
-shared cluster the two releases compute the identical cluster-scoped name
-`vault-server-binding` and fight over it (ArgoCD reports one as permanently `OutOfSync`,
-`SharedResourceWarning`). Vault itself keeps working — this only matters if something
-locally uses Kubernetes-auth-based login, which `vault.secretsEnabled=false` deployments
-don't. Not fixed here: a real fix means giving each release a distinct
-`fullnameOverride`, which also renames the Vault Service (`vault.address` and every
-in-cluster `http://vault:8200` reference in both stacks and both standalone charts) —
-out of scope for a bootstrap task. Found by `dev-env-setup`'s local boot (both stacks on
-one cluster); it applies equally to a shared production cluster running both products.
+**Fixed (R33)**: the hashicorp/vault chart names its `ClusterRoleBinding`
+(`system:auth-delegator`) from the Helm release name alone
+(`{{ vault.fullname }}-server-binding`), with no namespace in it — both stacks naming
+their Vault Application/release `vault` used to collide on a shared cluster (ArgoCD
+`SharedResourceWarning`, one permanently `OutOfSync`). `templates/vault.yaml` now names
+this stack's release `submission-vault` (`agent-stack`'s is `agent-vault`), so the
+computed cluster-scoped names (`submission-vault-server-binding` /
+`agent-vault-server-binding`) never collide. The pod is `submission-vault-0`, not
+`vault-0`, below.
 
 1. **Init and unseal** (first time only):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault operator init
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault operator init
    # Record the five unseal keys and the root token somewhere safe (not Git).
-   kubectl exec -n <namespace> -it vault-0 -- vault operator unseal   # x3, different keys
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault operator unseal   # x3, different keys
    ```
 
 2. **Enable the kv-v2 mount** at the path base — the first segment of
    `vault.secretPath` (`kvv2` by default):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault login   # root token from step 1
-   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=kvv2 kv-v2
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault login   # root token from step 1
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault secrets enable -path=kvv2 kv-v2
    ```
 
    Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
@@ -91,7 +87,7 @@ one cluster); it applies equally to a shared production cluster running both pro
    parity):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=secret -version=2 kv
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault secrets enable -path=secret -version=2 kv
    ```
 
    `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
@@ -101,8 +97,8 @@ one cluster); it applies equally to a shared production cluster running both pro
 3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault auth enable -path=kubernetes kubernetes
-   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/config \
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault auth enable -path=kubernetes kubernetes
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault write auth/kubernetes/config \
      kubernetes_host="https://kubernetes.default.svc"
    ```
 
@@ -111,12 +107,12 @@ one cluster); it applies equally to a shared production cluster running both pro
    `default`:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault policy write submission - <<'EOF'
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault policy write submission - <<'EOF'
    path "kvv2/data/prod/prod/submission/*" {
      capabilities = ["read"]
    }
    EOF
-   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/role/submission \
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault write auth/kubernetes/role/submission \
      bound_service_account_names=default \
      bound_service_account_namespaces=<namespace> \
      policies=submission \
@@ -129,7 +125,7 @@ one cluster); it applies equally to a shared production cluster running both pro
    CLI inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault kv put kvv2/prod/prod/submission/postgres \
+   kubectl exec -n <namespace> -it submission-vault-0 -- vault kv put kvv2/prod/prod/submission/postgres \
      postgres_password='...'
    ```
 
@@ -285,7 +281,7 @@ With today's defaults, real data sits in two places with different protection:
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `submission` |
 | `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/submission` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address` so the redhatcop operator's platform-Vault default doesn't apply. See **Vault** above. | `http://vault:8200` |
+| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address` so the redhatcop operator's platform-Vault default doesn't apply. See **Vault** above. | `http://submission-vault:8200` |
 | `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (the API calls it directly for ephemeral credentials), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
 | `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |

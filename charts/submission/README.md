@@ -149,7 +149,7 @@ Settings shared by more than one component. Defined once.
 | `api.oidc.proxyAddresUrl` | Proxy address, used when `api.oidc.proxy` is `"true"`. | `""` |
 | `api.oidc.bypassProxy` | Comma-separated proxy bypass list. | `""` |
 | `api.keycloakAdmin.serviceAccountRole` | Realm role granted to the Keycloak admin service account. | `dare-tre-admin` |
-| `api.vaultUrl` | Vault base URL. Read into `VaultSettings__BaseUrl`. | `http://vault:8200` |
+| `api.vaultUrl` | Vault base URL. Read into `VaultSettings__BaseUrl`. | `http://submission-vault:8200` |
 | `api.vault.timeoutSeconds` | Vault client timeout. | `30` |
 | `api.vault.secretEngine` | Vault secret engine mount. | `secret` |
 | `api.vault.enableRetry` | Retry failed Vault calls. | `true` |

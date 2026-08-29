@@ -99,10 +99,11 @@ vault:
   role: submission
   secretPath: kvv2/data/prod/prod/submission
   authPath: kubernetes
-  # This stack's own Vault (templates/vault.yaml), not the redhatcop
-  # operator's default (platform) connection. Every VaultSecret below sets
-  # this explicitly via vaultSecretDefinitions[].connection.address.
-  address: "http://vault:8200"
+  # This stack's own Vault (templates/vault.yaml, release name
+  # "submission-vault" - distinct per family, see its comment), not the
+  # redhatcop operator's default (platform) connection. Every VaultSecret
+  # below sets this explicitly via vaultSecretDefinitions[].connection.address.
+  address: "http://submission-vault:8200"
 
   # Deploys this stack's own Vault Application. Runtime dependency: the API
   # calls this Vault directly for ephemeral credentials, so this stays true

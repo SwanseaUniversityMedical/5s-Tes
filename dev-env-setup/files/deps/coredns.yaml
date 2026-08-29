@@ -5,6 +5,12 @@
 # to the right family's component. Covers both families' Keycloak hosts
 # (submission-api/agent-api OIDC discovery/token validation, agent-api's
 # cross-realm Submission OIDC check) and anything else added later.
+#
+# Anchored ($ after the trailing dot CoreDNS's rewrite plugin sees on every
+# query name) so it matches only the localtest.me zone itself, not any
+# string that merely contains "localtest.me" as a substring - unanchored,
+# "foo.localtest.mesh.example.com" verifiably also rewrote (glibc getent,
+# not just musl/busybox nslookup, which gave a false negative here).
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -18,7 +24,7 @@ data:
            lameduck 5s
         }
         ready
-        rewrite name regex (.*)\.localtest\.me ingress-nginx-controller.ingress-nginx.svc.cluster.local answer auto
+        rewrite name regex (.*)\.localtest\.me\.$ ingress-nginx-controller.ingress-nginx.svc.cluster.local answer auto
         kubernetes cluster.local in-addr.arpa ip6.arpa {
            pods insecure
            fallthrough in-addr.arpa ip6.arpa

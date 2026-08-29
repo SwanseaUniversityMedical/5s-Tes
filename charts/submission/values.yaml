@@ -119,7 +119,7 @@ api:
   keycloakAdmin:
     serviceAccountRole: "dare-tre-admin"
 
-  vaultUrl: "http://vault:8200"
+  vaultUrl: "http://submission-vault:8200"
   vault:
     timeoutSeconds: 30
     secretEngine: "secret"

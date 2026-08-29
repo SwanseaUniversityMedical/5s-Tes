@@ -44,33 +44,34 @@ Vault on the `management` cluster. This mirrors `submission-stack`'s Vault, for 
 (Alex, 2026-08-29).
 
 Because it is not the platform Vault, every `VaultSecret` below sets
-`vaultSecretDefinitions[].connection.address` to `vault.address` (default `http://vault:8200`,
-this stack's own Vault Service) to override the redhatcop operator's own default connection,
-which otherwise points at the platform Vault.
+`vaultSecretDefinitions[].connection.address` to `vault.address` (default
+`http://agent-vault:8200`, this stack's own Vault Service) to override the redhatcop
+operator's own default connection, which otherwise points at the platform Vault.
 
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`). Every
 step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equivalent
 (init/unseal/`secret` mount/token).
 
-**Known hazard, on a cluster also running `submission-stack`'s Vault**: the two releases'
-`ClusterRoleBinding`s collide (identical cluster-scoped name, one release's naming choice
-away from a real fix) — see `submission-stack`'s README **Vault** section for the detail.
-Vault itself keeps working; only ArgoCD's sync status for one of the two is affected.
+**Fixed (R33)**: this release used to collide with `submission-stack`'s Vault release on the
+`ClusterRoleBinding` the hashicorp/vault chart derives from the release name alone — see
+`submission-stack`'s README **Vault** section for the detail. `templates/vault.yaml` now
+names this stack's release `agent-vault`, so the pod is `agent-vault-0`, not `vault-0`,
+below.
 
 1. **Init and unseal** (first time only):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault operator init
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator init
    # Record the five unseal keys and the root token somewhere safe (not Git).
-   kubectl exec -n <namespace> -it vault-0 -- vault operator unseal   # x3, different keys
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator unseal   # x3, different keys
    ```
 
 2. **Enable the kv-v2 mount** at the path base — the first segment of `vault.secretPath`
    (`kvv2` by default):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault login   # root token from step 1
-   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=kvv2 kv-v2
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault login   # root token from step 1
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=kvv2 kv-v2
    ```
 
    Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
@@ -79,7 +80,7 @@ Vault itself keeps working; only ArgoCD's sync status for one of the two is affe
    parity):
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault secrets enable -path=secret -version=2 kv
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=secret -version=2 kv
    ```
 
    `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
@@ -90,8 +91,8 @@ Vault itself keeps working; only ArgoCD's sync status for one of the two is affe
 3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault auth enable -path=kubernetes kubernetes
-   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/config \
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault auth enable -path=kubernetes kubernetes
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/config \
      kubernetes_host="https://kubernetes.default.svc"
    ```
 
@@ -99,12 +100,12 @@ Vault itself keeps working; only ArgoCD's sync status for one of the two is affe
    ServiceAccount — every VaultSecret's `authentication.serviceAccount.name` is `default`:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault policy write agent - <<'EOF'
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault policy write agent - <<'EOF'
    path "kvv2/data/prod/prod/agent/*" {
      capabilities = ["read"]
    }
    EOF
-   kubectl exec -n <namespace> -it vault-0 -- vault write auth/kubernetes/role/agent \
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/role/agent \
      bound_service_account_names=default \
      bound_service_account_namespaces=<namespace> \
      policies=agent \
@@ -117,7 +118,7 @@ Vault itself keeps working; only ArgoCD's sync status for one of the two is affe
    inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
 
    ```bash
-   kubectl exec -n <namespace> -it vault-0 -- vault kv put kvv2/prod/prod/agent/postgres \
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault kv put kvv2/prod/prod/agent/postgres \
      postgres_password='...'
    ```
 
@@ -383,7 +384,7 @@ only in-flight workflow instance state, not the system of record.
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `agent` |
 | `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/agent` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address`. See **Vault** above. | `http://vault:8200` |
+| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address`. See **Vault** above. | `http://agent-vault:8200` |
 | `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (`api` and the Camunda worker call it directly), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
 | `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |

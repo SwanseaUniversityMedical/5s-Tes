@@ -26,6 +26,9 @@ CONTEXT="kind-5s-tes"
 CLUSTER_NAME="5s-tes"
 SUBMISSION_NS="5s-tes-submission"
 AGENT_NS="5s-tes-agent"
+# R33: distinct per family - see charts/*-stack/templates/vault.yaml.
+SUBMISSION_VAULT="submission-vault"
+AGENT_VAULT="agent-vault"
 
 # renovate: datasource=helm depName=ingress-nginx registryUrl=https://kubernetes.github.io/ingress-nginx
 INGRESS_NGINX_CHART_VERSION="4.15.1"
@@ -123,22 +126,12 @@ wait_for_argocd_apps() {
       continue
     fi
 
-    # Gate on Health only, not Sync: submission's and agent's "vault"
-    # Applications both install the hashicorp/vault chart under the release
-    # name "vault", whose ClusterRoleBinding "vault-server-binding" is
-    # CLUSTER-scoped and named from {{ vault.fullname }} alone (no
-    # namespace) - the two releases fight over that one object forever
-    # (ArgoCD "SharedResourceWarning"), so one Application's sync.status
-    # never leaves OutOfSync even though Vault itself runs fine (nothing
-    # locally uses vault's Kubernetes-auth path this depends on -
-    # vault.secretsEnabled=false). See README "Known limitations".
-    not_ready=$(printf '%s\n' "$app_rows" | awk -F'|' 'NF && $3 != "Healthy"')
+    not_ready=$(printf '%s\n' "$app_rows" | awk -F'|' 'NF && ($2 != "Synced" || $3 != "Healthy")')
 
     if [ -z "$not_ready" ] && [ "$total" -eq "$last_total" ]; then
       stable=$(( stable + 1 ))
       if [ "$stable" -ge "$stable_needed" ]; then
-        echo "  all $total Applications in $ns are Healthy"
-        printf '%s\n' "$app_rows" | awk -F'|' '$2 != "Synced" {printf "  note: %s is Healthy but sync=%s (see README)\n", $1, $2}'
+        echo "  all $total Applications in $ns are Synced and Healthy"
         return 0
       fi
       echo "  all $total Applications healthy - confirming ($stable/$stable_needed)"
@@ -346,8 +339,8 @@ helm upgrade --install agent-stack ../charts/agent-stack \
 # runs. Must happen before the health wait below, not after.
 ###############################################################################
 
-./vault-init.sh "$SUBMISSION_NS" "$CONTEXT"
-./vault-init.sh "$AGENT_NS" "$CONTEXT"
+./vault-init.sh "$SUBMISSION_NS" "$CONTEXT" "$SUBMISSION_VAULT"
+./vault-init.sh "$AGENT_NS" "$CONTEXT" "$AGENT_VAULT"
 
 DEPS_HEALTHY=1
 wait_for_argocd_apps "$SUBMISSION_NS" "submission dependencies" || DEPS_HEALTHY=0

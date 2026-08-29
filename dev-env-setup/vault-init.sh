@@ -17,21 +17,27 @@
 #      real (random) root token init produces, since `vault operator init`
 #      cannot choose the root token's own ID.
 #
-# Usage: vault-init.sh <namespace> <kube-context>
+# Usage: vault-init.sh <namespace> <kube-context> <vault-release-name>
+# <vault-release-name> is submission-vault/agent-vault (R33: distinct per
+# family, since the hashicorp/vault chart's cluster-scoped ClusterRoleBinding
+# is named from the release name alone - see charts/*-stack/templates/vault.yaml).
+# Its StatefulSet's pod is <vault-release-name>-0.
 set -euo pipefail
 
-NAMESPACE="${1:?usage: vault-init.sh <namespace> <kube-context>}"
-CONTEXT="${2:?usage: vault-init.sh <namespace> <kube-context>}"
+NAMESPACE="${1:?usage: vault-init.sh <namespace> <kube-context> <vault-release-name>}"
+CONTEXT="${2:?usage: vault-init.sh <namespace> <kube-context> <vault-release-name>}"
+VAULT_RELEASE="${3:?usage: vault-init.sh <namespace> <kube-context> <vault-release-name>}"
+VAULT_POD="${VAULT_RELEASE}-0"
 KEYS_FILE="$(cd "$(dirname "$0")" && pwd)/.vault-keys-${NAMESPACE}"
 
-echo "Vault ($NAMESPACE): waiting for vault-0 to exist"
+echo "Vault ($NAMESPACE): waiting for $VAULT_POD to exist"
 # `kubectl wait` errors immediately on a not-yet-created resource rather
 # than waiting for it - ArgoCD needs a moment after `helm install` to sync
 # the vault Application's StatefulSet into existence.
 elapsed=0
-until kubectl get pod/vault-0 -n "$NAMESPACE" --context "$CONTEXT" >/dev/null 2>&1; do
+until kubectl get "pod/$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" >/dev/null 2>&1; do
   if [ "$elapsed" -ge 120 ]; then
-    echo "vault-0 did not appear in $NAMESPACE within 120s. Check: kubectl -n $NAMESPACE get application vault -o yaml" >&2
+    echo "$VAULT_POD did not appear in $NAMESPACE within 120s. Check: kubectl -n $NAMESPACE get application $VAULT_RELEASE -o yaml" >&2
     exit 1
   fi
   sleep 5; elapsed=$((elapsed + 5))
@@ -39,22 +45,22 @@ done
 
 echo "Vault ($NAMESPACE): waiting for the vault container to be execable"
 # Not --for=condition=Ready: the chart's readinessProbe runs "vault status",
-# which fails (by design) while sealed - a brand-new vault-0 never reaches
+# which fails (by design) while sealed - a brand-new pod never reaches
 # Ready on its own. condition=Initialized only means init containers are
 # done, not that the main "vault" container has actually started yet
 # (`kubectl exec` fails with "container not found" until it has) - so poll
 # with the same command this script needs to succeed.
 elapsed=0
-until kubectl exec vault-0 -n "$NAMESPACE" --context "$CONTEXT" -- true >/dev/null 2>&1; do
+until kubectl exec "$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" -- true >/dev/null 2>&1; do
   if [ "$elapsed" -ge 300 ]; then
-    echo "vault-0's vault container did not start in $NAMESPACE within 300s. Check: kubectl -n $NAMESPACE describe pod vault-0" >&2
+    echo "$VAULT_POD's vault container did not start in $NAMESPACE within 300s. Check: kubectl -n $NAMESPACE describe pod $VAULT_POD" >&2
     exit 1
   fi
   sleep 5; elapsed=$((elapsed + 5))
 done
 
 vault_exec() {
-  kubectl exec -i vault-0 -n "$NAMESPACE" --context "$CONTEXT" -- sh -c "$1"
+  kubectl exec -i "$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" -- sh -c "$1"
 }
 
 STATUS_JSON=$(vault_exec "vault status -format=json" || true)
@@ -86,7 +92,7 @@ if [ "$SEALED" = "true" ]; then
 fi
 
 vault_authed() {
-  kubectl exec -i vault-0 -n "$NAMESPACE" --context "$CONTEXT" -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' $1"
+  kubectl exec -i "$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" -- sh -c "VAULT_TOKEN='$ROOT_TOKEN' $1"
 }
 
 if ! vault_authed "vault secrets list -format=json" | jq -e 'has("secret/")' >/dev/null; then

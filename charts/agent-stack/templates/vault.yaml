@@ -2,7 +2,12 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: vault
+  # Static, family-distinct: the hashicorp/vault chart derives cluster-scoped
+  # resource names (the auth-delegator ClusterRoleBinding) from this release
+  # name alone, no namespace - "vault" in both stacks collides on any
+  # cluster running both (verified: both compute ClusterRoleBinding
+  # "vault-server-binding"). See charts/submission-stack/templates/vault.yaml.
+  name: agent-vault
   namespace: {{ .Values.global.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
@@ -34,7 +39,7 @@ spec:
   ignoreDifferences:
     - group: admissionregistration.k8s.io
       kind: MutatingWebhookConfiguration
-      name: vault-agent-injector-cfg
+      name: agent-vault-agent-injector-cfg
       jsonPointers:
         - /webhooks/0/clientConfig/caBundle
   {{- end }}

@@ -52,7 +52,7 @@ global:
     seqUrl: "http://seq:5341"
     logLevel: "Information"
     # Shared by api and camunda: if Vault moves, both move together.
-    vaultUrl: "http://vault:8200"
+    vaultUrl: "http://agent-vault:8200"
     # Shared by api and camunda: if the Zeebe gateway moves, both move
     # together. Verified: camunda-zeebe-gateway:26500 at camunda-platform 13.4.1.
     zeebeGatewayAddress: "camunda-zeebe-gateway:26500"

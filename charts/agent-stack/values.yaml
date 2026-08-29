@@ -176,10 +176,11 @@ vault:
   role: agent
   secretPath: kvv2/data/prod/prod/agent
   authPath: kubernetes
-  # This stack's own Vault (templates/vault.yaml), not the redhatcop
-  # operator's default (platform) connection. Every VaultSecret below sets
-  # this explicitly via vaultSecretDefinitions[].connection.address.
-  address: "http://vault:8200"
+  # This stack's own Vault (templates/vault.yaml, release name "agent-vault"
+  # - distinct per family, see its comment), not the redhatcop operator's
+  # default (platform) connection. Every VaultSecret below sets this
+  # explicitly via vaultSecretDefinitions[].connection.address.
+  address: "http://agent-vault:8200"
 
   # Deploys this stack's own Vault Application. Runtime dependency: the api
   # and camunda worker both call this Vault directly for ephemeral
