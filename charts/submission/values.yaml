@@ -103,7 +103,6 @@ api:
   oidc:
     clientId: "Dare-Control-API"
     validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
-    realm: "Dare-Control"
     tokenRefreshSeconds: "3600"
     autoTrustKeycloakCert: "false"
     validIssuer: ""

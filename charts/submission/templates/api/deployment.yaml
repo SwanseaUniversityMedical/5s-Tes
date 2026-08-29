@@ -131,7 +131,8 @@ spec:
             - name: SubmissionKeyCloakSettings__Protocol
               value: "{{ $keycloakUrl.scheme }}"
             - name: SubmissionKeyCloakSettings__Realm
-              value: "{{ .Values.api.oidc.realm }}"
+              # Derived from global.oidc.authority: the chart already knows this.
+              value: "{{ last (splitList "/" $keycloakUrl.path) }}"
             - name: SubmissionKeyCloakSettings__TokenRefreshSeconds
               value: "{{ .Values.api.oidc.tokenRefreshSeconds }}"
             - name: SubmissionKeyCloakSettings__AutoTrustKeycloakCert

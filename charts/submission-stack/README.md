@@ -190,6 +190,8 @@ With today's defaults, real data sits in two places with different protection:
 | `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/submission` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
 | `vault.enabled` | Deploy this stack's own Vault `Application` AND every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
+| `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |
+| `vault.chart` | Chart name within that repo. | `vault` |
 | `vault.chartVersion` | hashicorp/vault chart version. | `0.34.1` |
 | `vault.dataStorageSize` | Vault's own data PVC size. | `10Gi` |
 | `vault.injector.enabled` | Enable the Vault Agent Injector webhook. | `false` |
@@ -210,6 +212,8 @@ With today's defaults, real data sits in two places with different protection:
 | Name | Description | Default |
 |---|---|---|
 | `rustfs.enabled` | Deploy the `rustfs` `Application`. | `true` |
+| `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
+| `rustfs.chart` | Chart name within that repo. | `rustfs` |
 | `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
 | `rustfs.storageSize` | Size of both the data and log PVCs. | `10Gi` |
 | `rustfs.resources.requests.cpu` | CPU request. | `250m` |
@@ -221,6 +225,8 @@ With today's defaults, real data sits in two places with different protection:
 | Name | Description | Default |
 |---|---|---|
 | `seq.enabled` | Deploy the `seq` `Application`. | `true` |
+| `seq.repoURL` | Helm repo the Seq chart is pulled from. | `https://helm.datalust.co` |
+| `seq.chart` | Chart name within that repo. | `seq` |
 | `seq.chartVersion` | Seq chart version. | `2025.2.1` |
 | `seq.storageSize` | Size of Seq's data PVC. | `10Gi` |
 | `seq.requireAuthForIngestion` | Require authentication for HTTP log ingestion. | `true` |

@@ -106,10 +106,8 @@ charts:
 ## Local Keycloak
 
 - URL: `http://keycloak.localtest.me` (admin console), realm `Dare-Control`. Plain HTTP:
-  `templates/keycloak.yaml`'s `ingress` block sets no `tls` key, and the pinned Bitnami
-  chart's own `ingress.tls` default is `false` (checked via `helm show values
-  bitnami/keycloak --version 25.2.0`, the nearest available release to this chart's pin —
-  Bitnami no longer serves `25.4.0` itself; the schema is unchanged between the two).
+  `templates/keycloak.yaml`'s `ingress` block sets no `tls` key, and the chart's default
+  is `false`.
 - `submission-stack`'s `global.oidc.authority` must be overridden to reach this Keycloak
   — see **Local install** above.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-Control`,
