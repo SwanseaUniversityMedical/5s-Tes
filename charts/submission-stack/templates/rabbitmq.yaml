@@ -1,0 +1,16 @@
+apiVersion: rabbitmq.com/v1beta1
+kind: RabbitmqCluster
+metadata:
+  name: rabbitmq
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  replicas: {{ .Values.rabbitmq.replicas }}
+  persistence:
+    storageClassName: {{ .Values.global.storageClass }}
+    storage: {{ .Values.rabbitmq.storageSize }}
+  secretBackend:
+    vault:
+      role: {{ .Values.vault.role }}
+      defaultUserPath: {{ .Values.vault.secretPath }}/rabbitmq

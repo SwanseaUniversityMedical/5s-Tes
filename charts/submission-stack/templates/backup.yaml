@@ -1,0 +1,37 @@
+{{- if .Values.global.veleroBackup.enabled }}
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: {{ .Values.global.namespace }}
+  namespace: {{ .Values.global.veleroBackup.namespace }}
+  annotations:
+    velero.io/csi-volumesnapshot-class_rook-ceph.cephfs.csi.ceph.com: "ceph-filesystem"
+    velero.io/csi-volumesnapshot-class_rook-ceph.rbd.csi.ceph.com: "ceph-block"
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  paused: false
+  schedule: "{{ .Values.global.veleroBackup.schedule }}"
+  template:
+    csiSnapshotTimeout: 12h0m0s
+    itemOperationTimeout: 18h0m0s
+    ttl: "{{ .Values.global.veleroBackup.ttl }}"
+    uploaderConfig:
+      parallelFilesUpload: 10
+    defaultVolumesToFsBackup: false
+    snapshotMoveData: true
+    snapshotVolumes: true
+    resourcePolicy:
+      kind: ConfigMap
+      name: resource-policy-ceph-all-cm
+    includedNamespaces:
+      - {{ .Values.global.namespace }}
+    storageLocation: default
+    volumeSnapshotLocations:
+      - rook-ceph
+    includedResources:
+      - pv
+      - pvc
+    labelSelector:
+      matchLabels:
+        {{- toYaml .Values.global.persistentVolumeLabels | nindent 8 }}
+{{- end }}

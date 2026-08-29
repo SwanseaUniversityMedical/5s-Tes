@@ -1,0 +1,163 @@
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: postgres
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  instances: {{ .Values.postgres.instances }}
+  # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
+  imageName: ghcr.io/cloudnative-pg/postgresql:{{ .Values.postgres.version }}
+
+  superuserSecret:
+    name: postgres-secret
+
+  enableSuperuserAccess: true
+
+  # Defaults to database "app" owned by role "app". The real application
+  # database is the Database object below, owned by that same role.
+  bootstrap:
+    initdb: {}
+
+  storage:
+    size: "{{ .Values.postgres.storageSize }}"
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: "{{ .Values.postgres.storageSize }}"
+      storageClassName: {{ .Values.global.storageClass }}
+
+  {{- if .Values.postgres.backups.enabled }}
+  plugins:
+    - name: barman-cloud.cloudnative-pg.io
+      isWALArchiver: true
+      parameters:
+        barmanObjectName: submission-postgres-store
+  {{- end }}
+
+---
+
+# Requires CNPG >= 1.25 for the Database CRD. Verified present: the
+# cloudnative-pg chart the cluster installs (see dev-env-setup/cluster-setup.sh,
+# unpinned "latest") is currently app version 1.30.0.
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: dare-control
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  cluster:
+    name: postgres
+  name: "{{ .Values.postgres.database }}"
+  owner: app
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: pg-pooler
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  cluster:
+    name: postgres
+  instances: {{ .Values.postgres.connectionPooler.instances }}
+  type: rw
+  pgbouncer:
+    poolMode: transaction
+    parameters:
+      max_client_conn: "{{ .Values.postgres.connectionPooler.maxClientConn }}"
+      default_pool_size: "{{ .Values.postgres.connectionPooler.defaultPoolSize }}"
+      reserve_pool_size: "{{ .Values.postgres.connectionPooler.reservePoolSize }}"
+      reserve_pool_timeout: "{{ .Values.postgres.connectionPooler.reservePoolTimeout }}"
+      server_idle_timeout: "{{ .Values.postgres.connectionPooler.serverIdleTimeout }}"
+
+{{- if .Values.global.monitoring.enabled }}
+
+---
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: postgres-pm
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/cluster: postgres
+  podMetricsEndpoints:
+    - port: metrics
+
+---
+
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: pg-pooler-pm
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  selector:
+    matchLabels:
+      cnpg.io/poolerName: pg-pooler
+  podMetricsEndpoints:
+    - port: metrics
+{{- end }}
+
+{{- if .Values.postgres.backups.enabled }}
+
+---
+
+apiVersion: barmancloud.cnpg.io/v1
+kind: ObjectStore
+metadata:
+  name: submission-postgres-store
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  configuration:
+    destinationPath: {{ .Values.postgres.backups.destinationPath }}/postgres
+    endpointURL: {{ .Values.postgres.backups.endpointURL }}
+    endpointCA:
+      name: {{ .Values.postgres.backups.endpointCASecretName }}
+      key: ca.crt
+    s3Credentials:
+      accessKeyId:
+        name: {{ .Values.postgres.backups.existingSecret }}
+        key: ACCESS_KEY_ID
+      secretAccessKey:
+        name: {{ .Values.postgres.backups.existingSecret }}
+        key: ACCESS_SECRET_KEY
+    wal:
+      compression: gzip
+  retentionPolicy: "{{ .Values.postgres.backups.retention }}"
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: ScheduledBackup
+metadata:
+  name: submission-postgres-backup
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  schedule: "{{ .Values.postgres.backups.schedule }}"
+  backupOwnerReference: self
+  cluster:
+    name: postgres
+  method: plugin
+  pluginConfiguration:
+    name: barman-cloud.cloudnative-pg.io
+{{- end }}
