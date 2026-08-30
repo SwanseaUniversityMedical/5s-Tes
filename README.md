@@ -73,7 +73,8 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 | [`submission-devstack`](charts/submission-devstack/README.md) | devstack | Local-only stand-ins for what `submission-stack`'s production dependencies provide (Keycloak, secrets, Adminer) |
 
 Each chart's own README has its install and values reference. `stack` and `devstack` charts are
-never installed together on the same cluster — see each README's own install order.
+never installed on a shared cluster; locally, a family's devstack installs together
+with its stack — see each README's own install order.
 
 Each chart publishes independently to
 `harbor.federated-analytics.ac.uk/5s-tes/chart/<name>` via its own GitHub Actions workflow

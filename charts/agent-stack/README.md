@@ -351,8 +351,8 @@ With today's defaults, real data sits in five places with different protection:
 - **RustFS's own storage** — uploaded TRE files. Labelled via the rustfs chart's own
   `commonLabels` value, also covered by the Velero `Schedule`.
 - **Vault's own data volume** (`templates/vault.yaml`'s `server.dataStorage`) — **not** covered
-  by the Velero `Schedule`: the hashicorp/vault chart does not accept a `persistentVolumeLabels`-
-  style value. Mitigation depends on a chart feature that does not exist today.
+  by the Velero `Schedule`: the vault chart's `server.dataStorage.labels` could carry the backup label but is
+  not wired here.
 - **The `seq` Application's own PVC** (`templates/seq.yaml`'s `persistence`) — **not** covered
   by the Velero `Schedule`, same reason: the datalust/seq chart has no equivalent label knob.
 

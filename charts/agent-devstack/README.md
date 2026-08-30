@@ -252,8 +252,8 @@ from the host.
   `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
   `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and
   let ArgoCD re-sync.
-- This chart is installed from the working tree; it is not published to Harbor and has no
-  release workflow.
+- Local installs use the working tree; the chart also publishes via its own release
+  workflow like every chart in this repo.
 - The postgresql chart's own default `image.tag` (`17.5.0-debian-12-r20`) is not mirrored
   at `harbor.ukserp.ac.uk/bitnami/postgresql` (found by local boot: kubelet
   `ImagePullBackOff`, "not found"). `tredata.imageTag` pins `image.tag` to a tag
