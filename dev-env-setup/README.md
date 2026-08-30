@@ -168,3 +168,10 @@ apps from VS Code against kind".
   `agent-stack-local.yaml` (see `agent-devstack`'s README).
 - **RWX and single-node only**: the provisioner patch in step 2 is documented as single-node
   only by kind itself; it is not a fix for a real multi-node RWX requirement.
+- **Known platform limitation (Docker Desktop for Mac)**: despite `listenAddress: "127.0.0.1"`
+  on every `extraPortMappings` entry, ports 80/443 remain reachable from the LAN - Docker
+  Desktop forwards privileged host ports (<1024) through a path that doesn't honour the
+  configured bind address (verified: all NodePorts ≥1024 are genuinely loopback-only). The
+  exposure is the dev ingress, which sits in front of dev-grade credentials; to isolate it,
+  firewall 80/443 or remap those two mappings to high ports (losing the plain `localtest.me`
+  URLs).
