@@ -34,7 +34,9 @@ mid-write of the sentinel itself — leaves the sentinel absent and the next run
 two pods racing on first boot don't collide on the same temp file. It is idempotent, so it is
 safe to run unconditionally from both components — `api` alone still seeds the PVC correctly
 when `camunda.enabled` is `false`. `api` and `camunda`'s main containers then both mount the
-PVC at `/app/ProcessModels`.
+PVC at `/app/ProcessModels`. Because the seed check only looks for `credentials.dmn`, a later
+image that adds new model files without touching that sentinel will not get them copied to an
+already-seeded PVC — delete the sentinel or the PVC to force a reseed.
 
 ## What must already exist
 

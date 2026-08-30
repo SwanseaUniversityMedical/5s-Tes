@@ -72,7 +72,7 @@ this bootstrap does by default. Both devstack READMEs' "Local install" sections 
 ArgoCD `Application` pointing at `harbor.federated-analytics.ac.uk/5s-tes/chart` (a literal in
 the template, not a value, per this repo's convention that only `targetRevision` is
 surfaced as a value for the org's own chart releases) with `chart: submission`/`agent`. No
-version has ever been published there (Task 4.1 built the publish workflow; it has not been
+version has ever been published there (the publish workflow exists; it has not been
 run), and the two clone sources' pattern of pulling PR-tagged builds from a real Harbor
 doesn't apply here - there's nothing to pull yet.
 
@@ -89,7 +89,7 @@ there are only two of them.
 
 This is a bootstrap-script delivery-mechanism decision, not a chart change: the full stack
 still runs by default locally (Decision 7 - a developer turns a component off from the
-README when running it from VS Code, Task 5.3), just orchestrated by plain `helm install`
+README when running it from VS Code), just orchestrated by plain `helm install`
 against the working tree instead of ArgoCD-via-Harbor. Once a first `submission`/`agent`
 chart release lands in Harbor, `submission.enabled`/`agent.enabled` can flip back to `true`
 and this bootstrap can drop its two `*-product-local.yaml` files and direct `helm install`

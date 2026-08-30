@@ -59,6 +59,27 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 
 - A shared library that includes Models, Services and Settings shared across the TRE Agent, Submission and Credentials.
 
+## Helm charts
+
+`charts/` holds six charts, one family (`agent`/`submission`) times three shapes:
+
+| Chart | Shape | What it deploys |
+|---|---|---|
+| [`agent`](charts/agent/README.md) | standalone | The TRE Agent apps (`Agent.Api`, `Agent.Web`, `agent-web`, `Credentials.Camunda`) |
+| [`submission`](charts/submission/README.md) | standalone | The Submission apps (`Submission.Api`, `Submission.Web`) |
+| [`agent-stack`](charts/agent-stack/README.md) | stack | `agent` plus its production dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault, Camunda/Zeebe) |
+| [`submission-stack`](charts/submission-stack/README.md) | stack | `submission` plus its production dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault) |
+| [`agent-devstack`](charts/agent-devstack/README.md) | devstack | Local-only stand-ins for what `agent-stack`'s production dependencies provide (Keycloak, secrets, Adminer, a disposable TRE data database) |
+| [`submission-devstack`](charts/submission-devstack/README.md) | devstack | Local-only stand-ins for what `submission-stack`'s production dependencies provide (Keycloak, secrets, Adminer) |
+
+Each chart's own README has its install and values reference. `stack` and `devstack` charts are
+never installed together on the same cluster — see each README's own install order.
+
+Each chart publishes independently to
+`harbor.federated-analytics.ac.uk/5s-tes/chart/<name>` via its own GitHub Actions workflow
+(`.github/workflows/<name>-chart.yaml`), versioned by a PR release label
+(`patch|minor|major: <name>-chart`).
+
 ## Running apps from VS Code against kind
 
 `dev-env-setup/` (`./cluster-setup.sh`) brings up a `kind` cluster with both product families'
@@ -154,10 +175,6 @@ afterwards.
   `dev-tredata`). Vault read/write with `dev-only-token` verified directly.
 - In-cluster `submission`/`agent` were restored afterward; all ArgoCD Applications in both
   namespaces reported `Synced`/`Healthy` and all Deployments `Available`.
-
-See `.superpowers/sdd/2026-08-29-helm-chart-families/task-5.3-report.md` for the full battery
-evidence, including the round-1 fix verification (dev exception page under `Development_Kind`,
-`dev-tredata`, the LDAP seed, and the trimmed `_Kind` files).
 
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes

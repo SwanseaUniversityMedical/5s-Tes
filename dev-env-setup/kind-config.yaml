@@ -15,7 +15,7 @@ nodes:
     hostPort: 443
     listenAddress: "127.0.0.1"
     protocol: TCP
-  # dev-access NodePorts (Task 5.2) - one per charts/*-devstack/templates/dev-access.yaml
+  # dev-access NodePorts - one per charts/*-devstack/templates/dev-access.yaml
   # Service, so a natively-running app (VS Code) reaches every dependency at
   # localhost:<port>. Submission (5s-tes-submission):
   - containerPort: 30432

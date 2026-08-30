@@ -249,7 +249,7 @@ not release-scoped — verified by rendering the pinned chart) listens on port `
 `true` and `agent.api.tesApiUrl` is empty, `templates/agent.yaml` derives
 `http://tesk-api:8080/ga4gh/tes/v1/tasks`; an explicit `agent.api.tesApiUrl` always wins.
 
-**For local TES testing, use `director-wfs.sh`** (`/Users/alex/Devel/feda/director-wfs`) to
+**For local TES testing, use `director-wfs.sh`** (the org's director-wfs repository) to
 bring up a disposable kind-based TESK environment — do not enable `tesk.enabled` here for that
 purpose.
 
@@ -335,7 +335,7 @@ Turning `postgres.backups.enabled` on also requires the `barman-cloud.cloudnativ
 plugin installed in the cluster; `templates/postgres.yaml`'s `Cluster.spec.plugins` references
 it by name but does not install it.
 
-With today's defaults, real data sits in three places with different protection:
+With today's defaults, real data sits in five places with different protection:
 
 - **`postgres` (the CNPG `Cluster`)** — `DARE-Tre` and `TRE_Credentials`. Not backed up until
   `postgres.backups.enabled`, `destinationPath`, `endpointURL`, `endpointCASecretName` (a Secret
@@ -350,6 +350,11 @@ With today's defaults, real data sits in three places with different protection:
   same value, so the two cannot drift).
 - **RustFS's own storage** — uploaded TRE files. Labelled via the rustfs chart's own
   `commonLabels` value, also covered by the Velero `Schedule`.
+- **Vault's own data volume** (`templates/vault.yaml`'s `server.dataStorage`) — **not** covered
+  by the Velero `Schedule`: the hashicorp/vault chart does not accept a `persistentVolumeLabels`-
+  style value. Mitigation depends on a chart feature that does not exist today.
+- **The `seq` Application's own PVC** (`templates/seq.yaml`'s `persistence`) — **not** covered
+  by the Velero `Schedule`, same reason: the datalust/seq chart has no equivalent label knob.
 
 If `openldap.enabled` is turned on for anything beyond disposable testing: its own PVC (a
 StatefulSet `volumeClaimTemplate`) is **not** covered by the Velero `Schedule` — the

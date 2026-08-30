@@ -236,7 +236,7 @@ Turning `postgres.backups.enabled` on also requires the `barman-cloud.cloudnativ
 CNPG plugin installed in the cluster; `templates/postgres.yaml`'s `Cluster.spec.plugins`
 references it by name but does not install it.
 
-With today's defaults, real data sits in two places with different protection:
+With today's defaults, real data sits in four places with different protection:
 
 - **`postgres` (the CNPG `Cluster`)** — its own data. Not backed up until
   `postgres.backups.enabled`, `destinationPath`, `endpointURL`, `endpointCASecretName`
@@ -253,6 +253,11 @@ With today's defaults, real data sits in two places with different protection:
   `persistentVolumeLabels` (RustFS via its chart's `commonLabels` value, confirmed
   present and applied to its PVCs by `helm show values`/the chart's own
   `templates/pvc.yaml`), so both are covered by the Velero `Schedule` above.
+- **Vault's own data volume** (`templates/vault.yaml`'s `server.dataStorage`) — **not** covered
+  by the Velero `Schedule`: the hashicorp/vault chart does not accept a `persistentVolumeLabels`-
+  style value. Mitigation depends on a chart feature that does not exist today.
+- **The `seq` Application's own PVC** (`templates/seq.yaml`'s `persistence`) — **not** covered
+  by the Velero `Schedule`, same reason: the datalust/seq chart has no equivalent label knob.
 
 ## Values reference
 

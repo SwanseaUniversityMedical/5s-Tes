@@ -9,11 +9,25 @@ namespace FiveSafesTes.Core.Models.Services
 {
     public class CustomCookieEvent : CookieAuthenticationEvents
     {
+        private const string WellKnownConfigurationSuffix = "/.well-known/openid-configuration";
+
         private readonly BaseKeyCloakSettings _keyCloakSettings;
 
         public CustomCookieEvent(BaseKeyCloakSettings keyCloakSettings)
         {
             _keyCloakSettings = keyCloakSettings;
+        }
+
+        // Authority shape varies by chart family (bare realm URL, trailing slash, or the
+        // .well-known/openid-configuration document URL) — normalise before appending the token path.
+        internal static string BuildTokenEndpoint(string authority)
+        {
+            if (authority.EndsWith(WellKnownConfigurationSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                authority = authority.Substring(0, authority.Length - WellKnownConfigurationSuffix.Length);
+            }
+
+            return authority.TrimEnd('/') + "/protocol/openid-connect/token";
         }
 
         public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
@@ -48,7 +62,7 @@ namespace FiveSafesTes.Core.Models.Services
                             {
                                 var tokenResponse = await new HttpClient().RequestRefreshTokenAsync(new RefreshTokenRequest
                                 {
-                                    Address = _keyCloakSettings.Authority + "/protocol/openid-connect/token",
+                                    Address = BuildTokenEndpoint(_keyCloakSettings.Authority),
                                     ClientId = _keyCloakSettings.ClientId,
                                     ClientSecret = _keyCloakSettings.ClientSecret,
                                     RefreshToken = refreshToken

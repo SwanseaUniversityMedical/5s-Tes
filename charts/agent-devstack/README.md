@@ -150,7 +150,7 @@ Both toggles use `admin` for the bind/config-admin passwords (see **Credentials*
 
 `agent-stack`'s own dev default for `agent.api.tesApiUrl` (`http://localhost:8000/v1/tasks`) is
 a broken loopback address once actually in-cluster. **For local TES testing, use
-`director-wfs.sh`** (`/Users/alex/Devel/feda/director-wfs`) to bring up a disposable kind-based
+`director-wfs.sh`** (the org's director-wfs repository) to bring up a disposable kind-based
 TESK environment, then set `agent.api.tesApiUrl` on `agent-stack` to its `tesk-api` Service —
 do not enable `agent-stack`'s own `tesk.enabled` for this purpose (see its README, **GA4GH TES
 backend**). A local GA4GH Funnel instance is an equally valid substitute if you have one.
@@ -221,7 +221,8 @@ recreation):
 `release: openldap`, matching the `jp-gouin/helm-openldap` chart at release name `openldap`)
 only matches pods once `agent-stack`'s own `openldap.enabled` is also `true` (see **Optional:
 local OpenLDAP** above); with it off, the Service simply has no endpoints. No console port for
-RustFS here (unlike `submission-devstack`'s `dev-rustfs`) — not part of this task's port map.
+RustFS here (unlike `submission-devstack`'s `dev-rustfs`) — the console has no NodePort by
+design, it's already ingress-reachable at `rustfs.<global.ingress.host>`.
 `dev-tredata` is the one exception to "carrying `agent-stack`'s own Service selectors" above —
 `tredata-postgresql` is this chart's (`agent-devstack`'s) own `tredata` Application, the
 dev stand-in for the external TRE data database, not one of `agent-stack`'s dependencies.
@@ -255,5 +256,5 @@ from the host.
   release workflow.
 - The postgresql chart's own default `image.tag` (`17.5.0-debian-12-r20`) is not mirrored
   at `harbor.ukserp.ac.uk/bitnami/postgresql` (found by local boot: kubelet
-  `ImagePullBackOff`, "not found"). `templates/tredata.yaml` pins `image.tag` to a tag
+  `ImagePullBackOff`, "not found"). `tredata.imageTag` pins `image.tag` to a tag
   confirmed present on that mirror instead (anonymous pull verified).

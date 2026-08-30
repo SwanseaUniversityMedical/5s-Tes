@@ -33,6 +33,10 @@ tredata:
   # renovate: datasource=helm-oci depName=bitnamicharts/postgresql registryUrl=https://registry-1.docker.io
   chartVersion: "16.7.21"
   imageRegistry: "harbor.ukserp.ac.uk"
+  # The chart's own default tag (17.5.0-debian-12-r20) is not mirrored here
+  # (kubelet ImagePullBackOff: not found) - pin one that is.
+  # renovate: datasource=docker depName=bitnami/postgresql registryUrl=https://harbor.ukserp.ac.uk
+  imageTag: "17.6.0-debian-12-r4"
 
 # Gates agent-openldap-secret only. The OpenLDAP Application itself is
 # agent-stack's own openldap.enabled toggle, set separately on that chart.

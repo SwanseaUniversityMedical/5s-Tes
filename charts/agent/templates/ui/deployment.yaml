@@ -27,25 +27,29 @@ spec:
       {{- end }}
       securityContext:
         {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      {{- if .Values.global.trustClusterCa.enabled }}
       volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.global.trustClusterCa.enabled }}
         - name: certs-overlay
           configMap:
             name: {{ .Values.global.trustClusterCa.configMapName }}
             defaultMode: 420
-      {{- end }}
+        {{- end }}
       containers:
         - name: ui
           securityContext:
             {{- toYaml .Values.securityContext | nindent 12 }}
           image: "{{ .Values.ui.image.repository }}:{{ .Values.ui.image.tag | default .Values.global.tag }}"
           imagePullPolicy: {{ .Values.ui.image.pullPolicy }}
-          {{- if .Values.global.trustClusterCa.enabled }}
           volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.global.trustClusterCa.enabled }}
             - name: certs-overlay
               mountPath: {{ .Values.global.trustClusterCa.mountPath }}
               subPath: {{ .Values.global.trustClusterCa.key }}
-          {{- end }}
+            {{- end }}
           ports:
             - name: http
               containerPort: {{ .Values.ui.containerPort }}
