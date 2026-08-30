@@ -33,7 +33,8 @@ spec:
     targetRevision: "{{ .Values.openldap.chartVersion }}"
     helm:
       valuesObject:
-        replicaCount: {{ .Values.openldap.replicas }}
+        # Testing-only single instance; replication is off.
+        replicaCount: 1
 
         # The chart's own replication.enabled default (true) tries to
         # configure multi-provider sync on a single replica, which fails
@@ -79,7 +80,7 @@ spec:
           01-ou-users.ldif: |-
             dn: {{ .Values.agent.ldap.userOu }},{{ .Values.agent.ldap.baseDn }}
             objectClass: organizationalUnit
-            ou: Users
+            ou: {{ splitList "=" .Values.agent.ldap.userOu | last }}
           02-ou-groups.ldif: |-
             dn: ou=groups,{{ .Values.agent.ldap.baseDn }}
             objectClass: organizationalUnit

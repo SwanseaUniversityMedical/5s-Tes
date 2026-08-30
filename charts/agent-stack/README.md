@@ -58,6 +58,10 @@ step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equi
 names this stack's release `agent-vault`, so the pod is `agent-vault-0`, not `vault-0`,
 below.
 
+Renaming an existing installation's Vault release abandons its PVC and all sealed state —
+a pre-existing install must migrate (re-attach the PVC under the new release name, or
+re-init and re-seed) before upgrading across this rename.
+
 1. **Init and unseal** (first time only):
 
    ```bash
@@ -467,7 +471,6 @@ only in-flight workflow instance state, not the system of record.
 | `openldap.repoURL` | Helm repo the chart is pulled from. | `https://jp-gouin.github.io/helm-openldap/` |
 | `openldap.chart` | Chart name within that repo. | `openldap-stack-ha` |
 | `openldap.chartVersion` | openldap-stack-ha chart version. | `4.3.3` |
-| `openldap.replicas` | Replica count. | `1` |
 | `openldap.storageSize` | Size of its data PVC. | `1Gi` |
 | `openldap.ldapDomain` | Dot-form LDAP domain (the chart's `global.ldapDomain`). Keep the domain component in step with `agent.ldap.baseDn` if both are left at their defaults. | `camundaephemeral.local` |
 

@@ -10,10 +10,8 @@ on_error() {
   echo " Run it again with tracing to see the failing command:" >&2
   echo "   bash -x $0 2>&1 | tail -40" >&2
   echo >&2
-  echo " Re-running this script picks up where it left off (idempotent) - the kind cluster" >&2
-  echo " and everything already installed is reused. Only if a PARTIALLY created kind" >&2
-  echo " cluster itself looks broken (e.g. it exists but core components never came up)," >&2
-  echo " run ./clean-up.sh first to delete it and start clean." >&2
+  echo " Re-running this script resumes: the kind cluster and everything already" >&2
+  echo " installed is reused, and every remaining install is idempotent." >&2
   echo "===============================================================================" >&2
   exit "$code"
 }
@@ -38,6 +36,8 @@ CERT_MANAGER_VERSION="v1.21.1"
 ARGOCD_CHART_VERSION="10.4.0"
 # renovate: datasource=helm depName=cloudnative-pg registryUrl=https://cloudnative-pg.github.io/charts
 CNPG_CHART_VERSION="0.29.0"
+# renovate: datasource=github-releases depName=rabbitmq/cluster-operator
+RABBITMQ_OPERATOR_VERSION="v2.22.5"
 
 cd "$(dirname "$0")"
 REPO_ROOT="$(cd .. && pwd)"
@@ -53,7 +53,7 @@ echo "  directory: $(pwd)"
 
 require_tools() {
   local missing="" tool
-  for tool in docker kind kubectl helm curl jq vault; do
+  for tool in docker kind kubectl helm curl jq; do
     command -v "$tool" >/dev/null 2>&1 || missing="$missing $tool"
   done
 
@@ -194,6 +194,25 @@ wait_for_rabbitmq_ready() {
 # loaded straight into kind's containerd - no registry involved.
 ###############################################################################
 
+# restart_product_deployments <namespace> <deployment>...
+# The ":local" tag never changes, so neither `kind load` nor a diff-less
+# `helm upgrade` makes kubelet pick up a freshly rebuilt image - only an
+# explicit rollout does. No-op for a deployment that doesn't exist yet
+# (nothing to restart on a first-ever run before the product charts install).
+restart_product_deployments() {
+  local ns="$1"; shift
+  local dep restarted=""
+  for dep in "$@"; do
+    if kubectl -n "$ns" get deployment "$dep" --context "$CONTEXT" >/dev/null 2>&1; then
+      kubectl -n "$ns" rollout restart "deployment/$dep" --context "$CONTEXT"
+      restarted="$restarted $dep"
+    fi
+  done
+  for dep in $restarted; do
+    kubectl -n "$ns" rollout status "deployment/$dep" --timeout=5m --context "$CONTEXT"
+  done
+}
+
 build_and_load_images() {
   echo
   echo "Building local app images from the working tree"
@@ -217,44 +236,47 @@ build_and_load_images() {
 
 if [ "$CLUSTER_EXISTS" = "0" ]; then
   kind create cluster --config=kind-config.yaml
+fi
 
-  # kind's "standard" StorageClass (local-path-provisioner) is RWO-only by
-  # default. sharedFileSystemPath makes it serve RWX claims too, which
-  # submission.dataProtection/agent.processModels need. Single-node only.
-  # https://github.com/kubernetes-sigs/kind/issues/1487#issuecomment-2211072952
-  echo "Enabling RWX support on kind's local-path-provisioner"
-  kubectl wait --for=condition=Available deployment/local-path-provisioner \
-    -n local-path-storage --timeout=2m --context "$CONTEXT"
-  kubectl -n local-path-storage patch configmap local-path-config --type merge \
-    -p '{"data":{"config.json":"{\n\"sharedFileSystemPath\": \"/var/local-path-provisioner\"\n}"}}' \
-    --context "$CONTEXT"
-  kubectl -n local-path-storage rollout restart deployment/local-path-provisioner \
-    --context "$CONTEXT"
-  kubectl -n local-path-storage rollout status deployment/local-path-provisioner \
-    --timeout=2m --context "$CONTEXT"
+# kind's "standard" StorageClass (local-path-provisioner) is RWO-only by
+# default. sharedFileSystemPath makes it serve RWX claims too, which
+# submission.dataProtection/agent.processModels need. Single-node only.
+# https://github.com/kubernetes-sigs/kind/issues/1487#issuecomment-2211072952
+# Idempotent (patch + restart), so it runs on every invocation - a run
+# interrupted right after cluster creation must still get this on resume.
+echo "Enabling RWX support on kind's local-path-provisioner"
+kubectl wait --for=condition=Available deployment/local-path-provisioner \
+  -n local-path-storage --timeout=2m --context "$CONTEXT"
+kubectl -n local-path-storage patch configmap local-path-config --type merge \
+  -p '{"data":{"config.json":"{\n\"sharedFileSystemPath\": \"/var/local-path-provisioner\"\n}"}}' \
+  --context "$CONTEXT"
+kubectl -n local-path-storage rollout restart deployment/local-path-provisioner \
+  --context "$CONTEXT"
+kubectl -n local-path-storage rollout status deployment/local-path-provisioner \
+  --timeout=2m --context "$CONTEXT"
 
-  echo "Installing ingress-nginx ($INGRESS_NGINX_CHART_VERSION)"
-  helm upgrade --install ingress-nginx ingress-nginx \
-    --repo https://kubernetes.github.io/ingress-nginx \
-    --version "$INGRESS_NGINX_CHART_VERSION" \
-    --namespace ingress-nginx --create-namespace \
-    -f files/deps/ingress-nginx.yaml --kube-context "$CONTEXT"
-  kubectl wait --for=condition=Available deployment/ingress-nginx-controller \
-    -n ingress-nginx --timeout=5m --context "$CONTEXT"
+echo "Installing ingress-nginx ($INGRESS_NGINX_CHART_VERSION)"
+helm upgrade --install ingress-nginx ingress-nginx \
+  --repo https://kubernetes.github.io/ingress-nginx \
+  --version "$INGRESS_NGINX_CHART_VERSION" \
+  --namespace ingress-nginx --create-namespace \
+  -f files/deps/ingress-nginx.yaml --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment/ingress-nginx-controller \
+  -n ingress-nginx --timeout=5m --context "$CONTEXT"
 
-  apply_coredns
+apply_coredns
 
-  echo "Installing cert-manager ($CERT_MANAGER_VERSION)"
-  helm upgrade --install cert-manager cert-manager \
-    --repo https://charts.jetstack.io \
-    --version "$CERT_MANAGER_VERSION" \
-    --namespace cert-manager --create-namespace \
-    --set crds.enabled=true --kube-context "$CONTEXT"
-  kubectl wait --for=condition=Available deployment --all \
-    -n cert-manager --timeout=5m --context "$CONTEXT"
+echo "Installing cert-manager ($CERT_MANAGER_VERSION)"
+helm upgrade --install cert-manager cert-manager \
+  --repo https://charts.jetstack.io \
+  --version "$CERT_MANAGER_VERSION" \
+  --namespace cert-manager --create-namespace \
+  --set crds.enabled=true --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment --all \
+  -n cert-manager --timeout=5m --context "$CONTEXT"
 
-  echo "Applying self-signed ClusterIssuer 'ca-issuer' (global.ingress.certClusterIssuer default)"
-  cat <<'EOF' | kubectl apply --context "$CONTEXT" -f -
+echo "Applying self-signed ClusterIssuer 'ca-issuer' (global.ingress.certClusterIssuer default)"
+cat <<'EOF' | kubectl apply --context "$CONTEXT" -f -
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
@@ -263,40 +285,37 @@ spec:
   selfSigned: {}
 EOF
 
-  ###############################################################################
-  # Operators - installed by this script only, never by a chart. The same
-  # ones production runs, so the stack charts' operator objects behave
-  # identically here. RabbitMQ's operator manifest needs cert-manager for
-  # its webhook certificates (already installed above).
-  ###############################################################################
+###############################################################################
+# Operators - installed by this script only, never by a chart. The same
+# ones production runs, so the stack charts' operator objects behave
+# identically here. RabbitMQ's operator manifest needs cert-manager for
+# its webhook certificates (already installed above).
+###############################################################################
 
-  echo "Installing the CloudNativePG operator ($CNPG_CHART_VERSION)"
-  helm upgrade --install cnpg cloudnative-pg \
-    --repo https://cloudnative-pg.github.io/charts \
-    --version "$CNPG_CHART_VERSION" \
-    --namespace cnpg-system --create-namespace --kube-context "$CONTEXT"
-  kubectl wait --for=condition=Available deployment --all \
-    -n cnpg-system --timeout=5m --context "$CONTEXT"
+echo "Installing the CloudNativePG operator ($CNPG_CHART_VERSION)"
+helm upgrade --install cnpg cloudnative-pg \
+  --repo https://cloudnative-pg.github.io/charts \
+  --version "$CNPG_CHART_VERSION" \
+  --namespace cnpg-system --create-namespace --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment --all \
+  -n cnpg-system --timeout=5m --context "$CONTEXT"
 
-  echo "Installing the RabbitMQ Cluster Operator"
-  kubectl apply --context "$CONTEXT" \
-    -f "https://github.com/rabbitmq/cluster-operator/releases/latest/download/cluster-operator.yml"
-  kubectl wait --for=condition=Available deployment --all \
-    -n rabbitmq-system --timeout=5m --context "$CONTEXT"
+echo "Installing the RabbitMQ Cluster Operator ($RABBITMQ_OPERATOR_VERSION)"
+kubectl apply --context "$CONTEXT" \
+  -f "https://github.com/rabbitmq/cluster-operator/releases/download/${RABBITMQ_OPERATOR_VERSION}/cluster-operator.yml"
+kubectl wait --for=condition=Available deployment --all \
+  -n rabbitmq-system --timeout=5m --context "$CONTEXT"
 
-  echo "Installing ArgoCD ($ARGOCD_CHART_VERSION)"
-  helm upgrade --install argocd argo-cd \
-    --repo https://argoproj.github.io/argo-helm \
-    --version "$ARGOCD_CHART_VERSION" \
-    --namespace argocd --create-namespace \
-    -f files/deps/argo.yaml --kube-context "$CONTEXT"
-  kubectl wait --for=condition=Available deployment/argocd-server \
-    -n argocd --timeout=10m --context "$CONTEXT"
-  kubectl wait --for=condition=Available deployment/argocd-repo-server \
-    -n argocd --timeout=10m --context "$CONTEXT"
-else
-  apply_coredns
-fi
+echo "Installing ArgoCD ($ARGOCD_CHART_VERSION)"
+helm upgrade --install argocd argo-cd \
+  --repo https://argoproj.github.io/argo-helm \
+  --version "$ARGOCD_CHART_VERSION" \
+  --namespace argocd --create-namespace \
+  -f files/deps/argo.yaml --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment/argocd-server \
+  -n argocd --timeout=10m --context "$CONTEXT"
+kubectl wait --for=condition=Available deployment/argocd-repo-server \
+  -n argocd --timeout=10m --context "$CONTEXT"
 
 echo "Applying ArgoCD AppProjects and the Bitnami OCI repo registration"
 kubectl apply -f files/argo/submission-project.yaml --context "$CONTEXT"
@@ -304,6 +323,10 @@ kubectl apply -f files/argo/agent-project.yaml --context "$CONTEXT"
 kubectl apply -f files/argo/repo.yaml --context "$CONTEXT"
 
 build_and_load_images
+
+echo "Restarting product Deployments to pick up freshly rebuilt :local images"
+restart_product_deployments "$SUBMISSION_NS" submission-api submission-ui
+restart_product_deployments "$AGENT_NS" agent-api agent-ui agent-web agent-camunda
 
 ###############################################################################
 # Install order: each family's devstack (local Keycloak/dev realm, Vault,

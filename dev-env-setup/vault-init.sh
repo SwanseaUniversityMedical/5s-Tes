@@ -69,6 +69,7 @@ INITIALIZED=$(printf '%s' "$STATUS_JSON" | jq -r '.initialized // false')
 if [ "$INITIALIZED" != "true" ]; then
   echo "Vault ($NAMESPACE): initialising (1 key share, threshold 1 - local dev only)"
   INIT_JSON=$(vault_exec "vault operator init -key-shares=1 -key-threshold=1 -format=json")
+  umask 077
   printf '%s\n' "$INIT_JSON" > "$KEYS_FILE"
   chmod 600 "$KEYS_FILE"
   echo "Vault ($NAMESPACE): unseal key + root token saved to $KEYS_FILE (gitignored)"

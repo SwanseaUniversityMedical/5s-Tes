@@ -9,14 +9,16 @@ install steps as a secondary reference.
 ./cluster-setup.sh
 ```
 
-Re-running it is safe: an existing `5s-tes` kind cluster is reused, and every `helm upgrade
---install` and `kubectl apply` is idempotent. If it stops partway through, just run it again
-first; only reach for `./clean-up.sh` (deletes the cluster and the saved Vault keys) if the
-kind cluster itself looks broken rather than just mid-install.
+Re-running it is safe: an existing `5s-tes` kind cluster is reused, and every step after
+cluster creation - operator/ArgoCD installs included - is a `helm upgrade --install` or
+`kubectl apply`, so it resumes correctly even if a previous run stopped right after
+`kind create cluster`. Only reach for `./clean-up.sh` (deletes the cluster and the saved
+Vault keys) if the kind cluster itself looks broken rather than just mid-install.
 
 ## What it does
 
-1. Creates the `5s-tes` kind cluster (`kind-config.yaml`), ports 80/443 mapped to the host.
+1. Creates the `5s-tes` kind cluster (`kind-config.yaml`), ports 80/443 mapped to the host
+   (loopback-only, `listenAddress: "127.0.0.1"`).
 2. Patches kind's `local-path-provisioner` so the `standard` StorageClass serves
    `ReadWriteMany` claims (single-node only - see the script's comment and the linked kind
    issue). This is why both product charts' RWX defaults
@@ -29,8 +31,10 @@ kind cluster itself looks broken rather than just mid-install.
 5. Installs cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the CloudNativePG
    operator, the RabbitMQ Cluster Operator, and ArgoCD.
 6. Builds the six app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
-   `agent-web`, `credentials-camunda`) from this working tree and loads them into kind -
-   nothing is published to Harbor yet (see **Why the product charts are installed directly**).
+   `agent-web`, `credentials-camunda`) from this working tree, loads them into kind, and
+   rolls out any product Deployment that already exists (a rebuild keeps the `:local` tag,
+   so only an explicit rollout picks up the new image) - nothing is published to Harbor yet
+   (see **Why the product charts are installed directly**).
 7. Installs, in order: `submission-devstack` → `submission-stack` → `agent-devstack` →
    `agent-stack`, each from its local chart directory with its `files/values/*-local.yaml`.
 8. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.

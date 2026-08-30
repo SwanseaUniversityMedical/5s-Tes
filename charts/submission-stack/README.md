@@ -65,6 +65,10 @@ computed cluster-scoped names (`submission-vault-server-binding` /
 `agent-vault-server-binding`) never collide. The pod is `submission-vault-0`, not
 `vault-0`, below.
 
+Renaming an existing installation's Vault release abandons its PVC and all sealed state —
+a pre-existing install must migrate (re-attach the PVC under the new release name, or
+re-init and re-seed) before upgrading across this rename.
+
 1. **Init and unseal** (first time only):
 
    ```bash

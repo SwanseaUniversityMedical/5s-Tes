@@ -9,59 +9,77 @@ nodes:
   extraPortMappings:
   - containerPort: 80
     hostPort: 80
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 443
     hostPort: 443
+    listenAddress: "127.0.0.1"
     protocol: TCP
   # dev-access NodePorts (Task 5.2) - one per charts/*-devstack/templates/dev-access.yaml
   # Service, so a natively-running app (VS Code) reaches every dependency at
   # localhost:<port>. Submission (5s-tes-submission):
   - containerPort: 30432
     hostPort: 30432
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30672
     hostPort: 30672
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 31672
     hostPort: 31672
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30900
     hostPort: 30900
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30901
     hostPort: 30901
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30341
     hostPort: 30341
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30200
     hostPort: 30200
+    listenAddress: "127.0.0.1"
     protocol: TCP
   # Agent (5s-tes-agent):
   - containerPort: 31432
     hostPort: 31432
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30673
     hostPort: 30673
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 31673
     hostPort: 31673
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30902
     hostPort: 30902
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 31341
     hostPort: 31341
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 31200
     hostPort: 31200
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30500
     hostPort: 30500
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 30389
     hostPort: 30389
+    listenAddress: "127.0.0.1"
     protocol: TCP
   - containerPort: 31433
     hostPort: 31433
+    listenAddress: "127.0.0.1"
     protocol: TCP

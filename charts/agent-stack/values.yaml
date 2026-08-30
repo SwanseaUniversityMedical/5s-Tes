@@ -144,7 +144,6 @@ openldap:
   chart: openldap-stack-ha
   # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
   chartVersion: "4.3.3"
-  replicas: 1
   storageSize: "1Gi"
   # global.ldapDomain (dot form) for the chart. Keep the domain component in
   # step with agent.ldap.baseDn above if both are left at their defaults.
