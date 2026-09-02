@@ -47,11 +47,11 @@ namespace Credentials.Camunda.Services
         {
             /* Testing connection */
             var gatewayAddress = _configuration["ZeebeBootstrap:Client:GatewayAddress"];
-            var rootCertificatePath = _configuration["ZeebeBootstrap:Client:TransportEncryption:RootCertificatePath"];
 
             var zeebeClient = ZeebeClient.Builder()
                 .UseGatewayAddress(gatewayAddress)
-                .UseTransportEncryption(rootCertificatePath)
+                .UseTransportEncryption()
+                .AllowUntrustedCertificates()
                 .Build();
 
             await zeebeClient.TopologyRequest().Send();
