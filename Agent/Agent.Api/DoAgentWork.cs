@@ -535,16 +535,23 @@ namespace Agent.Api
                                     {
                                         var project = aSubmission.Project.Name;
 
-                                        // Record this submission db so it can be verified by Credentials.Camunda
-                                        _credsDbContext.ApprovedSubmissions.Add(new()
-                                        {
-                                            SubmissionId = aSubmission.Id,
-                                            Project = project,
-                                            UserId = aSubmission.SubmittedBy.Id,
-                                            CreatedAt = DateTime.UtcNow
-                                        });
+                                        // Record this submission in the db so it can be verified by Credentials.Camunda.
 
-                                        await _credsDbContext.SaveChangesAsync();
+                                        // ... but don't create a new one if a record exists already for this submission
+                                        var existingApproval = await _credsDbContext.ApprovedSubmissions.FirstOrDefaultAsync(a => a.SubmissionId == aSubmission.Id);
+
+                                        if (existingApproval == null)
+                                        {
+                                            _credsDbContext.ApprovedSubmissions.Add(new()
+                                            {
+                                                SubmissionId = aSubmission.Id,
+                                                Project = project,
+                                                UserId = aSubmission.SubmittedBy.Id,
+                                                CreatedAt = DateTime.UtcNow
+                                            });
+
+                                            await _credsDbContext.SaveChangesAsync();
+                                        }
 
                                         await TriggerStartCredentialsAsync(aSubmission.Id, project,
                                             aSubmission.SubmittedBy.Id);

@@ -57,7 +57,7 @@ public class VaultConfigurationProvider: ConfigurationProvider, IDisposable
         }
         catch (Exception ex)
         {
-            Log.Error("VaultConfigurationProvider:LoadAsync - " + ex.Message);
+            Log.Error(ex, "VaultConfigurationProvider:LoadAsync - failed to read secret at path {Path} in mount {MountPoint}", _path, _mountPoint);
         }
     }
 
