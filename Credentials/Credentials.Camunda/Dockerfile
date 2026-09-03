@@ -18,16 +18,16 @@ RUN dotnet publish "Credentials.Camunda.csproj" \
 
 FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
-RUN apt-get update && apt-get install -y wget curl && \
+RUN apt-get update && apt-get install -y wget curl gosu && \
     wget https://dl.min.io/client/mc/release/linux-amd64/mc && \
     chmod +x mc && \
     mv mc /usr/local/bin/mc && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
-USER app
 EXPOSE 8080
 EXPOSE 8081
 WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
-ENTRYPOINT ["dotnet", "Credentials.Camunda.dll"]
+COPY --chmod=755 Credentials/Credentials.Camunda/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]
