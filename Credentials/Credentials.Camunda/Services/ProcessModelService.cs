@@ -45,15 +45,13 @@ namespace Credentials.Camunda.Services
 
         public async Task DeployProcessDefinitionAndDecisionModels()
         {
-
-
-
             /* Testing connection */
             var gatewayAddress = _configuration["ZeebeBootstrap:Client:GatewayAddress"];
 
             var zeebeClient = ZeebeClient.Builder()
                 .UseGatewayAddress(gatewayAddress)
-                .UsePlainText()
+                .UseTransportEncryption()
+                .AllowUntrustedCertificates()
                 .Build();
 
             await zeebeClient.TopologyRequest().Send();

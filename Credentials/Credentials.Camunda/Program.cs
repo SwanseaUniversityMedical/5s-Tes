@@ -45,12 +45,11 @@ builder.Services.BootstrapZeebe(
 );
 
 builder.Services.AddZeebeBuilders();
-builder.Services.BootstrapZeebe(configuration.GetSection("ZeebeConfiguration"), typeof(Program).Assembly);
 
 builder.Services.Configure<LdapSettings>(configuration.GetSection("LdapSettings"));
 builder.Services.Configure<Credentials.Camunda.Settings.VaultSettings>(configuration.GetSection("VaultSettings"));
 builder.Services.AddHttpClient();
-builder.Services.AddBusinessServices(configuration);
+builder.Services.AddBusinessServices(configuration, builder.Environment);
 builder.Services.ConfigureCamunda(configuration);
 
 var app = builder.Build();

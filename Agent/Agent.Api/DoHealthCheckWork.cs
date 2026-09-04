@@ -25,7 +25,6 @@ public class DoHealthCheckWork(
   AgentSettings agentSettings,
   JobSettings jobSettings,
   IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings,
-  IEncDecHelper encDecHelper,
   IOptions<ApiEndpointSettings> apiEndpointSettings,
   IConfiguration configuration,
   RabbitMQSetting rabbitSettings)
@@ -232,8 +231,7 @@ public class DoHealthCheckWork(
         keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakDemoMode);
 
       // Attempt to connect to egress using current credentials
-      var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username,
-        encDecHelper.Decrypt(keycloakSettings.PasswordEnc), "dare-tre-admin");
+      var token = await keycloakTokenHelper.GetTokenForUser(keycloakSettings.Username, keycloakSettings.PasswordEnc, "dare-tre-admin");
       isHealthy = !string.IsNullOrWhiteSpace(token.token);
 
       if (!isHealthy)

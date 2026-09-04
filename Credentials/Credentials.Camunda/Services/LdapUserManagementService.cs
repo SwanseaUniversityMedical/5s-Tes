@@ -27,28 +27,27 @@ namespace Credentials.Camunda.Services
             LdapDirectoryIdentifier identifier = null;
             if (_config.Port == -1)
             {
-                Log.Information("_config.Host > " + _config.Host + " _config.connectionless >  " + _config.connectionless);
+                Log.Debug("Connecting via {Host}, connectionless {Connectionless}", _config.Host, _config.connectionless);
                 identifier = new LdapDirectoryIdentifier(_config.Host, fullyQualifiedDnsHostName : true, _config.connectionless);
             }
             else
             {
-                Log.Information("_config.Host > " + _config.Host + " _config.Port >  " + _config.Port);
+                Log.Debug("Connecting via {Host}:{Port}", _config.Host, _config.Port);
                 identifier = new LdapDirectoryIdentifier(_config.Host, _config.Port);
             }
 
             // Always use the identifier which contains both host and port information
             var connection = new LdapConnection(identifier);
 
-    
+
             connection.SessionOptions.ProtocolVersion = 3;
-            Log.Information("_config.UseSSL > " + _config.UseSSL);
+            Log.Debug("UseSSL {UseSSL}", _config.UseSSL);
             if (_config.UseSSL)
             {
                 connection.SessionOptions.SecureSocketLayer = true;
             }
 
             connection.AuthType = AuthType.Basic;
-            Log.Information("admin DN > " + _config.AdminDn);
 
             connection.Credential = new NetworkCredential(_config.AdminDn, _config.AdminPassword);
 
@@ -66,7 +65,7 @@ namespace Credentials.Camunda.Services
                     _logger.LogInformation("LDAP bind successful.");
                 } catch (System.DirectoryServices.Protocols.LdapException ex)
                 {
-                    Log.Error("LDAP connection failed: {Message} - ServerErrorMessage: {ServerError}", ex.Message, ex.ServerErrorMessage);
+                    Log.Error(ex, "LDAP connection failed: {Message} - ErrorCode: {ErrorCode} - ServerErrorMessage: {ServerError}", ex.Message, ex.ErrorCode, ex.ServerErrorMessage);
                     throw;
                 }
 
@@ -84,7 +83,7 @@ namespace Credentials.Camunda.Services
                 var escapedCn = EscapeDnValue(request.Username);
                 var userDn = $"cn={escapedCn},{_config.UserOu},{_config.BaseDn}";
 
-                Log.Information("userDn >" + userDn);
+                Log.Debug("Created user entry {UserDn}", userDn);
 
                 var addAttrs = new List<DirectoryAttribute>
                 {
@@ -122,8 +121,6 @@ namespace Credentials.Camunda.Services
                     // ─────────────────────────────
                     var groupCn = $"{_config.GroupCn},{_config.BaseDn}";
 
-                    Log.Information("groupCn >" + groupCn);
-        
                     // TODO: add support for ldap servers that use 'memberUid' instead of 'member' attribute
                     // Will require querying the ldap server to see what it uses
                     var mod = new DirectoryAttributeModification
@@ -213,7 +210,7 @@ namespace Credentials.Camunda.Services
             {
                 var searchRequest = new SearchRequest(
               $"{_config.UserOu},{_config.BaseDn}",
-              $"(cn={username})",
+              $"(cn={LdapFilterEscape(username)})",
               SearchScope.OneLevel,
               "cn");
 
@@ -223,6 +220,18 @@ namespace Credentials.Camunda.Services
             catch (System.DirectoryServices.Protocols.DirectoryOperationException ex) {
                 return false;
             }
+        }
+
+        private static string LdapFilterEscape(string input)
+        {
+            if (string.IsNullOrEmpty(input)) return string.Empty;
+            // Escapes special characters for an LDAP filter
+            return input
+                .Replace("\\", "\\5c")
+                .Replace("*", "\\2a")
+                .Replace("(", "\\28")
+                .Replace(")", "\\29")
+                .Replace("\0", "\\00");
         }
 
         private static string EscapeDnValue(string value)

@@ -18,13 +18,16 @@ RUN dotnet publish "Agent.Api.csproj" \
 
 FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
 USER root
+RUN apt-get update && apt-get install -y gosu && \
+    apt-get clean && \
+    rm -rf /var/lib/apt/lists/*
 COPY rootca.pem /usr/local/share/ca-certificates/chi-ansible.crt
 RUN chmod 644 /usr/local/share/ca-certificates/*.crt && \
 	update-ca-certificates
 
-USER app
 EXPOSE 8080
 EXPOSE 443
 WORKDIR /app
 COPY --chown=app:app --from=build /app/publish .
-ENTRYPOINT ["dotnet", "Agent.Api.dll"]
+COPY --chmod=755 Agent/Agent.Api/entrypoint.sh /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

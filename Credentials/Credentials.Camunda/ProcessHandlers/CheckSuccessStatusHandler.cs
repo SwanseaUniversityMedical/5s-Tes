@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System.Text.Json;
 using Credentials.Models.DbContexts;
 using Credentials.Models.Models;
@@ -67,9 +67,19 @@ namespace Credentials.Camunda.ProcessHandlers
                 return;
             }
 
-            
+
             foreach (var r in rows)
+            {
                 r.SuccessStatus = SuccessStatus.Success;
+            }
+
+            // Mark this submission as processed so that it doesn't get used again.
+            ApprovedSubmission? approvedSubmission = await _credDb.ApprovedSubmissions.FirstOrDefaultAsync(x => x.SubmissionId == int.Parse(submissionId));
+            if (approvedSubmission != null) 
+            {
+                approvedSubmission.IsProcessed = true;
+                approvedSubmission.ProcessedAt = DateTime.UtcNow;
+            }
 
             await _credDb.SaveChangesAsync();
             _logger.LogInformation("Status SUCCESS  for ParentProcessInstanceKey={Parent}", parentProcessKey);

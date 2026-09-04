@@ -38,6 +38,13 @@ namespace Credentials.Camunda.ProcessHandlers
                 submissionId = extraction.SubmissionId;
                 parentProcessKey = extraction.ParentProcessKey;
 
+                // Refuse to provision unless this submission was approved by Agent.Api
+                if (!await IsSubmissionApprovedAsync(extraction))
+                {
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres", "No matching approved submission record found");
+                    return CreateStatusResponse("ERROR: Submission not approved.");
+                }
+
                 if (extraction.EnvList?.FirstOrDefault() == null)
                 {
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
@@ -98,15 +105,6 @@ namespace Credentials.Camunda.ProcessHandlers
                     SchemaPermissions = schemaPermissions
                 };
 
-                // Call PostgreSQL service to create user
-                var result = await _postgreSQLUserManagementService.CreateUserAsync(createUserRequest);
-                if (!result.Success)
-                {
-                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
-                        $"Failed to create PostgreSQL user: {result.ErrorMessage}");
-                    return CreateStatusResponse("ERROR: Failed credential creation");
-                }
-
                 // Build credential data
                 var credentialData = BuildCredentialData(extraction.EnvList, password);
 
@@ -114,6 +112,17 @@ namespace Credentials.Camunda.ProcessHandlers
                 string vaultPath = $"postgres/{extraction.User}/{submissionId}/{extraction.Project}";
                 if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, credentialData, "postgres"))
                     return CreateStatusResponse("ERROR: Credential store in vault failed");
+
+                // Call PostgreSQL service to create user
+                var result = await _postgreSQLUserManagementService.CreateUserAsync(createUserRequest);
+                if (!result.Success)
+                {
+                    // Remove the credential from Vault so that it isn't left orphaned in the event of an account creation failure.
+                    await RollBackVaultCredentialAsync(vaultPath, "postgres");
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
+                        $"Failed to create PostgreSQL user: {result.ErrorMessage}");
+                    return CreateStatusResponse("ERROR: Failed credential creation");
+                }
 
                 // Record success
                 await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, "postgres");

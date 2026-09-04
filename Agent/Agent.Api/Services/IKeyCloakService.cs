@@ -1,4 +1,4 @@
-﻿using System.Net;
+using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -122,7 +122,6 @@ namespace Agent.Api.Services
                 url = $"http://{domain}/realms/{realm}/protocol/openid-connect/token";
             }
 
-            Log.Information(" GetAccessTokenAsync url >" + url);
             var client = new HttpClient(GetHttpClientHandler());
 
             var tokenRequestBody = new FormUrlEncodedContent(new Dictionary<string, string>
@@ -138,7 +137,6 @@ namespace Agent.Api.Services
 
 
             var content = await response.Content.ReadAsStringAsync();
-            Log.Information(" GetAccessTokenAsync content >" + content);
             var token = JsonConvert.DeserializeObject<TokenResponse>(content);
             return token;
         }
@@ -184,12 +182,10 @@ namespace Agent.Api.Services
                 url = $"http://{domain}/auth/realms/{realm}/protocol/openid-connect/token";
             }
 
-            Log.Information(" GetUserIdAsync url >" + url);
             var client = new HttpClient(GetHttpClientHandler());
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await client.GetAsync(url);
             var content = await response.Content.ReadAsStringAsync();
-            Log.Information(" GetUserIdAsync content >" + content);
             var users = JsonConvert.DeserializeObject<List<User>>(content);
             return users.Count > 0 ? users[0].Id : null;
         }
@@ -210,7 +206,6 @@ namespace Agent.Api.Services
             var client = new HttpClient(GetHttpClientHandler());
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             var response = await client.DeleteAsync(url);
-            Log.Information(" DeleteUserAsync content >" + await response.Content.ReadAsStringAsync());
             response.EnsureSuccessStatusCode();
         }
 
@@ -226,7 +221,6 @@ namespace Agent.Api.Services
                 url = $"http://{domain}/auth/admin/realms/{realm}/users";
             }
 
-            Log.Information(" MakeAccounts url >" + url);
             var client = new HttpClient(GetHttpClientHandler());
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", accessToken);
             client.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
@@ -262,7 +256,6 @@ namespace Agent.Api.Services
 
                 var Contentdata = await response.Content.ReadAsStringAsync();
 
-                Log.Information(" MakeAccounts content >" + Contentdata);
                 if (response.IsSuccessStatusCode)
                 {
                     Log.Information("User created successfully.");

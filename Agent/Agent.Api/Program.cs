@@ -85,9 +85,13 @@ AddVaultServices(builder, configuration);
 
 builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
 builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
+
+var rabbitSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSetting>();
+var sslPart = rabbitSettings.UseSsl ? $";ssl=true;sslserverName={configuration["RabbitMQ:HostAddress"]}" : "";
+
 var bus =
     builder.Services.AddSingleton(RabbitHutch.CreateBus(
-        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}"));
+        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}{sslPart}"));
 await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"],
     configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
 
@@ -106,7 +110,6 @@ builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(
   configuration, "SubmissionKeyCloakSettings");
 builder.Services.Configure<ApiEndpointSettings>(
   builder.Configuration.GetSection("ApiEndpoints"));
-var apiEndpointSettings = configuration.GetSection("ApiEndpoints").Get<ApiEndpointSettings>();
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
 builder.Services.AddSingleton(HasuraSettings);
@@ -235,7 +238,7 @@ builder.Services.AddAuthentication(options =>
         options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
 
         options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata; 
-        options.IncludeErrorDetails = true;
+        options.IncludeErrorDetails = environment.IsDevelopment();
 
         options.TokenValidationParameters = TVP;
     });
@@ -246,23 +249,6 @@ Log.Information(
     treKeyCloakSettings.ValidAudiences);
 // - authorize here
 
-
-// Enable CORS
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-        policy =>
-        {
-          if (apiEndpointSettings != null)
-            policy.WithOrigins(
-                apiEndpointSettings.TreApiUrl
-              )
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
-        });
-});
 
 var app = builder.Build();
 app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -292,7 +278,7 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    //app.UseHsts();
+    app.UseHsts();
 }
 
 
@@ -327,7 +313,16 @@ using (var scope = app.Services.CreateScope())
 }
 
 
-//app.UseHttpsRedirection();
+var httpsRedirect = configuration["httpsRedirect"];
+if (httpsRedirect != null && httpsRedirect.ToLower() == "true")
+{
+    Log.Information("Turning on https Redirect");
+    app.UseHttpsRedirection();
+}
+else
+{
+    Log.Information("Https redirect disabled. Http only");
+}
 app.UseStaticFiles();
 app.UseRouting();
 //app.UseCookiePolicy(new CookiePolicyOptions
@@ -335,7 +330,6 @@ app.UseRouting();
 //    Secure = CookieSecurePolicy.Always
 //});
 
-app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(
@@ -444,15 +438,10 @@ void AddServices(WebApplicationBuilder builder)
     }
 }
 
-var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
-
-if (extHangfire != null && extHangfire.ToLower() == "true")
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        Authorization = new List<IDashboardAuthorizationFilter>()
+    Authorization = new List<IDashboardAuthorizationFilter>()
         {
-            //new LocalRequestsOnlyAuthorizationFilter(),
             new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
             {
                 RequireSsl = false,
@@ -467,14 +456,8 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                     },
                 },
             }),
-        },
-        //IsReadOnlyFunc = (DashboardContext context) => true,
-    });
-}
-else
-{
-    app.UseHangfireDashboard();
-}
+        }
+});
 
 string healthCheckJobName = jobSettings.HealthCheckJobName;
 if (jobSettings.healthCheckSchedule == 0)
