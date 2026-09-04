@@ -65,7 +65,7 @@ namespace Credentials.Camunda.Services
                     _logger.LogInformation("LDAP bind successful.");
                 } catch (System.DirectoryServices.Protocols.LdapException ex)
                 {
-                    Log.Error("LDAP connection failed: {Message} - ServerErrorMessage: {ServerError}", ex.Message, ex.ServerErrorMessage);
+                    Log.Error(ex, "LDAP connection failed: {Message} - ErrorCode: {ErrorCode} - ServerErrorMessage: {ServerError}", ex.Message, ex.ErrorCode, ex.ServerErrorMessage);
                     throw;
                 }
 
