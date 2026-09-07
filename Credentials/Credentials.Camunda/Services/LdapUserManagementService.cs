@@ -45,6 +45,7 @@ namespace Credentials.Camunda.Services
             if (_config.UseSSL)
             {
                 connection.SessionOptions.SecureSocketLayer = true;
+                connection.SessionOptions.VerifyServerCertificate = (conn, cert) => true;
             }
 
             connection.AuthType = AuthType.Basic;
