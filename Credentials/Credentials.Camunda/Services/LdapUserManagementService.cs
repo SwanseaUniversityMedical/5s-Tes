@@ -45,6 +45,8 @@ namespace Credentials.Camunda.Services
             if (_config.UseSSL)
             {
                 connection.SessionOptions.VerifyServerCertificate = (conn, cert) => true;
+                connection.AuthType = AuthType.Anonymous;
+                connection.Bind();
                 connection.SessionOptions.StartTransportLayerSecurity(null);
             }
 
