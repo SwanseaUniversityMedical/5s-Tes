@@ -44,8 +44,8 @@ namespace Credentials.Camunda.Services
             Log.Debug("UseSSL {UseSSL}", _config.UseSSL);
             if (_config.UseSSL)
             {
-                connection.SessionOptions.SecureSocketLayer = true;
                 connection.SessionOptions.VerifyServerCertificate = (conn, cert) => true;
+                connection.SessionOptions.StartTransportLayerSecurity(null);
             }
 
             connection.AuthType = AuthType.Basic;
