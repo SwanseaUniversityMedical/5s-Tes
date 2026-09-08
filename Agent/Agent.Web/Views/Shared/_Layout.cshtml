@@ -153,7 +153,8 @@
         });
         new DataTable('#memberList');
         new DataTable('#statusTable', {
-            order: [[4, 'desc']]
+            order: [[3, 'desc']],
+            columnDefs: [{ orderable: false, targets: 4 }]
         });
         $('#launch-button').on('click', function () {
 

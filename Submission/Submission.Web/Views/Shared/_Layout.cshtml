@@ -256,7 +256,8 @@
                     type: "POST",
                     data: { ProjectId: el, ItemList: commaSeparatedIds },
                     success: function (reponse) {
-                        window.location.href = "/Project/GetProject/" + el;
+                       window.location.href = "/Project/GetProject/" + el;
+                       document.getElementById("people").click();
                     }
                 })
             }
@@ -289,7 +290,8 @@
                     type: "POST",
                     data: { ProjectId: el, ItemList: commaSeparatedIds },
                     success: function (reponse) {
-                        window.location.href = "/Project/GetProject/" + el;
+                       window.location.href = "/Project/GetProject/" + el;
+                       document.getElementById("treLink").click();
                     }
                 })
             }
