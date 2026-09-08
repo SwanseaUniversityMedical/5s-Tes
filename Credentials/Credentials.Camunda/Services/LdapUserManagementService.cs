@@ -44,10 +44,7 @@ namespace Credentials.Camunda.Services
             Log.Debug("UseSSL {UseSSL}", _config.UseSSL);
             if (_config.UseSSL)
             {
-                connection.SessionOptions.VerifyServerCertificate = (conn, cert) => true;
-                connection.AuthType = AuthType.Anonymous;
-                connection.Bind();
-                connection.SessionOptions.StartTransportLayerSecurity(null);
+                connection.SessionOptions.SecureSocketLayer = true;
             }
 
             connection.AuthType = AuthType.Basic;
@@ -68,7 +65,7 @@ namespace Credentials.Camunda.Services
                     _logger.LogInformation("LDAP bind successful.");
                 } catch (System.DirectoryServices.Protocols.LdapException ex)
                 {
-                    Log.Error(ex, "LDAP connection failed: {Message} - ErrorCode: {ErrorCode} - ServerErrorMessage: {ServerError}", ex.Message, ex.ErrorCode, ex.ServerErrorMessage);
+                    Log.Error("LDAP connection failed: {Message} - ServerErrorMessage: {ServerError}", ex.Message, ex.ServerErrorMessage);
                     throw;
                 }
 
