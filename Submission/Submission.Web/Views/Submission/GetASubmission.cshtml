@@ -279,11 +279,15 @@
                                                                                 else if (status.Status == FiveSafesTes.Core.Models.Enums.StatusType.Failed)
                                                                                 {
                                                                             <h6 class="mb-0">
-                                                                                <span class="badge bg-danger rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="Failed">
+                                                                                <span class="badge bg-danger rounded-pill d-inline-flex align-items-center pe-3" data-bs-toggle="tooltip" data-bs-title="@(string.IsNullOrWhiteSpace(child.StatusDescription) ? "Failed" : child.StatusDescription)">
                                                                                     <i class="fa-solid fa-triangle-exclamation fs-6 text-white me-2"></i>
                                                                                     <span class="text-start">
                                                                                         <span class="mb-1">Failed</span>
                                                                                         <span class="font-monospace small d-block">@child.GetTotalDisplayTime()</span>
+                                                                                        @if (!string.IsNullOrWhiteSpace(child.StatusDescription))
+                                                                                        {
+                                                                                        <span class="font-monospace small d-block">@child.StatusDescription</span>
+                                                                                        }
                                                                                     </span>
                                                                                 </span>
                                                                             </h6>

@@ -203,8 +203,10 @@ namespace Agent.Api
         {
             try
             {
-                Log.Information("{Function} Check TES : {TaskId},  TES : {TesId}, sub: {SubId}", "CheckTES", taskID,
-                    tesId, subId);
+                var treName = _config["TreName"];
+
+                Log.Information("{Function} {TreName} checking TES task {TaskId} (TES {TesId}) for sub {SubId}",
+                    "CheckTES", treName, taskID, tesId, subId);
                 string url = _AgentSettings.TESKAPIURL + "/" + taskID + "?view=BASIC";
 
                 HttpClientHandler handler = new HttpClientHandler();
@@ -230,8 +232,8 @@ namespace Agent.Api
                 using (HttpClient client = new HttpClient(handler))
                 {
                     HttpResponseMessage response = client.GetAsync(url).Result;
-                    Log.Information("{Function} Response status {State}", "CheckTES", response.StatusCode);
-                    Console.WriteLine(response.StatusCode);
+                    Log.Information("{Function} {TreName} TESK responded {State} for sub {SubId} (task {TaskId})",
+                        "CheckTES", treName, response.StatusCode, subId, taskID);
 
                     if (response.IsSuccessStatusCode)
                     {
@@ -378,12 +380,17 @@ namespace Agent.Api
                                 }
                                 else if (status.state == "EXECUTOR_ERROR" || status.state == "SYSTEM_ERROR")
                                 {
-                                    Log.Information(
-                                        $"  CloseSubmissionForTre with status.state subId {subId.ToString()} == EXECUTOR_ERROR or SYSTEM_ERROR ");
+                                    // TES task failed. Close as Failed (a valid terminal status) and attach
+                                    // the TES state (EXECUTOR_ERROR / SYSTEM_ERROR) as the reason.
+                                    var failureReason = status.state;
+
+                                    Log.Error(
+                                        "{Function} TES task failed for sub {SubId} (task {TaskId}), state {State}: {Reason}",
+                                        "CheckTES", subId, taskID, status.state, failureReason);
                                     try
                                     {
-                                        result = _subHelper.CloseSubmissionForTre(subId.ToString(), StatusType.Failed,
-                                            "", "");
+                                        result = _subHelper.CloseSubmissionForTre(subId.ToString(),
+                                            StatusType.Failed, failureReason, "");
                                     }
                                     catch (Exception ex)
                                     {
@@ -432,12 +439,13 @@ namespace Agent.Api
                             }
                         }
                         else
-                            Log.Information("{Function} No change", "CheckTES");
+                            Log.Information("{Function} {TreName} no status change for sub {SubId} (state {State})",
+                                "CheckTES", treName, subId, status.state);
                     }
                     else
                     {
-                        Log.Error("{Function} HTTP Request {url} failed with status code {code}", "CheckTES", url,
-                            response.StatusCode);
+                        Log.Error("{Function} {TreName} TESK poll failed for sub {SubId} — request {Url} returned {Code}",
+                            "CheckTES", treName, subId, url, response.StatusCode);
                     }
                 }
             }
@@ -452,7 +460,9 @@ namespace Agent.Api
         {
             if (!_onboardingConfig.CurrentValue.IsConfigurationImported) return;
 
-            Log.Information("{Function} DoAgentWork running", "Execute");
+            var treName = _config["TreName"];
+
+            Log.Information("{Function} {TreName} DoAgentWork running", "Execute", treName);
             // control use of dependency injection
             using (var scope = _serviceProvider.CreateScope())
             {
@@ -460,8 +470,8 @@ namespace Agent.Api
                 var useRabbit = _AgentSettings.UseRabbit;
                 var useTESK = _AgentSettings.UseTESK;
 
-                Log.Information("{Function} useRabbit {useRabbit}", "Execute", useRabbit);
-                Log.Information("{Function} useTESK {useTESK}", "Execute", useTESK);
+                Log.Information("{Function} {TreName} useRabbit {useRabbit}", "Execute", treName, useRabbit);
+                Log.Information("{Function} {TreName} useTESK {useTESK}", "Execute", treName, useTESK);
 
                 var cancelsubprojs = _subHelper.GetRequestCancelSubsForTre();
                 if (cancelsubprojs != null)
@@ -478,32 +488,35 @@ namespace Agent.Api
                 // Get list of submissions
                 List<Submission> listOfSubmissions;
 
+                Log.Information("{Function} {TreName} is scanning for submissions...", "Execute", treName);
+
                 try
                 {
                     listOfSubmissions = _subHelper.GetWaitingSubmissionForTre();
                 }
                 catch (Exception e)
                 {
-                    Log.Error(e, "{Function} Error getting submissions", "Execute");
+                    Log.Error(e, "{Function} {TreName} error getting submissions", "Execute", treName);
 
                     throw;
                 }
 
 
-                Log.Information("{Function} listOfSubmissions {listOfSubmissions}", "Execute",
-                    listOfSubmissions?.Count);
+                Log.Information("{Function} {TreName} - Submissions found: {listOfSubmissions}", "Execute",
+                    treName, listOfSubmissions?.Count);
                 foreach (var aSubmission in listOfSubmissions)
                 {
                     try
                     {
-                        Log.Information("{Function}Submission: {submission}", "Execute", aSubmission.Id);
+                        Log.Information("{Function} {TreName} processing submission: {submission}", "Execute",
+                            treName, aSubmission.Id);
 
                         // Check user is allowed on the project
                         if (!_subHelper.IsUserApprovedOnProject(aSubmission.Project.Id, aSubmission.SubmittedBy.Id))
                         {
                             Log.Error(
-                                "{Function }User {UserID}/project {ProjectId} is not value for this submission {submission}",
-                                "Execute",
+                                "{Function} {TreName} User {UserID}/project {ProjectId} is not valid for this submission {submission}",
+                                "Execute", treName,
                                 aSubmission.SubmittedBy.Id, aSubmission.Project.Id, aSubmission);
                             // record error with submission layer
                             var result =
@@ -515,11 +528,28 @@ namespace Agent.Api
 
                         else
                         {
+                            // Submission picked up by this TRE — surface it as a step under Tre Layer
+                            // Processing. Guarded on the queue status so it's emitted once on first
+                            // pickup, not re-emitted every scan cycle while we wait on credentials.
+                            if (aSubmission.Status == StatusType.WaitingForAgentToTransfer)
+                            {
+                                _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
+                                    StatusType.AgentTransferringToPod, "");
+                            }
+
                             Dictionary<string, Dictionary<string, object>> credentials =
                                 new Dictionary<string, Dictionary<string, object>>();
 
                             if (await _features.IsEnabledAsync(FeatureFlags.EphemeralCredentials))
                             {
+                                // Entering credential provisioning — surface it as a step. Guarded so it
+                                // is emitted once, not on every re-pick while credentials are still pending.
+                                if (aSubmission.Status != StatusType.ProcessingCredentials)
+                                {
+                                    _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
+                                        StatusType.ProcessingCredentials, "");
+                                }
+
                                 var credsForSubmission = await _credsDbContext.EphemeralCredentials
                                     .Where(c => c.SubmissionId == aSubmission.Id).ToListAsync();
 
@@ -683,8 +713,8 @@ namespace Agent.Api
                                 }
                                 catch (Exception e)
                                 {
-                                    Log.Error(e, "{Function} Send rabbit failed for sub {SubId}", "Execute",
-                                        aSubmission.Id);
+                                    Log.Error(e, "{Function} {TreName} send rabbit failed for sub {SubId}", "Execute",
+                                        treName, aSubmission.Id);
                                     processedOK = false;
                                 }
                             }
@@ -692,7 +722,8 @@ namespace Agent.Api
                             // **************  SEND TO TESK
                             if (useTESK)
                             {
-                                Log.Information("{Function}  SEND TO TESK ", "Execute");
+                                Log.Information("{Function} {TreName} sending submission {SubId} to TESK", "Execute",
+                                    treName, aSubmission.Id);
                                 var arr = new HttpClient();
                                 var Token = "";
 
@@ -949,8 +980,8 @@ namespace Agent.Api
 
                     catch (Exception ex)
                     {
-                        Log.Error(ex, "{Function } Error occured processing submission {SubId}", "Execute",
-                            aSubmission.Id);
+                        Log.Error(ex, "{Function} {TreName} error occurred processing submission {SubId}", "Execute",
+                            treName, aSubmission.Id);
                     }
                 }
             }
