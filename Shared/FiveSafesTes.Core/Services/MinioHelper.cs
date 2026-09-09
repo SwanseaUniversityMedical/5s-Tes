@@ -769,7 +769,7 @@ namespace FiveSafesTes.Core.Services
             {
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
-                var command = $"mc admin user remove {_minioSettings.Alias} {accessKey}";
+                var command = $"mc admin user remove {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -842,7 +842,7 @@ namespace FiveSafesTes.Core.Services
             {
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
-                var command = $"mc admin user info {_minioSettings.Alias} {accessKey}";
+                var command = $"mc admin user info {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -970,7 +970,7 @@ namespace FiveSafesTes.Core.Services
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
                 var command =
-                    $"mc admin policy attach {_minioSettings.Alias} {policyName} --user {accessKey}";
+                    $"mc admin policy attach {_minioSettings.Alias} {ShellQuote(policyName)} --user {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -1012,7 +1012,7 @@ namespace FiveSafesTes.Core.Services
             {
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
-                var command = $"mc admin policy rm {_minioSettings.Alias} {policyName}";
+                var command = $"mc admin policy rm {_minioSettings.Alias} {ShellQuote(policyName)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
