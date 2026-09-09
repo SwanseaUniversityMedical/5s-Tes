@@ -75,4 +75,7 @@ spec:
         ui:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.
           sslCookies: "{{ .Values.global.ingress.tls }}"
+          # Verified: rustfs.yaml's ingress targets the rustfs chart's console
+          # Service port, at this same stack's ingress host.
+          s3ConsoleUrl: "{{ ternary "https" "http" .Values.global.ingress.tls }}://rustfs.{{ .Values.global.ingress.host }}"
 {{- end }}

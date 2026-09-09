@@ -244,9 +244,11 @@ ever loads — meaningless below 2 replicas regardless.
 ## Egress
 
 `egress.enabled` (default `false`) composes the optional Data-Egress product as the `egress`
-`Application` (`templates/egress.yaml`), pulled from the same Harbor OCI repository as `agent`.
-**The `egress` chart must already exist in Harbor at `egress.chartVersion` before turning this
-on** — ArgoCD fails the sync otherwise. Turning it on also:
+`Application` (`templates/egress.yaml`), pulled from `harbor.ukserp.ac.uk/dare-trefx/chart`
+(the DARE-Control charts project) — a different Harbor registry and project than `agent`'s own
+`harbor.federated-analytics.ac.uk/5s-tes/chart`. **The `egress` chart must already exist at that
+coordinate, at `egress.chartVersion`, before turning this on** — ArgoCD fails the sync
+otherwise. Turning it on also:
 
 - Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
   stack's own `postgres` `Cluster` — see **CloudNativePG** below.
