@@ -43,6 +43,11 @@ tredata:
 openldap:
   enabled: false
 
+# Renders the Data-Egress realm import and the egress static Secrets. Set
+# alongside agent-stack's own egress.enabled.
+egress:
+  enabled: false
+
 # Host-side NodePort Services for a natively-running app (VS Code) to reach
 # in-cluster dependencies. See README "Host access for development".
 devAccess:

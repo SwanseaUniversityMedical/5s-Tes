@@ -12,8 +12,8 @@ Only things production provides another way (doc 09):
 
 | Component | Production provides it as | Here |
 |---|---|---|
-| Identity provider | Hosted Keycloak `Dare-TRE` realm | Bitnami Keycloak `Application` with a hand-written dev realm import and its own bundled dev PostgreSQL |
-| App and dependency secrets | `agent-stack`'s `VaultSecret`s | Static `Secret`s under the same names (`postgres-secret`, `agent-api-secret`, `agent-ui-secret`, `credentials-camunda-secret`, `agent-rustfs-secret`, `seq-admin-password-secret`, `agent-openldap-secret` if `openldap.enabled`) |
+| Identity provider | Hosted Keycloak `Dare-TRE` (and, if `egress.enabled`, `Data-Egress`) realm | Bitnami Keycloak `Application` with hand-written dev realm imports and its own bundled dev PostgreSQL |
+| App and dependency secrets | `agent-stack`'s `VaultSecret`s | Static `Secret`s under the same names (`postgres-secret`, `agent-api-secret`, `agent-ui-secret`, `credentials-camunda-secret`, `agent-rustfs-secret`, `seq-admin-password-secret`, `agent-openldap-secret` if `openldap.enabled`, `egress-api-secret`/`egress-ui-secret` if `egress.enabled`) |
 | Database GUI | — (ops tooling) | Adminer `Application` |
 | External TRE data database | Whatever real database `credentials-camunda-secret.connectionStringTreData` is pointed at | Bitnami PostgreSQL `Application` named `tredata`, a disposable stand-in |
 
@@ -34,13 +34,18 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Credential | Value | Where it's set | Where it's read |
 |---|---|---|---|
 | PostgreSQL superuser | `postgres` / `password123` | `postgres-secret` | `agent-stack`'s CNPG `Cluster` superuserSecret; also embedded in `agent-api-secret`'s/`credentials-camunda-secret`'s connection strings |
-| `Dare-TRE-API` client secret | `devsecret-tre-api` | realm import only | Not directly consumed by any app Secret — `Dare-TRE-API` is a valid audience for `Dare-TRE-UI` tokens (`api.oidc.validAudiences`), not a client the chart authenticates as. `serviceAccountsEnabled` stays on to mirror the prod realm's client shape, but has no realm role grant: no verified consumer of a client-credentials token exists in this codebase |
+| `Dare-TRE-API` client secret | `devsecret-tre-api` | realm import + `egress-api-secret.treKeycloakClientSecret` (if `egress.enabled`) | Not directly consumed by any app Secret otherwise — `Dare-TRE-API` is a valid audience for `Dare-TRE-UI` tokens (`api.oidc.validAudiences`), not a client the chart authenticates as. `serviceAccountsEnabled` stays on to mirror the prod realm's client shape, but has no realm role grant: no verified consumer of a client-credentials token exists in this codebase. `egress-api-secret.treKeycloakClientSecret` is the egress api's own view of this same client secret — cross-realm, used to call `agent-api` |
 | `Dare-TRE-UI` client secret | `devsecret-tre-ui` | realm import + `agent-api-secret.treKeycloakClientSecret`, `agent-ui-secret.keycloakClientSecret` | `TreKeyCloakSettings__ClientSecret` (api, ui) — the single client used by api and ui |
 | `Dare-TRE-S3` client secret | `devsecret-tre-s3` | realm import only | Not yet consumed by any app Secret — the client exists for a future S3-console SSO wire-up, same status as `submission-devstack`'s `Dare-Control-S3` |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-tre-admin` realm role so `[Authorize(Roles = "dare-tre-admin")]` controllers in `Agent.Api` and `Agent.Web` work |
 | `Dare-Control-API` client secret (cross-realm) | `devsecret-control-api` | `agent-api-secret.submissionKeycloakClientSecret` only — not in this chart's own realm | `SubmissionKeyCloakSettings__ClientSecret` equivalent on the api side. Must equal `submission-devstack`'s own `Dare-Control-API` secret; only matters if the Submission product is also running locally (cross-realm token validation) |
-| `Data-Egress-API` client secret | `dev-egress-unused` | `agent-api-secret.egressKeycloakClientSecret` | Only read when `api.egress.enabled` is `true`; `agent-stack` sets that from `egress.enabled` (default `false`) |
-| S3 (RustFS) access/secret key | `s3-tre` / `s3-tre-pass` | `agent-api-secret.s3AccessKey`/`s3SecretKey` + `agent-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | RustFS chart's own root credentials; api's S3 client |
+| `Data-Egress-API` client secret | `devsecret-egress-api` (`dev-egress-unused` when `egress.enabled` is `false`) | realm import (if `egress.enabled`) + `agent-api-secret.egressKeycloakClientSecret` + `egress-api-secret.dataEgressKeycloakClientSecret` | Only read when `api.egress.enabled` is `true`; `agent-stack` sets that from `egress.enabled` (default `false`). `agent-api-secret`'s value only switches to the real secret when `egress.enabled` is `true` on this chart too — kept as the inert placeholder otherwise, so the `egress.enabled=false` render stays byte-identical |
+| `Data-Egress-UI` client secret | `devsecret-egress-ui` | realm import + `egress-ui-secret.keycloakClientSecret` | `DataEgressUIKeyCloakSettings` equivalent on the UI side (Data-Egress-UI's own client secret, not read by this chart's own apps) |
+| Data-Egress dev login user | `dev` / `password123` | realm import only | Manual browser login to `Data-Egress-UI`; holds realm role `dare-tre-admin` — same role name as the `Dare-TRE` realm's role above, but an independent role in the `Data-Egress` realm, required by the ROPC token request `Agent.Api`'s `DataEgressClientWithoutTokenHelper` makes against this realm (`Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27`, role check in `Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs`) — that flow itself authenticates with a username/password stored in the app's own `KeycloakCredentials` DB table (application data, not this chart), not this realm-import user directly |
+| Data Egress connection string | `Server=pg-pooler;Port=5432;Database=DATA-Egress;User Id=postgres;Password=password123;TrustServerCertificate=True;` | `egress-api-secret.connectionString` | Same shape as `agent-api-secret`'s connection strings, against `DATA-Egress` (`agent-stack`'s `postgres.egressDatabase`) |
+| Data Egress AES key/IV | `ZGV2ZWdyZXNza2V5MTYhIQ==` / `ZGV2ZWdyZXNzYmFzZTE2IQ==` (base64, 16 bytes each) | `egress-api-secret.encryptionKey`/`encryptionBase` | AES-128 key/IV decrypting `KeycloakCredentials.PasswordEnc` rows in the `DATA-Egress` DB; fixed dev values, distinct from any real deployment's — changing them after data exists makes those rows undecryptable |
+| Data Egress demo seed password | `password123` | `egress-api-secret.demoModeDefaultPassword` | Seeded verbatim as the Keycloak password for two demo service-account credential rows when the egress api's own `DemoMode` is on |
+| S3 (RustFS) access/secret key | `s3-tre` / `s3-tre-pass` | `agent-api-secret.s3AccessKey`/`s3SecretKey` + `agent-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` + `egress-api-secret.s3AccessKey`/`s3SecretKey` (if `egress.enabled`) | RustFS chart's own root credentials; api's and egress api's S3 client — egress uses the same TRE object store, no separate bucket/credentials |
 | Vault token | `dev-only-token` | `agent-api-secret.vaultToken` + `credentials-camunda-secret.vaultToken` | `VaultSettings__Token` on both api and the Credentials Camunda worker — the local Vault runs (`vault.enabled` stays `true`; see **Local install**) and must be configured with a token equal to this value after init/unseal, or these Secrets' values updated to match the real token |
 | RabbitMQ default user | `agent` / `password123` | `agent-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
 | Encryption key | `ZGV2LWFnZW50LWVuY3J5cHRpb24ta2V5LTMyYnl0ZSE=` (base64, 32 bytes) | `agent-api-secret.encryptionKey` | The api's encryption key setting |
@@ -135,6 +140,27 @@ Application). `agent.ldap.*`'s own defaults already match the OpenLDAP chart's d
 (`host: openldap`, `port: 389`, `baseDn: dc=camundaephemeral,dc=local`) — leave them alone.
 Both toggles use `admin` for the bind/config-admin passwords (see **Credentials** above).
 
+### Optional: local Data Egress
+
+```
+--set egress.enabled=true    # on THIS chart, so the Data-Egress realm import and
+                              # egress-api-secret/egress-ui-secret render
+```
+
+and, on `agent-stack`:
+
+```
+--set egress.enabled=true
+--set egress.oidcAuthority=http://keycloak.localtest.me/realms/Data-Egress
+```
+
+The extra `egress.oidcAuthority` override is needed for the same reason as `global.oidc.authority`
+above: `agent-stack`'s own default is the production Data-Egress authority, which does not exist
+locally. Both toggles must agree — `agent-stack`'s `egress.enabled` renders the `egress`
+`Application`, the `data-egress` `Database`, and the `egress-*` `VaultSecret`s (or reads this
+chart's static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe);
+this chart's `egress.enabled` renders the realm clients and matching static Secrets those need.
+
 ### GA4GH TES backend
 
 `agent-stack`'s own dev default for `agent.api.tesApiUrl` (`http://localhost:8000/v1/tasks`) is
@@ -158,17 +184,20 @@ charts:
 
 ## Local Keycloak
 
-- URL: `http://keycloak.localtest.me` (admin console), realm `Dare-TRE`. Plain HTTP:
-  `templates/keycloak.yaml`'s `ingress` block sets no `tls` key, and the chart's default
-  is `false`.
-- `agent-stack`'s `global.oidc.authority` must be overridden to reach this Keycloak
-  — see **Local install** above.
-- The dev realm mirrors the external prod realm's shape (same realm name `Dare-TRE`, same
-  three client IDs) but is a hand-written, minimal stand-in: `sslRequired: none` and pure
-  wildcard `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a
-  real realm. One protocol mapper is carried over: `Dare-TRE-UI` gets an `oidc-audience-mapper`
-  adding `Dare-TRE-API` to its tokens' audience, mirroring production's `DARE-TRE-API` client
-  scope (`DemoStack/config/realm-config/tre-layer.json`, `clientScopes[].name == "DARE-TRE-API"`).
+- URL: `http://keycloak.localtest.me` (admin console), realm `Dare-TRE` (and, if
+  `egress.enabled`, realm `Data-Egress`). Plain HTTP: `templates/keycloak.yaml`'s `ingress`
+  block sets no `tls` key, and the chart's default is `false`.
+- `agent-stack`'s `global.oidc.authority` (and, if egress is enabled, `egress.oidcAuthority`)
+  must be overridden to reach this Keycloak — see **Local install** above.
+- The dev realms mirror the external prod realms' shape (same realm names, same client IDs)
+  but are hand-written, minimal stand-ins: `sslRequired: none` and pure wildcard
+  `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a real
+  realm. One protocol mapper is carried over in `Dare-TRE`: `Dare-TRE-UI` gets an
+  `oidc-audience-mapper` adding `Dare-TRE-API` to its tokens' audience, mirroring production's
+  `DARE-TRE-API` client scope (`DemoStack/config/realm-config/tre-layer.json`,
+  `clientScopes[].name == "DARE-TRE-API"`). `Data-Egress` carries no protocol mapper — no
+  verified consumer needs one (unlike `Dare-TRE-UI`'s case, no code path in this codebase
+  reads a Data-Egress-issued token's audience claim).
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
   inside pods (api and ui reaching `global.oidc.authority`) would otherwise resolve
   `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —
@@ -226,14 +255,17 @@ from the host.
 | `adminer.*` | Chart pin | `0.1.8` |
 | `tredata.*` | Bitnami PostgreSQL chart pin + org image mirror, dev stand-in for the external TRE data database | `16.7.21` / `harbor.ukserp.ac.uk` |
 | `openldap.enabled` | Render `agent-openldap-secret`. Set alongside `agent-stack`'s own `openldap.enabled` — see **Optional: local OpenLDAP** | `false` |
+| `egress.enabled` | Render the `Data-Egress` realm import and `egress-api-secret`/`egress-ui-secret`. Set alongside `agent-stack`'s own `egress.enabled` — see **Optional: local Data Egress** | `false` |
 | `devAccess.enabled` | Render the `dev-*` NodePort Services, see **Host access for development** | `true` |
 
 ## Limits
 
-- The dev realm is a minimal starting point: three clients, two users (including the
-  `Dare-TRE-API` service account), one realm role, one protocol mapper (the `Dare-TRE-UI`
-  audience mapper, see **Local Keycloak** above). No other client scopes. Extend the realm
-  by editing `templates/keycloak-realm.yaml`.
+- The `Dare-TRE` dev realm is a minimal starting point: three clients, two users (including
+  the `Dare-TRE-API` service account), one realm role, one protocol mapper (the `Dare-TRE-UI`
+  audience mapper, see **Local Keycloak** above). No other client scopes. The `Data-Egress`
+  dev realm (if `egress.enabled`) is equally minimal: two clients, three users (including
+  both service accounts), one realm role (`dare-tre-admin`, see **Credentials** above), no
+  protocol mappers. Extend either realm by editing `templates/keycloak-realm.yaml`.
 - Keycloak only imports a realm on first start; it skips an existing one. To apply a
   `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
   `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and

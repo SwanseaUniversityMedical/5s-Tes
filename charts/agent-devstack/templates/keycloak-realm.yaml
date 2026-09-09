@@ -102,4 +102,79 @@ data:
         }
       ]
     }
+  {{- if .Values.egress.enabled }}
+  # Data-Egress-API/-UI's serviceAccountsEnabled mirrors the production client
+  # shape (DeploymentStack/TRE/config/realm-config/egress-layer.json); no role
+  # granted, no verified client-credentials consumer — Agent's cross-realm call
+  # uses a password grant, not client_credentials
+  # (Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27). That
+  # password-grant token request's role check requires realm role
+  # "dare-tre-admin" here too (Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs) —
+  # same name as the Dare-TRE realm's role above, an independent role in this
+  # realm, matching the production realm export's own role list shape.
+  data-egress.json: |-
+    {
+      "realm": "Data-Egress",
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "clients": [
+        {
+          "clientId": "Data-Egress-API",
+          "name": "Data Egress API (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-egress-api",
+          "standardFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        },
+        {
+          "clientId": "Data-Egress-UI",
+          "name": "Data Egress UI (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-egress-ui",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }
+      ],
+      "roles": {
+        "realm": [
+          {
+            "name": "dare-tre-admin",
+            "description": "Required by the ROPC role check for Agent's cross-realm Data-Egress admin token (KeycloakCommon.cs's requiredRole)."
+          }
+        ]
+      },
+      "users": [
+        {
+          "username": "dev",
+          "enabled": true,
+          "email": "dev@localtest.me",
+          "emailVerified": true,
+          "firstName": "Dev",
+          "lastName": "User",
+          "realmRoles": [
+            "default-roles-data-egress",
+            "dare-tre-admin"
+          ],
+          "credentials": [
+            {
+              "type": "password",
+              "value": "password123",
+              "temporary": false
+            }
+          ]
+        }
+      ]
+    }
+  {{- end }}
 {{- end }}
