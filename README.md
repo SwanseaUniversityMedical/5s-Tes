@@ -76,10 +76,11 @@ Each chart's own README has its install and values reference. `stack` and `devst
 never installed on a shared cluster; locally, a family's devstack installs together
 with its stack — see each README's own install order.
 
-Each chart publishes independently to
-`harbor.federated-analytics.ac.uk/5s-tes/chart/<name>` via its own GitHub Actions workflow
+The `agent`, `submission`, and two `*-stack` charts publish independently to
+`harbor.federated-analytics.ac.uk/5s-tes/chart/<name>` via their own GitHub Actions workflows
 (`.github/workflows/<name>-chart.yaml`), versioned by a PR release label
-(`patch|minor|major: <name>-chart`).
+(`patch|minor|major: <name>-chart`). The `*-devstack` charts are never published — they
+install only from the working tree.
 
 ## Running apps from VS Code against kind
 

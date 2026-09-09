@@ -198,5 +198,4 @@ from the host.
   `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
   `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and
   let ArgoCD re-sync.
-- Local installs use the working tree; the chart also publishes via its own release
-  workflow like every chart in this repo.
+- This chart is never published to Harbor; installs use the working tree.
