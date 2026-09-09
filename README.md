@@ -36,6 +36,9 @@ Web FrontEnd for the Agent.Api. Allows TRE Admins to:
 - Manage Users allowed to submit to the Project.
 - Set DMN rules to configure Ephemeral Credentials creation.
 
+`Agent/agent-web` holds a Next.js frontend for the Agent API. CI builds its container image, but
+no chart in `charts/` deploys it — `Agent.Web` (the `agent-ui` image) is the deployed UI.
+
 ## Credentials
 
 ### Credentials.Camunda
@@ -82,13 +85,12 @@ install only from the working tree.
 
 `dev-env-setup/` (`./cluster-setup.sh`) brings up a `kind` cluster with both product families'
 real dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault, Zeebe, LDAP, Keycloak). Each app can
-then run natively from VS Code / `dotnet run` / `npm run dev` against those dependencies, using
-an `appsettings.Development_Kind.json` profile that sets the same keys as
-`appsettings.Development.json` to kind's localhost NodePorts (the as-built
-tables in `charts/submission-devstack/README.md` and `charts/agent-devstack/README.md`'s own
-"Host access for development" sections) and ingress hosts. Values are
-the `*-devstack` charts' fixed dev Secrets and realm — the documented dev/prod interface, not new
-secret material.
+then run natively from VS Code / `dotnet run` against those dependencies, using an
+`appsettings.Development_Kind.json` profile that sets the same keys as
+`appsettings.Development.json` to kind's localhost NodePorts (the as-built tables in
+`charts/submission-devstack/README.md` and `charts/agent-devstack/README.md`'s own "Host access
+for development" sections) and ingress hosts. Values are the `*-devstack` charts' fixed dev
+Secrets and realm — the documented dev/prod interface, not new secret material.
 
 Select the profile with `ASPNETCORE_ENVIRONMENT=Development_Kind`; give each app its own
 `ASPNETCORE_URLS` so several can run at once without colliding:

@@ -140,7 +140,7 @@ Settings shared by more than one component. Defined once.
 
 | **Name** | **Description** | **Value** |
 |---|---|---|
-| `global.tag` | Image tag used by a component that does not pin its own. All four images are built and released together, so one tag covers them. | `"3.2.0"` |
+| `global.tag` | Image tag used by a component that does not pin its own. All three images are built and released together, so one tag covers them. | `"3.2.0"` |
 | `global.config.aspnetEnvironment` | Value of `ASPNETCORE_ENVIRONMENT` in `api` and `ui`. | `"Development"` |
 | `global.config.seqUrl` | Address of the Seq instance every .NET component logs to. Read into `Serilog__SeqServerUrl`. | `"http://seq:5341"` |
 | `global.config.logLevel` | Default log level. Read into `Serilog__MinimumLevel__Default` and `Logging__LogLevel__Default`. | `"Information"` |
@@ -154,7 +154,7 @@ Settings shared by more than one component. Defined once.
 | `global.ingress.host` | Base domain. `api.ingress.host`/`ui.ingress.host` default to a subdomain of this when left empty. | `"localtest.me"` |
 | `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues each Ingress's TLS certificate. | `"ca-issuer"` |
 | `global.ingress.tls` | Terminate TLS at the ingress. Each Ingress declares its own certificate. | `true` |
-| `global.trustClusterCa.enabled` | Mount a cluster CA bundle over every container's trust store. All four components call Keycloak or another internal service over HTTPS. | `false` |
+| `global.trustClusterCa.enabled` | Mount a cluster CA bundle over every container's trust store. All three components call Keycloak or another internal service over HTTPS. | `false` |
 | `global.trustClusterCa.configMapName` | ConfigMap holding the bundle. Provided by the cluster, not by this chart. | `overlay-castore` |
 | `global.trustClusterCa.key` | Key inside that ConfigMap. Also used as the mount `subPath`. | `ca-certificates.crt` |
 | `global.trustClusterCa.mountPath` | File replaced inside the container. Correct for Debian, Ubuntu and Alpine images. | `/etc/ssl/certs/ca-certificates.crt` |

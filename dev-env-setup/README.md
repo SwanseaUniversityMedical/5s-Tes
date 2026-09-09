@@ -31,10 +31,10 @@ Vault keys) if the kind cluster itself looks broken rather than just mid-install
 5. Installs cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the CloudNativePG
    operator, the RabbitMQ Cluster Operator, and ArgoCD.
 6. Builds the five app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
-   `credentials-camunda`) from this working tree, loads them into kind, and
-   rolls out any product Deployment that already exists (a rebuild keeps the `:local` tag,
-   so only an explicit rollout picks up the new image) - nothing is published to Harbor yet
-   (see **Why the product charts are installed directly**).
+   `credentials-camunda`) from this working tree, loads them into kind, and rolls out any
+   product Deployment that already exists (a rebuild keeps the `:local` tag, so only an
+   explicit rollout picks up the new image) - nothing is published to Harbor yet (see
+   **Why the product charts are installed directly**).
 7. Installs, in order: `submission-devstack` → `submission-stack` → `agent-devstack` →
    `agent-stack`, each from its local chart directory with its `files/values/*-local.yaml`.
 8. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.
@@ -97,9 +97,9 @@ steps.
 
 ### Local images
 
-Nothing is published to Harbor for the five C# components. The script
-builds all five from this working tree (`docker build`, native platform - Apple Silicon builds
-arm64) and `kind load docker-image`s them, tagged `5s-tes/<component>:local`; the product
+Nothing is published to Harbor for the five C# components. The script builds all five from
+this working tree (`docker build`, native platform - Apple Silicon builds arm64) and
+`kind load docker-image`s them, tagged `5s-tes/<component>:local`; the product
 values files point each component's `image.repository`/`image.tag` at these instead of the
 chart's own Harbor default, with `pullPolicy: IfNotPresent` (already the chart default) so
 nothing tries to reach Harbor. Rebuilding is cheap on a re-run (Docker layer cache); a code
