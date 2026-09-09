@@ -107,11 +107,18 @@ data:
   # shape (DeploymentStack/TRE/config/realm-config/egress-layer.json); no role
   # granted, no verified client-credentials consumer — Agent's cross-realm call
   # uses a password grant, not client_credentials
-  # (Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27). That
-  # password-grant token request's role check requires realm role
-  # "dare-tre-admin" here too (Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs) —
-  # same name as the Dare-TRE realm's role above, an independent role in this
-  # realm, matching the production realm export's own role list shape.
+  # (Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27). Both
+  # clients carry both audience mappers, mirroring production's DATA-EGRESS-UI/
+  # DATA-EGRESS-API default client scopes on both clients (egress-layer.json
+  # clients[].defaultClientScopes) — the UI forwards its own token verbatim to
+  # the API, which validates ValidAudiences="Data-Egress-UI,Data-Egress-API"
+  # (DARE-Control src/Data-Egress-API/Program.cs:103-106,169). Realm role
+  # "dare-tre-admin" gates the ROPC token Agent's cross-realm call requests here
+  # (Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs) — same name as the
+  # Dare-TRE realm's role above, independent in this realm. Realm role
+  # "data-egress-admin" gates nearly every Data-Egress-API/-UI controller
+  # ([Authorize(Roles = "data-egress-admin")], DARE-Control
+  # src/Data-Egress-API/Controllers/*.cs, src/Data-Egress-UI/Controllers/*.cs).
   data-egress.json: |-
     {
       "realm": "Data-Egress",
@@ -126,11 +133,35 @@ data:
           "protocol": "openid-connect",
           "publicClient": false,
           "secret": "devsecret-egress-api",
-          "standardFlowEnabled": false,
+          "standardFlowEnabled": true,
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": true,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "audience-data-egress-ui",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Data-Egress-UI",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            },
+            {
+              "name": "audience-data-egress-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Data-Egress-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]
         },
         {
           "clientId": "Data-Egress-UI",
@@ -143,7 +174,31 @@ data:
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": true,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "audience-data-egress-ui",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Data-Egress-UI",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            },
+            {
+              "name": "audience-data-egress-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Data-Egress-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]
         }
       ],
       "roles": {
@@ -151,6 +206,10 @@ data:
           {
             "name": "dare-tre-admin",
             "description": "Required by the ROPC role check for Agent's cross-realm Data-Egress admin token (KeycloakCommon.cs's requiredRole)."
+          },
+          {
+            "name": "data-egress-admin",
+            "description": "Gates [Authorize(Roles = \"data-egress-admin\")] controllers across Data-Egress-API and Data-Egress-UI (DARE-Control)."
           }
         ]
       },
@@ -164,7 +223,8 @@ data:
           "lastName": "User",
           "realmRoles": [
             "default-roles-data-egress",
-            "dare-tre-admin"
+            "dare-tre-admin",
+            "data-egress-admin"
           ],
           "credentials": [
             {

@@ -40,8 +40,8 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-tre-admin` realm role so `[Authorize(Roles = "dare-tre-admin")]` controllers in `Agent.Api` and `Agent.Web` work |
 | `Dare-Control-API` client secret (cross-realm) | `devsecret-control-api` | `agent-api-secret.submissionKeycloakClientSecret` only — not in this chart's own realm | `SubmissionKeyCloakSettings__ClientSecret` equivalent on the api side. Must equal `submission-devstack`'s own `Dare-Control-API` secret; only matters if the Submission product is also running locally (cross-realm token validation) |
 | `Data-Egress-API` client secret | `devsecret-egress-api` (`dev-egress-unused` when `egress.enabled` is `false`) | realm import (if `egress.enabled`) + `agent-api-secret.egressKeycloakClientSecret` + `egress-api-secret.dataEgressKeycloakClientSecret` | Only read when `api.egress.enabled` is `true`; `agent-stack` sets that from `egress.enabled` (default `false`). `agent-api-secret`'s value only switches to the real secret when `egress.enabled` is `true` on this chart too — kept as the inert placeholder otherwise, so the `egress.enabled=false` render stays byte-identical |
-| `Data-Egress-UI` client secret | `devsecret-egress-ui` | realm import + `egress-ui-secret.keycloakClientSecret` | `DataEgressUIKeyCloakSettings` equivalent on the UI side (Data-Egress-UI's own client secret, not read by this chart's own apps) |
-| Data-Egress dev login user | `dev` / `password123` | realm import only | Manual browser login to `Data-Egress-UI`; holds realm role `dare-tre-admin` — same role name as the `Dare-TRE` realm's role above, but an independent role in the `Data-Egress` realm, required by the ROPC token request `Agent.Api`'s `DataEgressClientWithoutTokenHelper` makes against this realm (`Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27`, role check in `Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs`) — that flow itself authenticates with a username/password stored in the app's own `KeycloakCredentials` DB table (application data, not this chart), not this realm-import user directly |
+| `Data-Egress-UI` client secret | `devsecret-egress-ui` | realm import + `egress-ui-secret.keycloakClientSecret` | Data-Egress-UI's own client secret, read by DARE-Control's `Data-Egress-UI` app into its `DataEgressKeyCloakSettings` (`src/Data-Egress-UI/Program.cs:52-53`) — not read by any Secret in this chart's own apps. Whether the UI ever actually presents this secret (vs. authenticating as `Data-Egress-API`, which compose configures as the UI's own `DataEgressKeyCloakSettings__ClientId`) is open — see the audit's Open Question 1 |
+| Data-Egress dev login user | `dev` / `password123` | realm import only | Manual browser login to `Data-Egress-UI`; holds realm roles `dare-tre-admin` and `data-egress-admin`. `dare-tre-admin` — same role name as the `Dare-TRE` realm's role above, but an independent role in the `Data-Egress` realm — is required by the ROPC token request `Agent.Api`'s `DataEgressClientWithoutTokenHelper` makes against this realm (`Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27`, role check in `Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs`); that flow itself authenticates with a username/password stored in the app's own `KeycloakCredentials` DB table (application data, not this chart), not this realm-import user directly. `data-egress-admin` gates nearly every controller in DARE-Control's `Data-Egress-API`/`Data-Egress-UI` (`[Authorize(Roles = "data-egress-admin")]`, 23 hits) — without it the dev user cannot open the Data-Egress UI's home page |
 | Data Egress connection string | `Server=pg-pooler;Port=5432;Database=DATA-Egress;User Id=postgres;Password=password123;TrustServerCertificate=True;` | `egress-api-secret.connectionString` | Same shape as `agent-api-secret`'s connection strings, against `DATA-Egress` (`agent-stack`'s `postgres.egressDatabase`) |
 | Data Egress AES key/IV | `ZGV2ZWdyZXNza2V5MTYhIQ==` / `ZGV2ZWdyZXNzYmFzZTE2IQ==` (base64, 16 bytes each) | `egress-api-secret.encryptionKey`/`encryptionBase` | AES-128 key/IV decrypting `KeycloakCredentials.PasswordEnc` rows in the `DATA-Egress` DB; fixed dev values, distinct from any real deployment's — changing them after data exists makes those rows undecryptable |
 | Data Egress demo seed password | `password123` | `egress-api-secret.demoModeDefaultPassword` | Seeded verbatim as the Keycloak password for two demo service-account credential rows when the egress api's own `DemoMode` is on |
@@ -144,7 +144,7 @@ Both toggles use `admin` for the bind/config-admin passwords (see **Credentials*
 
 ```
 --set egress.enabled=true    # on THIS chart, so the Data-Egress realm import and
-                              # egress-api-secret/egress-ui-secret render
+                             # egress-api-secret/egress-ui-secret render
 ```
 
 and, on `agent-stack`:
@@ -160,6 +160,12 @@ locally. Both toggles must agree — `agent-stack`'s `egress.enabled` renders th
 `Application`, the `data-egress` `Database`, and the `egress-*` `VaultSecret`s (or reads this
 chart's static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe);
 this chart's `egress.enabled` renders the realm clients and matching static Secrets those need.
+Mismatched toggles fail differently depending on direction: this chart's `egress.enabled=false`
+with `agent-stack`'s `true` leaves `agent-api-secret.egressKeycloakClientSecret` at the inert
+`dev-egress-unused` placeholder (see **Credentials** above) — the ROPC call fails with a bad
+client secret, not an obviously missing object. `agent-stack`'s own README states the egress
+chart (`harbor.ukserp.ac.uk/dare-trefx/chart/egress`) must already exist in Harbor before its
+`egress.enabled` is turned on — see that chart's **Egress** section.
 
 ### GA4GH TES backend
 
@@ -195,9 +201,13 @@ charts:
   realm. One protocol mapper is carried over in `Dare-TRE`: `Dare-TRE-UI` gets an
   `oidc-audience-mapper` adding `Dare-TRE-API` to its tokens' audience, mirroring production's
   `DARE-TRE-API` client scope (`DemoStack/config/realm-config/tre-layer.json`,
-  `clientScopes[].name == "DARE-TRE-API"`). `Data-Egress` carries no protocol mapper — no
-  verified consumer needs one (unlike `Dare-TRE-UI`'s case, no code path in this codebase
-  reads a Data-Egress-issued token's audience claim).
+  `clientScopes[].name == "DARE-TRE-API"`). `Data-Egress-API` and `Data-Egress-UI` both carry
+  two `oidc-audience-mapper`s (adding `Data-Egress-UI` and `Data-Egress-API` to every token's
+  audience, regardless of which of the two clients issued it) — DARE-Control's `Data-Egress-API`
+  validates `ValidAudiences="Data-Egress-UI,Data-Egress-API"` against the token the UI forwards
+  verbatim, mirroring production's `DATA-EGRESS-UI`/`DATA-EGRESS-API` client scopes, which are
+  `defaultClientScopes` on **both** clients in the prod export (not just `Dare-TRE-UI`'s
+  one-directional case).
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
   inside pods (api and ui reaching `global.oidc.authority`) would otherwise resolve
   `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —
@@ -264,8 +274,9 @@ from the host.
   the `Dare-TRE-API` service account), one realm role, one protocol mapper (the `Dare-TRE-UI`
   audience mapper, see **Local Keycloak** above). No other client scopes. The `Data-Egress`
   dev realm (if `egress.enabled`) is equally minimal: two clients, three users (including
-  both service accounts), one realm role (`dare-tre-admin`, see **Credentials** above), no
-  protocol mappers. Extend either realm by editing `templates/keycloak-realm.yaml`.
+  both service accounts), two realm roles (`dare-tre-admin`, `data-egress-admin` — see
+  **Credentials** above), two protocol mappers per client (both audience mappers, see
+  **Local Keycloak** above). Extend either realm by editing `templates/keycloak-realm.yaml`.
 - Keycloak only imports a realm on first start; it skips an existing one. To apply a
   `templates/keycloak-realm.yaml` change to an already-running local Keycloak, delete the
   `keycloak` Application's PostgreSQL PVC (or delete the realm via the admin console) and
