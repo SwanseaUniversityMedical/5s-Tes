@@ -257,12 +257,14 @@ otherwise. Turning it on also:
 - Sets `agent.yaml`'s `api.egress.enabled: true`, `api.egress.authority`, and
   `api.egress.apiUrl: "http://egress-api"` (the egress chart's own static api Service name), so
   the Agent api starts talking to Data-Egress.
-- Sets `agent.yaml`'s `api.keycloakDemoMode` from `agent.api.keycloakDemoMode` and
-  `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (both default `"false"`,
-  production-safe — production's Keycloak is HTTPS). These relax the outbound password-grant
-  token helpers' discovery-endpoint check from HTTPS to HTTP
-  (`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`); local-only, see
-  `agent-devstack`'s README **Optional: local Data Egress**.
+- Sets `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (default
+  `"false"`, production-safe — production's Keycloak is HTTPS).
+
+Independent of the toggle, `agent.yaml` always wires `api.keycloakDemoMode` from
+`agent.api.keycloakDemoMode` (default `"false"`). Both settings relax the outbound
+password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
+(`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`); local-only, see
+`agent-devstack`'s README **Optional: local Data Egress**.
 
 **Keycloak.** The external `Data-Egress` realm at `egress.oidcAuthority` must already have:
 

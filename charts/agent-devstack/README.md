@@ -300,13 +300,13 @@ from the host.
   secrets or roles) on an already-running local Keycloak, delete the `keycloak` Application's
   PostgreSQL PVC (or delete the realm via the admin console) and let ArgoCD re-sync — the more
   drastic step is needed because Keycloak will otherwise silently skip re-importing a realm it
-  already has. Turning on `egress.enabled` on an already-running Keycloak is cheaper: `Data-Egress`
-  is a realm Keycloak has never seen, so it only needs the *process* to re-run its one-time
-  `--import-realm` startup step, not a data wipe — `kubectl -n 5s-tes-agent rollout restart
-  statefulset/keycloak` (the Bitnami chart's `StatefulSet`, named `keycloak` because the ArgoCD
-  `Application`/Helm release is named `keycloak`) picks up the updated `keycloak-realm-import`
-  ConfigMap and imports `Data-Egress` fresh, leaving the existing `Dare-TRE` realm's data
-  untouched (its file is skipped, same as any other unchanged realm at any restart).
+  already has. Turning on `egress.enabled` on an already-running Keycloak is an EDIT of this
+  kind, not just a new realm: it adds `Data-Egress` AND changes the existing `Dare-TRE` realm
+  file (the `data-egress-admin` role, its `dev`-user grant, and the `Dare-TRE-API` audience
+  mapper). A `rollout restart` alone imports only the never-seen `Data-Egress` and silently
+  skips the changed `Dare-TRE`, so the cross-realm egress→agent flow stays broken — use the
+  full procedure above (delete the `keycloak` Application's PostgreSQL PVC, or delete both
+  realms via the admin console, and let ArgoCD re-sync) so both files import fresh.
 - This chart is never published to Harbor; installs use the working tree.
 - The postgresql chart's own default `image.tag` (`17.5.0-debian-12-r20`) is not mirrored
   at `harbor.ukserp.ac.uk/bitnami/postgresql` (found by local boot: kubelet
