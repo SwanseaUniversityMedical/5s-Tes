@@ -93,7 +93,7 @@ data:
           }{{- if .Values.egress.enabled }},
           {
             "name": "data-egress-admin",
-            "description": "Required by the egress api's ROPC role check when it authenticates here as Dare-TRE-API (DARE-Control TreClientWithoutTokenHelper.cs's requiredRole); also accepted by Agent.Api's [Authorize(Roles = \"dare-tre-admin,data-egress-admin\")] endpoints (e.g. SubmissionController.cs:173)."
+            "description": "Required by the egress api's ROPC role check as Dare-TRE-API (TreClientWithoutTokenHelper.cs's requiredRole); also accepted by Agent.Api's [Authorize(Roles = \"dare-tre-admin,data-egress-admin\")] endpoints (e.g. SubmissionController.cs:173)."
           }{{- end }}
         ]
       },
