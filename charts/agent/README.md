@@ -6,20 +6,17 @@ Standalone chart for the Agent product.
 
 - **api** — the TRE Agent API (`agent-api` image), listening on `/health` at port 8080.
 - **ui** — the TRE Agent web UI (`agent-ui` image, .NET MVC `Agent.Web`), listening on
-  `/health` at port 8080.
-- **web** — the TRE Agent Next.js UI (`agent-web` image), listening on `/api/health` at
-  port 3000. This is the primary user-facing UI, at `agent.<global.ingress.host>`. `ui`
-  is a second, older UI kept alongside it during the migration.
+  `/health` at port 8080. This is the primary user-facing UI, at
+  `agent.<global.ingress.host>`.
 - **camunda** — the Credentials Camunda worker (`credentials-camunda` image), a headless
   Zeebe job worker. It has no Service and no Ingress: nothing calls it directly.
 
 `api` and `camunda` share one PersistentVolumeClaim, `agent-processmodels`, holding the
 Camunda DMN/BPMN process models, and both stay at `replicas: 1` because that PVC is
 `ReadWriteOnce`. `ui` also stays at `replicas: 1` because it keeps its session store in
-memory (`MemoryCacheTicketStore`). `web` is stateless and may run more than one replica.
-With the default `ReadWriteOnce` access mode, `api` and `camunda` must land on the same
-node — fine on a single-node kind cluster, but a multi-node cluster must set
-`processModels.accessModes: [ReadWriteMany]`.
+memory (`MemoryCacheTicketStore`). With the default `ReadWriteOnce` access mode, `api` and
+`camunda` must land on the same node — fine on a single-node kind cluster, but a
+multi-node cluster must set `processModels.accessModes: [ReadWriteMany]`.
 
 Both `api` and `camunda`'s Deployments run a `seed-process-models` initContainer that
 copies the image's own `/app/ProcessModels` into the shared PVC the first time it has not
@@ -40,7 +37,7 @@ already-seeded PVC — delete the sentinel or the PVC to force a reseed.
 
 ## What must already exist
 
-- The four Secrets listed below.
+- The three Secrets listed below.
 - A reachable Keycloak realm at `global.oidc.authority` (Dare-TRE) and, for the
   cross-stack settings, the Submission product's Keycloak realm, API and S3 endpoint at
   `submission.oidcAuthority`/`submission.apiUrl`/`submission.s3Url`.
@@ -95,15 +92,6 @@ Set by `ui.secretName`.
 |---|---|---|
 | `keycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. Read into `TreKeyCloakSettings__ClientSecret`. | Yes |
 
-### `agent-web-secret`
-
-Set by `web.secretName`.
-
-| **Key** | **Used for** | **Required** |
-|---|---|---|
-| `betterAuthSecret` | Better Auth signing secret. Read into `BETTER_AUTH_SECRET`. | Yes |
-| `keycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. Read into `KEYCLOAK_CLIENT_SECRET`. | Yes |
-
 ### `credentials-camunda-secret`
 
 Set by `camunda.secretName`.
@@ -131,7 +119,7 @@ Set by `camunda.secretName`.
 | `securityContext.runAsUser` | User ID every container runs as. | `1000` |
 | `securityContext.runAsGroup` | Group ID every container runs as. | `1000` |
 | `securityContext.runAsNonRoot` | Stop containers running as root. Do not change without a reason in the pull request. | `true` |
-| `securityContext.readOnlyRootFilesystem` | Make the container filesystem read only. `web` overrides this to `false` (see `web.securityContext.readOnlyRootFilesystem`); every other component keeps `true`. | `true` |
+| `securityContext.readOnlyRootFilesystem` | Make the container filesystem read only. | `true` |
 | `securityContext.allowPrivilegeEscalation` | Stop a process gaining more privileges than the one that started it. | `false` |
 | `securityContext.capabilities.drop` | Linux capabilities dropped from every container. | `["ALL"]` |
 | `persistentVolumeLabels` | Labels put on `agent-processmodels`. The cluster's backup tool uses these. Set to `{}` on a cluster with no such tool. | `{hiru.io/backup: "enabled"}` |
@@ -159,11 +147,11 @@ Settings shared by more than one component. Defined once.
 | `global.config.vaultUrl` | Vault base URL, used by `api` and `camunda`. Read into `VaultSettings__BaseUrl`. | `"http://agent-vault:8200"` |
 | `global.config.zeebeGatewayAddress` | Zeebe gateway address, used by `api` and `camunda`. Read into `ZeebeBootstrap__Client__GatewayAddress`. | `"camunda-zeebe-gateway:26500"` |
 | `global.oidc.authority` | Full Dare-TRE realm URL every component authenticates against. | `"http://keycloak/realms/Dare-TRE"` |
-| `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway from `api`, `ui` and `camunda`. Not read by `web`. | `false` |
+| `global.monitoring.enabled` | Push metrics to a Prometheus Pushgateway from `api`, `ui` and `camunda`. | `false` |
 | `global.monitoring.pushgatewayUrl` | Pushgateway address, used when `global.monitoring.enabled` is `true`. | `""` |
 | `global.ingress.enabled` | Create an Ingress for any component at all. | `true` |
 | `global.ingress.className` | Ingress controller class for every Ingress. | `"nginx"` |
-| `global.ingress.host` | Base domain. `api.ingress.host`/`ui.ingress.host`/`web.ingress.host` default to a subdomain of this when left empty. | `"localtest.me"` |
+| `global.ingress.host` | Base domain. `api.ingress.host`/`ui.ingress.host` default to a subdomain of this when left empty. | `"localtest.me"` |
 | `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer that issues each Ingress's TLS certificate. | `"ca-issuer"` |
 | `global.ingress.tls` | Terminate TLS at the ingress. Each Ingress declares its own certificate. | `true` |
 | `global.trustClusterCa.enabled` | Mount a cluster CA bundle over every container's trust store. All four components call Keycloak or another internal service over HTTPS. | `false` |
@@ -267,7 +255,7 @@ deployment.
 | `ui.service.type` | UI Service type. | `ClusterIP` |
 | `ui.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `agent-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |
-| `ui.ingress.host` | Hostname for the UI Ingress. Empty computes `agent-ui.<global.ingress.host>`. | `""` |
+| `ui.ingress.host` | Hostname for the UI Ingress. Empty computes `agent.<global.ingress.host>`: this is the primary UI. | `""` |
 | `ui.appName` | Display name shown in the UI. | `Five Safes TES` |
 | `ui.keycloakDemoMode` | Allow Keycloak to not require HTTPS. | `"false"` |
 | `ui.sslCookies` | Mark cookies secure. Requires HTTPS end-to-end if `true`. | `"false"` |
@@ -280,35 +268,6 @@ deployment.
 | `ui.dataProtection.persistKeys` | Persist ASP.NET data-protection keys. Agent apps do not persist these across restarts. | `"false"` |
 | `ui.dataProtection.keysPath` | Path `DataProtectionSettings__KeysPath` reports; not backed by a volume while `persistKeys` is `"false"`. | `/keys` |
 | `ui.extraEnv` | Rare one-off environment variables. Anything the app always needs is a named value above instead. | `[]` |
-
-### Web parameters
-
-`KEYCLOAK_URL`/`NEXT_PUBLIC_KEYCLOAK_URL` and `NEXT_PUBLIC_KEYCLOAK_REALM` are derived from
-`global.oidc.authority`, not their own values: the chart parses it with `urlParse` for
-`<scheme>://<host>` (`lib/auth.ts` and `lib/constants/index.ts` append `/realms/<realm>`
-themselves) and takes the last path segment as the realm name. Keeping one source of truth
-means the web UI can never point at a different Keycloak host or realm than the rest of the
-chart.
-
-| **Name** | **Description** | **Value** |
-|---|---|---|
-| `web.enabled` | Deploy the Web component. | `true` |
-| `web.image.repository` | Image for the Web UI. | `harbor.federated-analytics.ac.uk/5s-tes/agent-web` |
-| `web.image.tag` | Image tag. Falls back to `global.tag` when empty. | `""` |
-| `web.image.pullPolicy` | Image pull policy for the Web UI. | `IfNotPresent` |
-| `web.replicas` | Number of copies. Stateless Next.js app; the only component that may run more than one. | `1` |
-| `web.containerPort` | Port the Next.js app listens on inside the container. | `3000` |
-| `web.resources` | Container resource requests/limits. | `{}` |
-| `web.securityContext.readOnlyRootFilesystem` | Overrides the org baseline. Next.js standalone writes under `/app` at runtime (the Dockerfile's `chown -R nextjs:nodejs /app` exists for exactly this), and an emptyDir cannot cover `/app` without hiding the app itself. Merged over `securityContext`; every other field of the baseline still applies to `web`. | `false` |
-| `web.securityContext.runAsUser`/`runAsGroup` | Overrides the org baseline's `1000`. The image's `nextjs` user is uid/gid `1001` (`agent-web/Dockerfile:21-22`, which also `chown -R`s `/app` to it); the baseline's `1000` would EACCES on `/app` writes. | `1001` |
-| `web.service.type` | Web Service type. | `ClusterIP` |
-| `web.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `agent-web-secret` |
-| `web.ingress.enabled` | Create an Ingress for the Web UI. | `true` |
-| `web.ingress.host` | Hostname for the Web Ingress. Empty computes `agent.<global.ingress.host>`: this is the primary UI. | `""` |
-| `web.publicUrl` | Public URL of this app, used by Better Auth. Read into `BETTER_AUTH_URL`. | `http://agent.localtest.me` |
-| `web.oidc.clientId` | Keycloak client ID. Read into `KEYCLOAK_CLIENT_ID`. | `Dare-TRE-UI` |
-| `web.helpdeskUrl` | Helpdesk URL shown in the UI. Read into `NEXT_PUBLIC_HELPDESK_URL`. | `https://ukserp.atlassian.net/servicedesk/customer/portal/3` |
-| `web.extraEnv` | Rare one-off environment variables. Anything the app always needs is a named value above instead. | `[]` |
 
 ### Camunda parameters
 

@@ -13,7 +13,7 @@ Only things production provides another way (doc 09):
 | Component | Production provides it as | Here |
 |---|---|---|
 | Identity provider | Hosted Keycloak `Dare-TRE` realm | Bitnami Keycloak `Application` with a hand-written dev realm import and its own bundled dev PostgreSQL |
-| App and dependency secrets | `agent-stack`'s `VaultSecret`s | Static `Secret`s under the same names (`postgres-secret`, `agent-api-secret`, `agent-ui-secret`, `agent-web-secret`, `credentials-camunda-secret`, `agent-rustfs-secret`, `seq-admin-password-secret`, `agent-openldap-secret` if `openldap.enabled`) |
+| App and dependency secrets | `agent-stack`'s `VaultSecret`s | Static `Secret`s under the same names (`postgres-secret`, `agent-api-secret`, `agent-ui-secret`, `credentials-camunda-secret`, `agent-rustfs-secret`, `seq-admin-password-secret`, `agent-openldap-secret` if `openldap.enabled`) |
 | Database GUI | — (ops tooling) | Adminer `Application` |
 | External TRE data database | Whatever real database `credentials-camunda-secret.connectionStringTreData` is pointed at | Bitnami PostgreSQL `Application` named `tredata`, a disposable stand-in |
 
@@ -35,15 +35,14 @@ secret in the realm import string-matches the value in `templates/secrets/static
 |---|---|---|---|
 | PostgreSQL superuser | `postgres` / `password123` | `postgres-secret` | `agent-stack`'s CNPG `Cluster` superuserSecret; also embedded in `agent-api-secret`'s/`credentials-camunda-secret`'s connection strings |
 | `Dare-TRE-API` client secret | `devsecret-tre-api` | realm import only | Not directly consumed by any app Secret — `Dare-TRE-API` is a valid audience for `Dare-TRE-UI` tokens (`api.oidc.validAudiences`), not a client the chart authenticates as. `serviceAccountsEnabled` stays on to mirror the prod realm's client shape, but has no realm role grant: no verified consumer of a client-credentials token exists in this codebase |
-| `Dare-TRE-UI` client secret | `devsecret-tre-ui` | realm import + `agent-api-secret.treKeycloakClientSecret`, `agent-ui-secret.keycloakClientSecret`, `agent-web-secret.keycloakClientSecret` | `TREKeyCloakSettings__ClientSecret` (api), `KEYCLOAK_CLIENT_SECRET` (ui, web) — the single client used by api, ui and web |
+| `Dare-TRE-UI` client secret | `devsecret-tre-ui` | realm import + `agent-api-secret.treKeycloakClientSecret`, `agent-ui-secret.keycloakClientSecret` | `TreKeyCloakSettings__ClientSecret` (api, ui) — the single client used by api and ui |
 | `Dare-TRE-S3` client secret | `devsecret-tre-s3` | realm import only | Not yet consumed by any app Secret — the client exists for a future S3-console SSO wire-up, same status as `submission-devstack`'s `Dare-Control-S3` |
-| Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-tre-admin` realm role so agent-web's role-gated pages work (`authcheck("dare-tre-admin")`, see **agent-web role gating** below) |
+| Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-tre-admin` realm role so `[Authorize(Roles = "dare-tre-admin")]` controllers in `Agent.Api` and `Agent.Web` work |
 | `Dare-Control-API` client secret (cross-realm) | `devsecret-control-api` | `agent-api-secret.submissionKeycloakClientSecret` only — not in this chart's own realm | `SubmissionKeyCloakSettings__ClientSecret` equivalent on the api side. Must equal `submission-devstack`'s own `Dare-Control-API` secret; only matters if the Submission product is also running locally (cross-realm token validation) |
 | `Data-Egress-API` client secret | `dev-egress-unused` | `agent-api-secret.egressKeycloakClientSecret` | Only read when `api.egress.enabled` is `true` (not surfaced by `agent-stack`, default `false`) |
 | S3 (RustFS) access/secret key | `s3-tre` / `s3-tre-pass` | `agent-api-secret.s3AccessKey`/`s3SecretKey` + `agent-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | RustFS chart's own root credentials; api's S3 client |
 | Vault token | `dev-only-token` | `agent-api-secret.vaultToken` + `credentials-camunda-secret.vaultToken` | `VaultSettings__Token` on both api and the Credentials Camunda worker — the local Vault runs (`vault.enabled` stays `true`; see **Local install**) and must be configured with a token equal to this value after init/unseal, or these Secrets' values updated to match the real token |
 | RabbitMQ default user | `agent` / `password123` | `agent-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
-| Better Auth secret | `dev-agent-betterauth-secret-fixed-32c` | `agent-web-secret.betterAuthSecret` | `BETTER_AUTH_SECRET` |
 | Encryption key | `ZGV2LWFnZW50LWVuY3J5cHRpb24ta2V5LTMyYnl0ZSE=` (base64, 32 bytes) | `agent-api-secret.encryptionKey` | The api's encryption key setting |
 | Hangfire dashboard | `admin` / `password123` | `agent-api-secret.hangfireUsername`/`hangfirePassword` | Hangfire basic auth |
 | Hasura admin secret | `dev-hasura-admin-secret-unused` | `agent-api-secret.hasuraAdminSecret` | Only read when `api.hasura.enabled` is `true` (not surfaced by `agent-stack`, default `false`) |
@@ -52,16 +51,6 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Keycloak admin console | `admin` / `admin` | `keycloak-admin-secret` | Keycloak's own `auth.existingSecret` |
 | Seq first-run admin | `admin` / `admin` | `seq-admin-password-secret` | Seq's own `firstRunAdminPasswordSecret` |
 | Adminer admin | `admin` / `admin` | `adminer-admin-password` | Adminer's own `auth.existingSecret` |
-
-### agent-web role gating
-
-`Agent/agent-web/lib/auth-helpers.ts:24-47` (`authcheck`) redirects to `/forbidden` unless the
-signed-in user's realm roles (read from the OIDC token's `realm_access.roles`, mapped in
-`Agent/agent-web/lib/auth.ts:39-43`) include the required role. Every gated page in
-`Agent/agent-web/app/` calls `authcheck("dare-tre-admin")`
-(`app/page.tsx:6`, `app/access-rules/page.tsx:20`, `app/projects/page.tsx:25`,
-`app/projects/[projectId]/page.tsx:21`, `app/configure-5s-tes/page.tsx:14`) — so the `dev` user
-holds `dare-tre-admin` in the realm import above.
 
 ## Local install
 
@@ -173,10 +162,7 @@ charts:
   `templates/keycloak.yaml`'s `ingress` block sets no `tls` key, and the chart's default
   is `false`.
 - `agent-stack`'s `global.oidc.authority` must be overridden to reach this Keycloak
-  — see **Local install** above. The standalone chart derives web's
-  `NEXT_PUBLIC_KEYCLOAK_URL`/`NEXT_PUBLIC_KEYCLOAK_REALM` from this authority via `urlParse`
-  (`charts/agent/templates/web/deployment.yaml:2,84-86`), so the realm's last path segment
-  must be exactly `Dare-TRE`.
+  — see **Local install** above.
 - The dev realm mirrors the external prod realm's shape (same realm name `Dare-TRE`, same
   three client IDs) but is a hand-written, minimal stand-in: `sslRequired: none` and pure
   wildcard `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a
@@ -184,7 +170,7 @@ charts:
   adding `Dare-TRE-API` to its tokens' audience, mirroring production's `DARE-TRE-API` client
   scope (`DemoStack/config/realm-config/tre-layer.json`, `clientScopes[].name == "DARE-TRE-API"`).
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
-  inside pods (api, ui and web reaching `global.oidc.authority`) would otherwise resolve
+  inside pods (api and ui reaching `global.oidc.authority`) would otherwise resolve
   `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —
   `*.localtest.me` is a wildcard domain that always resolves to loopback.
   `dev-env-setup/cluster-setup.sh` rewrites CoreDNS (`files/deps/coredns.yaml`) so both

@@ -153,9 +153,7 @@ the two must agree.
 | `.../agent-api` | `hangfire_username` | `agent-api-secret` / `hangfireUsername` | Hangfire dashboard username |
 | `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
 | `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
-| `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the older `ui` component) |
-| `.../agent-web` | `better_auth_secret` | `agent-web-secret` / `betterAuthSecret` | Better Auth signing secret |
-| `.../agent-web` | `keycloak_client_secret` | `agent-web-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `web` UI) |
+| `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `ui` component) |
 | `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
 | `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
 | `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the directory named by `agent.ldap.*` — the external AD in production, or `.../ldap`'s `admin_password` if `openldap.enabled` |
@@ -188,13 +186,12 @@ own stack value.
 
 ## Keycloak
 
-The `web` and `ui` components, and the api's own TRE-realm identity, all authenticate as the
-single `Dare-TRE-UI` client. The external `Dare-TRE` realm at `global.oidc.authority` must
-already have:
+The `ui` component, and the api's own TRE-realm identity, both authenticate as the single
+`Dare-TRE-UI` client. The external `Dare-TRE` realm at `global.oidc.authority` must already
+have:
 
-- **`Dare-TRE-UI`** — confidential client, used by `api`, `ui` and `web`. Its client secret
-  fills `treKeycloakClientSecret`/`agent-ui-secret`'s and `agent-web-secret`'s
-  `keycloakClientSecret`.
+- **`Dare-TRE-UI`** — confidential client, used by `api` and `ui`. Its client secret fills
+  `treKeycloakClientSecret`/`agent-ui-secret`'s `keycloakClientSecret`.
 - **`Dare-TRE-API`** — a valid audience for tokens issued to `Dare-TRE-UI`
   (`api.oidc.validAudiences`), not a separately authenticating client in this chart.
 - **`Dare-TRE-S3`** — expected in the realm design alongside the two clients above (this
@@ -415,11 +412,10 @@ only in-flight workflow instance state, not the system of record.
 |---|---|---|
 | `agent.enabled` | Create the `agent` `Application`. | `true` |
 | `agent.chartVersion` | Version of the `agent` chart in Harbor. | `1.0.0` |
-| `agent.imageVersion` | Image tag for `api`, `ui`, `web` and `camunda`. | `3.2.0` |
+| `agent.imageVersion` | Image tag for `api`, `ui` and `camunda`. | `3.2.0` |
 | `agent.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
 | `agent.api.treName` | **REQUIRED for production.** Name of this TRE deployment. Empty leaves the standalone chart's dev default (`DEV`) in place. | `""` |
 | `agent.api.tesApiUrl` | **REQUIRED for production** unless `tesk.enabled` is `true`. External TES backend URL — the recommended production path. Empty with `tesk.enabled: false` leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster; empty with `tesk.enabled: true` derives the in-cluster TESK URL instead. See **GA4GH TES backend** above. | `""` |
-| `agent.web.publicUrl` | Public URL of the Next.js app, used by Better Auth. Empty computes one from `global.ingress`. | `""` |
 | `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
 | `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
 | `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |

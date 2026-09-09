@@ -190,8 +190,8 @@ wait_for_rabbitmq_ready() {
 
 ###############################################################################
 # Local app images: nothing is published to Harbor yet (see README), so the
-# five C# components and agent-web are built from this working tree and
-# loaded straight into kind's containerd - no registry involved.
+# five C# components are built from this working tree and loaded straight
+# into kind's containerd - no registry involved.
 ###############################################################################
 
 # restart_product_deployments <namespace> <deployment>...
@@ -221,7 +221,6 @@ build_and_load_images() {
   docker build -q -f "$REPO_ROOT/Agent/Agent.Api/Dockerfile" -t 5s-tes/agent-api:local "$REPO_ROOT"
   docker build -q -f "$REPO_ROOT/Agent/Agent.Web/Dockerfile" -t 5s-tes/agent-ui:local "$REPO_ROOT"
   docker build -q -f "$REPO_ROOT/Credentials/Credentials.Camunda/Dockerfile" -t 5s-tes/credentials-camunda:local "$REPO_ROOT"
-  docker build -q -t 5s-tes/agent-web:local "$REPO_ROOT/Agent/agent-web"
 
   echo "Loading local app images into kind"
   kind load docker-image \
@@ -229,7 +228,6 @@ build_and_load_images() {
     5s-tes/submission-ui:local \
     5s-tes/agent-api:local \
     5s-tes/agent-ui:local \
-    5s-tes/agent-web:local \
     5s-tes/credentials-camunda:local \
     --name "$CLUSTER_NAME"
 }
@@ -326,7 +324,7 @@ build_and_load_images
 
 echo "Restarting product Deployments to pick up freshly rebuilt :local images"
 restart_product_deployments "$SUBMISSION_NS" submission-api submission-ui
-restart_product_deployments "$AGENT_NS" agent-api agent-ui agent-web agent-camunda
+restart_product_deployments "$AGENT_NS" agent-api agent-ui agent-camunda
 
 ###############################################################################
 # Install order: each family's devstack (local Keycloak/dev realm, Vault,
@@ -419,8 +417,7 @@ cat <<SUMMARY
    RustFS console http://rustfs.submission.localtest.me
 
  Agent (ns $AGENT_NS):
-   Web (UI)      http://agent.agent.localtest.me
-   Legacy UI     http://agent-ui.agent.localtest.me
+   UI            http://agent.agent.localtest.me
    API           http://agent-api.agent.localtest.me
    Keycloak      http://keycloak.agent.localtest.me (admin/admin, realm Dare-TRE)
    Adminer       http://adminer.agent.localtest.me

@@ -36,10 +36,6 @@ Web FrontEnd for the Agent.Api. Allows TRE Admins to:
 - Manage Users allowed to submit to the Project.
 - Set DMN rules to configure Ephemeral Credentials creation.
 
-### agent-web
-
-An alternative to the Agent.Web built with Next.js and TypeScript. More information in the directory's README.md
-
 ## Credentials
 
 ### Credentials.Camunda
@@ -65,7 +61,7 @@ An alternative to the Agent.Web built with Next.js and TypeScript. More informat
 
 | Chart | Shape | What it deploys |
 |---|---|---|
-| [`agent`](charts/agent/README.md) | standalone | The TRE Agent apps (`Agent.Api`, `Agent.Web`, `agent-web`, `Credentials.Camunda`) |
+| [`agent`](charts/agent/README.md) | standalone | The TRE Agent apps (`Agent.Api`, `Agent.Web`, `Credentials.Camunda`) |
 | [`submission`](charts/submission/README.md) | standalone | The Submission apps (`Submission.Api`, `Submission.Web`) |
 | [`agent-stack`](charts/agent-stack/README.md) | stack | `agent` plus its production dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault, Camunda/Zeebe) |
 | [`submission-stack`](charts/submission-stack/README.md) | stack | `submission` plus its production dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault) |
@@ -87,8 +83,8 @@ install only from the working tree.
 `dev-env-setup/` (`./cluster-setup.sh`) brings up a `kind` cluster with both product families'
 real dependencies (Postgres, RabbitMQ, RustFS, Seq, Vault, Zeebe, LDAP, Keycloak). Each app can
 then run natively from VS Code / `dotnet run` / `npm run dev` against those dependencies, using
-an `appsettings.Development_Kind.json` profile (or, for `agent-web`, `.env.kind.example`) that
-sets the same keys as `appsettings.Development.json` to kind's localhost NodePorts (the as-built
+an `appsettings.Development_Kind.json` profile that sets the same keys as
+`appsettings.Development.json` to kind's localhost NodePorts (the as-built
 tables in `charts/submission-devstack/README.md` and `charts/agent-devstack/README.md`'s own
 "Host access for development" sections) and ingress hosts. Values are
 the `*-devstack` charts' fixed dev Secrets and realm — the documented dev/prod interface, not new
@@ -104,7 +100,6 @@ Select the profile with `ASPNETCORE_ENVIRONMENT=Development_Kind`; give each app
 | `Agent/Agent.Api` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5269 dotnet run --no-launch-profile` | agent Postgres/RabbitMQ/RustFS/Seq/Vault/Zeebe (dev-access NodePorts), Keycloak `http://keycloak.agent.localtest.me/realms/Dare-TRE`, in-cluster Submission API/Keycloak via ingress |
 | `Agent/Agent.Web` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5233 dotnet run --no-launch-profile` | the Agent.Api above (`http://localhost:5269`), agent Keycloak |
 | `Credentials/Credentials.Camunda` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:65170 dotnet run --no-launch-profile` | agent Zeebe/LDAP/Vault/Postgres (dev-access NodePorts) |
-| `Agent/agent-web` | copy `.env.kind.example` to `.env.local`, then `npm run dev` | agent Keycloak (`http://keycloak.agent.localtest.me`), in-cluster Agent.Api via ingress by default |
 
 `--no-launch-profile` is required: `Properties/launchSettings.json`'s own `environmentVariables`
 (`ASPNETCORE_ENVIRONMENT=Development`) otherwise wins over a shell-exported value. `dotnet`'s
@@ -148,9 +143,9 @@ helm upgrade agent ../charts/agent --namespace 5s-tes-agent \
   -f files/values/agent-product-local.yaml --kube-context kind-5s-tes
 ```
 
-`agent-web` and `Credentials.Camunda` need no component-off step for their own dev-access
-dependencies (Keycloak/Zeebe/LDAP/Vault/Postgres are shared read/connect targets, not
-single-consumer queues); `Credentials.Camunda`'s LDAP path additionally needs
+`Credentials.Camunda` needs no component-off step for its own dev-access dependencies
+(Keycloak/Zeebe/LDAP/Vault/Postgres are shared read/connect targets, not single-consumer
+queues); its LDAP path additionally needs
 `openldap.enabled=true` set on **both** `agent-devstack` and `agent-stack` (own `-f` file +
 `--set openldap.enabled=true` on each, same pattern as above) — see `charts/agent-devstack/README.md`
 "Optional: local OpenLDAP". Revert with the same `--set openldap.enabled=false` (or drop the flag)
@@ -166,9 +161,6 @@ afterwards.
   redirect chain.
 - **Agent.Api**: `/health` → 200; boot log (`Zeebe.Client.ZeebeClient`, debug level) showed
   `Connect to http://localhost:30500`.
-- **agent-web**: `/api/health` → 200; a scripted `dev`/`password123` login through
-  `keycloak.agent.localtest.me` completed a real BetterAuth session (`get-session` returned the
-  `dev` user).
 - **Credentials.Camunda**: boot log showed `Connected to Zeebe cluster`, 9 job workers created,
   and all 4 BPMN process models deployed to the kind Zeebe. LDAP now has a real seeded tree
   (`dc=camundaephemeral,dc=local`, `ou=Users`, `ou=groups`, `cn=trinogroup` — see

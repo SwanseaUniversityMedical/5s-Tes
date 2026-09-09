@@ -65,7 +65,7 @@ global:
     enabled: false
     pushgatewayUrl: ""
 
-  # Base domain; api, ui and web each get their own subdomain of it.
+  # Base domain; api and ui each get their own subdomain of it.
   ingress:
     enabled: true
     className: "nginx"
@@ -223,7 +223,8 @@ ui:
   secretName: agent-ui-secret
   ingress:
     enabled: true
-    # Empty computes "agent-ui.<global.ingress.host>".
+    # Empty computes "agent.<global.ingress.host>". This is the primary
+    # user-facing UI for the Agent product.
     host: ""
 
   appName: "Five Safes TES"
@@ -244,50 +245,6 @@ ui:
   dataProtection:
     persistKeys: "false"
     keysPath: "/keys"
-
-  # Rare one-off settings only. If you find yourself adding a third entry
-  # here, it belongs above as a named key instead.
-  extraEnv: []
-
-web:
-  enabled: true
-  image:
-    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-web
-    tag: ""
-    pullPolicy: IfNotPresent
-  # Stateless Next.js app: the only component that may run more than one
-  # replica.
-  replicas: 1
-  containerPort: 3000
-  resources: {}
-  # Next.js standalone writes under /app at runtime; the Dockerfile's own
-  # `RUN chown -R nextjs:nodejs /app` comment says why. An emptyDir cannot
-  # cover /app without hiding the app itself, so only this component keeps a
-  # writable root filesystem. Merged over the baseline in securityContext.
-  # To reset to the baseline, set web.securityContext: {} — null fails to
-  # render (mergeOverwrite needs a map).
-  securityContext:
-    readOnlyRootFilesystem: false
-    # agent-web's image runs as nextjs uid/gid 1001, not the baseline's 1000 (agent-web/Dockerfile:21-22).
-    runAsUser: 1001
-    runAsGroup: 1001
-  service:
-    type: ClusterIP
-  # Expected keys: betterAuthSecret, keycloakClientSecret. See README Secrets
-  # section.
-  secretName: agent-web-secret
-  ingress:
-    enabled: true
-    # Empty computes "agent.<global.ingress.host>". This is the primary
-    # user-facing UI for the Agent product.
-    host: ""
-
-  publicUrl: "http://agent.localtest.me"
-
-  oidc:
-    clientId: "Dare-TRE-UI"
-
-  helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
 
   # Rare one-off settings only. If you find yourself adding a third entry
   # here, it belongs above as a named key instead.

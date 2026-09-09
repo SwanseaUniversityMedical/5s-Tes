@@ -1,6 +1,6 @@
 apiVersion: v2
 name: agent
-description: Standalone chart for the Agent API, UI, Web and Credentials Camunda worker
+description: Standalone chart for the Agent API, UI and Credentials Camunda worker
 type: application
 version: 1.0.0
 appVersion: "1.0.0"

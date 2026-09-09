@@ -30,12 +30,6 @@ ui:
     repository: 5s-tes/agent-ui
     tag: local
 
-web:
-  image:
-    repository: 5s-tes/agent-web
-    tag: local
-  publicUrl: "http://agent.agent.localtest.me"
-
 camunda:
   image:
     repository: 5s-tes/credentials-camunda

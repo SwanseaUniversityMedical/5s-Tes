@@ -30,8 +30,8 @@ Vault keys) if the kind cluster itself looks broken rather than just mid-install
    `*.localtest.me` is a wildcard to `127.0.0.1`.
 5. Installs cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the CloudNativePG
    operator, the RabbitMQ Cluster Operator, and ArgoCD.
-6. Builds the six app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
-   `agent-web`, `credentials-camunda`) from this working tree, loads them into kind, and
+6. Builds the five app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
+   `credentials-camunda`) from this working tree, loads them into kind, and
    rolls out any product Deployment that already exists (a rebuild keeps the `:local` tag,
    so only an explicit rollout picks up the new image) - nothing is published to Harbor yet
    (see **Why the product charts are installed directly**).
@@ -97,8 +97,8 @@ steps.
 
 ### Local images
 
-Nothing is published to Harbor for the five C# components or `agent-web` either. The script
-builds all six from this working tree (`docker build`, native platform - Apple Silicon builds
+Nothing is published to Harbor for the five C# components. The script
+builds all five from this working tree (`docker build`, native platform - Apple Silicon builds
 arm64) and `kind load docker-image`s them, tagged `5s-tes/<component>:local`; the product
 values files point each component's `image.repository`/`image.tag` at these instead of the
 chart's own Harbor default, with `pullPolicy: IfNotPresent` (already the chart default) so
@@ -154,9 +154,8 @@ to the same host port.
 **Changing `kind-config.yaml` needs a cluster recreation** (`kind create cluster` reads it only
 at cluster creation) - `./clean-up.sh && ./cluster-setup.sh`, not a plain re-run.
 
-Per-app `appsettings.Development_Kind.json` profiles (and `agent-web/.env.kind.example`) that
-consume these ports to run each app from VS Code are documented in the root README's "Running
-apps from VS Code against kind".
+Per-app `appsettings.Development_Kind.json` profiles that consume these ports to run each app
+from VS Code are documented in the root README's "Running apps from VS Code against kind".
 
 ## Known local constraints
 

@@ -103,9 +103,6 @@ spec:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.
           sslCookies: "{{ .Values.global.ingress.tls }}"
 
-        web:
-          publicUrl: "{{ .Values.agent.web.publicUrl | default (printf "%s://agent.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
-
         camunda:
           ldap:
             host: "{{ .Values.agent.ldap.host }}"

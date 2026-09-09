@@ -55,10 +55,6 @@ agent:
     # silently — a broken TES endpoint once actually in-cluster. TESK-in-
     # cluster (tesk.enabled) is the alternative.
     tesApiUrl: ""
-  web:
-    # Public URL of the Next.js app, used by Better Auth. Empty computes
-    # "<scheme>://agent.<global.ingress.host>" from global.ingress.
-    publicUrl: ""
   processModels:
     # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
     # null uses the cluster default, which is typically RWO-only (ceph-block)
