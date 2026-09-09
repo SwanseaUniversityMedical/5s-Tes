@@ -98,6 +98,13 @@ spec:
           {{- /* Verified: tesk-api:8080, base path /ga4gh/tes/v1 (tesk chart 0.1.0, task 3.2 report). */}}
           tesApiUrl: "http://tesk-api:8080/ga4gh/tes/v1/tasks"
           {{- end }}
+          {{- if .Values.egress.enabled }}
+          egress:
+            enabled: true
+            authority: "{{ .Values.egress.oidcAuthority }}"
+            # Static Service name of the egress chart's api (templates/api/service.yaml).
+            apiUrl: "http://egress-api"
+          {{- end }}
 
         ui:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.

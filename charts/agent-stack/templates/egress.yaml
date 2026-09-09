@@ -1,0 +1,78 @@
+{{- if .Values.egress.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: egress
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Our C# code starts after its dependencies.
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "harbor.ukserp.ac.uk/dare-trefx/chart"
+    chart: egress
+    # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
+    targetRevision: "{{ .Values.egress.chartVersion }}"
+    helm:
+      valuesObject:
+        global:
+          tag: "{{ .Values.egress.imageVersion }}"
+
+          config:
+            aspnetEnvironment: "Production"
+            seqUrl: "http://seq:5341"
+
+          oidc:
+            authority: "{{ .Values.egress.oidcAuthority }}"
+
+          monitoring:
+            enabled: {{ .Values.global.monitoring.enabled }}
+            pushgatewayUrl: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+
+          ingress:
+            enabled: {{ .Values.global.ingress.enabled }}
+            className: "{{ .Values.global.ingress.className }}"
+            host: "{{ .Values.global.ingress.host }}"
+            certClusterIssuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+            tls: {{ .Values.global.ingress.tls }}
+
+          trustClusterCa:
+            enabled: {{ .Values.global.trustClusterCa.enabled }}
+            configMapName: "{{ .Values.global.trustClusterCa.configMapName }}"
+            key: "{{ .Values.global.trustClusterCa.key }}"
+            mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
+
+        # Cross-realm: the api obtains a service token from Dare-TRE to call
+        # the Agent api. Same realm as this stack's own agent.yaml.
+        tre:
+          oidcAuthority: "{{ .Values.global.oidc.authority }}"
+
+        api:
+          # Verified: rustfs-svc:9000 at the rustfs chart's pinned version.
+          s3Url: "http://rustfs-svc:9000"
+          # Static Service name of the agent chart's API (charts/agent/templates/api/service.yaml).
+          treApiAddress: "http://agent-api"
+
+        ui:
+          # Secure cookies require HTTPS end-to-end; follows ingress TLS.
+          sslCookies: "{{ .Values.global.ingress.tls }}"
+{{- end }}

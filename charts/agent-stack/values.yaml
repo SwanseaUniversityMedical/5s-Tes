@@ -75,6 +75,20 @@ agent:
     userOu: "ou=Users"
     useSsl: false
 
+# Optional Data-Egress product, composed as an Application in this stack
+# (unlike submission, below, which is external). Off by default: the egress
+# chart must already exist in Harbor before turning this on. See README.
+egress:
+  enabled: false
+  # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
+  chartVersion: "1.0.0"
+  # renovate: datasource=docker depName=dare-trefx/control-egress-api registryUrl=https://harbor.ukserp.ac.uk
+  imageVersion: "3.0.4"
+  # Full Data-Egress realm URL, passed to the egress chart and to the agent
+  # chart's api.egress.authority (same realm, same Keycloak host as
+  # global.oidc.authority above). Bare realm URL: no .well-known suffix.
+  oidcAuthority: "https://keycloak.example.ac.uk/realms/Data-Egress"
+
 # Cross-stack link to the Submission product. It runs in its own namespace
 # (or cluster); these are always external addresses, never in-namespace
 # static service names. Production points these at the real Submission
@@ -216,6 +230,9 @@ postgres:
   # TRE data database (ConnectionStrings__TREPostgresConnection) is external;
   # no Database object for it exists in this chart.
   credentialsDatabase: "TRE_Credentials"
+  # The optional egress product's own database. Only created (as the
+  # data-egress Database object) when egress.enabled is true.
+  egressDatabase: "DATA-Egress"
   instances: 1
   # Changing this on a running cluster is a major upgrade, not a text edit.
   # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io

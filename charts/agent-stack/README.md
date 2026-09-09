@@ -16,9 +16,10 @@ lives in this chart; that is all in `charts/agent`.
 | `templates/seq.yaml` | ArgoCD `Application` `seq`, Seq chart | 3 |
 | `templates/camunda.yaml` | ArgoCD `Application` `camunda`, camunda-platform chart, Zeebe only | 3 |
 | `templates/tesk.yaml` | ArgoCD `Application` `tesk`, optional, default off | 3 |
-| `templates/postgres.yaml` | CNPG `Cluster` `postgres`, `Database`s `dare-tre`/`tre-credentials`, `Pooler` `pg-pooler`, PodMonitors | 3 |
+| `templates/postgres.yaml` | CNPG `Cluster` `postgres`, `Database`s `dare-tre`/`tre-credentials`/`data-egress` (optional, `egress.enabled`), `Pooler` `pg-pooler`, PodMonitors | 3 |
 | `templates/backup.yaml` | Velero `Schedule` (volumes) + CNPG `ObjectStore`/`ScheduledBackup` (off by default) | 2/3 |
 | `templates/agent.yaml` | ArgoCD `Application` `agent`, the standalone chart | 5 |
+| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off | 5 |
 
 ## What the cluster must already have
 
@@ -143,7 +144,7 @@ the two must agree.
 | `.../agent-api` | `connection_string_credentials` | `agent-api-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
 | `.../agent-api` | `tre_keycloak_client_secret` | `agent-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-UI` client secret (api authenticates as this client) |
 | `.../agent-api` | `submission_keycloak_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret (cross-realm; see below) |
-| `.../agent-api` | `egress_keycloak_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret` | `Data-Egress-API` client secret. Only read when `api.egress.enabled` is `true` (not surfaced by this stack) |
+| `.../agent-api` | `egress_keycloak_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the agent api. Only read when `api.egress.enabled` is `true` — this stack sets that from `egress.enabled` (see **Egress** below) |
 | `.../agent-api` | `s3_access_key` | `agent-api-secret` / `s3AccessKey` | Agent RustFS access key. Must equal `.../rustfs`'s `access_key` |
 | `.../agent-api` | `s3_secret_key` | `agent-api-secret` / `s3SecretKey` | Agent RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
 | `.../agent-api` | `rabbit_username` | `agent-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
@@ -154,6 +155,15 @@ the two must agree.
 | `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
 | `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
 | `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `ui` component) |
+| `.../egress-api` | `connection_string` | `egress-api-secret` / `connectionString` | PostgreSQL connection string for `DATA-Egress` on `pg-pooler`. Only needed if `egress.enabled` |
+| `.../egress-api` | `tre_keycloak_client_secret` | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret (cross-realm; the egress api authenticates as this client against `Dare-TRE`) |
+| `.../egress-api` | `data_egress_keycloak_client_secret` | `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the egress api itself |
+| `.../egress-api` | `s3_access_key` | `egress-api-secret` / `s3AccessKey` | Egress RustFS access key. Must equal `.../rustfs`'s `access_key` |
+| `.../egress-api` | `s3_secret_key` | `egress-api-secret` / `s3SecretKey` | Egress RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
+| `.../egress-api` | `encryption_key` | `egress-api-secret` / `encryptionKey` | AES-128 key decrypting DB-stored Keycloak admin credentials. Must stay byte-stable across deployments — a changed value makes existing `KeycloakCredentials` rows undecryptable |
+| `.../egress-api` | `encryption_base` | `egress-api-secret` / `encryptionBase` | AES IV paired with `encryption_key`. Same byte-stability requirement |
+| `.../egress-api` | `demo_mode_default_password` | `egress-api-secret` / `demoModeDefaultPassword` | Seeded Keycloak service-account password, written when the egress chart's own `demoMode` is on |
+| `.../egress-ui` | `keycloak_client_secret` | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
 | `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
 | `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
 | `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the directory named by `agent.ldap.*` — the external AD in production, or `.../ldap`'s `admin_password` if `openldap.enabled` |
@@ -231,6 +241,36 @@ chart's own default tries to configure multi-provider sync even at `replicaCount
 (`<olcMultiProvider> database is not a shadow`) and crashes the container before the custom LDIF
 ever loads — meaningless below 2 replicas regardless.
 
+## Egress
+
+`egress.enabled` (default `false`) composes the optional Data-Egress product as the `egress`
+`Application` (`templates/egress.yaml`), pulled from the same Harbor OCI repository as `agent`.
+**The `egress` chart must already exist in Harbor at `egress.chartVersion` before turning this
+on** — ArgoCD fails the sync otherwise. Turning it on also:
+
+- Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
+  stack's own `postgres` `Cluster` — see **CloudNativePG** below.
+- Creates `egress-api-secret`/`egress-ui-secret` (gated additionally on `vault.secretsEnabled`)
+  — see the Vault paths table above.
+- Sets `agent.yaml`'s `api.egress.enabled: true`, `api.egress.authority`, and
+  `api.egress.apiUrl: "http://egress-api"` (the egress chart's own static api Service name), so
+  the Agent api starts talking to Data-Egress.
+
+**Keycloak.** The external `Data-Egress` realm at `egress.oidcAuthority` must already have:
+
+- **`Data-Egress-API`** — confidential client, the egress api's own identity. Its client secret
+  fills `dataEgressKeycloakClientSecret`/`egress-api-secret`, and (as seen by the Agent api)
+  `egressKeycloakClientSecret`/`agent-api-secret`.
+- **`Data-Egress-UI`** — confidential client, the egress ui's identity. Its client secret fills
+  `keycloakClientSecret`/`egress-ui-secret`.
+
+The egress api also needs a cross-realm trust into the `Dare-TRE` realm at
+`global.oidc.authority` (the same realm `agent.yaml` uses), to call the Agent api on the
+seeded service account's behalf:
+
+- **`Dare-TRE-API`** — confidential client in the `Dare-TRE` realm. Its client secret fills
+  `treKeycloakClientSecret`/`egress-api-secret`.
+
 ## GA4GH TES backend
 
 `api.tesApiUrl`/`AgentSettings__TESKAPIURL` names the TES (Task Execution Service) backend the
@@ -291,15 +331,17 @@ enable `tesk.enabled` on a security-restricted namespace, create both the Config
 `valuesObject` minimal (per the brief) rather than reproducing director-wfs's cluster-hardening
 layer (Gatekeeper, trust-manager, Falco) as well.
 
-## CloudNativePG: two databases, one external
+## CloudNativePG: two databases, one external, one optional
 
 CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and a role both
-named `app`. Two declarative `Database` objects then create the real application databases,
-owned by that same `app` role:
+named `app`. Declarative `Database` objects then create the real application databases, owned
+by that same `app` role:
 
 - **`dare-tre`** → `DARE-Tre`, the api's own database (`ConnectionStrings__DefaultConnection`).
 - **`tre-credentials`** → `TRE_Credentials`, shared by `api` and the Credentials Camunda worker
   (`ConnectionStrings__CredentialsConnection`).
+- **`data-egress`** → `DATA-Egress` (`postgres.egressDatabase`), the egress api's own database.
+  Only created when `egress.enabled` is `true`. See **Egress** above.
 
 **Production's TRE data database is external.** `ConnectionStrings__TREPostgresConnection`
 (the database the Camunda worker creates ephemeral credentials against) is not a `Database`
@@ -420,6 +462,15 @@ only in-flight workflow instance state, not the system of record.
 | `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
 | `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |
 
+### egress (optional product)
+
+| Name | Description | Default |
+|---|---|---|
+| `egress.enabled` | Create the `egress` `Application`. The chart must already exist in Harbor at `egress.chartVersion` — see **Egress** above. | `false` |
+| `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.0` |
+| `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.0.4` |
+| `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |
+
 ### Submission cross-link
 
 | Name | Description | Default |
@@ -502,6 +553,7 @@ only in-flight workflow instance state, not the system of record.
 |---|---|---|
 | `postgres.database` | Name of the api's own database (the `dare-tre` `Database` object). See **CloudNativePG** above. | `DARE-Tre` |
 | `postgres.credentialsDatabase` | Name of the shared Credentials database (the `tre-credentials` `Database` object). | `TRE_Credentials` |
+| `postgres.egressDatabase` | Name of the optional egress product's database (the `data-egress` `Database` object). Only created when `egress.enabled` is `true`. | `DATA-Egress` |
 | `postgres.instances` | CNPG `Cluster` instance count. | `1` |
 | `postgres.version` | PostgreSQL major/minor version. Changing this on a running cluster is a major upgrade. | `16.15` |
 | `postgres.storageSize` | Size of the `Cluster`'s data PVC. | `10Gi` |

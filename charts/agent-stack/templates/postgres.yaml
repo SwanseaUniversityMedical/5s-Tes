@@ -68,6 +68,24 @@ spec:
   name: "{{ .Values.postgres.credentialsDatabase }}"
   owner: app
 
+{{- if .Values.egress.enabled }}
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: data-egress
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  cluster:
+    name: postgres
+  name: "{{ .Values.postgres.egressDatabase }}"
+  owner: app
+{{- end }}
+
 ---
 
 apiVersion: postgresql.cnpg.io/v1
