@@ -55,6 +55,12 @@ agent:
     # silently — a broken TES endpoint once actually in-cluster. TESK-in-
     # cluster (tesk.enabled) is the alternative.
     tesApiUrl: ""
+    # Local-only: a real deployment's Keycloak is HTTPS and this stays
+    # "false". "true" relaxes the outbound password-grant token helper's
+    # discovery-endpoint check to HTTP (KeycloakCommon.cs's RequireHttps),
+    # needed against a local HTTP Keycloak — see agent-devstack README's
+    # Optional: local Data Egress.
+    keycloakDemoMode: "false"
   processModels:
     # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
     # null uses the cluster default, which is typically RWO-only (ceph-block)
@@ -88,6 +94,12 @@ egress:
   # chart's api.egress.authority (same realm, same Keycloak host as
   # global.oidc.authority above). Bare realm URL: no .well-known suffix.
   oidcAuthority: "https://keycloak.example.ac.uk/realms/Data-Egress"
+  # Local-only: same effect and same "false" production default as
+  # agent.api.keycloakDemoMode above, but for the egress api's own outbound
+  # calls (to Data-Egress's own discovery endpoint and, via the same
+  # KeycloakDemoMode value, to Dare-TRE as Dare-TRE-API — DARE-Control
+  # Data-Egress-API/Program.cs:69,77).
+  keycloakDemoMode: "false"
 
 # Cross-stack link to the Submission product. It runs in its own namespace
 # (or cluster); these are always external addresses, never in-namespace

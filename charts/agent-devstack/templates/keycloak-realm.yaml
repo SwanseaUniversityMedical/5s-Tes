@@ -30,7 +30,20 @@ data:
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": true,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"]{{- if .Values.egress.enabled }},
+          "protocolMappers": [
+            {
+              "name": "audience-dare-tre-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Dare-TRE-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]{{- end }}
         },
         {
           "clientId": "Dare-TRE-UI",
@@ -77,7 +90,11 @@ data:
           {
             "name": "dare-tre-admin",
             "description": "Gates every [Authorize(Roles = \"dare-tre-admin\")] controller in Agent.Api and Agent.Web (e.g. Agent/Agent.Api/Controllers/OnboardingController.cs:11)."
-          }
+          }{{- if .Values.egress.enabled }},
+          {
+            "name": "data-egress-admin",
+            "description": "Required by the egress api's ROPC role check when it authenticates here as Dare-TRE-API (DARE-Control TreClientWithoutTokenHelper.cs's requiredRole); also accepted by Agent.Api's [Authorize(Roles = \"dare-tre-admin,data-egress-admin\")] endpoints (e.g. SubmissionController.cs:173)."
+          }{{- end }}
         ]
       },
       "users": [
@@ -90,7 +107,8 @@ data:
           "lastName": "User",
           "realmRoles": [
             "default-roles-dare-tre",
-            "dare-tre-admin"
+            "dare-tre-admin"{{- if .Values.egress.enabled }},
+            "data-egress-admin"{{- end }}
           ],
           "credentials": [
             {
@@ -119,6 +137,12 @@ data:
   # "data-egress-admin" gates nearly every Data-Egress-API/-UI controller
   # ([Authorize(Roles = "data-egress-admin")], DARE-Control
   # src/Data-Egress-API/Controllers/*.cs, src/Data-Egress-UI/Controllers/*.cs).
+  # The Dare-TRE realm above also gains two conditional pieces in this same
+  # egress.enabled branch: role "data-egress-admin" (granted to its dev user)
+  # and a self-audience mapper on Dare-TRE-API — the egress api authenticates
+  # into Dare-TRE as Dare-TRE-API via password grant and needs both to reach
+  # Agent.Api (DARE-Control TreClientWithoutTokenHelper.cs's requiredRole;
+  # Agent's ValidAudiences "Dare-TRE-API,Dare-TRE-UI").
   data-egress.json: |-
     {
       "realm": "Data-Egress",

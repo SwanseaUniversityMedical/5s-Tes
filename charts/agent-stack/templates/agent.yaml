@@ -89,6 +89,7 @@ spec:
           # Verified: rustfs-svc:9000 at the rustfs chart's pinned version.
           s3Url: "http://rustfs-svc:9000"
           publicUrl: "{{ .Values.agent.api.publicUrl | default (printf "%s://agent-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+          keycloakDemoMode: "{{ .Values.agent.api.keycloakDemoMode }}"
           {{- with .Values.agent.api.treName }}
           treName: {{ . | quote }}
           {{- end }}

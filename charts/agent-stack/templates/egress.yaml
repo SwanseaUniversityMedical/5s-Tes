@@ -71,6 +71,7 @@ spec:
           s3Url: "http://rustfs-svc:9000"
           # Static Service name of the agent chart's API (charts/agent/templates/api/service.yaml).
           treApiAddress: "http://agent-api"
+          keycloakDemoMode: "{{ .Values.egress.keycloakDemoMode }}"
 
         ui:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.

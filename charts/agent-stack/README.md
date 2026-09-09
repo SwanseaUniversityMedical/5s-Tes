@@ -24,8 +24,8 @@ lives in this chart; that is all in `charts/agent`.
 ## What the cluster must already have
 
 - **The CloudNativePG operator**, `>= 1.25` for the `Database` CRD. `templates/postgres.yaml`
-  renders a `Cluster`, two `Database` objects and a `Pooler`; nothing runs unless the operator
-  is watching for them.
+  renders a `Cluster`, two `Database` objects (three if `egress.enabled`) and a `Pooler`;
+  nothing runs unless the operator is watching for them.
 - **The RabbitMQ Cluster Operator**, for `templates/rabbitmq.yaml`'s `RabbitmqCluster`.
 - **The redhatcop `vault-config-operator`** (the `VaultSecret` CRD), for every object under
   `templates/secrets/`.
@@ -257,6 +257,12 @@ otherwise. Turning it on also:
 - Sets `agent.yaml`'s `api.egress.enabled: true`, `api.egress.authority`, and
   `api.egress.apiUrl: "http://egress-api"` (the egress chart's own static api Service name), so
   the Agent api starts talking to Data-Egress.
+- Sets `agent.yaml`'s `api.keycloakDemoMode` from `agent.api.keycloakDemoMode` and
+  `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (both default `"false"`,
+  production-safe — production's Keycloak is HTTPS). These relax the outbound password-grant
+  token helpers' discovery-endpoint check from HTTPS to HTTP
+  (`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`); local-only, see
+  `agent-devstack`'s README **Optional: local Data Egress**.
 
 **Keycloak.** The external `Data-Egress` realm at `egress.oidcAuthority` must already have:
 
@@ -265,6 +271,16 @@ otherwise. Turning it on also:
   `egressKeycloakClientSecret`/`agent-api-secret`.
 - **`Data-Egress-UI`** — confidential client, the egress ui's identity. Its client secret fills
   `keycloakClientSecret`/`egress-ui-secret`.
+- **Audience mappers on both clients.** `Data-Egress-API` validates
+  `ValidAudiences="Data-Egress-UI,Data-Egress-API"` against tokens the UI forwards verbatim
+  (DARE-Control `src/Data-Egress-API/Program.cs:103-106,169`), so both clients need an
+  `oidc-audience-mapper` for `Data-Egress-UI` and one for `Data-Egress-API` — production's own
+  realm export carries both as `defaultClientScopes` on both clients
+  (`DeploymentStack/TRE/config/realm-config/egress-layer.json`).
+- **Realm role `data-egress-admin`**, granted to every admin user of the product. It gates
+  nearly every controller in DARE-Control's `Data-Egress-API`/`Data-Egress-UI`
+  (`[Authorize(Roles = "data-egress-admin")]`, 23 hits) — without it, no user can use the
+  product at all.
 
 The egress api also needs a cross-realm trust into the `Dare-TRE` realm at
 `global.oidc.authority` (the same realm `agent.yaml` uses), to call the Agent api on the
@@ -272,6 +288,21 @@ seeded service account's behalf:
 
 - **`Dare-TRE-API`** — confidential client in the `Dare-TRE` realm. Its client secret fills
   `treKeycloakClientSecret`/`egress-api-secret`.
+- **Realm role `data-egress-admin`, in the `Dare-TRE` realm too** (same name, independent role
+  from the `Data-Egress` realm's own role above) — granted to the specific `Dare-TRE` user whose
+  credentials the egress api authenticates as (DARE-Control's `KeycloakCredentials` DB row,
+  `CredentialType.Tre`). `TreClientWithoutTokenHelper.cs`'s `requiredRole` check rejects the
+  token otherwise, before the Agent api's own `[Authorize(Roles = "dare-tre-admin,data-egress-admin")]`
+  (e.g. `SubmissionController.cs:173`) is ever reached.
+- **A self-audience mapper on `Dare-TRE-API`** — the token this flow acquires is issued *as*
+  `Dare-TRE-API`, and must independently carry `Dare-TRE-API` (or `Dare-TRE-UI`) in its audience
+  to pass `agent-api`'s own `ValidAudiences="Dare-TRE-API,Dare-TRE-UI"` check. Production's realm
+  export puts both `DARE-TRE-UI`/`DARE-TRE-API` default client scopes on **both** `Dare-TRE`
+  clients (`DeploymentStack/TRE/config/realm-config/tre-layer.json`), not just `Dare-TRE-UI`.
+
+E-mail notifications (`EmailSettings.*` on the egress api — host, from-address, admin-role
+recipient override) are left at the egress chart's own defaults (`EmailSettings__Enabled:
+"false"`, so nothing sends); not surfaced by this stack.
 
 ## GA4GH TES backend
 
@@ -333,7 +364,7 @@ enable `tesk.enabled` on a security-restricted namespace, create both the Config
 `valuesObject` minimal (per the brief) rather than reproducing director-wfs's cluster-hardening
 layer (Gatekeeper, trust-manager, Falco) as well.
 
-## CloudNativePG: two databases, one external, one optional
+## CloudNativePG: two required databases, one optional, one external
 
 CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and a role both
 named `app`. Declarative `Database` objects then create the real application databases, owned
@@ -460,6 +491,7 @@ only in-flight workflow instance state, not the system of record.
 | `agent.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
 | `agent.api.treName` | **REQUIRED for production.** Name of this TRE deployment. Empty leaves the standalone chart's dev default (`DEV`) in place. | `""` |
 | `agent.api.tesApiUrl` | **REQUIRED for production** unless `tesk.enabled` is `true`. External TES backend URL — the recommended production path. Empty with `tesk.enabled: false` leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster; empty with `tesk.enabled: true` derives the in-cluster TESK URL instead. See **GA4GH TES backend** above. | `""` |
+| `agent.api.keycloakDemoMode` | Local-only. Relaxes the outbound password-grant token helpers' discovery-endpoint check to HTTP. See **Egress** above. | `"false"` |
 | `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
 | `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
 | `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |
@@ -472,6 +504,7 @@ only in-flight workflow instance state, not the system of record.
 | `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.0` |
 | `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.0.4` |
 | `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |
+| `egress.keycloakDemoMode` | Local-only. Relaxes the egress api's own outbound password-grant token helpers' discovery-endpoint check to HTTP (covers both its `Data-Egress` and cross-realm `Dare-TRE` calls). See **Egress** above. | `"false"` |
 
 ### Submission cross-link
 
