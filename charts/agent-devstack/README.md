@@ -142,6 +142,9 @@ Both toggles use `admin` for the bind/config-admin passwords (see **Credentials*
 
 ### Optional: local Data Egress
 
+The commands below assume `dev-env-setup/` as the working directory — chart paths (`../charts/*`)
+are relative to it, matching `cluster-setup.sh`'s own layout.
+
 ```
 --set egress.enabled=true    # on THIS chart, so the Data-Egress realm import and
                              # egress-api-secret/egress-ui-secret render
@@ -152,18 +155,32 @@ and, on `agent-stack`:
 ```
 --set egress.enabled=true
 --set egress.appEnabled=false
---set egress.oidcAuthority=http://keycloak.localtest.me/realms/Data-Egress
+--set egress.oidcAuthority=http://keycloak.agent.localtest.me/realms/Data-Egress
 --set egress.keycloakDemoMode=true
 --set agent.api.keycloakDemoMode=true
 ```
 
 `egress.appEnabled=false` turns off only `agent-stack`'s `egress` ArgoCD `Application` — the
 `egress` chart is not published to Harbor, so nothing can sync it locally. `egress.enabled=true`
-still renders the `data-egress` `Database`, the `egress-*` `VaultSecret`s (or reads this chart's
-static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe), and
-`agent-api`'s own `api.egress.*` wiring. Install the egress PRODUCT itself directly from its
-working tree instead, mirroring `dev-env-setup`'s own pattern for `agent`/`submission` (see that
-README's **Why the product charts are installed directly**):
+still renders the `data-egress` `Database` and the `egress-*` `VaultSecret`s (or reads this
+chart's static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this
+recipe) — but **not** the running `agent-api`'s own wiring: `agent-stack`'s `api.egress.*` block
+only reaches the (disabled) `egress` Application's `valuesObject`, never the actually-installed
+`agent` product release, because `agent-stack-local.yaml` sets `agent.enabled: false` (the
+direct-install pattern — see `dev-env-setup`'s own **Why the product charts are installed
+directly**). Wire the running `agent-api` on the same `helm upgrade agent` command
+`dev-env-setup` already runs (re-supplying its own `-f` file so nothing else in it resets):
+
+```
+helm upgrade --install agent ../charts/agent -f files/values/agent-product-local.yaml \
+  --set api.egress.enabled=true \
+  --set api.egress.authority=http://keycloak.agent.localtest.me/realms/Data-Egress \
+  --set api.egress.apiUrl=http://egress-api --set api.keycloakDemoMode=true \
+  --kube-context kind-5s-tes
+```
+
+Install the egress PRODUCT itself directly from its working tree too, mirroring the same
+direct-install pattern:
 
 ```
 helm upgrade --install egress /path/to/DARE-Control/charts/egress \
@@ -194,7 +211,7 @@ with `egress.appEnabled=false`, never touches Harbor.
 `egress.keycloakDemoMode`/`agent.api.keycloakDemoMode` (both default `"false"`, production-safe)
 relax the outbound password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
 (`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`, both DARE-Control's and this repo's
-copy of that file) — required because `http://keycloak.localtest.me` above is plain HTTP.
+copy of that file) — required because `http://keycloak.agent.localtest.me` above is plain HTTP.
 `egress.keycloakDemoMode` covers the egress api's own outbound calls (to `Data-Egress`'s own
 discovery endpoint, and, via the same value, to `Dare-TRE` as `Dare-TRE-API` — DARE-Control
 `Data-Egress-API/Program.cs:69,77` sets both `TreKeyCloakSettings` and `DataEgressKeyCloakSettings`
