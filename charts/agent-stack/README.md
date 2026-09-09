@@ -19,7 +19,7 @@ lives in this chart; that is all in `charts/agent`.
 | `templates/postgres.yaml` | CNPG `Cluster` `postgres`, `Database`s `dare-tre`/`tre-credentials`/`data-egress` (optional, `egress.enabled`), `Pooler` `pg-pooler`, PodMonitors | 3 |
 | `templates/backup.yaml` | Velero `Schedule` (volumes) + CNPG `ObjectStore`/`ScheduledBackup` (off by default) | 2/3 |
 | `templates/agent.yaml` | ArgoCD `Application` `agent`, the standalone chart | 5 |
-| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off | 5 |
+| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off, independently gated by `egress.appEnabled` | 5 |
 
 ## What the cluster must already have
 
@@ -259,6 +259,12 @@ otherwise. Turning it on also:
   the Agent api starts talking to Data-Egress.
 - Sets `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (default
   `"false"`, production-safe — production's Keycloak is HTTPS).
+
+`egress.appEnabled` (default `true`) gates ONLY the `egress` `Application` on top of
+`egress.enabled` — the Database, VaultSecrets, and `agent.yaml`'s `api.egress` wiring above stay
+gated on `egress.enabled` alone. Set it `false` to compose the rest of the egress wiring without
+the un-publishable Application, e.g. for a local install of the egress product by helm from a
+working tree (see `agent-devstack`'s README).
 
 Independent of the toggle, `agent.yaml` always wires `api.keycloakDemoMode` from
 `agent.api.keycloakDemoMode` (default `"false"`). Both settings relax the outbound
@@ -502,7 +508,8 @@ only in-flight workflow instance state, not the system of record.
 
 | Name | Description | Default |
 |---|---|---|
-| `egress.enabled` | Create the `egress` `Application`. The chart must already exist in Harbor at `egress.chartVersion` — see **Egress** above. | `false` |
+| `egress.enabled` | Compose the egress product's Database, VaultSecrets, and agent `api.egress` wiring. See **Egress** above. | `false` |
+| `egress.appEnabled` | Also create the `egress` `Application` (on top of `egress.enabled`). The chart must already exist in Harbor at `egress.chartVersion` — see **Egress** above. | `true` |
 | `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.0` |
 | `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.0.4` |
 | `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |

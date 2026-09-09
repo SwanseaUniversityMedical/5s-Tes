@@ -1,4 +1,4 @@
-{{- if .Values.egress.enabled }}
+{{- if and .Values.egress.enabled .Values.egress.appEnabled }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:

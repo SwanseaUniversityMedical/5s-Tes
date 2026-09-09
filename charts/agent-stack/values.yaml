@@ -86,6 +86,12 @@ agent:
 # chart must already exist in Harbor before turning this on. See README.
 egress:
   enabled: false
+  # Gates ONLY the egress Application (templates/egress.yaml) — the Database,
+  # VaultSecrets, and agent api.egress wiring stay gated on egress.enabled
+  # alone. Local installs set this false to skip the un-publishable
+  # Application while installing the egress product by helm from a working
+  # tree instead. See README.
+  appEnabled: true
   # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
   chartVersion: "1.0.0"
   # renovate: datasource=docker depName=dare-trefx/control-egress-api registryUrl=https://harbor.ukserp.ac.uk
