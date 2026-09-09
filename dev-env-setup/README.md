@@ -95,6 +95,13 @@ chart release lands in Harbor, `submission.enabled`/`agent.enabled` can flip bac
 and this bootstrap can drop its two `*-product-local.yaml` files and direct `helm install`
 steps.
 
+A seventh values file, `files/values/egress-product-local.yaml`, follows the same
+`*-product-local.yaml` pattern for the optional `egress` product (DARE-Control's own repo,
+`charts/egress`) — but it is not run by this script. Egress is off by default; enabling it is
+a manual step (`agent-devstack`'s README **Optional: local Data Egress**), because it is never
+published to Harbor either and needs the same `egress.appEnabled=false` +
+direct-`helm install` treatment as `submission`/`agent` above.
+
 ### Local images
 
 Nothing is published to Harbor for the five C# components. The script builds all five from

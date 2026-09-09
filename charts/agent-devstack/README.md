@@ -151,23 +151,45 @@ and, on `agent-stack`:
 
 ```
 --set egress.enabled=true
+--set egress.appEnabled=false
 --set egress.oidcAuthority=http://keycloak.localtest.me/realms/Data-Egress
 --set egress.keycloakDemoMode=true
 --set agent.api.keycloakDemoMode=true
 ```
 
+`egress.appEnabled=false` turns off only `agent-stack`'s `egress` ArgoCD `Application` — the
+`egress` chart is not published to Harbor, so nothing can sync it locally. `egress.enabled=true`
+still renders the `data-egress` `Database`, the `egress-*` `VaultSecret`s (or reads this chart's
+static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe), and
+`agent-api`'s own `api.egress.*` wiring. Install the egress PRODUCT itself directly from its
+working tree instead, mirroring `dev-env-setup`'s own pattern for `agent`/`submission` (see that
+README's **Why the product charts are installed directly**):
+
+```
+helm upgrade --install egress /path/to/DARE-Control/charts/egress \
+  --namespace <this stack's namespace> -f dev-env-setup/files/values/egress-product-local.yaml \
+  --kube-context <cluster context>
+```
+
+`dev-env-setup/files/values/egress-product-local.yaml` reproduces the `helm.valuesObject`
+`agent-stack`'s (disabled) `egress` `Application` would have rendered, translated to local
+endpoints — see that file's own header comment for the exact fields, and for why it turns TLS on
+for just the egress ingress (`Data-Egress-UI`'s cookie handling needs it locally).
+
 The extra `egress.oidcAuthority` override is needed for the same reason as `global.oidc.authority`
 above: `agent-stack`'s own default is the production Data-Egress authority, which does not exist
-locally. Both toggles must agree — `agent-stack`'s `egress.enabled` renders the `egress`
-`Application`, the `data-egress` `Database`, and the `egress-*` `VaultSecret`s (or reads this
-chart's static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe);
-this chart's `egress.enabled` renders the realm clients and matching static Secrets those need.
-Mismatched toggles fail differently depending on direction: this chart's `egress.enabled=false`
-with `agent-stack`'s `true` leaves `agent-api-secret.egressKeycloakClientSecret` at the inert
-`dev-egress-unused` placeholder (see **Credentials** above) — the ROPC call fails with a bad
-client secret, not an obviously missing object. `agent-stack`'s own README states the egress
-chart (`harbor.ukserp.ac.uk/dare-trefx/chart/egress`) must already exist in Harbor before its
-`egress.enabled` is turned on — see that chart's **Egress** section.
+locally. Both toggles must agree — `agent-stack`'s `egress.enabled` renders the `data-egress`
+`Database` and the `egress-*` `VaultSecret`s (or reads this chart's static Secrets directly if
+`vault.secretsEnabled=false`, same as the rest of this recipe); this chart's `egress.enabled`
+renders the realm clients and matching static Secrets those need. Mismatched toggles fail
+differently depending on direction: this chart's `egress.enabled=false` with `agent-stack`'s
+`true` leaves `agent-api-secret.egressKeycloakClientSecret` at the inert `dev-egress-unused`
+placeholder (see **Credentials** above) — the ROPC call fails with a bad client secret, not an
+obviously missing object. This precondition is production-only: a production install (which
+leaves `egress.appEnabled` at its default `true`) still needs the egress chart
+(`harbor.ukserp.ac.uk/dare-trefx/chart/egress`) published to Harbor before turning
+`egress.enabled` on — see `agent-stack`'s own README **Egress** section. The local recipe above,
+with `egress.appEnabled=false`, never touches Harbor.
 
 `egress.keycloakDemoMode`/`agent.api.keycloakDemoMode` (both default `"false"`, production-safe)
 relax the outbound password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
