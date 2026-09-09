@@ -142,7 +142,14 @@ data:
   # and a self-audience mapper on Dare-TRE-API — the egress api authenticates
   # into Dare-TRE as Dare-TRE-API via password grant and needs both to reach
   # Agent.Api (DARE-Control TreClientWithoutTokenHelper.cs's requiredRole;
-  # Agent's ValidAudiences "Dare-TRE-API,Dare-TRE-UI").
+  # Agent's ValidAudiences "Dare-TRE-API,Dare-TRE-UI"). Data-Egress-UI also
+  # carries an explicit realm-roles mapper: Keycloak's built-in "roles" scope
+  # only puts realm_access in the access token, but Data-Egress-UI's OIDC
+  # handler runs with GetClaimsFromUserInfoEndpoint=true (Data-Egress-UI/
+  # Program.cs), which keeps only userinfo-endpoint claims - without
+  # userinfo.token.claim=true here, ClaimsTransformerBL never sees
+  # realm_access and every [Authorize(Roles = ...)] page 302s to AccessDenied
+  # (verified live, E5.1).
   data-egress.json: |-
     {
       "realm": "Data-Egress",
@@ -220,6 +227,20 @@ data:
                 "id.token.claim": "true",
                 "access.token.claim": "true",
                 "userinfo.token.claim": "true"
+              }
+            },
+            {
+              "name": "realm-roles",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-realm-role-mapper",
+              "config": {
+                "user.attribute": "foo",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true",
+                "claim.name": "realm_access.roles",
+                "jsonType.label": "String",
+                "multivalued": "true"
               }
             }
           ]
