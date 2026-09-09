@@ -487,5 +487,6 @@ $RECYCLE.BIN/
 
 .superpowers/
 .claude-octopus/
+docs/superpowers/*
 
 dev-env-setup/.vault-keys*
