@@ -246,9 +246,10 @@ ever loads — meaningless below 2 replicas regardless.
 `egress.enabled` (default `false`) composes the optional Data-Egress product as the `egress`
 `Application` (`templates/egress.yaml`), pulled from `harbor.ukserp.ac.uk/dare-trefx/chart`
 (the DARE-Control charts project) — a different Harbor registry and project than `agent`'s own
-`harbor.federated-analytics.ac.uk/5s-tes/chart`. **The `egress` chart must already exist at that
-coordinate, at `egress.chartVersion`, before turning this on** — ArgoCD fails the sync
-otherwise. Turning it on also:
+`harbor.federated-analytics.ac.uk/5s-tes/chart`. **When `egress.appEnabled` is also `true`
+(the default), the `egress` chart must already exist at that coordinate, at
+`egress.chartVersion`, before turning `egress.enabled` on** — ArgoCD fails the sync otherwise.
+Turning `egress.enabled` on also:
 
 - Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
   stack's own `postgres` `Cluster` — see **CloudNativePG** below.
@@ -265,6 +266,11 @@ otherwise. Turning it on also:
 gated on `egress.enabled` alone. Set it `false` to compose the rest of the egress wiring without
 the un-publishable Application, e.g. for a local install of the egress product by helm from a
 working tree (see `agent-devstack`'s README).
+
+Publish order is images → chart → enable: `egress.imageVersion` must point at a
+`control-egress-api`/`control-egress-ui` release that contains the `/health` endpoint the egress
+chart's probes require. The default `"3.0.4"` predates `/health` and CrashLoops on its own
+probes — it is not a working image tag.
 
 Independent of the toggle, `agent.yaml` always wires `api.keycloakDemoMode` from
 `agent.api.keycloakDemoMode` (default `"false"`). Both settings relax the outbound
@@ -289,6 +295,14 @@ password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
   nearly every controller in DARE-Control's `Data-Egress-API`/`Data-Egress-UI`
   (`[Authorize(Roles = "data-egress-admin")]`, 23 hits) — without it, no user can use the
   product at all.
+- **A realm-roles → userinfo mapper on `Data-Egress-UI`.** `Data-Egress-UI` runs its OIDC
+  handler with `GetClaimsFromUserInfoEndpoint = true`, and Keycloak's built-in `roles` client
+  scope does not put `realm_access` in the userinfo response by default. Without an explicit
+  mapper adding realm roles to userinfo (`charts/agent-devstack/templates/keycloak-realm.yaml`'s
+  `Data-Egress-UI` mapper is the pattern), every `data-egress-admin`-gated page 403s even for a
+  correctly-roled user. Production's own realm export sets this
+  (`egress-layer.json`, `clientScopes[name=roles]`, mapper "realm roles",
+  `userinfo.token.claim: true`).
 
 The egress api also needs a cross-realm trust into the `Dare-TRE` realm at
 `global.oidc.authority` (the same realm `agent.yaml` uses), to call the Agent api on the

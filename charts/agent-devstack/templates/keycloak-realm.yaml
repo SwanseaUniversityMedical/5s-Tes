@@ -146,8 +146,9 @@ data:
   # carries an explicit realm-roles mapper: Keycloak's built-in "roles" scope
   # only puts realm_access in the access token, but Data-Egress-UI's OIDC
   # handler runs with GetClaimsFromUserInfoEndpoint=true (Data-Egress-UI/
-  # Program.cs), which keeps only userinfo-endpoint claims - without
-  # userinfo.token.claim=true here, ClaimsTransformerBL never sees
+  # Program.cs), which augments the id_token-derived identity with
+  # userinfo-endpoint claims - without userinfo.token.claim=true here,
+  # ClaimsTransformerBL never sees
   # realm_access and every [Authorize(Roles = ...)] page 302s to AccessDenied
   # (verified live, E5.1).
   data-egress.json: |-

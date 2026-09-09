@@ -184,7 +184,7 @@ direct-install pattern:
 
 ```
 helm upgrade --install egress /path/to/DARE-Control/charts/egress \
-  --namespace <this stack's namespace> -f dev-env-setup/files/values/egress-product-local.yaml \
+  --namespace <this stack's namespace> -f files/values/egress-product-local.yaml \
   --kube-context <cluster context>
 ```
 
@@ -263,7 +263,12 @@ charts:
   token's audience, regardless of which of the two clients issued it) — DARE-Control's
   `Data-Egress-API` validates `ValidAudiences="Data-Egress-UI,Data-Egress-API"` against the token
   the UI forwards verbatim, mirroring production's `DATA-EGRESS-UI`/`DATA-EGRESS-API` client
-  scopes, which are `defaultClientScopes` on **both** clients in the prod export.
+  scopes, which are `defaultClientScopes` on **both** clients in the prod export. `Data-Egress-UI`
+  also carries a third mapper: a realm-roles → userinfo mapper (`userinfo.token.claim: "true"`
+  on the built-in `roles` client scope). `Data-Egress-UI` runs its OIDC handler with
+  `GetClaimsFromUserInfoEndpoint = true`, and Keycloak's built-in `roles` scope does not put
+  `realm_access` in userinfo by default — without this mapper every `data-egress-admin`-gated
+  page 403s, matching production's own realm export.
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
   inside pods (api and ui reaching `global.oidc.authority`) would otherwise resolve
   `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —
@@ -332,8 +337,16 @@ from the host.
   (on `Dare-TRE-API`) if `egress.enabled`. No other client scopes. The `Data-Egress` dev realm
   (if `egress.enabled`) is equally minimal: two clients, three users (including both service
   accounts), two realm roles (`dare-tre-admin`, `data-egress-admin` — see **Credentials** above),
-  two protocol mappers per client (both audience mappers, see **Local Keycloak** above). Extend
-  either realm by editing `templates/keycloak-realm.yaml`.
+  two audience mappers on `Data-Egress-API`, three on `Data-Egress-UI` (the extra one puts realm
+  roles in userinfo, see **Local Keycloak** above). Extend either realm by editing
+  `templates/keycloak-realm.yaml`.
+- **Known limitation: `Agent.Web`'s role-gated pages cannot work against this local `Dare-TRE`
+  realm.** `Agent.Web` runs `GetClaimsFromUserInfoEndpoint = true` and builds its principal from
+  `id_token` + userinfo claims, but `Dare-TRE-UI` carries no realm-roles → userinfo mapper here,
+  so `realm_access` never reaches userinfo and every `[Authorize(Roles = "dare-tre-admin")]` page
+  in `Agent.Web` is unreachable on a real local login. Production is unaffected — its `Dare-TRE`
+  realm export sets this mapper already. The `Data-Egress-UI` mapper above is the ready-made
+  pattern; adding the equivalent to `Dare-TRE-UI` is tracked as a fast-follow, not fixed here.
 - Keycloak only imports a realm on first start; it skips one that already exists by name. To
   apply an EDIT to an already-imported realm (e.g. changing `Dare-TRE`'s existing client
   secrets or roles) on an already-running local Keycloak, delete the `keycloak` Application's
