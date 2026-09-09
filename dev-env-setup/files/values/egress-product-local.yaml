@@ -1,0 +1,71 @@
+# Values for `helm install egress /Users/alex/Devel/DARE-Control/charts/egress`
+# directly from that working tree. E5.1: egress is not published to Harbor,
+# so agent-stack's own templates/egress.yaml Application is disabled locally
+# (egress.appEnabled=false) and this file reproduces the helm.valuesObject
+# that Application would have rendered (agent-stack's egress.* values,
+# global.ingress.host=agent.localtest.me), translated to the local
+# Keycloak/agent-api endpoints. Not consumed by cluster-setup.sh - a manual
+# E5.1 proof step, applied after the base two-family bootstrap.
+#
+# tls: true (unlike agent-stack-local.yaml's own tls: false) - E5.1 finding:
+# Data-Egress-UI/Program.cs hardcodes NonceCookie/CorrelationCookie
+# SameSite=None, which ASP.NET Core always pairs with Secure regardless of
+# the ui.sslCookies flag. Browsers/curl refuse to store a Secure cookie set
+# over plain HTTP, so the OIDC login's correlation check can never pass on
+# an http:// ingress - not a local-only quirk, this breaks the login on any
+# plain-HTTP deployment of Data-Egress-UI. Worked around here with real TLS
+# at the egress ingress (cluster-setup.sh's own self-signed ca-issuer);
+# DARE-Control's SameSite=None hardcoding is unchanged. rustfs itself stays
+# on agent-stack's own http ingress (ui.s3ConsoleUrl below), so this chart's
+# tls does not mirror agent-stack-local.yaml's.
+global:
+  tag: "3.0.4"
+
+  config:
+    aspnetEnvironment: "Production"
+    seqUrl: "http://seq:5341"
+
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Data-Egress"
+
+  monitoring:
+    enabled: false
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "agent.localtest.me"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  trustClusterCa:
+    enabled: false
+
+# Cross-realm: the api obtains a service token from Dare-TRE to call the
+# Agent api. Same realm as the agent-stack install's global.oidc.authority.
+tre:
+  oidcAuthority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+
+api:
+  # Verified: rustfs-svc:9000, same namespace (5s-tes-agent) as this install.
+  s3Url: "http://rustfs-svc:9000"
+  # Static Service name of the agent product's own api (charts/agent/templates/api/service.yaml).
+  treApiAddress: "http://agent-api"
+  keycloakDemoMode: "true"
+  # harbor.ukserp.ac.uk's published 3.0.4 tag (v3.0.4-containers) predates
+  # /health (DARE-Control commit 1a65f311, feat/egress-chart) - the chart's
+  # own readiness/liveness probe 404s against it. Built locally from this
+  # branch's working tree instead (docker build + kind load, name 5s-tes).
+  image:
+    repository: dare-control/egress-api
+    tag: local
+    pullPolicy: IfNotPresent
+
+ui:
+  sslCookies: "true"
+  s3ConsoleUrl: "http://rustfs.agent.localtest.me"
+  # Same image/health mismatch as api.image above.
+  image:
+    repository: dare-control/egress-ui
+    tag: local
+    pullPolicy: IfNotPresent
