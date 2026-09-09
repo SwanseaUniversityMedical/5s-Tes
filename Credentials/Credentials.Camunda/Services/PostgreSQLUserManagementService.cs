@@ -8,7 +8,6 @@ using System.Threading.Tasks;
 using Credentials.Camunda.Models;
 using Npgsql;
 using Serilog;
-using Credentials.Camunda.Extensions;
 
 namespace Credentials.Camunda.Services
 {
@@ -16,9 +15,9 @@ namespace Credentials.Camunda.Services
     {
         private readonly string _connectionString;
 
-        public PostgreSQLUserManagementService(IConfiguration configuration, IHostEnvironment environment)
+        public PostgreSQLUserManagementService(IConfiguration configuration)
         {
-            _connectionString = ServiceExtensions.GetPostgresSslString(configuration.GetConnectionString("TREPostgresConnection"), environment);
+            _connectionString = configuration.GetConnectionString("TREPostgresConnection");
         }
 
         public async Task<UserCreationResult> CreateUserAsync(CreateUserRequest request)

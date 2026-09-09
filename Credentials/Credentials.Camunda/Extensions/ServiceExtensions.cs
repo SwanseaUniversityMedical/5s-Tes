@@ -5,7 +5,6 @@ using Credentials.Camunda.Settings;
 using Credentials.Models.DbContexts;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
-using Npgsql;
 using IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
 using IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
 using PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
@@ -20,7 +19,7 @@ namespace Credentials.Camunda.Extensions
 {
     public static class ServiceExtensions
     {
-        public static void AddBusinessServices(this IServiceCollection services, IConfiguration configuration, IHostEnvironment environment) // add services here
+        public static void AddBusinessServices(this IServiceCollection services, IConfiguration configuration) // add services here
         {
 
 
@@ -42,7 +41,7 @@ namespace Credentials.Camunda.Extensions
             });
 
             services.AddDbContext<CredentialsDbContext>(options =>
-                options.UseNpgsql(GetPostgresSslString(configuration.GetConnectionString("CredentialsConnection"), environment)));
+                options.UseNpgsql(configuration.GetConnectionString("CredentialsConnection")));
 
         }
 
@@ -71,13 +70,6 @@ namespace Credentials.Camunda.Extensions
 
             services.AddScoped<CreateTreCredentialsHandler>();
             services.AddScoped<DeleteTreCredentialsHandler>();
-        }
-
-        public static string GetPostgresSslString(string connectionString, IHostEnvironment environment)
-        {
-            var builder = new NpgsqlConnectionStringBuilder(connectionString);
-            if (!environment.IsDevelopment()) builder.SslMode = SslMode.Require;
-            return builder.ConnectionString;
         }
     }
 }
