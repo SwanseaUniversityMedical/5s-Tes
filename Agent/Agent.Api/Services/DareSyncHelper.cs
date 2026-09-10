@@ -98,6 +98,13 @@ namespace Agent.Api.Services
 
             foreach (var treProject in projectArchives)
             {
+                // Stamp the archive time only on transition into archived so the original timestamp
+                // is preserved across repeated syncs (used as a fallback anchor for bucket cleanup).
+                if (!treProject.Archived)
+                {
+                    treProject.ArchivedOn = DateTime.UtcNow;
+                }
+
                 treProject.Archived = true;
                 foreach (var treProjectMemberDecision in treProject.MemberDecisions)
                 {
@@ -108,6 +115,18 @@ namespace Agent.Api.Services
             foreach (var projectUnarchive in projectUnarchives)
             {
                 projectUnarchive.Archived = false;
+                projectUnarchive.ArchivedOn = null;
+            }
+
+            // Keep the expiry date in step with the Submission layer's EndDate on every sync
+            // (it is otherwise only set at insert), so the bucket-cleanup grace window is accurate.
+            foreach (var treProject in dbprojs)
+            {
+                var subProject = subprojs.FirstOrDefault(y => y.Id == treProject.SubmissionProjectId);
+                if (subProject != null)
+                {
+                    treProject.ProjectExpiryDate = subProject.EndDate;
+                }
             }
 
             await _DbContext.SaveChangesAsync();

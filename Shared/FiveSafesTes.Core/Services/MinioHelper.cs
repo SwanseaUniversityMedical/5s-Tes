@@ -239,6 +239,95 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
+        /// <summary>
+        /// Removes every object from a bucket (paginated list + bulk delete) without removing the
+        /// bucket itself. S3/MinIO requires a bucket to be empty before it can be deleted, so this is
+        /// also the first step of <see cref="DeleteBucketAsync"/>.
+        /// </summary>
+        public async Task<bool> EmptyBucketAsync(string bucketName)
+        {
+            if (string.IsNullOrWhiteSpace(bucketName))
+            {
+                return false;
+            }
+
+            var amazonS3Client = GenerateAmazonS3Client();
+
+            try
+            {
+                string? continuationToken = null;
+                do
+                {
+                    var listRequest = new ListObjectsV2Request
+                    {
+                        BucketName = bucketName,
+                        ContinuationToken = continuationToken
+                    };
+
+                    var listResponse = await amazonS3Client.ListObjectsV2Async(listRequest);
+
+                    if (listResponse.S3Objects.Count > 0)
+                    {
+                        var deleteRequest = new DeleteObjectsRequest
+                        {
+                            BucketName = bucketName,
+                            Objects = listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList()
+                        };
+
+                        await amazonS3Client.DeleteObjectsAsync(deleteRequest);
+                    }
+
+                    continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : null;
+                }
+                while (continuationToken != null);
+
+                Log.Information("Emptied bucket {BucketName}", bucketName);
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Log.Error(ex, "Failed to empty bucket {BucketName}", bucketName);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Deletes a bucket entirely: empties it first (S3 requires an empty bucket) then removes it.
+        /// If the bucket does not exist, the method returns true because there is nothing to delete. so cleanup is idempotent.
+        /// </summary>
+        public async Task<bool> DeleteBucketAsync(string bucketName)
+        {
+            if (string.IsNullOrWhiteSpace(bucketName))
+            {
+                return false;
+            }
+
+            if (!await CheckBucketExists(bucketName))
+            {
+                Log.Information("Bucket {BucketName} does not exist; nothing to delete", bucketName);
+                return true;
+            }
+
+            if (!await EmptyBucketAsync(bucketName))
+            {
+                return false;
+            }
+
+            var amazonS3Client = GenerateAmazonS3Client();
+
+            try
+            {
+                await amazonS3Client.DeleteBucketAsync(bucketName);
+                Log.Information("Deleted bucket {BucketName}", bucketName);
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Log.Error(ex, "Failed to delete bucket {BucketName}", bucketName);
+                return false;
+            }
+        }
+
         public async Task<bool> CheckObjectExists(string bucketName, string objectKey)
         {
             var request = new GetObjectMetadataRequest
