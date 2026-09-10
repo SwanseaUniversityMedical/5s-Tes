@@ -172,6 +172,7 @@ Settings shared by more than one component. Defined once.
 | `ui.containerPort` | Port the ASP.NET app listens on inside the container. | `8080` |
 | `ui.resources` | Container resource requests/limits. | `{}` |
 | `ui.service.type` | UI Service type. | `ClusterIP` |
+| `ui.service.annotations` | Annotations for the UI Service, e.g. a static LoadBalancer IP when exposed externally. | `{}` |
 | `ui.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `submission-ui-secret` |
 | `ui.ingress.enabled` | Create an Ingress for the UI. | `true` |
 | `ui.ingress.host` | Hostname for the UI Ingress. Empty computes `submission.<global.ingress.host>`. | `""` |

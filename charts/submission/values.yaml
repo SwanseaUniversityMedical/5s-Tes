@@ -152,6 +152,7 @@ ui:
   resources: {}
   service:
     type: ClusterIP
+    annotations: {}
   # Expected key: keycloakClientSecret. See README Secrets section.
   secretName: submission-ui-secret
   ingress:

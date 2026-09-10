@@ -4,6 +4,10 @@ kind: Service
 metadata:
   # Static: this is the name referenced by other charts as "submission-ui".
   name: submission-ui
+  {{- with .Values.ui.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "submission.labels" . | nindent 4 }}
     app.kubernetes.io/component: ui
