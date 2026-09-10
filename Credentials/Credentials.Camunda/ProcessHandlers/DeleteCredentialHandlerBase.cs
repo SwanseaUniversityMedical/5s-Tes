@@ -128,9 +128,10 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: No credential information found in envList");
                 }
 
-                // Extract username - common across all handlers
+                // Extract the identifier - common across all handlers. Most credential types
+                // key on "username"; S3/RustFS access keys use "accessKey" instead.
                 string? username = extraction.EnvList
-                        .Where(x => x.env.ToLower().Contains("username"))
+                        .Where(x => x.env.ToLower().Contains("username") || x.env.ToLower().Contains("accesskey"))
                         .FirstOrDefault()?.value?.ToString();
 
                 if (string.IsNullOrEmpty(username))
