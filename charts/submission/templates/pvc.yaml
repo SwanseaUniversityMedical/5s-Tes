@@ -1,0 +1,16 @@
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: {{ include "submission.fullname" . }}
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+spec:
+  {{- if typeIs "string" .Values.storage.storageClassName }}
+  storageClassName: {{ .Values.storage.storageClassName | quote }}
+  {{- end }}
+  accessModes:
+    # - ReadWriteMany
+    - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.storage.size | quote }}
