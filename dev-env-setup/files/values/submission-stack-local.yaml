@@ -1,9 +1,4 @@
-# Encodes charts/submission-devstack/README.md's "Local install" recipe as
-# a values file, adjusted for running both product families on one cluster
-# (see submission-devstack-local.yaml) and for the RWX provisioner patch
-# (cluster-setup.sh step 2): the accessModes override the README used to
-# carry is dropped here, since the patched "standard" StorageClass now binds
-# ReadWriteMany claims directly. See README.
+# Local kind overrides for submission-stack.
 global:
   oidc:
     authority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
@@ -28,10 +23,7 @@ rabbitmq:
     default_pass = password123
     loopback_users.submission = false
 
-# Nothing is published to harbor.federated-analytics.ac.uk yet (that
-# repoURL/chart are literals in templates/submission.yaml, not values), so
-# this Application can't resolve. cluster-setup.sh installs the "submission"
-# chart directly from the working tree instead (submission-product-local.yaml)
-# once this stack's dependencies are ready. See README.
+# The chart Application can't resolve (nothing published to Harbor);
+# cluster-setup.sh installs the submission chart from the working tree.
 submission:
   enabled: false

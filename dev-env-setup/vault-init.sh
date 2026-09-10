@@ -1,27 +1,15 @@
 #!/bin/bash
-# Initialises, unseals, and configures one namespace's own runtime Vault
-# (server.standalone, not dev mode - see charts/*-stack/README.md "Vault").
-# Unlike Director-Airlock's dev Vault (auto-unsealed, devstack-owned), ours
-# is the stack's own prod-mode Vault (Decision 5): it starts sealed and
-# needs real init/unseal every time the cluster is rebuilt.
-#
-# Locally vault.secretsEnabled=false, so the operator-read kvv2 mount and
-# Kubernetes auth (Airlock's configure_vault) are not needed - nothing here
-# reads through the redhat-cop vault-config-operator. Only two things are
-# needed for the apps to work:
-#   1. the "secret" kv-v2 mount apps read/write at runtime
-#      (VaultCredentialsService, api.vault.secretEngine default "secret")
-#   2. a real Vault token equal to the static Secrets' "dev-only-token"
-#      (submission-api-secret/agent-api-secret/credentials-camunda-secret's
-#      vaultToken) - created as a named, root-policy child token of the
-#      real (random) root token init produces, since `vault operator init`
-#      cannot choose the root token's own ID.
+# Initialises, unseals, and configures one namespace's own runtime Vault.
+# It starts sealed (prod mode) and needs real init/unseal every time the
+# cluster is rebuilt. The apps need two things:
+#   1. the "secret" kv-v2 mount they read/write at runtime
+#   2. a real Vault token equal to the static Secrets' "dev-only-token",
+#      created as a child of the random root token init produces
+#      (`vault operator init` cannot choose the root token's ID).
 #
 # Usage: vault-init.sh <namespace> <kube-context> <vault-release-name>
-# <vault-release-name> is submission-vault/agent-vault (R33: distinct per
-# family, since the hashicorp/vault chart's cluster-scoped ClusterRoleBinding
-# is named from the release name alone - see charts/*-stack/templates/vault.yaml).
-# Its StatefulSet's pod is <vault-release-name>-0.
+# <vault-release-name> is submission-vault/agent-vault; its pod is
+# <vault-release-name>-0.
 set -euo pipefail
 
 NAMESPACE="${1:?usage: vault-init.sh <namespace> <kube-context> <vault-release-name>}"
@@ -44,12 +32,9 @@ until kubectl get "pod/$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" >/dev/nu
 done
 
 echo "Vault ($NAMESPACE): waiting for the vault container to be execable"
-# Not --for=condition=Ready: the chart's readinessProbe runs "vault status",
-# which fails (by design) while sealed - a brand-new pod never reaches
-# Ready on its own. condition=Initialized only means init containers are
-# done, not that the main "vault" container has actually started yet
-# (`kubectl exec` fails with "container not found" until it has) - so poll
-# with the same command this script needs to succeed.
+# Not --for=condition=Ready (the readinessProbe fails while sealed) and not
+# condition=Initialized (the vault container may not have started); poll
+# with the command this script needs.
 elapsed=0
 until kubectl exec "$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" -- true >/dev/null 2>&1; do
   if [ "$elapsed" -ge 300 ]; then

@@ -87,9 +87,7 @@ chart default change) so that inner `Application` never renders, and instead dir
 local settings - kept in sync by hand against `templates/submission.yaml`/`agent.yaml` since
 there are only two of them.
 
-This is a bootstrap-script delivery-mechanism decision, not a chart change: the full stack
-still runs by default locally (Decision 7 - a developer turns a component off from the
-README when running it from VS Code), just orchestrated by plain `helm install`
+The full stack still runs by default locally, just orchestrated by plain `helm install`
 against the working tree instead of ArgoCD-via-Harbor. Once a first `submission`/`agent`
 chart release lands in Harbor, `submission.enabled`/`agent.enabled` can flip back to `true`
 and this bootstrap can drop its two `*-product-local.yaml` files and direct `helm install`
@@ -117,17 +115,16 @@ change needs `./cluster-setup.sh` run again to rebuild and reload.
 into their final image regardless of target platform. Built natively on Apple Silicon, the
 resulting image is `arm64` with an `amd64` `mc` binary that cannot execute. This only affects
 code paths that shell out to `mc` (S3 user/policy provisioning); it does not stop the pods
-from starting. Fixing the Dockerfile (an arch-aware download, or a multi-arch `mc` release)
-is outside this task's scope - flagged here for whoever picks up S3 provisioning testing.
+from starting.
 
 ## Vault
 
 Each family's own Vault (`vault.enabled` stays `true`, `vault.secretsEnabled=false` locally -
 see both devstack READMEs' **Local install**) runs in the stack's own prod mode
-(`server.standalone`, not `server.dev` - Decision 5), so it starts sealed on every fresh
+(`server.standalone`, not `server.dev`), so it starts sealed on every fresh
 cluster and needs real init/unseal.
 `vault-init.sh <namespace> <kube-context> <vault-release-name>` (the third argument is
-`submission-vault`/`agent-vault` - R33, see `charts/*-stack/templates/vault.yaml`):
+`submission-vault`/`agent-vault`):
 
 ```bash
 ./vault-init.sh 5s-tes-submission kind-5s-tes submission-vault
@@ -177,7 +174,7 @@ from VS Code are documented in the root README's "Running apps from VS Code agai
 - **Known platform limitation (Docker Desktop for Mac)**: despite `listenAddress: "127.0.0.1"`
   on every `extraPortMappings` entry, ports 80/443 remain reachable from the LAN - Docker
   Desktop forwards privileged host ports (<1024) through a path that doesn't honour the
-  configured bind address (verified: all NodePorts ≥1024 are genuinely loopback-only). The
+  configured bind address (NodePorts ≥1024 are loopback-only). The
   exposure is the dev ingress, which sits in front of dev-grade credentials; to isolate it,
   firewall 80/443 or remap those two mappings to high ports (losing the plain `localtest.me`
   URLs).

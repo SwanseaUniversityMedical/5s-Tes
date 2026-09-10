@@ -49,12 +49,9 @@ submission:
     # "<scheme>://submission-api.<global.ingress.host>" from global.ingress.
     publicUrl: ""
   dataProtection:
-    # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
-    # null uses the cluster default, which is typically RWO-only (ceph-block)
-    # and will not bind a ReadWriteMany claim.
+    # Needs an RWX-capable class (e.g. CephFS) when accessModes is
+    # ReadWriteMany; null uses the cluster default.
     storageClassName: null
-    # Deployment-specific: multi-node prod is RWX; single-node kind is
-    # RWO-only. See README.
     accessModes:
       - ReadWriteMany
 
@@ -83,8 +80,8 @@ seq:
   # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
   chartVersion: "2025.2.1"
   storageSize: "10Gi"
-  # No seqApiKey is wired into either component's Secret yet, so leave off
-  # (mirrors airlock-stack): true here with no key rejects every app log.
+  # Leave false: no seqApiKey is wired into either component, so true
+  # rejects every app log.
   requireAuthForIngestion: false
   resources:
     requests:
@@ -93,33 +90,26 @@ seq:
     limits:
       memory: "512Mi"
 
-# Where this stack's own secrets come from (role/secretPath/authPath), and
-# the vault.yaml Application that deploys this stack's own Vault instance.
+# Secret source settings, and this stack's own Vault Application.
 vault:
   role: submission
   secretPath: kvv2/data/prod/prod/submission
   authPath: kubernetes
-  # This stack's own Vault (templates/vault.yaml, release name
-  # "submission-vault" - distinct per family, see its comment), not the
-  # redhatcop operator's default (platform) connection. Every VaultSecret
-  # below sets this explicitly via vaultSecretDefinitions[].connection.address.
+  # This stack's own Vault, not the operator's default connection.
   address: "http://submission-vault:8200"
 
-  # Deploys this stack's own Vault Application. Runtime dependency: the API
-  # calls this Vault directly for ephemeral credentials, so this stays true
-  # even where vault.secretsEnabled is false (e.g. local dev).
+  # The API calls this Vault at runtime, so this stays true even where
+  # secretsEnabled is false.
   enabled: true
-  # Gates every VaultSecret under templates/secrets/. False only where
-  # something else provides the Secrets those VaultSecrets would otherwise
-  # create (e.g. the devstack's static Secrets).
+  # Gates every VaultSecret. False only where something else provides the
+  # Secrets (e.g. the devstack's static Secrets).
   secretsEnabled: true
   repoURL: "https://helm.releases.hashicorp.com"
   chart: vault
   # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
   chartVersion: "0.34.1"
   dataStorageSize: "10Gi"
-  # The Vault Agent Injector webhook. Off by default: nothing in this chart
-  # needs agent-injected secrets, everything goes through VaultSecret.
+  # Vault Agent Injector webhook; nothing here uses injected secrets.
   injector:
     enabled: false
 
@@ -137,7 +127,7 @@ rabbitmq:
   vaultDefaultUser: true
 
 postgres:
-  # Owned by the "app" role CNPG's default bootstrap creates. See postgres.yaml.
+  # Owned by the "app" role CNPG's default bootstrap creates.
   database: "DARE-Control"
   instances: 1
   # Changing this on a running cluster is a major upgrade, not a text edit.
@@ -151,8 +141,7 @@ postgres:
     reservePoolSize: 20
     reservePoolTimeout: 5
     serverIdleTimeout: 300
-  # PostgreSQL backs itself up to object storage, through CloudNativePG.
-  # Off by default: no destination bucket is configured for this stack yet.
+  # PostgreSQL backups to object storage, through CloudNativePG.
   backups:
     enabled: false
     destinationPath: ""
@@ -163,9 +152,7 @@ postgres:
     retention: "30d"
     # SIX fields, seconds first.
     schedule: "0 0 0 * * *"
-    # Where the backup destination's S3 credentials live in Vault. Same
-    # mechanism as serp-provisioning-stack/airlock-stack: a second
-    # vaultSecretDefinitions entry on postgres-secret, aliased "backup".
+    # Vault path for the backup destination's S3 credentials.
     vault:
       path: ""
       accessKeyField: access_key

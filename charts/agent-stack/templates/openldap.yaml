@@ -36,19 +36,15 @@ spec:
         # Testing-only single instance; replication is off.
         replicaCount: 1
 
-        # The chart's own replication.enabled default (true) tries to
-        # configure multi-provider sync on a single replica, which fails
-        # ("<olcMultiProvider> database is not a shadow", found live) and
-        # crashes the container before it ever reaches the custom-LDIF step
-        # below. Meaningless below 2 replicas anyway.
+        # The chart's replication.enabled default (true) crashes a single
+        # replica before the custom-LDIF step runs.
         replication:
           enabled: false
 
         global:
           ldapDomain: "{{ .Values.openldap.ldapDomain }}"
-          # Keys LDAP_ADMIN_PASSWORD and LDAP_CONFIG_ADMIN_PASSWORD, per this
-          # chart's own existingSecret contract. Produced by
-          # templates/secrets/agent.yaml.
+          # Keys LDAP_ADMIN_PASSWORD/LDAP_CONFIG_ADMIN_PASSWORD, per the
+          # chart's existingSecret contract.
           existingSecret: "agent-openldap-secret"
 
         persistence:
@@ -63,13 +59,10 @@ spec:
         phpldapadmin:
           enabled: false
 
-        # The chart's own warning: the root organisation object is NOT
-        # created for you when customLdifFiles is used. DN components reuse
-        # agent.ldap.baseDn/userOu (the same values LdapSettings' defaults
-        # are built from - see LdapUserManagementService.cs:85,123,183,215)
-        # so the seeded tree can never drift from what the worker looks up.
-        # ou=groups/cn=trinogroup have no chart value of their own (matches
-        # LdapSettings' own fixed appsettings.json default) - kept literal.
+        # The chart does not create the root organisation object when
+        # customLdifFiles is used. DN components reuse agent.ldap.* so the
+        # seeded tree matches what the worker looks up; ou=groups and
+        # cn=trinogroup match the app's fixed defaults.
         customLdifFiles:
           00-root.ldif: |-
             dn: {{ .Values.agent.ldap.baseDn }}

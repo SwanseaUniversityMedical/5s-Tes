@@ -1,17 +1,11 @@
-# Values for `helm install egress /path/to/DARE-Control/charts/egress` directly from that
-# working tree. E5.1: egress is not published to Harbor, so agent-stack's own
-# templates/egress.yaml Application is disabled locally (egress.appEnabled=false) and this
-# file reproduces the helm.valuesObject that Application would have rendered (agent-stack's
-# egress.* values, global.ingress.host=agent.localtest.me), translated to the local
-# Keycloak/agent-api endpoints. Not consumed by cluster-setup.sh - a manual E5.1 proof step,
-# applied after the base two-family bootstrap.
+# Values for `helm install egress` from a DARE-Control working tree. The
+# egress chart is not published, so agent-stack's egress Application is
+# disabled locally (egress.appEnabled=false) and this file supplies the same
+# values translated to the local endpoints. Applied manually after the base
+# bootstrap, not by cluster-setup.sh.
 #
-# tls: true (unlike agent-stack-local.yaml's own tls: false): Data-Egress-UI/Program.cs
-# already downgrades its OIDC correlation/nonce cookies' SameSite=None to Unspecified over
-# non-HTTPS (CookiePolicyOptions.OnAppendCookie -> CheckSameSite). ui.sslCookies="true" below
-# takes the branch (Program.cs:368-374) that replaces that CookiePolicyOptions with a fresh
-# one forcing Secure=Always instead, discarding the mitigation - ASP.NET Core itself does not
-# add Secure for SameSite=None. tls: true here supplies the HTTPS that pairs with that.
+# tls: true (unlike agent-stack-local.yaml): ui.sslCookies="true" below marks
+# cookies Secure, which needs HTTPS.
 global:
   tag: "3.0.4"
 
@@ -41,15 +35,12 @@ tre:
   oidcAuthority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
 
 api:
-  # Verified: rustfs-svc:9000, same namespace (5s-tes-agent) as this install.
   s3Url: "http://rustfs-svc:9000"
-  # Static Service name of the agent product's own api (charts/agent/templates/api/service.yaml).
+  # Static Service name of the agent chart's api.
   treApiAddress: "http://agent-api"
   keycloakDemoMode: "true"
-  # harbor.ukserp.ac.uk's published 3.0.4 tag (v3.0.4-containers) predates
-  # /health (DARE-Control commit 1a65f311, feat/egress-chart) - the chart's
-  # own readiness/liveness probe 404s against it. Built locally from this
-  # branch's working tree instead (docker build + kind load, name 5s-tes).
+  # Built locally (docker build + kind load): the published 3.0.4 images
+  # predate /health and fail the chart's probes.
   image:
     repository: dare-control/egress-api
     tag: local

@@ -1,6 +1,4 @@
-# Encodes charts/agent-devstack/README.md's "Local install" recipe as a
-# values file. See submission-stack-local.yaml for the accessModes-drop and
-# agent.enabled=false rationale (same reasons, same mechanism).
+# Local kind overrides for agent-stack.
 global:
   oidc:
     authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
@@ -28,11 +26,8 @@ rabbitmq:
 agent:
   enabled: false
 
-# Cross-link to the co-located Submission product, on this same cluster.
-# oidcAuthority/apiUrl reach the ingress-routed hostnames (CoreDNS rewrites
-# *.localtest.me to the ingress controller in-cluster too - see
-# files/deps/coredns.yaml), not Submission's (nonexistent locally) public
-# URL. s3Url is the one genuine in-cluster Service DNS name (cross-namespace).
+# Cross-link to the co-located Submission product. oidcAuthority/apiUrl use
+# the ingress-routed hostnames; s3Url is a cross-namespace Service DNS name.
 submission:
   oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
   apiUrl: "http://submission-api.submission.localtest.me"

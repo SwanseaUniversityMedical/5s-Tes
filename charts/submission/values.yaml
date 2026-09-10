@@ -1,6 +1,3 @@
-# Defaults are the local-dev settings, so `helm template` renders with no
-# input. The submission-stack chart overrides environment-specific keys.
-
 nameOverride: ""
 fullnameOverride: "submission"
 
@@ -28,14 +25,12 @@ securityContext:
     drop:
       - ALL
 
-# Labels put on every PersistentVolumeClaim. The cluster's backup tool uses
-# these to decide what to back up.
+# The cluster's backup tool backs up PVCs carrying these labels.
 persistentVolumeLabels:
   hiru.io/backup: "enabled"
 
-# ASP.NET data-protection keys, shared by api and ui so either pod can decrypt
-# the other's cookies/tokens. Both deployments stay at replicas: 1 because
-# this PVC is ReadWriteOnce and the UI keeps its session store in memory.
+# ASP.NET data-protection keys, shared by api and ui so either pod can
+# decrypt the other's cookies/tokens.
 dataProtection:
   keysPath: /keys
   accessModes:
@@ -68,8 +63,6 @@ global:
     certClusterIssuer: "ca-issuer"
     tls: true
 
-  # Off by default so `helm template` renders with no cluster present. The
-  # submission-stack chart turns this on for real clusters.
   trustClusterCa:
     enabled: false
     configMapName: overlay-castore

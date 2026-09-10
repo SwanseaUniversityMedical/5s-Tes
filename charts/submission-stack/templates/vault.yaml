@@ -2,11 +2,9 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  # Static, family-distinct: the hashicorp/vault chart derives cluster-scoped
-  # resource names (the auth-delegator ClusterRoleBinding) from this release
-  # name alone, no namespace - "vault" in both stacks collides on any
-  # cluster running both (verified: both compute ClusterRoleBinding
-  # "vault-server-binding"). See charts/agent-stack/templates/vault.yaml.
+  # Family-distinct: the hashicorp/vault chart derives cluster-scoped
+  # resource names from the release name alone, so "vault" in both stacks
+  # would collide.
   name: submission-vault
   namespace: {{ .Values.global.namespace }}
   finalizers:

@@ -1,16 +1,7 @@
 # In-cluster pods resolving *.localtest.me would otherwise hit their own
-# loopback (that's the whole point of the localtest.me wildcard domain).
-# Rewrite every *.localtest.me query to the ingress controller, not the
-# individual Services: the preserved Host header routes via the controller
-# to the right family's component. Covers both families' Keycloak hosts
-# (submission-api/agent-api OIDC discovery/token validation, agent-api's
-# cross-realm Submission OIDC check) and anything else added later.
-#
-# Anchored ($ after the trailing dot CoreDNS's rewrite plugin sees on every
-# query name) so it matches only the localtest.me zone itself, not any
-# string that merely contains "localtest.me" as a substring - unanchored,
-# "foo.localtest.mesh.example.com" verifiably also rewrote (glibc getent,
-# not just musl/busybox nslookup, which gave a false negative here).
+# loopback. Rewrite every *.localtest.me query to the ingress controller;
+# the preserved Host header routes to the right family's component.
+# Anchored so it matches only the localtest.me zone itself.
 apiVersion: v1
 kind: ConfigMap
 metadata:

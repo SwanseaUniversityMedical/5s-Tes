@@ -1,5 +1,4 @@
-# See submission-devstack-local.yaml for why this host suffix must differ
-# from the submission family's.
+# Host suffix must differ from the submission family's.
 global:
   ingress:
     host: "agent.localtest.me"

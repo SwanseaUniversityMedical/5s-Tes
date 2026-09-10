@@ -41,8 +41,7 @@ lives in this chart; that is all in `charts/agent`.
 This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned runtime
 Vault**, holding ephemeral researcher credentials that both `api` and the Credentials Camunda
 worker call at runtime via `VaultSettings__BaseUrl`/`VaultSettings__Token` — not the platform
-Vault on the `management` cluster. This mirrors `submission-stack`'s Vault, for the same reason
-(Alex, 2026-08-29).
+Vault on the `management` cluster.
 
 Because it is not the platform Vault, every `VaultSecret` below sets
 `vaultSecretDefinitions[].connection.address` to `vault.address` (default
@@ -53,15 +52,7 @@ It starts sealed, using file storage (`server.standalone`, explicitly not `serve
 step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equivalent
 (init/unseal/`secret` mount/token).
 
-**Fixed (R33)**: this release used to collide with `submission-stack`'s Vault release on the
-`ClusterRoleBinding` the hashicorp/vault chart derives from the release name alone — see
-`submission-stack`'s README **Vault** section for the detail. `templates/vault.yaml` now
-names this stack's release `agent-vault`, so the pod is `agent-vault-0`, not `vault-0`,
-below.
-
-Renaming an existing installation's Vault release abandons its PVC and all sealed state —
-a pre-existing install must migrate (re-attach the PVC under the new release name, or
-re-init and re-seed) before upgrading across this rename.
+The release is named `agent-vault`, so the pod below is `agent-vault-0`.
 
 1. **Init and unseal** (first time only):
 
@@ -333,11 +324,8 @@ Agent submits work to; the API POSTs task-creation requests straight to this URL
 `/{taskId}?view=BASIC` to poll it (`Agent.Api/DoAgentWork.cs:138,210`), so it must be the full
 `tasks` collection endpoint. **The recommended production path is an external TES URL** — set
 `agent.api.tesApiUrl` to it. `tesk.enabled` (default `false`) is the alternative: an in-cluster
-TESK (GA4GH TES-K8s reference implementation) deployment, reproducing the same Harbor OCI chart
-coordinates as `director-wfs`'s `tesk-standalone-stack`
-(`harbor.ukserp.ac.uk/tesk/chart/tesk`, version `0.1.0`). Its `tesk-api` Service (static name,
-not release-scoped — verified by rendering the pinned chart) listens on port `8080` at base path
-`/ga4gh/tes/v1` (`OPENAPI_TASKEXECUTIONSERVICE_BASE_PATH`, same render). When `tesk.enabled` is
+TESK (GA4GH TES-K8s reference implementation) deployment. Its `tesk-api` Service (static
+name) listens on port `8080` at base path `/ga4gh/tes/v1`. When `tesk.enabled` is
 `true` and `agent.api.tesApiUrl` is empty, `templates/agent.yaml` derives
 `http://tesk-api:8080/ga4gh/tes/v1/tasks`; an explicit `agent.api.tesApiUrl` always wins.
 
@@ -347,11 +335,8 @@ purpose.
 
 ### TESK prerequisites this stack does not supply
 
-Enabling `tesk.enabled` installs the `tesk` chart, but `director-wfs.sh` and its
-`tesk-standalone-stack` chart create two more things out-of-band that this stack does not
-reproduce. Verified by reading the pulled chart
-(`oci://harbor.ukserp.ac.uk/tesk/chart/tesk:0.1.0`) and `director-wfs.sh`/
-`tesk-standalone-stack/templates/tesk-configs.yaml`:
+Enabling `tesk.enabled` installs the `tesk` chart, but two more things are needed
+out-of-band that this stack does not create:
 
 - **An `aws-secret` Secret**, keys `config` and `credentials` (AWS CLI-style INI content: an
   `[default]` section with `endpoint_url` in `config`, `aws_access_key_id`/

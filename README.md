@@ -153,25 +153,6 @@ queues); its LDAP path additionally needs
 "Optional: local OpenLDAP". Revert with the same `--set openldap.enabled=false` (or drop the flag)
 afterwards.
 
-### Verified live (2026-08-29, kind cluster `5s-tes`)
-
-- **Submission.Api**: booted against kind Postgres (`localhost:30432`), EF Core confirmed
-  migrations already applied, `/health` → 200.
-- **Submission.Web**: a real `[Authorize]` action returned Keycloak's genuine login page; a
-  scripted `dev`/`password123` form-post completed the full OIDC code exchange back to
-  `/signin-oidc` and rendered the authenticated Projects page — a complete login, not just the
-  redirect chain.
-- **Agent.Api**: `/health` → 200; boot log (`Zeebe.Client.ZeebeClient`, debug level) showed
-  `Connect to http://localhost:30500`.
-- **Credentials.Camunda**: boot log showed `Connected to Zeebe cluster`, 9 job workers created,
-  and all 4 BPMN process models deployed to the kind Zeebe. LDAP now has a real seeded tree
-  (`dc=camundaephemeral,dc=local`, `ou=Users`, `ou=groups`, `cn=trinogroup` — see
-  `charts/agent-stack/templates/openldap.yaml`'s `customLdifFiles`); `ConnectionStrings:TREPostgresConnection`
-  reaches the `tredata` stand-in database on its own dev-access NodePort (`localhost:31433`,
-  `dev-tredata`). Vault read/write with `dev-only-token` verified directly.
-- In-cluster `submission`/`agent` were restored afterward; all ArgoCD Applications in both
-  namespaces reported `Synced`/`Healthy` and all Deployments `Available`.
-
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes
 [docs-badge]: https://img.shields.io/badge/docs-black?style=for-the-badge&labelColor=%23222

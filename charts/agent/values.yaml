@@ -1,6 +1,3 @@
-# Defaults are the local-dev settings, so `helm template` renders with no
-# input. The agent-stack chart overrides environment-specific keys.
-
 nameOverride: ""
 fullnameOverride: "agent"
 
@@ -28,15 +25,12 @@ securityContext:
     drop:
       - ALL
 
-# Labels put on every PersistentVolumeClaim. The cluster's backup tool uses
-# these to decide what to back up.
+# The cluster's backup tool backs up PVCs carrying these labels.
 persistentVolumeLabels:
   hiru.io/backup: "enabled"
 
-# Camunda's DMN/BPMN process models, shared by api and camunda so either pod
-# sees the same files. Both stay at replicas: 1 because this PVC is
-# ReadWriteOnce. A multi-node cluster must set
-# processModels.accessModes: [ReadWriteMany].
+# Camunda process models, shared by the api and camunda pods. A multi-node
+# cluster must set accessModes: [ReadWriteMany].
 processModels:
   accessModes:
     - ReadWriteOnce
@@ -51,10 +45,7 @@ global:
     aspnetEnvironment: "Development"
     seqUrl: "http://seq:5341"
     logLevel: "Information"
-    # Shared by api and camunda: if Vault moves, both move together.
     vaultUrl: "http://agent-vault:8200"
-    # Shared by api and camunda: if the Zeebe gateway moves, both move
-    # together. Verified: camunda-zeebe-gateway:26500 at camunda-platform 13.4.1.
     zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
 
   # Full Dare-TRE realm URL every component authenticates against.
@@ -73,8 +64,6 @@ global:
     certClusterIssuer: "ca-issuer"
     tls: true
 
-  # Off by default so `helm template` renders with no cluster present. The
-  # agent-stack chart turns this on for real clusters.
   trustClusterCa:
     enabled: false
     configMapName: overlay-castore
@@ -82,8 +71,7 @@ global:
     mountPath: /etc/ssl/certs/ca-certificates.crt
 
 # Cross-stack link to the Submission product. The api calls the Submission
-# API and its S3 endpoint, and validates tokens issued by its Keycloak realm.
-# Production points these at the real Submission deployment's addresses.
+# API and S3, and validates tokens from its Keycloak realm.
 submission:
   oidcAuthority: "http://keycloak/realms/Dare-Control"
   apiUrl: "http://submission-api.localtest.me"
@@ -132,9 +120,8 @@ api:
     proxyAddresUrl: ""
     bypassProxy: ""
 
-  # Off by default: not every TRE deployment has a Data Egress layer. The
-  # whole DataEgressKeyCloakSettings/EgressApiUrl env group is left unset
-  # when disabled, so an inert deployment sets nothing.
+  # Optional Data Egress link. When disabled the whole env group renders
+  # nothing.
   egress:
     enabled: false
     authority: ""
@@ -172,7 +159,6 @@ api:
   hangfire:
     enableExternal: "true"
 
-  # Production cadences (deployment repo's TRE .env.example).
   jobs:
     scanSchedule: 1
     syncSchedule: 10
@@ -195,7 +181,7 @@ api:
   onboarding:
     isConfigurationImported: "false"
 
-  # Off by default. HasuraURL/HasuraAdminSecret are only read when enabled.
+  # HasuraURL/HasuraAdminSecret are only read when enabled.
   hasura:
     enabled: false
     url: ""
@@ -224,8 +210,7 @@ ui:
   secretName: agent-ui-secret
   ingress:
     enabled: true
-    # Empty computes "agent.<global.ingress.host>". This is the primary
-    # user-facing UI for the Agent product.
+    # Empty computes "agent.<global.ingress.host>".
     host: ""
 
   appName: "Five Safes TES"

@@ -8,10 +8,6 @@ metadata:
     {{- include "agent-devstack.labels" . | nindent 4 }}
 data:
   # Wildcard redirectUris and ROPC are dev shortcuts; never copy for a real realm.
-  # Dare-TRE-API's serviceAccountsEnabled mirrors the production client shape; this
-  # realm grants that service account no role, and no chart consumer uses the
-  # client-credentials grant — the only grant_type in Agent/ is "password"
-  # (Agent.Api/Services/IKeyCloakService.cs:133).
   dare-tre.json: |-
     {
       "realm": "Dare-TRE",
@@ -89,11 +85,11 @@ data:
         "realm": [
           {
             "name": "dare-tre-admin",
-            "description": "Gates every [Authorize(Roles = \"dare-tre-admin\")] controller in Agent.Api and Agent.Web (e.g. Agent/Agent.Api/Controllers/OnboardingController.cs:11)."
+            "description": "Admin role gating Agent.Api and Agent.Web admin pages."
           }{{- if .Values.egress.enabled }},
           {
             "name": "data-egress-admin",
-            "description": "Required by the egress api's ROPC role check as Dare-TRE-API (TreClientWithoutTokenHelper.cs's requiredRole); also accepted by Agent.Api's [Authorize(Roles = \"dare-tre-admin,data-egress-admin\")] endpoints (e.g. SubmissionController.cs:173)."
+            "description": "Required by the egress api's cross-realm calls into Agent.Api."
           }{{- end }}
         ]
       },
@@ -121,36 +117,11 @@ data:
       ]
     }
   {{- if .Values.egress.enabled }}
-  # Data-Egress-API/-UI's serviceAccountsEnabled mirrors the production client
-  # shape (DeploymentStack/TRE/config/realm-config/egress-layer.json); no role
-  # granted, no verified client-credentials consumer — Agent's cross-realm call
-  # uses a password grant, not client_credentials
-  # (Agent/Agent.Api/Services/DataEgressClientWithoutTokenHelper.cs:27). Both
-  # clients carry both audience mappers, mirroring production's DATA-EGRESS-UI/
-  # DATA-EGRESS-API default client scopes on both clients (egress-layer.json
-  # clients[].defaultClientScopes) — the UI forwards its own token verbatim to
-  # the API, which validates ValidAudiences="Data-Egress-UI,Data-Egress-API"
-  # (DARE-Control src/Data-Egress-API/Program.cs:103-106,169). Realm role
-  # "dare-tre-admin" gates the ROPC token Agent's cross-realm call requests here
-  # (Shared/FiveSafesTes.Core/Services/KeycloakCommon.cs) — same name as the
-  # Dare-TRE realm's role above, independent in this realm. Realm role
-  # "data-egress-admin" gates nearly every Data-Egress-API/-UI controller
-  # ([Authorize(Roles = "data-egress-admin")], DARE-Control
-  # src/Data-Egress-API/Controllers/*.cs, src/Data-Egress-UI/Controllers/*.cs).
-  # The Dare-TRE realm above also gains two conditional pieces in this same
-  # egress.enabled branch: role "data-egress-admin" (granted to its dev user)
-  # and a self-audience mapper on Dare-TRE-API — the egress api authenticates
-  # into Dare-TRE as Dare-TRE-API via password grant and needs both to reach
-  # Agent.Api (DARE-Control TreClientWithoutTokenHelper.cs's requiredRole;
-  # Agent's ValidAudiences "Dare-TRE-API,Dare-TRE-UI"). Data-Egress-UI also
-  # carries an explicit realm-roles mapper: Keycloak's built-in "roles" scope
-  # only puts realm_access in the access token, but Data-Egress-UI's OIDC
-  # handler runs with GetClaimsFromUserInfoEndpoint=true (Data-Egress-UI/
-  # Program.cs), which augments the id_token-derived identity with
-  # userinfo-endpoint claims - without userinfo.token.claim=true here,
-  # ClaimsTransformerBL never sees
-  # realm_access and every [Authorize(Roles = ...)] page 302s to AccessDenied
-  # (verified live, E5.1).
+  # Both clients carry both audience mappers: the UI forwards its own token
+  # to the API, which accepts either audience. The realm-roles mapper on
+  # Data-Egress-UI is required: the UI reads claims from the userinfo
+  # endpoint, which only includes realm_access when userinfo.token.claim
+  # is true.
   data-egress.json: |-
     {
       "realm": "Data-Egress",
@@ -251,11 +222,11 @@ data:
         "realm": [
           {
             "name": "dare-tre-admin",
-            "description": "Required by the ROPC role check for Agent's cross-realm Data-Egress admin token (KeycloakCommon.cs's requiredRole)."
+            "description": "Required for Agent's cross-realm Data-Egress admin token."
           },
           {
             "name": "data-egress-admin",
-            "description": "Gates [Authorize(Roles = \"data-egress-admin\")] controllers across Data-Egress-API and Data-Egress-UI (DARE-Control)."
+            "description": "Admin role gating the Data-Egress API and UI."
           }
         ]
       },

@@ -1,6 +1,5 @@
-# Values for `helm install agent charts/agent` directly from this working
-# tree. See submission-product-local.yaml for why (agent-stack's own
-# templates/agent.yaml Application is disabled locally, same reason).
+# Values for `helm install agent charts/agent` from the working tree,
+# standing in for the disabled agent Application.
 processModels:
   accessModes:
     - ReadWriteMany

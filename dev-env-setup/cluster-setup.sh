@@ -24,7 +24,6 @@ CONTEXT="kind-5s-tes"
 CLUSTER_NAME="5s-tes"
 SUBMISSION_NS="5s-tes-submission"
 AGENT_NS="5s-tes-agent"
-# R33: distinct per family - see charts/*-stack/templates/vault.yaml.
 SUBMISSION_VAULT="submission-vault"
 AGENT_VAULT="agent-vault"
 
@@ -76,10 +75,8 @@ if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   echo "Run ./clean-up.sh first if you want it built again from scratch."
 fi
 
-# Point in-cluster pods resolving each family's keycloak.<host> at the
-# ingress controller, not its Service directly: server-side OIDC calls (api,
-# ui, web, and RustFS's OIDC discovery) need the ingress-routed host, and
-# *.localtest.me otherwise resolves to loopback inside every pod too.
+# Resolve each family's keycloak.<host> to the ingress controller inside
+# pods; *.localtest.me otherwise resolves to loopback there.
 apply_coredns() {
   kubectl apply -f files/deps/coredns.yaml --context "$CONTEXT"
   kubectl rollout restart deployment/coredns -n kube-system --context "$CONTEXT"
@@ -98,9 +95,6 @@ show_unhealthy_pods() {
 }
 
 # wait_for_argocd_apps <namespace> <friendly-label>
-# Every Application this bootstrap creates lives in its own family
-# namespace (unlike Director-Airlock, nothing here needs a separate
-# monitoring/vault namespace) - so this only has to look in one place.
 wait_for_argocd_apps() {
   local ns="$1" label="$2"
   local timeout="${ARGO_WAIT_TIMEOUT:-2400}" poll=15 stable_needed=3
@@ -169,10 +163,7 @@ wait_for_cnpg_ready() {
 }
 
 # wait_for_rabbitmq_ready <namespace>
-# The RabbitMQ Cluster Operator names the StatefulSet "<RabbitmqCluster
-# name>-server" - our RabbitmqCluster is named "rabbitmq" (see
-# charts/*-stack/templates/rabbitmq.yaml), so this is a static name, not a
-# guessed label.
+# The operator names the StatefulSet "<RabbitmqCluster name>-server".
 wait_for_rabbitmq_ready() {
   local ns="$1" elapsed=0 timeout=180
   echo "Waiting for the rabbitmq-server StatefulSet in $ns (up to 10m)"
@@ -189,16 +180,13 @@ wait_for_rabbitmq_ready() {
 }
 
 ###############################################################################
-# Local app images: nothing is published to Harbor yet (see README), so the
-# five C# components are built from this working tree and loaded straight
-# into kind's containerd - no registry involved.
+# Local app images: built from the working tree and loaded into kind's
+# containerd.
 ###############################################################################
 
 # restart_product_deployments <namespace> <deployment>...
-# The ":local" tag never changes, so neither `kind load` nor a diff-less
-# `helm upgrade` makes kubelet pick up a freshly rebuilt image - only an
-# explicit rollout does. No-op for a deployment that doesn't exist yet
-# (nothing to restart on a first-ever run before the product charts install).
+# The ":local" tag never changes, so only an explicit rollout picks up a
+# rebuilt image. No-op for deployments that don't exist yet.
 restart_product_deployments() {
   local ns="$1"; shift
   local dep restarted=""
@@ -236,12 +224,9 @@ if [ "$CLUSTER_EXISTS" = "0" ]; then
   kind create cluster --config=kind-config.yaml
 fi
 
-# kind's "standard" StorageClass (local-path-provisioner) is RWO-only by
-# default. sharedFileSystemPath makes it serve RWX claims too, which
-# submission.dataProtection/agent.processModels need. Single-node only.
+# kind's "standard" StorageClass is RWO-only by default; sharedFileSystemPath
+# makes it serve RWX claims too. Single-node only.
 # https://github.com/kubernetes-sigs/kind/issues/1487#issuecomment-2211072952
-# Idempotent (patch + restart), so it runs on every invocation - a run
-# interrupted right after cluster creation must still get this on resume.
 echo "Enabling RWX support on kind's local-path-provisioner"
 kubectl wait --for=condition=Available deployment/local-path-provisioner \
   -n local-path-storage --timeout=2m --context "$CONTEXT"
@@ -284,10 +269,8 @@ spec:
 EOF
 
 ###############################################################################
-# Operators - installed by this script only, never by a chart. The same
-# ones production runs, so the stack charts' operator objects behave
-# identically here. RabbitMQ's operator manifest needs cert-manager for
-# its webhook certificates (already installed above).
+# Operators - installed by this script only, never by a chart. RabbitMQ's
+# operator manifest needs cert-manager for its webhook certificates.
 ###############################################################################
 
 echo "Installing the CloudNativePG operator ($CNPG_CHART_VERSION)"
@@ -327,11 +310,8 @@ restart_product_deployments "$SUBMISSION_NS" submission-api submission-ui
 restart_product_deployments "$AGENT_NS" agent-api agent-ui agent-camunda
 
 ###############################################################################
-# Install order: each family's devstack (local Keycloak/dev realm, Vault,
-# Adminer, static Secrets), then its stack (dependencies + VaultSecrets,
-# submission/agent Applications disabled - see submission-stack-local.yaml).
-# All six charts installed from the working tree (`../charts/...`), not
-# Harbor - nothing is published yet. See README.
+# Install order: each family's devstack, then its stack (the product
+# Applications are disabled locally). All charts install from the working tree.
 ###############################################################################
 
 kubectl create namespace "$SUBMISSION_NS" --dry-run=client -o yaml | kubectl apply --context "$CONTEXT" -f - >/dev/null
@@ -354,10 +334,8 @@ helm upgrade --install agent-stack ../charts/agent-stack \
   --namespace "$AGENT_NS" -f files/values/agent-stack-local.yaml --kube-context "$CONTEXT"
 
 ###############################################################################
-# Vault: each family's own runtime Vault starts sealed (prod mode -
-# Decision 5), so its Application never reports ArgoCD-Healthy (the chart's
-# readinessProbe runs "vault status", which fails while sealed) until this
-# runs. Must happen before the health wait below, not after.
+# Vault starts sealed, so its Application never reports Healthy until
+# unsealed here. Must run before the health wait below.
 ###############################################################################
 
 ./vault-init.sh "$SUBMISSION_NS" "$CONTEXT" "$SUBMISSION_VAULT"

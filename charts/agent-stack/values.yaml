@@ -43,36 +43,24 @@ agent:
   imageVersion: "3.2.0"
   api:
     # Public API URL embedded in TRE onboarding JSON. Empty computes
-    # "<scheme>://agent-api.<global.ingress.host>" from global.ingress.
+    # "<scheme>://agent-api.<global.ingress.host>".
     publicUrl: ""
-    # REQUIRED for production. Name of this TRE deployment. Left empty
-    # renders nothing, so the standalone chart's own dev default ("DEV")
-    # stands silently until a deployment sets this.
+    # REQUIRED for production. Empty renders nothing and the agent chart's
+    # dev default ("DEV") applies.
     treName: ""
-    # REQUIRED for production. External TES backend URL — the recommended
-    # path (see README). Left empty renders nothing, so the standalone
-    # chart's own dev default ("http://localhost:8000/v1/tasks") stands
-    # silently — a broken TES endpoint once actually in-cluster. TESK-in-
-    # cluster (tesk.enabled) is the alternative.
+    # REQUIRED for production: external TES backend URL (or enable tesk
+    # below). Empty renders nothing and the agent chart's dev default applies.
     tesApiUrl: ""
-    # Local-only: a real deployment's Keycloak is HTTPS and this stays
-    # "false". "true" relaxes the outbound password-grant token helper's
-    # discovery-endpoint check to HTTP (KeycloakCommon.cs's RequireHttps),
-    # needed against a local HTTP Keycloak — see agent-devstack README's
-    # Optional: local Data Egress.
+    # Local-only: allows an HTTP Keycloak. Keep "false" in production.
     keycloakDemoMode: "false"
   processModels:
-    # Must be an RWX-capable storage class (e.g. the cluster's CephFS class).
-    # null uses the cluster default, which is typically RWO-only (ceph-block)
-    # and will not bind a ReadWriteMany claim. See README.
+    # Needs an RWX-capable class (e.g. CephFS) when accessModes is
+    # ReadWriteMany; null uses the cluster default.
     storageClassName: null
-    # Deployment-specific: multi-node prod is RWX; single-node kind is
-    # RWO-only. See README.
     accessModes:
       - ReadWriteMany
-  # External Active Directory settings for the Credentials Camunda worker.
-  # Defaults match the openldap.yaml Application below, for a deployment that
-  # enables it instead of a real AD. Production sets these to the real AD.
+  # Active Directory settings for the Credentials Camunda worker. Defaults
+  # match the optional openldap Application below; production sets the real AD.
   ldap:
     host: "openldap"
     port: 389
@@ -81,42 +69,30 @@ agent:
     userOu: "ou=Users"
     useSsl: false
 
-# Optional Data-Egress product, composed as an Application in this stack
-# (unlike submission, below, which is external). Off by default: the egress
-# chart must already exist in Harbor before turning this on. See README.
+# Optional Data-Egress product, deployed as part of this stack. Requires the
+# egress chart published in Harbor. See README.
 egress:
   enabled: false
-  # Gates ONLY the egress Application (templates/egress.yaml) — the Database,
-  # VaultSecrets, and agent api.egress wiring stay gated on egress.enabled
-  # alone. Local installs set this false to skip the un-publishable
-  # Application while installing the egress product by helm from a working
-  # tree instead. See README.
+  # Gates only the egress Application; the Database, VaultSecrets and agent
+  # wiring follow egress.enabled. Local installs set this false and install
+  # the egress chart from a working tree instead.
   appEnabled: true
   # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
   chartVersion: "1.0.0"
   # renovate: datasource=docker depName=dare-trefx/control-egress-api registryUrl=https://harbor.ukserp.ac.uk
   imageVersion: "3.0.4"
-  # Full Data-Egress realm URL, passed to the egress chart and to the agent
-  # chart's api.egress.authority (same realm, same Keycloak host as
-  # global.oidc.authority above). Bare realm URL: no .well-known suffix.
+  # Full Data-Egress realm URL. Bare realm URL: no trailing slash, no
+  # .well-known suffix.
   oidcAuthority: "https://keycloak.example.ac.uk/realms/Data-Egress"
-  # Local-only: same effect and same "false" production default as
-  # agent.api.keycloakDemoMode above, but for the egress api's own outbound
-  # calls (to Data-Egress's own discovery endpoint and, via the same
-  # KeycloakDemoMode value, to Dare-TRE as Dare-TRE-API — DARE-Control
-  # Data-Egress-API/Program.cs:69,77).
+  # Local-only: same meaning as agent.api.keycloakDemoMode above.
   keycloakDemoMode: "false"
 
-# Cross-stack link to the Submission product. It runs in its own namespace
-# (or cluster); these are always external addresses, never in-namespace
-# static service names. Production points these at the real Submission
-# deployment.
+# Cross-stack link to the Submission product: always external addresses,
+# never in-namespace service names.
 submission:
   oidcAuthority: "https://keycloak.example.ac.uk/realms/Dare-Control"
   apiUrl: "https://submission-api.example.ac.uk"
-  # The Submission product's S3 endpoint. Cross-namespace in-cluster DNS if
-  # co-located on this cluster (e.g. "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"),
-  # otherwise its public URL. Not this stack's own rustfs.
+  # The Submission product's S3 endpoint, not this stack's own rustfs.
   s3Url: "https://submission-rustfs.example.ac.uk"
 
 # --------------------------------------------------------------------
@@ -144,8 +120,8 @@ seq:
   # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
   chartVersion: "2025.2.1"
   storageSize: "10Gi"
-  # No seqApiKey is wired into any component's Secret yet, so leave off
-  # (mirrors airlock-stack/submission-stack): true here rejects every app log.
+  # Leave false: no seqApiKey is wired into any component, so true rejects
+  # every app log.
   requireAuthForIngestion: false
   resources:
     requests:
@@ -154,9 +130,8 @@ seq:
     limits:
       memory: "512Mi"
 
-# The Agent's own Camunda 8 (Zeebe only). Identity, webModeler and the
-# Keycloak-backed identity provider are all off: this deployment only needs
-# the Zeebe broker/gateway for the Credentials Camunda worker.
+# The Agent's own Camunda 8 (Zeebe broker/gateway only), used by the
+# Credentials worker.
 camunda:
   enabled: true
   repoURL: "https://helm.camunda.io"
@@ -164,8 +139,7 @@ camunda:
   # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
   chartVersion: "13.4.1"
 
-# Local/test OpenLDAP, standing in for an external Active Directory. Off by
-# default: production points agent.ldap.* at the real AD instead. See README.
+# Local/test OpenLDAP standing in for a real Active Directory (agent.ldap.*).
 openldap:
   enabled: false
   repoURL: "https://jp-gouin.github.io/helm-openldap/"
@@ -173,13 +147,11 @@ openldap:
   # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
   chartVersion: "4.3.3"
   storageSize: "1Gi"
-  # global.ldapDomain (dot form) for the chart. Keep the domain component in
-  # step with agent.ldap.baseDn above if both are left at their defaults.
+  # Keep in step with agent.ldap.baseDn above.
   ldapDomain: "camundaephemeral.local"
 
-# Optional in-cluster TESK (GA4GH TES) backend. Off by default: the
-# recommended production path is an external TES URL via agent.api.tesApiUrl.
-# See README.
+# Optional in-cluster TESK (GA4GH TES) backend; the alternative to
+# agent.api.tesApiUrl.
 tesk:
   enabled: false
   repoURL: "harbor.ukserp.ac.uk/tesk/chart"
@@ -197,34 +169,26 @@ tesk:
     # renovate: datasource=docker depName=tesk/tesk-core-filer registryUrl=https://harbor.ukserp.ac.uk
     version: "v0.10.5"
 
-# Where this stack's own secrets come from (role/secretPath/authPath), and
-# the vault.yaml Application that deploys this stack's own Vault instance.
+# Secret source settings, and this stack's own Vault Application.
 vault:
   role: agent
   secretPath: kvv2/data/prod/prod/agent
   authPath: kubernetes
-  # This stack's own Vault (templates/vault.yaml, release name "agent-vault"
-  # - distinct per family, see its comment), not the redhatcop operator's
-  # default (platform) connection. Every VaultSecret below sets this
-  # explicitly via vaultSecretDefinitions[].connection.address.
+  # This stack's own Vault, not the operator's default connection.
   address: "http://agent-vault:8200"
 
-  # Deploys this stack's own Vault Application. Runtime dependency: the api
-  # and camunda worker both call this Vault directly for ephemeral
-  # credentials, so this stays true even where vault.secretsEnabled is false
-  # (e.g. local dev).
+  # The api and camunda worker call this Vault at runtime, so this stays
+  # true even where secretsEnabled is false.
   enabled: true
-  # Gates every VaultSecret under templates/secrets/. False only where
-  # something else provides the Secrets those VaultSecrets would otherwise
-  # create (e.g. the devstack's static Secrets).
+  # Gates every VaultSecret. False only where something else provides the
+  # Secrets (e.g. the devstack's static Secrets).
   secretsEnabled: true
   repoURL: "https://helm.releases.hashicorp.com"
   chart: vault
   # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
   chartVersion: "0.34.1"
   dataStorageSize: "10Gi"
-  # The Vault Agent Injector webhook. Off by default: nothing in this chart
-  # needs agent-injected secrets, everything goes through VaultSecret.
+  # Vault Agent Injector webhook; nothing here uses injected secrets.
   injector:
     enabled: false
 
@@ -242,14 +206,12 @@ rabbitmq:
   vaultDefaultUser: true
 
 postgres:
-  # The api's own database. See postgres.yaml.
+  # The api's own database.
   database: "DARE-Tre"
-  # The database shared by api and the Credentials Camunda worker. Production's
-  # TRE data database (ConnectionStrings__TREPostgresConnection) is external;
-  # no Database object for it exists in this chart.
+  # Shared by the api and the Credentials Camunda worker. The TRE data
+  # database is external; this chart creates no object for it.
   credentialsDatabase: "TRE_Credentials"
-  # The optional egress product's own database. Only created (as the
-  # data-egress Database object) when egress.enabled is true.
+  # The optional egress product's database.
   egressDatabase: "DATA-Egress"
   instances: 1
   # Changing this on a running cluster is a major upgrade, not a text edit.
@@ -263,8 +225,7 @@ postgres:
     reservePoolSize: 20
     reservePoolTimeout: 5
     serverIdleTimeout: 300
-  # PostgreSQL backs itself up to object storage, through CloudNativePG.
-  # Off by default: no destination bucket is configured for this stack yet.
+  # PostgreSQL backups to object storage, through CloudNativePG.
   backups:
     enabled: false
     destinationPath: ""
@@ -275,9 +236,7 @@ postgres:
     retention: "30d"
     # SIX fields, seconds first.
     schedule: "0 0 0 * * *"
-    # Where the backup destination's S3 credentials live in Vault. Same
-    # mechanism as submission-stack/serp-provisioning-stack: a second
-    # vaultSecretDefinitions entry on postgres-secret, aliased "backup".
+    # Vault path for the backup destination's S3 credentials.
     vault:
       path: ""
       accessKeyField: access_key

@@ -38,11 +38,8 @@ spec:
         persistentVolumeLabels:
           {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
 
-        # Deployment-specific: a multi-node prod cluster needs RWX (api and
-        # camunda cannot both land on the same node with a ReadWriteOnce
-        # claim, and RWX needs an RWX-capable storage class; see
-        # agent.processModels.storageClassName). A single-node local cluster
-        # overrides to RWO; see agent.processModels.accessModes.
+        # Multi-node clusters need RWX (api and camunda may land on
+        # different nodes); single-node local overrides to RWO.
         processModels:
           accessModes:
             {{- toYaml .Values.agent.processModels.accessModes | nindent 12 }}
@@ -57,7 +54,6 @@ spec:
             aspnetEnvironment: "Production"
             seqUrl: "http://seq:5341"
             vaultUrl: "{{ .Values.vault.address }}"
-            # Verified: camunda-zeebe-gateway:26500 at camunda-platform 13.4.1.
             zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
 
           oidc:
@@ -86,7 +82,6 @@ spec:
           s3Url: "{{ .Values.submission.s3Url }}"
 
         api:
-          # Verified: rustfs-svc:9000 at the rustfs chart's pinned version.
           s3Url: "http://rustfs-svc:9000"
           publicUrl: "{{ .Values.agent.api.publicUrl | default (printf "%s://agent-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
           keycloakDemoMode: "{{ .Values.agent.api.keycloakDemoMode }}"
@@ -96,14 +91,13 @@ spec:
           {{- if .Values.agent.api.tesApiUrl }}
           tesApiUrl: {{ .Values.agent.api.tesApiUrl | quote }}
           {{- else if .Values.tesk.enabled }}
-          {{- /* Verified: tesk-api:8080, base path /ga4gh/tes/v1 (tesk chart 0.1.0, task 3.2 report). */}}
           tesApiUrl: "http://tesk-api:8080/ga4gh/tes/v1/tasks"
           {{- end }}
           {{- if .Values.egress.enabled }}
           egress:
             enabled: true
             authority: "{{ .Values.egress.oidcAuthority }}"
-            # Static Service name of the egress chart's api (templates/api/service.yaml).
+            # Static Service name of the egress chart's api.
             apiUrl: "http://egress-api"
           {{- end }}
 

@@ -67,16 +67,13 @@ spec:
           oidcAuthority: "{{ .Values.global.oidc.authority }}"
 
         api:
-          # Verified: rustfs-svc:9000 at the rustfs chart's pinned version.
           s3Url: "http://rustfs-svc:9000"
-          # Static Service name of the agent chart's API (charts/agent/templates/api/service.yaml).
+          # Static Service name of the agent chart's api.
           treApiAddress: "http://agent-api"
           keycloakDemoMode: "{{ .Values.egress.keycloakDemoMode }}"
 
         ui:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.
           sslCookies: "{{ .Values.global.ingress.tls }}"
-          # Verified: rustfs.yaml's ingress targets the rustfs chart's console
-          # Service port, at this same stack's ingress host.
           s3ConsoleUrl: "{{ ternary "https" "http" .Values.global.ingress.tls }}://rustfs.{{ .Values.global.ingress.host }}"
 {{- end }}

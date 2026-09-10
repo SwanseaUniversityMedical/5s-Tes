@@ -38,11 +38,8 @@ spec:
         persistentVolumeLabels:
           {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
 
-        # Deployment-specific: a multi-node prod cluster needs RWX (api and
-        # ui cannot both land on the same node with a ReadWriteOnce claim,
-        # and RWX needs an RWX-capable storage class; see
-        # submission.dataProtection.storageClassName). A single-node local
-        # cluster overrides to RWO; see submission.dataProtection.accessModes.
+        # Multi-node clusters need RWX (api and ui may land on different
+        # nodes); single-node local overrides to RWO.
         dataProtection:
           accessModes:
             {{- toYaml .Values.submission.dataProtection.accessModes | nindent 12 }}

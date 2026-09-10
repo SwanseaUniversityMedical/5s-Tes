@@ -1,10 +1,8 @@
 {{- if .Values.devAccess.enabled }}
-# Host-side NodePort access for a natively-running app (VS Code) to reach
-# every in-cluster dependency at localhost:<port>. Parallel Services with
-# the target's own selector copied in - submission-stack's Services are
-# never patched. Fixed nodePorts match dev-env-setup/kind-config.yaml's
-# extraPortMappings; see dev-env-setup/README.md "Host access for
-# development".
+# Host-side NodePort access for a natively-running app to reach in-cluster
+# dependencies at localhost:<port>. Parallel Services with the target's own
+# selector copied in; fixed nodePorts match kind-config.yaml's
+# extraPortMappings.
 {{- $ns := .Values.global.namespace }}
 
 apiVersion: v1

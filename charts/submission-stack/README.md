@@ -21,8 +21,7 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
 
 - **The CloudNativePG operator.** `templates/postgres.yaml` renders a `Cluster`, a
   `Database` and a `Pooler`; nothing runs unless the operator is watching for them.
-  Requires CNPG **>= 1.25** for the `Database` CRD (verified present: `databases.postgresql.cnpg.io`
-  ships in the cloudnative-pg chart version this cluster installs).
+  Requires CNPG **>= 1.25** for the `Database` CRD.
 - **The RabbitMQ Cluster Operator**, for `templates/rabbitmq.yaml`'s `RabbitmqCluster`.
 - **The redhatcop VaultSecret CRDs/operator**, for every object under `templates/secrets/`.
 - **ArgoCD**, watching this namespace, with a project matching `global.argoProject`.
@@ -34,36 +33,24 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
 
 This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned
 runtime Vault**, holding ephemeral researcher credentials — not the platform Vault on
-the `management` cluster. This is a confirmed product decision (Alex, 2026-08-29) and
-is why this stack differs from `serp-provisioning-stack`/`airlock-stack`, where Vault is
-platform-side and the stack only reads from it.
+the `management` cluster.
 
 Because it isn't the platform Vault, the redhatcop operator's own default connection
 (the standard `VAULT_ADDR`-style environment variables on the operator's Deployment,
 pointed at the platform Vault) is the wrong instance. Every `VaultSecret` below sets
 `vaultSecretDefinitions[].connection.address` to `vault.address` (default
 `http://submission-vault:8200`, this stack's own Vault Service) to override that default
-per definition — the field the redhat-cop/vault-config-operator's `VaultSecretDefinition`
-type exposes for exactly this ("if you need to ... connect to a different Vault
-instance, you can do with this section of the CR" —
-`api/v1alpha1/vaultsecret_types.go`/`api/v1alpha1/utils/commons.go`,
-[redhat-cop/vault-config-operator](https://github.com/redhat-cop/vault-config-operator),
-`main` branch, checked 2026-08-29).
+per definition.
 
 It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`).
 Every step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev
 equivalent (init/unseal/`secret` mount/token, not the `kvv2`/Kubernetes-auth steps below,
 which only matter where `vault.secretsEnabled=true`).
 
-**Fixed (R33)**: the hashicorp/vault chart names its `ClusterRoleBinding`
-(`system:auth-delegator`) from the Helm release name alone
-(`{{ vault.fullname }}-server-binding`), with no namespace in it — both stacks naming
-their Vault Application/release `vault` used to collide on a shared cluster (ArgoCD
-`SharedResourceWarning`, one permanently `OutOfSync`). `templates/vault.yaml` now names
-this stack's release `submission-vault` (`agent-stack`'s is `agent-vault`), so the
-computed cluster-scoped names (`submission-vault-server-binding` /
-`agent-vault-server-binding`) never collide. The pod is `submission-vault-0`, not
-`vault-0`, below.
+The hashicorp/vault chart names its cluster-scoped `ClusterRoleBinding` from the
+release name alone, so each stack's release is family-prefixed. This stack's release is
+`submission-vault` (`agent-stack`'s is `agent-vault`); the pod below is
+`submission-vault-0`.
 
 Renaming an existing installation's Vault release abandons its PVC and all sealed state —
 a pre-existing install must migrate (re-attach the PVC under the new release name, or
@@ -208,10 +195,7 @@ CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and 
 both named `app`. A declarative `Database` object, `dare-control`, then creates the real
 application database, named `DARE-Control` (hyphenated, mixed case — intentional, for
 compatibility with existing connection strings), owned by that same `app` role. This
-needs the `Database` CRD, added in CloudNativePG 1.25; verified present in the
-`cloudnative-pg` operator chart this cluster installs (`databases.postgresql.cnpg.io`
-ships in the CRD bundle at the version `dev-env-setup/cluster-setup.sh` installs, app
-version 1.30.0).
+needs the `Database` CRD, added in CloudNativePG 1.25.
 
 ## The shared `submission-dataprotection` PVC needs an RWX storage class
 
