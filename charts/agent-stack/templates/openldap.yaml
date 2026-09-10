@@ -1,0 +1,86 @@
+{{- if .Values.openldap.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: openldap
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.openldap.repoURL }}"
+    chart: "{{ .Values.openldap.chart }}"
+    # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
+    targetRevision: "{{ .Values.openldap.chartVersion }}"
+    helm:
+      valuesObject:
+        # Testing-only single instance; replication is off.
+        replicaCount: 1
+
+        # The chart's replication.enabled default (true) crashes a single
+        # replica before the custom-LDIF step runs.
+        replication:
+          enabled: false
+
+        global:
+          ldapDomain: "{{ .Values.openldap.ldapDomain }}"
+          # Keys LDAP_ADMIN_PASSWORD/LDAP_CONFIG_ADMIN_PASSWORD, per the
+          # chart's existingSecret contract.
+          existingSecret: "agent-openldap-secret"
+
+        persistence:
+          enabled: true
+          storageClass: {{ .Values.global.storageClass }}
+          size: "{{ .Values.openldap.storageSize }}"
+
+        # Password-reset UI and phpLDAPadmin default on with example.com
+        # ingress hosts; neither is needed for the Credentials Camunda worker.
+        ltb-passwd:
+          enabled: false
+        phpldapadmin:
+          enabled: false
+
+        # The chart does not create the root organisation object when
+        # customLdifFiles is used. DN components reuse agent.ldap.* so the
+        # seeded tree matches what the worker looks up; ou=groups and
+        # cn=trinogroup match the app's fixed defaults.
+        customLdifFiles:
+          00-root.ldif: |-
+            dn: {{ .Values.agent.ldap.baseDn }}
+            objectClass: dcObject
+            objectClass: organization
+            o: {{ first (splitList "." .Values.openldap.ldapDomain) }}
+            dc: {{ first (splitList "." .Values.openldap.ldapDomain) }}
+          01-ou-users.ldif: |-
+            dn: {{ .Values.agent.ldap.userOu }},{{ .Values.agent.ldap.baseDn }}
+            objectClass: organizationalUnit
+            ou: {{ splitList "=" .Values.agent.ldap.userOu | last }}
+          02-ou-groups.ldif: |-
+            dn: ou=groups,{{ .Values.agent.ldap.baseDn }}
+            objectClass: organizationalUnit
+            ou: groups
+          03-group-trinogroup.ldif: |-
+            dn: cn=trinogroup,ou=groups,{{ .Values.agent.ldap.baseDn }}
+            objectClass: groupOfNames
+            cn: trinogroup
+            member: {{ .Values.agent.ldap.adminDn }}
+{{- end }}

@@ -1,7 +1,7 @@
 ﻿using IdentityModel.Client;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
-using Microsoft.Extensions.Configuration;
+using FiveSafesTes.Core.Models.Settings;
 using System.IdentityModel.Tokens.Jwt;
 
 
@@ -9,11 +9,25 @@ namespace FiveSafesTes.Core.Models.Services
 {
     public class CustomCookieEvent : CookieAuthenticationEvents
     {
-        private readonly IConfiguration _config;
+        private const string WellKnownConfigurationSuffix = "/.well-known/openid-configuration";
 
-        public CustomCookieEvent(IConfiguration config)
+        private readonly BaseKeyCloakSettings _keyCloakSettings;
+
+        public CustomCookieEvent(BaseKeyCloakSettings keyCloakSettings)
         {
-            _config = config;
+            _keyCloakSettings = keyCloakSettings;
+        }
+
+        // Authority shape varies by chart family (bare realm URL, trailing slash, or the
+        // .well-known/openid-configuration document URL) — normalise before appending the token path.
+        internal static string BuildTokenEndpoint(string authority)
+        {
+            if (authority.EndsWith(WellKnownConfigurationSuffix, StringComparison.OrdinalIgnoreCase))
+            {
+                authority = authority.Substring(0, authority.Length - WellKnownConfigurationSuffix.Length);
+            }
+
+            return authority.TrimEnd('/') + "/protocol/openid-connect/token";
         }
 
         public override async Task ValidatePrincipal(CookieValidatePrincipalContext context)
@@ -48,9 +62,9 @@ namespace FiveSafesTes.Core.Models.Services
                             {
                                 var tokenResponse = await new HttpClient().RequestRefreshTokenAsync(new RefreshTokenRequest
                                 {
-                                    Address = _config["DareKeyCloakSettings:Authority"] + "/protocol/openid-connect/token",
-                                    ClientId = _config["DareKeyCloakSettings:ClientId"],
-                                    ClientSecret = _config["DareKeyCloakSettings:ClientSecret"],
+                                    Address = BuildTokenEndpoint(_keyCloakSettings.Authority),
+                                    ClientId = _keyCloakSettings.ClientId,
+                                    ClientSecret = _keyCloakSettings.ClientSecret,
                                     RefreshToken = refreshToken
                                 });
                                 if (tokenResponse.HttpStatusCode == System.Net.HttpStatusCode.OK)

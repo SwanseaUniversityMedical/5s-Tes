@@ -1,0 +1,116 @@
+{{- if .Values.agent.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Our C# code starts after its dependencies.
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "harbor.federated-analytics.ac.uk/5s-tes/chart"
+    chart: agent
+    # renovate: datasource=helm-oci depName=5s-tes/chart/agent registryUrl=https://harbor.federated-analytics.ac.uk
+    targetRevision: "{{ .Values.agent.chartVersion }}"
+    helm:
+      valuesObject:
+        # Must match the selector on the Velero Schedule in backup.yaml.
+        persistentVolumeLabels:
+          {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
+
+        # Multi-node clusters need RWX (api and camunda may land on
+        # different nodes); single-node local overrides to RWO.
+        processModels:
+          accessModes:
+            {{- toYaml .Values.agent.processModels.accessModes | nindent 12 }}
+          {{- with .Values.agent.processModels.storageClassName }}
+          storageClassName: {{ . | quote }}
+          {{- end }}
+
+        global:
+          tag: "{{ .Values.agent.imageVersion }}"
+
+          config:
+            aspnetEnvironment: "Production"
+            seqUrl: "http://seq:5341"
+            vaultUrl: "{{ .Values.vault.address }}"
+            zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
+
+          oidc:
+            authority: "{{ .Values.global.oidc.authority }}"
+
+          monitoring:
+            enabled: {{ .Values.global.monitoring.enabled }}
+            pushgatewayUrl: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+
+          ingress:
+            enabled: {{ .Values.global.ingress.enabled }}
+            className: "{{ .Values.global.ingress.className }}"
+            host: "{{ .Values.global.ingress.host }}"
+            certClusterIssuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+            tls: {{ .Values.global.ingress.tls }}
+
+          trustClusterCa:
+            enabled: {{ .Values.global.trustClusterCa.enabled }}
+            configMapName: "{{ .Values.global.trustClusterCa.configMapName }}"
+            key: "{{ .Values.global.trustClusterCa.key }}"
+            mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
+
+        submission:
+          oidcAuthority: "{{ .Values.submission.oidcAuthority }}"
+          apiUrl: "{{ .Values.submission.apiUrl }}"
+          s3Url: "{{ .Values.submission.s3Url }}"
+
+        api:
+          s3Url: "http://rustfs-svc:9000"
+          publicUrl: "{{ .Values.agent.api.publicUrl | default (printf "%s://agent-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+          keycloakDemoMode: "{{ .Values.agent.api.keycloakDemoMode }}"
+          {{- with .Values.agent.api.treName }}
+          treName: {{ . | quote }}
+          {{- end }}
+          {{- if .Values.agent.api.tesApiUrl }}
+          tesApiUrl: {{ .Values.agent.api.tesApiUrl | quote }}
+          {{- else if .Values.tesk.enabled }}
+          tesApiUrl: "http://tesk-api:8080/ga4gh/tes/v1/tasks"
+          {{- end }}
+          {{- if .Values.egress.enabled }}
+          egress:
+            enabled: true
+            authority: "{{ .Values.egress.oidcAuthority }}"
+            # Static Service name of the egress chart's api.
+            apiUrl: "http://egress-api"
+          {{- end }}
+
+        ui:
+          # Secure cookies require HTTPS end-to-end; follows ingress TLS.
+          sslCookies: "{{ .Values.global.ingress.tls }}"
+
+        camunda:
+          ldap:
+            host: "{{ .Values.agent.ldap.host }}"
+            port: {{ .Values.agent.ldap.port }}
+            adminDn: "{{ .Values.agent.ldap.adminDn }}"
+            baseDn: "{{ .Values.agent.ldap.baseDn }}"
+            userOu: "{{ .Values.agent.ldap.userOu }}"
+            useSsl: {{ .Values.agent.ldap.useSsl }}
+{{- end }}

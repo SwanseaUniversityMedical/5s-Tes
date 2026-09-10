@@ -52,6 +52,18 @@ builder.Services.Configure<Credentials.Camunda.Settings.VaultSettings>(configura
 builder.Services.AddHttpClient();
 builder.Services.AddBusinessServices(configuration);
 builder.Services.ConfigureCamunda(configuration);
+builder.Services.AddHealthChecks();
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 await app.RunAsync();

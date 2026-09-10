@@ -1,0 +1,34 @@
+# Local kind overrides for agent-stack.
+global:
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+  ingress:
+    host: "agent.localtest.me"
+    tls: false
+  storageClass: "standard"
+  trustClusterCa:
+    enabled: false
+  veleroBackup:
+    enabled: false
+  monitoring:
+    enabled: false
+
+vault:
+  secretsEnabled: false
+
+rabbitmq:
+  vaultDefaultUser: false
+  additionalConfig: |
+    default_user = agent
+    default_pass = password123
+    loopback_users.agent = false
+
+agent:
+  enabled: false
+
+# Cross-link to the co-located Submission product. oidcAuthority/apiUrl use
+# the ingress-routed hostnames; s3Url is a cross-namespace Service DNS name.
+submission:
+  oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  apiUrl: "http://submission-api.submission.localtest.me"
+  s3Url: "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"

@@ -48,6 +48,7 @@ configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSetting
 var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
 submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
 builder.Services.AddSingleton(submissionKeyCloakSettings);
+builder.Services.AddSingleton<BaseKeyCloakSettings>(submissionKeyCloakSettings);
 
 var formIOSettings = new FormIOSettings();
 configuration.Bind(nameof(formIOSettings), formIOSettings);
@@ -64,14 +65,20 @@ builder.Services.AddSingleton(UIName);
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks();
 if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntiforgery"].ToLower() == "true")
 {
     Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
     builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+}
+
+var dpSection = builder.Configuration.GetSection("DataProtectionSettings");
+if (bool.TryParse(dpSection["PersistKeys"], out var persistKeys) && persistKeys)
+{
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-        .DisableAutomaticKeyGeneration();
-    }
+        .PersistKeysToFileSystem(new DirectoryInfo(dpSection["KeysPath"] ?? "/keys"))
+        .SetApplicationName("submission");
+}
 
     //add services here
     builder.Services.AddScoped<CustomCookieEvent>();
@@ -335,6 +342,15 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 app.UseCors();
 app.UseForwardedHeaders();
 
@@ -367,7 +383,7 @@ if (keycloakDemomode &&
     });
 }
 
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Development_Kind"))
 {
     app.UseDeveloperExceptionPage();
 }
@@ -427,6 +443,9 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 
 app.UseCors();
 app.MapControllerRoute(

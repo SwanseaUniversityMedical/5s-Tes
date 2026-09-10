@@ -1,0 +1,277 @@
+nameOverride: ""
+fullnameOverride: "agent"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# UID 1000 (securityContext.runAsUser) must be able to write the shared
+# processmodels PVC, whatever GID the volume's storage class hands it.
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+
+# Org security baseline. Do not weaken without a reason in the pull request.
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# The cluster's backup tool backs up PVCs carrying these labels.
+persistentVolumeLabels:
+  hiru.io/backup: "enabled"
+
+# Camunda process models, shared by the api and camunda pods. A multi-node
+# cluster must set accessModes: [ReadWriteMany].
+processModels:
+  accessModes:
+    - ReadWriteOnce
+  size: 100Mi
+  storageClassName: null
+
+global:
+  # renovate: datasource=docker depName=5s-tes/agent-api registryUrl=https://harbor.federated-analytics.ac.uk
+  tag: "3.2.0"
+
+  config:
+    aspnetEnvironment: "Development"
+    seqUrl: "http://seq:5341"
+    logLevel: "Information"
+    vaultUrl: "http://agent-vault:8200"
+    zeebeGatewayAddress: "camunda-zeebe-gateway:26500"
+
+  # Full Dare-TRE realm URL every component authenticates against.
+  oidc:
+    authority: "http://keycloak/realms/Dare-TRE"
+
+  monitoring:
+    enabled: false
+    pushgatewayUrl: ""
+
+  # Base domain; api and ui each get their own subdomain of it.
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "localtest.me"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  trustClusterCa:
+    enabled: false
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+# Cross-stack link to the Submission product. The api calls the Submission
+# API and S3, and validates tokens from its Keycloak realm.
+submission:
+  oidcAuthority: "http://keycloak/realms/Dare-Control"
+  apiUrl: "http://submission-api.localtest.me"
+  s3Url: "http://submission-rustfs-svc:9000"
+
+# --------------------------------------------------------------------
+# One block per component. Only the settings unique to that component.
+# --------------------------------------------------------------------
+
+api:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  # Expected keys: connectionStringDefault, connectionStringCredentials,
+  # rabbitUsername, rabbitPassword, treKeycloakClientSecret,
+  # submissionKeycloakClientSecret, egressKeycloakClientSecret,
+  # s3AccessKey, s3SecretKey, vaultToken, encryptionKey, hangfireUsername,
+  # hangfirePassword, hasuraAdminSecret. See README Secrets section.
+  secretName: agent-api-secret
+  ingress:
+    enabled: true
+    # Empty computes "agent-api.<global.ingress.host>".
+    host: ""
+
+  rabbitmqHost: "rabbitmq"
+
+  oidc:
+    clientId: "Dare-TRE-UI"
+    validAudiences: "Dare-TRE-API,Dare-TRE-UI"
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  submissionOidc:
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  # Optional Data Egress link. When disabled the whole env group renders
+  # nothing.
+  egress:
+    enabled: false
+    authority: ""
+    clientId: "Data-Egress-API"
+    validAudiences: "Data-Egress-UI,Data-Egress-API"
+    tokenExpiredAddress: ""
+    redirectUrl: ""
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+    apiUrl: ""
+
+  s3Url: "http://rustfs-svc:9000"
+
+  # Public URL embedded in TRE onboarding JSON.
+  publicUrl: "http://agent-api.localtest.me"
+
+  vault:
+    timeoutSeconds: 30
+    secretEngine: "secret"
+    enableRetry: true
+    maxRetryAttempts: 3
+    configPath: "config"
+    configReloadInterval: 10
+
+  zeebe:
+    worker:
+      maxJobsActive: 5
+      timeoutInMilliseconds: 5000
+      pollIntervalInMilliseconds: 1000
+      pollingTimeoutInMilliseconds: 5000
+      retryTimeoutInMilliseconds: 5000
+
+  hangfire:
+    enableExternal: "true"
+
+  jobs:
+    scanSchedule: 1
+    syncSchedule: 10
+    healthCheckSchedule: 10
+    daysBeforeHealthLogDeletion: 30
+
+  useTesk: "true"
+  tesApiUrl: "http://localhost:8000/v1/tasks"
+  teskOutputBucketPrefix: "s3://"
+
+  treName: "DEV"
+
+  features:
+    seedDemoData: "false"
+    ephemeralCredentials: "true"
+
+  keycloakDemoMode: "false"
+  demoModeDefaultP: ""
+
+  onboarding:
+    isConfigurationImported: "false"
+
+  # HasuraURL/HasuraAdminSecret are only read when enabled.
+  hasura:
+    enabled: false
+    url: ""
+
+  # Agent apps do not persist data-protection keys across restarts.
+  dataProtection:
+    persistKeys: "false"
+    keysPath: "/keys"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+ui:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/agent-ui
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+    annotations: {}
+  # Expected key: keycloakClientSecret. See README Secrets section.
+  secretName: agent-ui-secret
+  ingress:
+    enabled: true
+    # Empty computes "agent.<global.ingress.host>".
+    host: ""
+
+  appName: "Five Safes TES"
+  keycloakDemoMode: "false"
+  sslCookies: "false"
+  # TLS terminates at the ingress, so the app itself does not redirect.
+  httpsRedirect: "false"
+
+  oidc:
+    clientId: "Dare-TRE-UI"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  helpdeskUrl: "https://ukserp.atlassian.net/servicedesk/customer/portal/3"
+
+  # Agent apps do not persist data-protection keys across restarts.
+  dataProtection:
+    persistKeys: "false"
+    keysPath: "/keys"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+camunda:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/credentials-camunda
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  # Expected keys: ldapAdminPassword, vaultToken,
+  # connectionStringCredentials, connectionStringTreData. See README Secrets
+  # section.
+  secretName: credentials-camunda-secret
+
+  zeebe:
+    worker:
+      maxJobsActive: 5
+      timeoutInMilliseconds: 5000
+      pollIntervalInMilliseconds: 1000
+      pollingTimeoutInMilliseconds: 5000
+      retryTimeoutInMilliseconds: 5000
+
+  # Local OpenLDAP. Production overrides these to an external AD.
+  ldap:
+    host: "openldap"
+    port: 389
+    adminDn: "cn=admin,dc=camundaephemeral,dc=local"
+    baseDn: "dc=camundaephemeral,dc=local"
+    userOu: "ou=Users"
+    useSsl: false
+
+  vault:
+    timeoutSeconds: 30
+    secretEngine: "secret"
+    enableRetry: true
+    maxRetryAttempts: 3
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []

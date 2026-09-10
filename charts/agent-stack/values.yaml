@@ -1,0 +1,243 @@
+global:
+  argoProject: agent
+  namespace: 5s-tes-agent
+
+  oidc:
+    authority: "https://keycloak.example.ac.uk/realms/Dare-TRE"
+
+  ingress:
+    enabled: true
+    host: "example.ac.uk"
+    className: "nginx"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  storageClass: "ceph-block"
+
+  trustClusterCa:
+    enabled: true
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+  # Volume backups only; PostgreSQL backs itself up via the postgres block.
+  veleroBackup:
+    enabled: true
+    namespace: "hiru-mgmt-velero"
+    schedule: "0 1 * * *"
+    ttl: "168h0m0s"
+
+  persistentVolumeLabels:
+    hiru.io/backup: "enabled"
+
+  monitoring:
+    enabled: true
+    pushgatewayUrl: "http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics"
+
+# ---- Our own C# code ----
+agent:
+  enabled: true
+  # renovate: datasource=helm-oci depName=5s-tes/chart/agent registryUrl=https://harbor.federated-analytics.ac.uk
+  chartVersion: "1.0.0"
+  # renovate: datasource=docker depName=5s-tes/agent-api registryUrl=https://harbor.federated-analytics.ac.uk
+  imageVersion: "3.2.0"
+  api:
+    # Public API URL embedded in TRE onboarding JSON. Empty computes
+    # "<scheme>://agent-api.<global.ingress.host>".
+    publicUrl: ""
+    # REQUIRED for production. Empty renders nothing and the agent chart's
+    # dev default ("DEV") applies.
+    treName: ""
+    # REQUIRED for production: external TES backend URL (or enable tesk
+    # below). Empty renders nothing and the agent chart's dev default applies.
+    tesApiUrl: ""
+    # Local-only: allows an HTTP Keycloak. Keep "false" in production.
+    keycloakDemoMode: "false"
+  processModels:
+    # Needs an RWX-capable class (e.g. CephFS) when accessModes is
+    # ReadWriteMany; null uses the cluster default.
+    storageClassName: null
+    accessModes:
+      - ReadWriteMany
+  # Active Directory settings for the Credentials Camunda worker. Defaults
+  # match the optional openldap Application below; production sets the real AD.
+  ldap:
+    host: "openldap"
+    port: 389
+    adminDn: "cn=admin,dc=camundaephemeral,dc=local"
+    baseDn: "dc=camundaephemeral,dc=local"
+    userOu: "ou=Users"
+    useSsl: false
+
+# Optional Data-Egress product, deployed as part of this stack. Requires the
+# egress chart published in Harbor. See README.
+egress:
+  enabled: false
+  # Gates only the egress Application; the Database, VaultSecrets and agent
+  # wiring follow egress.enabled. Local installs set this false and install
+  # the egress chart from a working tree instead.
+  appEnabled: true
+  # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
+  chartVersion: "1.0.0"
+  # renovate: datasource=docker depName=dare-trefx/control-egress-api registryUrl=https://harbor.ukserp.ac.uk
+  imageVersion: "3.0.4"
+  # Full Data-Egress realm URL. Bare realm URL: no trailing slash, no
+  # .well-known suffix.
+  oidcAuthority: "https://keycloak.example.ac.uk/realms/Data-Egress"
+  # Local-only: same meaning as agent.api.keycloakDemoMode above.
+  keycloakDemoMode: "false"
+
+# Cross-stack link to the Submission product: always external addresses,
+# never in-namespace service names.
+submission:
+  oidcAuthority: "https://keycloak.example.ac.uk/realms/Dare-Control"
+  apiUrl: "https://submission-api.example.ac.uk"
+  # The Submission product's S3 endpoint, not this stack's own rustfs.
+  s3Url: "https://submission-rustfs.example.ac.uk"
+
+# --------------------------------------------------------------------
+# Dependencies installed from somebody else's chart.
+# --------------------------------------------------------------------
+
+rustfs:
+  enabled: true
+  repoURL: "https://rustfs.github.io/helm/"
+  chart: rustfs
+  # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
+  chartVersion: "1.0.0-rc.4"
+  storageSize: "10Gi"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+seq:
+  enabled: true
+  repoURL: "https://helm.datalust.co"
+  chart: seq
+  # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
+  chartVersion: "2025.2.1"
+  storageSize: "10Gi"
+  # Leave false: no seqApiKey is wired into any component, so true rejects
+  # every app log.
+  requireAuthForIngestion: false
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+# The Agent's own Camunda 8 (Zeebe broker/gateway only), used by the
+# Credentials worker.
+camunda:
+  enabled: true
+  repoURL: "https://helm.camunda.io"
+  chart: camunda-platform
+  # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
+  chartVersion: "13.4.1"
+
+# Local/test OpenLDAP standing in for a real Active Directory (agent.ldap.*).
+openldap:
+  enabled: false
+  repoURL: "https://jp-gouin.github.io/helm-openldap/"
+  chart: openldap-stack-ha
+  # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
+  chartVersion: "4.3.3"
+  storageSize: "1Gi"
+  # Keep in step with agent.ldap.baseDn above.
+  ldapDomain: "camundaephemeral.local"
+
+# Optional in-cluster TESK (GA4GH TES) backend; the alternative to
+# agent.api.tesApiUrl.
+tesk:
+  enabled: false
+  repoURL: "harbor.ukserp.ac.uk/tesk/chart"
+  chart: tesk
+  # renovate: datasource=helm-oci depName=tesk/chart/tesk registryUrl=https://harbor.ukserp.ac.uk
+  chartVersion: "0.1.0"
+  # renovate: datasource=docker depName=tesk/tesk-api registryUrl=https://harbor.ukserp.ac.uk
+  image: "harbor.ukserp.ac.uk/tesk/tesk-api:1.0.1"
+  taskmasterImage:
+    name: "harbor.ukserp.ac.uk/tesk/tesk-core-taskmaster"
+    # renovate: datasource=docker depName=tesk/tesk-core-taskmaster registryUrl=https://harbor.ukserp.ac.uk
+    version: "v0.10.5"
+  filerImage:
+    name: "harbor.ukserp.ac.uk/tesk/tesk-core-filer"
+    # renovate: datasource=docker depName=tesk/tesk-core-filer registryUrl=https://harbor.ukserp.ac.uk
+    version: "v0.10.5"
+
+# Secret source settings, and this stack's own Vault Application.
+vault:
+  role: agent
+  secretPath: kvv2/data/prod/prod/agent
+  authPath: kubernetes
+  # This stack's own Vault, not the operator's default connection.
+  address: "http://agent-vault:8200"
+
+  # The api and camunda worker call this Vault at runtime, so this stays
+  # true even where secretsEnabled is false.
+  enabled: true
+  # Gates every VaultSecret. False only where something else provides the
+  # Secrets (e.g. the devstack's static Secrets).
+  secretsEnabled: true
+  repoURL: "https://helm.releases.hashicorp.com"
+  chart: vault
+  # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
+  chartVersion: "0.34.1"
+  dataStorageSize: "10Gi"
+  # Vault Agent Injector webhook; nothing here uses injected secrets.
+  injector:
+    enabled: false
+
+# --------------------------------------------------------------------
+# Dependencies that are operator objects, not charts.
+# --------------------------------------------------------------------
+
+rabbitmq:
+  replicas: 1
+  storageSize: "10Gi"
+  # Extra rabbitmq.conf lines, passed to the operator verbatim.
+  additionalConfig: ""
+  # Set false only on a cluster without Vault (local dev); the operator
+  # then generates "rabbitmq-default-user" instead.
+  vaultDefaultUser: true
+
+postgres:
+  # The api's own database.
+  database: "DARE-Tre"
+  # Shared by the api and the Credentials Camunda worker. The TRE data
+  # database is external; this chart creates no object for it.
+  credentialsDatabase: "TRE_Credentials"
+  # The optional egress product's database.
+  egressDatabase: "DATA-Egress"
+  instances: 1
+  # Changing this on a running cluster is a major upgrade, not a text edit.
+  # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
+  version: "16.15"
+  storageSize: "10Gi"
+  connectionPooler:
+    instances: 1
+    maxClientConn: 3000
+    defaultPoolSize: 120
+    reservePoolSize: 20
+    reservePoolTimeout: 5
+    serverIdleTimeout: 300
+  # PostgreSQL backups to object storage, through CloudNativePG.
+  backups:
+    enabled: false
+    destinationPath: ""
+    endpointURL: ""
+    # Secret holding ca.crt for the object storage endpoint's certificate.
+    # Not created by this chart; must already exist.
+    endpointCASecretName: ""
+    retention: "30d"
+    # SIX fields, seconds first.
+    schedule: "0 0 0 * * *"
+    # Vault path for the backup destination's S3 credentials.
+    vault:
+      path: ""
+      accessKeyField: access_key
+      secretKeyField: secret_key

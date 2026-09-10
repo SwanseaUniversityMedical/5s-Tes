@@ -1,0 +1,15 @@
+# OCI repos need an enableOCI registration even without credentials.
+# Serves both devstack charts' keycloak.yaml and agent-devstack's
+# tredata.yaml (Bitnami postgresql), both under this same path.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-helm-oci-harbor-bitnami
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  enableOCI: "true"
+  name: "harbor.ukserp bitnami"
+  type: helm
+  url: harbor.ukserp.ac.uk/bitnami/chart

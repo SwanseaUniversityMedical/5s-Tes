@@ -1,0 +1,29 @@
+# Local kind overrides for submission-stack.
+global:
+  oidc:
+    authority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  ingress:
+    host: "submission.localtest.me"
+    tls: false
+  storageClass: "standard"
+  trustClusterCa:
+    enabled: false
+  veleroBackup:
+    enabled: false
+  monitoring:
+    enabled: false
+
+vault:
+  secretsEnabled: false
+
+rabbitmq:
+  vaultDefaultUser: false
+  additionalConfig: |
+    default_user = submission
+    default_pass = password123
+    loopback_users.submission = false
+
+# The chart Application can't resolve (nothing published to Harbor);
+# cluster-setup.sh installs the submission chart from the working tree.
+submission:
+  enabled: false

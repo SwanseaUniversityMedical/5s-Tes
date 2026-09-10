@@ -1,0 +1,188 @@
+nameOverride: ""
+fullnameOverride: "submission"
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# UID 1000 (securityContext.runAsUser) must be able to write the shared
+# dataProtection PVC, whatever GID the volume's storage class hands it.
+podSecurityContext:
+  fsGroup: 1000
+  fsGroupChangePolicy: OnRootMismatch
+
+# Org security baseline. Do not weaken without a reason in the pull request.
+securityContext:
+  runAsUser: 1000
+  runAsGroup: 1000
+  runAsNonRoot: true
+  readOnlyRootFilesystem: true
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+
+# The cluster's backup tool backs up PVCs carrying these labels.
+persistentVolumeLabels:
+  hiru.io/backup: "enabled"
+
+# ASP.NET data-protection keys, shared by api and ui so either pod can
+# decrypt the other's cookies/tokens.
+dataProtection:
+  keysPath: /keys
+  accessModes:
+    - ReadWriteOnce
+  size: 100Mi
+  storageClassName: null
+
+global:
+  # renovate: datasource=docker depName=5s-tes/submission-api registryUrl=https://harbor.federated-analytics.ac.uk
+  tag: "3.2.0"
+
+  config:
+    aspnetEnvironment: "Development"
+    seqUrl: "http://seq:5341"
+    logLevel: "Information"
+
+  # Full realm URL every component authenticates against.
+  oidc:
+    authority: "http://keycloak/realms/Dare-Control"
+
+  monitoring:
+    enabled: false
+    pushgatewayUrl: ""
+
+  # Base domain; api and ui each get their own subdomain of it.
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "localtest.me"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  trustClusterCa:
+    enabled: false
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+# --------------------------------------------------------------------
+# One block per component. Only the settings unique to that component.
+# --------------------------------------------------------------------
+
+api:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+  # Expected keys: connectionString, rabbitUsername, rabbitPassword,
+  # s3AccessKey, s3SecretKey, keycloakClientSecret, keycloakAdminUsername,
+  # keycloakAdminPassword, vaultToken. See README Secrets section.
+  secretName: submission-api-secret
+  ingress:
+    enabled: true
+    # Empty computes "submission-api.<global.ingress.host>".
+    host: ""
+
+  rabbitmqHost: "rabbitmq"
+  s3Url: "http://rustfs-svc:9000"
+  # Public console URL shown to users; different from the in-cluster s3Url.
+  s3ConsoleUrl: "http://localhost:9001"
+
+  oidc:
+    clientId: "Dare-Control-API"
+    validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+    tokenRefreshSeconds: "3600"
+    autoTrustKeycloakCert: "false"
+    validIssuer: ""
+    redirectUrl: ""
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  keycloakAdmin:
+    serviceAccountRole: "dare-tre-admin"
+
+  vaultUrl: "http://submission-vault:8200"
+  vault:
+    timeoutSeconds: 30
+    secretEngine: "secret"
+    enableRetry: true
+    maxRetryAttempts: 3
+
+  # Public URL embedded in TRE onboarding JSON.
+  publicUrl: "http://submission-api.localtest.me"
+
+  features:
+    seedDemoData: "false"
+
+  keycloakDemoMode: "false"
+  suppressAntiforgery: "false"
+
+  email:
+    enabled: "false"
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []
+
+ui:
+  enabled: true
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-ui
+    tag: ""
+    pullPolicy: IfNotPresent
+  containerPort: 8080
+  resources: {}
+  service:
+    type: ClusterIP
+    annotations: {}
+  # Expected key: keycloakClientSecret. See README Secrets section.
+  secretName: submission-ui-secret
+  ingress:
+    enabled: true
+    # Empty computes "submission.<global.ingress.host>".
+    host: ""
+
+  appName: "Five Safes TES"
+  keycloakDemoMode: "false"
+  sslCookies: "false"
+  # TLS terminates at the ingress, so the app itself does not redirect.
+  httpsRedirect: "false"
+  suppressAntiforgery: "false"
+
+  formio:
+    treForm: "https://rikojtsvfwnqslz.form.io/darecontrolendpoint"
+    userForm: "https://rikojtsvfwnqslz.form.io/darecontroluser"
+    projectForm: "https://rikojtsvfwnqslz.form.io/darecontrolproject"
+
+  urlSettings:
+    # renovate: datasource=docker depName=ukserp/runsql
+    queryImageSql: "ukserp/runsql:1.0.0"
+    # renovate: datasource=docker depName=dare-trefx/control-tre-hasura registryUrl=https://harbor.ukserp.ac.uk
+    queryImageGraphQL: "harbor.ukserp.ac.uk/dare-trefx/control-tre-hasura:1.33.1"
+    s3BucketPath: "/rustfs/console/browser/?bucket="
+
+  # Public console URL shown to users; different from the api's in-cluster s3Url.
+  s3ConsoleUrl: "http://localhost:9001"
+
+  oidc:
+    clientId: "Dare-Control-UI"
+    redirectUrl: ""
+    useRedirectUrl: "false"
+    proxy: "false"
+    proxyAddresUrl: ""
+    bypassProxy: ""
+
+  # Rare one-off settings only. If you find yourself adding a third entry
+  # here, it belongs above as a named key instead.
+  extraEnv: []

@@ -3,6 +3,33 @@
   "extends": [
     ":enableRenovate"
   ],
+  "customManagers": [
+    {
+      "customType": "regex",
+      "description": "Chart/image versions pinned via '# renovate:' comment in a chart's values.yaml (see doc 05).",
+      "managerFilePatterns": [
+        "/^charts/[^/]+/values\\.yaml$/"
+      ],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "# renovate: datasource=(?<rawDatasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?[ \\t]*\\r?\\n[ \\t]*[\\w.]+:[ \\t]*\"(?<currentValue>[^\"/:]+)\"",
+        "# renovate: datasource=(?<rawDatasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?[ \\t]*\\r?\\n[ \\t]*[\\w.]+:[ \\t]*\"[^\"]*:(?<currentValue>[^\"/:]+)\""
+      ],
+      "datasourceTemplate": "{{#if (equals rawDatasource 'helm-oci')}}docker{{else}}{{rawDatasource}}{{/if}}"
+    },
+    {
+      "customType": "regex",
+      "description": "Chart/operator versions pinned via '# renovate:' comment in dev-env-setup/cluster-setup.sh's shell variable assignments.",
+      "managerFilePatterns": [
+        "/^dev-env-setup/cluster-setup\\.sh$/"
+      ],
+      "matchStringsStrategy": "any",
+      "matchStrings": [
+        "# renovate: datasource=(?<rawDatasource>[a-z0-9-]+) depName=(?<depName>\\S+)(?: registryUrl=(?<registryUrl>\\S+))?[ \\t]*\\r?\\n[ \\t]*[\\w.]+=[ \\t]*\"(?<currentValue>[^\"/:]+)\""
+      ],
+      "datasourceTemplate": "{{rawDatasource}}"
+    }
+  ],
   "hostRules": [
     {
       "hostType": "docker",

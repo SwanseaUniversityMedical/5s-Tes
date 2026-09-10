@@ -1,0 +1,27 @@
+# Values for `helm install submission charts/submission` from the working
+# tree, standing in for the disabled submission Application.
+dataProtection:
+  accessModes:
+    - ReadWriteMany
+
+global:
+  config:
+    aspnetEnvironment: "Production"
+  oidc:
+    authority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  ingress:
+    host: "submission.localtest.me"
+    tls: false
+
+api:
+  image:
+    repository: 5s-tes/submission-api
+    tag: local
+  s3ConsoleUrl: "http://rustfs.submission.localtest.me"
+  publicUrl: "http://submission-api.submission.localtest.me"
+
+ui:
+  image:
+    repository: 5s-tes/submission-ui
+    tag: local
+  s3ConsoleUrl: "http://rustfs.submission.localtest.me"

@@ -1,0 +1,617 @@
+# agent-stack
+
+Production stack for the Agent product: the `agent` standalone chart, its dependencies, and
+the VaultSecrets that supply their passwords. No Deployment, Service or Ingress for C# code
+lives in this chart; that is all in `charts/agent`.
+
+## What this stack deploys
+
+| Component | What it is | Sync wave |
+|---|---|---|
+| `templates/vault.yaml` | ArgoCD `Application` `vault`, hashicorp/vault chart, standalone (file) mode | 1 |
+| `templates/secrets/*.yaml` | `VaultSecret` objects | 1 |
+| `templates/rabbitmq.yaml` | `RabbitmqCluster` named `rabbitmq` | 2 |
+| `templates/openldap.yaml` | ArgoCD `Application` `openldap`, optional, default off | 2 |
+| `templates/rustfs.yaml` | ArgoCD `Application` `rustfs`, RustFS chart, standalone mode — the TRE object store | 3 |
+| `templates/seq.yaml` | ArgoCD `Application` `seq`, Seq chart | 3 |
+| `templates/camunda.yaml` | ArgoCD `Application` `camunda`, camunda-platform chart, Zeebe only | 3 |
+| `templates/tesk.yaml` | ArgoCD `Application` `tesk`, optional, default off | 3 |
+| `templates/postgres.yaml` | CNPG `Cluster` `postgres`, `Database`s `dare-tre`/`tre-credentials`/`data-egress` (optional, `egress.enabled`), `Pooler` `pg-pooler`, PodMonitors | 3 |
+| `templates/backup.yaml` | Velero `Schedule` (volumes) + CNPG `ObjectStore`/`ScheduledBackup` (off by default) | 2/3 |
+| `templates/agent.yaml` | ArgoCD `Application` `agent`, the standalone chart | 5 |
+| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off, independently gated by `egress.appEnabled` | 5 |
+
+## What the cluster must already have
+
+- **The CloudNativePG operator**, `>= 1.25` for the `Database` CRD. `templates/postgres.yaml`
+  renders a `Cluster`, two `Database` objects (three if `egress.enabled`) and a `Pooler`;
+  nothing runs unless the operator is watching for them.
+- **The RabbitMQ Cluster Operator**, for `templates/rabbitmq.yaml`'s `RabbitmqCluster`.
+- **The redhatcop `vault-config-operator`** (the `VaultSecret` CRD), for every object under
+  `templates/secrets/`.
+- **ArgoCD**, watching this namespace, with a project matching `global.argoProject`.
+- **Velero**, in `global.veleroBackup.namespace`, if `global.veleroBackup.enabled` is `true`.
+- **The `barman-cloud.cloudnative-pg.io` CNPG plugin**, only if `postgres.backups.enabled` is
+  turned on — see **Backups** below.
+- A `monitoring.coreos.com` PodMonitor CRD (Prometheus Operator), if `global.monitoring.enabled`
+  is `true`.
+
+## Vault
+
+This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned runtime
+Vault**, holding ephemeral researcher credentials that both `api` and the Credentials Camunda
+worker call at runtime via `VaultSettings__BaseUrl`/`VaultSettings__Token` — not the platform
+Vault on the `management` cluster.
+
+Because it is not the platform Vault, every `VaultSecret` below sets
+`vaultSecretDefinitions[].connection.address` to `vault.address` (default
+`http://agent-vault:8200`, this stack's own Vault Service) to override the redhatcop
+operator's own default connection, which otherwise points at the platform Vault.
+
+It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`). Every
+step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equivalent
+(init/unseal/`secret` mount/token).
+
+The release is named `agent-vault`, so the pod below is `agent-vault-0`.
+
+1. **Init and unseal** (first time only):
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator init
+   # Record the five unseal keys and the root token somewhere safe (not Git).
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator unseal   # x3, different keys
+   ```
+
+2. **Enable the kv-v2 mount** at the path base — the first segment of `vault.secretPath`
+   (`kvv2` by default):
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault login   # root token from step 1
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=kvv2 kv-v2
+   ```
+
+   Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
+   `v1/{mount}/data/{path}`, the KV v2 shape: `Shared/FiveSafesTes.Core/Services/VaultCredentialsService.cs:38,60,82,117`),
+   at `api.vault.secretEngine`/`VaultSettings__SecretEngine`'s default (`secret`, compose
+   parity):
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=secret -version=2 kv
+   ```
+
+   `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
+   operator-read store the redhatcop `VaultSecret`s pull deploy-time app Secrets from;
+   `secret` is the store `api`/`camunda` read and write at runtime (ephemeral researcher
+   credentials, via `VaultCredentialsService`).
+
+3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault auth enable -path=kubernetes kubernetes
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/config \
+     kubernetes_host="https://kubernetes.default.svc"
+   ```
+
+4. **Create the policy and role** (`vault.role`), bound to the namespace's `default`
+   ServiceAccount — every VaultSecret's `authentication.serviceAccount.name` is `default`:
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault policy write agent - <<'EOF'
+   path "kvv2/data/prod/prod/agent/*" {
+     capabilities = ["read"]
+   }
+   EOF
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/role/agent \
+     bound_service_account_names=default \
+     bound_service_account_namespaces=<namespace> \
+     policies=agent \
+     ttl=1h
+   ```
+
+   Adjust the policy path to match `vault.secretPath` if it is overridden.
+
+5. **Write the app secrets**, one per row of the paths table below. The `vault kv put` CLI
+   inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
+
+   ```bash
+   kubectl exec -n <namespace> -it agent-vault-0 -- vault kv put kvv2/prod/prod/agent/postgres \
+     postgres_password='...'
+   ```
+
+   Last, write the api's and the Camunda worker's own Vault tokens, at
+   `{{ .Values.vault.secretPath }}/agent-api` and `.../credentials-camunda`, key `vault_token`
+   both times, so `agent-api-secret` and `credentials-camunda-secret` can inject them as
+   `vaultToken` (`VaultSettings__Token`).
+
+### Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/agent`)
+
+The standalone chart's README lists the Kubernetes Secret names and keys each of these fills;
+the two must agree.
+
+| Path | Field | Fills | Used for |
+|---|---|---|---|
+| `.../postgres` | `postgres_password` | `postgres-secret` / `password` | CNPG superuser password |
+| `.../agent-api` | `connection_string_default` | `agent-api-secret` / `connectionStringDefault` | PostgreSQL connection string for `DARE-Tre` on `pg-pooler` |
+| `.../agent-api` | `connection_string_credentials` | `agent-api-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
+| `.../agent-api` | `tre_keycloak_client_secret` | `agent-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-UI` client secret (api authenticates as this client) |
+| `.../agent-api` | `submission_keycloak_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret (cross-realm; see below) |
+| `.../agent-api` | `egress_keycloak_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the agent api. Only read when `api.egress.enabled` is `true` — this stack sets that from `egress.enabled` (see **Egress** below) |
+| `.../agent-api` | `s3_access_key` | `agent-api-secret` / `s3AccessKey` | Agent RustFS access key. Must equal `.../rustfs`'s `access_key` |
+| `.../agent-api` | `s3_secret_key` | `agent-api-secret` / `s3SecretKey` | Agent RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
+| `.../agent-api` | `rabbit_username` | `agent-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
+| `.../agent-api` | `rabbit_password` | `agent-api-secret` / `rabbitPassword` | RabbitMQ default user password |
+| `.../agent-api` | `encryption_key` | `agent-api-secret` / `encryptionKey` | Base64 encryption key |
+| `.../agent-api` | `vault_token` | `agent-api-secret` / `vaultToken` | Token for this stack's own Vault, used by the api |
+| `.../agent-api` | `hangfire_username` | `agent-api-secret` / `hangfireUsername` | Hangfire dashboard username |
+| `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
+| `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
+| `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `ui` component) |
+| `.../egress-api` | `connection_string` | `egress-api-secret` / `connectionString` | PostgreSQL connection string for `DATA-Egress` on `pg-pooler`. Only needed if `egress.enabled` |
+| `.../egress-api` | `tre_keycloak_client_secret` | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret (cross-realm; the egress api authenticates as this client against `Dare-TRE`) |
+| `.../egress-api` | `data_egress_keycloak_client_secret` | `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the egress api itself |
+| `.../egress-api` | `s3_access_key` | `egress-api-secret` / `s3AccessKey` | Egress RustFS access key. Must equal `.../rustfs`'s `access_key` |
+| `.../egress-api` | `s3_secret_key` | `egress-api-secret` / `s3SecretKey` | Egress RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
+| `.../egress-api` | `encryption_key` | `egress-api-secret` / `encryptionKey` | AES-128 key decrypting DB-stored Keycloak admin credentials. Must stay byte-stable across deployments — a changed value makes existing `KeycloakCredentials` rows undecryptable |
+| `.../egress-api` | `encryption_base` | `egress-api-secret` / `encryptionBase` | AES IV paired with `encryption_key`. Same byte-stability requirement |
+| `.../egress-api` | `demo_mode_default_password` | `egress-api-secret` / `demoModeDefaultPassword` | Seeded Keycloak service-account password, written when the egress chart's own `demoMode` is on |
+| `.../egress-ui` | `keycloak_client_secret` | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
+| `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
+| `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
+| `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the directory named by `agent.ldap.*` — the external AD in production, or `.../ldap`'s `admin_password` if `openldap.enabled` |
+| `.../credentials-camunda` | `vault_token` | `credentials-camunda-secret` / `vaultToken` | Token for this stack's own Vault, used by the worker |
+| `.../rustfs` | `access_key` | `agent-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../agent-api`'s `s3_access_key` |
+| `.../rustfs` | `secret_key` | `agent-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../agent-api`'s `s3_secret_key` |
+| `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
+| `.../seq` | `admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password, not an Agent app secret |
+| `.../ldap` | `admin_password` | `agent-openldap-secret` / `LDAP_ADMIN_PASSWORD` | Only needed if `openldap.enabled`. Must equal `.../credentials-camunda`'s `ldap_admin_password` |
+| `.../ldap` | `config_password` | `agent-openldap-secret` / `LDAP_CONFIG_ADMIN_PASSWORD` | Only needed if `openldap.enabled` |
+| `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below |
+
+### RabbitMQ: the default user needs management permissions
+
+`rabbitmq.vaultDefaultUser` (default `true`) gates only the `RabbitmqCluster`'s
+`secretBackend.vault` block — production keeps Vault-backed credentials. Set it `false` only
+on a cluster with no Vault to read from; the RabbitMQ Cluster Operator then generates its own
+`rabbitmq-default-user` Secret with a random password instead.
+
+As with `submission-stack`, the Vault-supplied default user at
+`{{ .Values.vault.secretPath }}/rabbitmq` must carry the `management` tag / administrator
+permissions, not just messaging permissions, or the Agent api's own startup vhost/exchange/queue
+setup fails silently on every restart.
+
+## Cookies
+
+`templates/agent.yaml` wires `ui.sslCookies: "{{ .Values.global.ingress.tls }}"` — secure
+cookies require HTTPS end-to-end, so this follows `global.ingress.tls` rather than being its
+own stack value.
+
+## Keycloak
+
+The `ui` component, and the api's own TRE-realm identity, both authenticate as the single
+`Dare-TRE-UI` client. The external `Dare-TRE` realm at `global.oidc.authority` must already
+have:
+
+- **`Dare-TRE-UI`** — confidential client, used by `api` and `ui`. Its client secret fills
+  `treKeycloakClientSecret`/`agent-ui-secret`'s `keycloakClientSecret`.
+- **`Dare-TRE-API`** — a valid audience for tokens issued to `Dare-TRE-UI`
+  (`api.oidc.validAudiences`), not a separately authenticating client in this chart.
+- **`Dare-TRE-S3`** — expected in the realm design alongside the two clients above (this
+  chart's rendered configuration does not itself reference it by name; verify its exact use
+  against the realm import before deploying a new realm).
+
+The api also validates tokens from the Submission product's **`Dare-Control`** realm
+(`submission.oidcAuthority`), as **`Dare-Control-API`** — its client secret fills
+`submissionKeycloakClientSecret`/`agent-api-secret`. This is a cross-realm trust: `Dare-Control`
+belongs to the Submission deployment, not to this stack, and must already exist there.
+
+`*KeyCloakSettings__Authority` renders as `<realm>/.well-known/openid-configuration`, matching
+compose — deliberate: issuer validation is satisfied by the OIDC metadata's fetched `Issuer`
+field, not a literal match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
+
+### External AD (or OpenLDAP)
+
+The Credentials Camunda worker binds to a directory named by `agent.ldap.*`. Production points
+these at a real Active Directory:
+
+- `agent.ldap.host`/`port`/`useSsl` — the AD host and whether to use LDAPS.
+- `agent.ldap.adminDn`/`baseDn`/`userOu` — the bind DN and search base.
+- The bind password is `credentials-camunda-secret`'s `ldapAdminPassword`
+  (`.../credentials-camunda`'s `ldap_admin_password` in Vault).
+
+`openldap.enabled` (default `false`) deploys a local OpenLDAP as a stand-in — for testing only,
+never the production path. Its defaults already match `agent.ldap.*`'s own defaults
+(`host: openldap`, `port: 389`, `baseDn: dc=camundaephemeral,dc=local`), but this stack does
+**not** wire them together automatically: enabling `openldap.enabled` does not change
+`agent.ldap.*`. A deployment using the bundled OpenLDAP must leave `agent.ldap.*` at its
+defaults (or set them to match) itself.
+
+`templates/openldap.yaml` seeds the root organisation object, `ou=Users`, `ou=groups`, and
+`cn=trinogroup` via `customLdifFiles` — the chart does not create the root object itself, and a
+fresh install has no directory data otherwise. It also forces `replication.enabled: false`: the
+chart's own default tries to configure multi-provider sync even at `replicaCount: 1`, which fails
+(`<olcMultiProvider> database is not a shadow`) and crashes the container before the custom LDIF
+ever loads — meaningless below 2 replicas regardless.
+
+## Egress
+
+`egress.enabled` (default `false`) composes the optional Data-Egress product as the `egress`
+`Application` (`templates/egress.yaml`), pulled from `harbor.ukserp.ac.uk/dare-trefx/chart`
+(the DARE-Control charts project) — a different Harbor registry and project than `agent`'s own
+`harbor.federated-analytics.ac.uk/5s-tes/chart`. **When `egress.appEnabled` is also `true`
+(the default), the `egress` chart must already exist at that coordinate, at
+`egress.chartVersion`, before turning `egress.enabled` on** — ArgoCD fails the sync otherwise.
+Turning `egress.enabled` on also:
+
+- Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
+  stack's own `postgres` `Cluster` — see **CloudNativePG** below.
+- Creates `egress-api-secret`/`egress-ui-secret` (gated additionally on `vault.secretsEnabled`)
+  — see the Vault paths table above.
+- Sets `agent.yaml`'s `api.egress.enabled: true`, `api.egress.authority`, and
+  `api.egress.apiUrl: "http://egress-api"` (the egress chart's own static api Service name), so
+  the Agent api starts talking to Data-Egress.
+- Sets `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (default
+  `"false"`, production-safe — production's Keycloak is HTTPS).
+
+`egress.appEnabled` (default `true`) gates ONLY the `egress` `Application` on top of
+`egress.enabled` — the Database, VaultSecrets, and `agent.yaml`'s `api.egress` wiring above stay
+gated on `egress.enabled` alone. Set it `false` to compose the rest of the egress wiring without
+the un-publishable Application, e.g. for a local install of the egress product by helm from a
+working tree (see `agent-devstack`'s README).
+
+Publish order is images → chart → enable: `egress.imageVersion` must point at a
+`control-egress-api`/`control-egress-ui` release that contains the `/health` endpoint the egress
+chart's probes require. The default `"3.0.4"` predates `/health` and CrashLoops on its own
+probes — it is not a working image tag.
+
+Independent of the toggle, `agent.yaml` always wires `api.keycloakDemoMode` from
+`agent.api.keycloakDemoMode` (default `"false"`). Both settings relax the outbound
+password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
+(`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`); local-only, see
+`agent-devstack`'s README **Optional: local Data Egress**.
+
+**Keycloak.** The external `Data-Egress` realm at `egress.oidcAuthority` must already have:
+
+- **`Data-Egress-API`** — confidential client, the egress api's own identity. Its client secret
+  fills `dataEgressKeycloakClientSecret`/`egress-api-secret`, and (as seen by the Agent api)
+  `egressKeycloakClientSecret`/`agent-api-secret`.
+- **`Data-Egress-UI`** — confidential client, the egress ui's identity. Its client secret fills
+  `keycloakClientSecret`/`egress-ui-secret`.
+- **Audience mappers on both clients.** `Data-Egress-API` validates
+  `ValidAudiences="Data-Egress-UI,Data-Egress-API"` against tokens the UI forwards verbatim
+  (DARE-Control `src/Data-Egress-API/Program.cs:103-106,169`), so both clients need an
+  `oidc-audience-mapper` for `Data-Egress-UI` and one for `Data-Egress-API` — production's own
+  realm export carries both as `defaultClientScopes` on both clients
+  (`DeploymentStack/TRE/config/realm-config/egress-layer.json`).
+- **Realm role `data-egress-admin`**, granted to every admin user of the product. It gates
+  nearly every controller in DARE-Control's `Data-Egress-API`/`Data-Egress-UI`
+  (`[Authorize(Roles = "data-egress-admin")]`, 23 hits) — without it, no user can use the
+  product at all.
+- **A realm-roles → userinfo mapper on `Data-Egress-UI`.** `Data-Egress-UI` runs its OIDC
+  handler with `GetClaimsFromUserInfoEndpoint = true`, and Keycloak's built-in `roles` client
+  scope does not put `realm_access` in the userinfo response by default. Without an explicit
+  mapper adding realm roles to userinfo (`charts/agent-devstack/templates/keycloak-realm.yaml`'s
+  `Data-Egress-UI` mapper is the pattern), every `data-egress-admin`-gated page 403s even for a
+  correctly-roled user. Production's own realm export sets this
+  (`egress-layer.json`, `clientScopes[name=roles]`, mapper "realm roles",
+  `userinfo.token.claim: true`).
+
+The egress api also needs a cross-realm trust into the `Dare-TRE` realm at
+`global.oidc.authority` (the same realm `agent.yaml` uses), to call the Agent api on the
+seeded service account's behalf:
+
+- **`Dare-TRE-API`** — confidential client in the `Dare-TRE` realm. Its client secret fills
+  `treKeycloakClientSecret`/`egress-api-secret`.
+- **Realm role `data-egress-admin`, in the `Dare-TRE` realm too** (same name, independent role
+  from the `Data-Egress` realm's own role above) — granted to the specific `Dare-TRE` user whose
+  credentials the egress api authenticates as (DARE-Control's `KeycloakCredentials` DB row,
+  `CredentialType.Tre`). `TreClientWithoutTokenHelper.cs`'s `requiredRole` check rejects the
+  token otherwise, before the Agent api's own `[Authorize(Roles = "dare-tre-admin,data-egress-admin")]`
+  (e.g. `SubmissionController.cs:173`) is ever reached.
+- **A self-audience mapper on `Dare-TRE-API`** — the token this flow acquires is issued *as*
+  `Dare-TRE-API`, and must independently carry `Dare-TRE-API` (or `Dare-TRE-UI`) in its audience
+  to pass `agent-api`'s own `ValidAudiences="Dare-TRE-API,Dare-TRE-UI"` check. Production's realm
+  export puts both `DARE-TRE-UI`/`DARE-TRE-API` default client scopes on **both** `Dare-TRE`
+  clients (`DeploymentStack/TRE/config/realm-config/tre-layer.json`), not just `Dare-TRE-UI`.
+
+E-mail notifications (`EmailSettings.*` on the egress api — host, from-address, admin-role
+recipient override) are left at the egress chart's own defaults (`EmailSettings__Enabled:
+"false"`, so nothing sends); not surfaced by this stack.
+
+## GA4GH TES backend
+
+`api.tesApiUrl`/`AgentSettings__TESKAPIURL` names the TES (Task Execution Service) backend the
+Agent submits work to; the API POSTs task-creation requests straight to this URL and appends
+`/{taskId}?view=BASIC` to poll it (`Agent.Api/DoAgentWork.cs:138,210`), so it must be the full
+`tasks` collection endpoint. **The recommended production path is an external TES URL** — set
+`agent.api.tesApiUrl` to it. `tesk.enabled` (default `false`) is the alternative: an in-cluster
+TESK (GA4GH TES-K8s reference implementation) deployment. Its `tesk-api` Service (static
+name) listens on port `8080` at base path `/ga4gh/tes/v1`. When `tesk.enabled` is
+`true` and `agent.api.tesApiUrl` is empty, `templates/agent.yaml` derives
+`http://tesk-api:8080/ga4gh/tes/v1/tasks`; an explicit `agent.api.tesApiUrl` always wins.
+
+**For local TES testing, use `director-wfs.sh`** (the org's director-wfs repository) to
+bring up a disposable kind-based TESK environment — do not enable `tesk.enabled` here for that
+purpose.
+
+### TESK prerequisites this stack does not supply
+
+Enabling `tesk.enabled` installs the `tesk` chart, but two more things are needed
+out-of-band that this stack does not create:
+
+- **An `aws-secret` Secret**, keys `config` and `credentials` (AWS CLI-style INI content: an
+  `[default]` section with `endpoint_url` in `config`, `aws_access_key_id`/
+  `aws_secret_access_key` in `credentials`). The `tesk` chart only creates this Secret itself
+  when `storage.authType` is `file`, reading the values from files baked into the chart
+  package (`templates/storage/aws-secret.yaml`, gated `and (eq .Values.storage.type "s3") (eq
+  .Values.storage.authType "file")`) — not usable from a `valuesObject`. This stack, like
+  `director-wfs.sh`, sets `storage.authType: extraManifests` specifically to skip that
+  chart-bundled path; **whoever enables `tesk.enabled` must create the `aws-secret` Secret in
+  `global.namespace` themselves**, pointed at this stack's own `agent-rustfs-secret`
+  credentials (`director-wfs.sh`'s `apply_tesk_aws_secret` function is the reference shape).
+- **A `tesk-security-context-configmap` ConfigMap** (`data.securityContext`, e.g. `fsGroup:
+  1000`) plus two `tesk.extraEnv` entries pointing taskmaster at it
+  (`TESK_API_TASKMASTER_ENVIRONMENT_CONFIGMAP` and `CONFIGMAP`, both set to the ConfigMap's
+  name). `director-wfs` creates this ConfigMap itself
+  (`tesk-standalone-stack/templates/tesk-configs.yaml`) because its cluster runs Gatekeeper
+  policies that require task-executor pods to carry a securityContext; this stack's
+  `templates/tesk.yaml` does not create the ConfigMap or wire `tesk.extraEnv`.
+
+**Evidence this is a documentation gap, not a startup-blocking one:** the `tesk` chart's own
+`tesk-api`/taskmaster Deployment template does not reference either
+`TESK_API_TASKMASTER_ENVIRONMENT_CONFIGMAP` or `CONFIGMAP` itself — they only reach the
+container via `.Values.tesk.extraEnv`, a plain passthrough list the chart's Deployment template
+appends verbatim. `helm template` against the pinned chart renders cleanly with neither set (no
+missing-value errors, `tesk-api` Deployment present). The risk is downstream: taskmaster
+launches one Kubernetes Job per TES task at runtime, and without the ConfigMap/extraEnv wiring
+those per-task pods get no securityContext at all — likely rejected by this cluster's own
+Pod Security admission if it enforces the org's usual non-root baseline (doc 03). **If you
+enable `tesk.enabled` on a security-restricted namespace, create both the ConfigMap and set
+`tesk.taskmasterImage`/`tesk.filerImage` alongside your own `aws-secret`, mirroring
+`tesk-standalone-stack`'s two templates** — this stack intentionally keeps `tesk.yaml`'s
+`valuesObject` minimal (per the brief) rather than reproducing director-wfs's cluster-hardening
+layer (Gatekeeper, trust-manager, Falco) as well.
+
+## CloudNativePG: two required databases, one optional, one external
+
+CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and a role both
+named `app`. Declarative `Database` objects then create the real application databases, owned
+by that same `app` role:
+
+- **`dare-tre`** → `DARE-Tre`, the api's own database (`ConnectionStrings__DefaultConnection`).
+- **`tre-credentials`** → `TRE_Credentials`, shared by `api` and the Credentials Camunda worker
+  (`ConnectionStrings__CredentialsConnection`).
+- **`data-egress`** → `DATA-Egress` (`postgres.egressDatabase`), the egress api's own database.
+  Only created when `egress.enabled` is `true`. See **Egress** above.
+
+**Production's TRE data database is external.** `ConnectionStrings__TREPostgresConnection`
+(the database the Camunda worker creates ephemeral credentials against) is not a `Database`
+object in this chart — its connection string is `credentials-camunda-secret`'s
+`connectionStringTreData`, pointed at wherever that TRE's own data database actually lives.
+
+This needs the `Database` CRD, added in CloudNativePG 1.25 (same mechanism as
+`submission-stack`).
+
+## The shared `agent-processmodels` PVC needs an RWX storage class
+
+`agent.processModels.accessModes` defaults to `[ReadWriteMany]` (api and camunda both mount
+it, on a multi-node prod cluster), but is deployment-specific: a single-node kind cluster's
+default provisioner is RWO-only, so local install overrides it to `[ReadWriteOnce]` (see
+`agent-devstack`'s README). `global.storageClass` (`ceph-block`) is also typically RWO-only.
+Set `agent.processModels.storageClassName` to the cluster's RWX-capable class (e.g. its
+CephFS class) before deploying with the default `[ReadWriteMany]`, or the PVC will not
+bind. Left `null` by default — the standalone chart then omits `storageClassName` entirely
+and falls back to whatever the cluster's default class is, which will fail for
+`ReadWriteMany` on a default class that is RWO-only.
+
+## Backups
+
+**Off by default for PostgreSQL** (`postgres.backups.enabled: false`): no destination S3 bucket
+has been set up for this stack yet. **On by default for volumes**
+(`global.veleroBackup.enabled: true`), which the shared prod cluster's Velero picks up by the
+`persistentVolumeLabels` selector.
+
+Turning `postgres.backups.enabled` on also requires the `barman-cloud.cloudnative-pg.io` CNPG
+plugin installed in the cluster; `templates/postgres.yaml`'s `Cluster.spec.plugins` references
+it by name but does not install it.
+
+With today's defaults, real data sits in five places with different protection:
+
+- **`postgres` (the CNPG `Cluster`)** — `DARE-Tre` and `TRE_Credentials`. Not backed up until
+  `postgres.backups.enabled`, `destinationPath`, `endpointURL`, `endpointCASecretName` (a Secret
+  with `ca.crt` for the destination's certificate — not created by this chart, must already
+  exist) and `postgres.backups.vault.path`/`accessKeyField`/`secretKeyField` are all set. The
+  S3 credentials themselves are **not** a separate Secret: they are a second
+  `vaultSecretDefinitions` entry (aliased `backup`) on the same `postgres-secret` VaultSecret,
+  reading `postgres.backups.vault.path` and filling `backupAccessKey`/`backupSecretKey` — the
+  same mechanism `submission-stack` uses.
+- **The `agent-processmodels` PVC** — the shared Camunda DMN/BPMN process models. Labelled with
+  `persistentVolumeLabels`, covered by the Velero `Schedule` above (its selector is set from the
+  same value, so the two cannot drift).
+- **RustFS's own storage** — uploaded TRE files. Labelled via the rustfs chart's own
+  `commonLabels` value, also covered by the Velero `Schedule`.
+- **Vault's own data volume** (`templates/vault.yaml`'s `server.dataStorage`) — **not** covered
+  by the Velero `Schedule`: the vault chart's `server.dataStorage.labels` could carry the backup label but is
+  not wired here.
+- **The `seq` Application's own PVC** (`templates/seq.yaml`'s `persistence`) — **not** covered
+  by the Velero `Schedule`, same reason: the datalust/seq chart has no equivalent label knob.
+
+If `openldap.enabled` is turned on for anything beyond disposable testing: its own PVC (a
+StatefulSet `volumeClaimTemplate`) is **not** covered by the Velero `Schedule` — the
+`openldap-stack-ha` chart's `commonLabels` value does not reach `volumeClaimTemplates`. Treat
+any enabled OpenLDAP as ephemeral/test-only data.
+
+**The `camunda` Application's own PVCs — the Zeebe broker's data volume and Elasticsearch's —
+are also not covered by the Velero `Schedule`.** `templates/camunda.yaml` does not pass
+`persistentVolumeLabels` into the camunda-platform chart's `valuesObject` (same gap as
+`airlock-stack`), so neither Zeebe's nor Elasticsearch's storage carries the label the
+`Schedule`'s selector matches. This is consistent with the Credentials Camunda worker's data
+model: process state lives in the two CNPG databases above, and Zeebe/Elasticsearch here hold
+only in-flight workflow instance state, not the system of record.
+
+## Values reference
+
+### Global
+
+| Name | Description | Default |
+|---|---|---|
+| `global.argoProject` | ArgoCD project every `Application` uses. | `agent` |
+| `global.namespace` | Namespace every object in this stack lives in. | `5s-tes-agent` |
+| `global.oidc.authority` | Full `Dare-TRE` realm URL, passed to the standalone chart. | `https://keycloak.example.ac.uk/realms/Dare-TRE` |
+| `global.ingress.enabled` | Create Ingresses at all. | `true` |
+| `global.ingress.host` | Base domain. `agent`/`agent-api`/`seq`/`rustfs`/`camunda`/`tesk` become subdomains of it. | `example.ac.uk` |
+| `global.ingress.className` | Ingress controller class. | `nginx` |
+| `global.ingress.certClusterIssuer` | cert-manager ClusterIssuer. | `ca-issuer` |
+| `global.ingress.tls` | Terminate TLS at the ingress. | `true` |
+| `global.storageClass` | Storage class for postgres, rabbitmq, rustfs, seq, vault, openldap. | `ceph-block` |
+| `global.trustClusterCa.*` | Cluster CA bundle, passed to the standalone chart. | see values.yaml |
+| `global.veleroBackup.enabled` | Create the Velero `Schedule`. | `true` |
+| `global.veleroBackup.namespace` | Namespace the `Schedule` is created in. | `hiru-mgmt-velero` |
+| `global.veleroBackup.schedule` | Five-field cron for the volume snapshot. | `0 1 * * *` |
+| `global.veleroBackup.ttl` | How long Velero keeps each backup. | `168h0m0s` |
+| `global.persistentVolumeLabels` | Labels passed to the standalone chart's PVC and the `Schedule`'s selector. | `{hiru.io/backup: "enabled"}` |
+| `global.monitoring.enabled` | Push metrics to a Pushgateway; create PodMonitors. | `true` |
+| `global.monitoring.pushgatewayUrl` | Pushgateway address. | see values.yaml |
+
+### Vault
+
+| Name | Description | Default |
+|---|---|---|
+| `vault.role` | Vault role the cluster's Kubernetes auth uses. | `agent` |
+| `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/agent` |
+| `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
+| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address`. See **Vault** above. | `http://agent-vault:8200` |
+| `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (`api` and the Camunda worker call it directly), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
+| `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
+| `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |
+| `vault.chart` | Chart name within that repo. | `vault` |
+| `vault.chartVersion` | hashicorp/vault chart version. | `0.34.1` |
+| `vault.dataStorageSize` | Vault's own data PVC size. | `10Gi` |
+| `vault.injector.enabled` | Enable the Vault Agent Injector webhook. | `false` |
+
+### agent (own app)
+
+| Name | Description | Default |
+|---|---|---|
+| `agent.enabled` | Create the `agent` `Application`. | `true` |
+| `agent.chartVersion` | Version of the `agent` chart in Harbor. | `1.0.0` |
+| `agent.imageVersion` | Image tag for `api`, `ui` and `camunda`. | `3.2.0` |
+| `agent.api.publicUrl` | Public API URL embedded in TRE onboarding JSON. Empty computes one from `global.ingress`. | `""` |
+| `agent.api.treName` | **REQUIRED for production.** Name of this TRE deployment. Empty leaves the standalone chart's dev default (`DEV`) in place. | `""` |
+| `agent.api.tesApiUrl` | **REQUIRED for production** unless `tesk.enabled` is `true`. External TES backend URL — the recommended production path. Empty with `tesk.enabled: false` leaves the standalone chart's dev default (`http://localhost:8000/v1/tasks`), a broken TES endpoint once actually in-cluster; empty with `tesk.enabled: true` derives the in-cluster TESK URL instead. See **GA4GH TES backend** above. | `""` |
+| `agent.api.keycloakDemoMode` | Local-only. Relaxes the outbound password-grant token helpers' discovery-endpoint check to HTTP. See **Egress** above. | `"false"` |
+| `agent.processModels.storageClassName` | RWX-capable storage class for the shared `agent-processmodels` PVC. See above. | `null` |
+| `agent.processModels.accessModes` | Access mode(s) for the shared `agent-processmodels` PVC. Deployment-specific; see above. | `[ReadWriteMany]` |
+| `agent.ldap.host`/`port`/`adminDn`/`baseDn`/`userOu`/`useSsl` | External AD (or `openldap.enabled`'s stand-in) connection settings for the Credentials Camunda worker. | see values.yaml |
+
+### egress (optional product)
+
+| Name | Description | Default |
+|---|---|---|
+| `egress.enabled` | Compose the egress product's Database, VaultSecrets, and agent `api.egress` wiring. See **Egress** above. | `false` |
+| `egress.appEnabled` | Also create the `egress` `Application` (on top of `egress.enabled`). The chart must already exist in Harbor at `egress.chartVersion` — see **Egress** above. | `true` |
+| `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.0` |
+| `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.0.4` |
+| `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |
+| `egress.keycloakDemoMode` | Local-only. Relaxes the egress api's own outbound password-grant token helpers' discovery-endpoint check to HTTP (covers both its `Data-Egress` and cross-realm `Dare-TRE` calls). See **Egress** above. | `"false"` |
+
+### Submission cross-link
+
+| Name | Description | Default |
+|---|---|---|
+| `submission.oidcAuthority` | Full `Dare-Control` realm URL. | `https://keycloak.example.ac.uk/realms/Dare-Control` |
+| `submission.apiUrl` | Public URL of the Submission API. | `https://submission-api.example.ac.uk` |
+| `submission.s3Url` | Submission product's S3 endpoint (not this stack's own rustfs). | `https://submission-rustfs.example.ac.uk` |
+
+### rustfs
+
+| Name | Description | Default |
+|---|---|---|
+| `rustfs.enabled` | Deploy the `rustfs` `Application`. | `true` |
+| `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
+| `rustfs.chart` | Chart name within that repo. | `rustfs` |
+| `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
+| `rustfs.storageSize` | Size of both the data and log PVCs. | `10Gi` |
+| `rustfs.resources.requests.cpu` | CPU request. | `250m` |
+| `rustfs.resources.requests.memory` | Memory request. | `512Mi` |
+| `rustfs.resources.limits.memory` | Memory limit. | `512Mi` |
+
+### seq
+
+| Name | Description | Default |
+|---|---|---|
+| `seq.enabled` | Deploy the `seq` `Application`. | `true` |
+| `seq.repoURL` | Helm repo the Seq chart is pulled from. | `https://helm.datalust.co` |
+| `seq.chart` | Chart name within that repo. | `seq` |
+| `seq.chartVersion` | Seq chart version. | `2025.2.1` |
+| `seq.storageSize` | Size of Seq's data PVC. | `10Gi` |
+| `seq.requireAuthForIngestion` | Require an API key for HTTP log ingestion. No `seqApiKey` is wired into any component's Secret, so leave `false`. | `false` |
+| `seq.resources.requests.cpu` | CPU request. | `250m` |
+| `seq.resources.requests.memory` | Memory request. | `512Mi` |
+| `seq.resources.limits.memory` | Memory limit. | `512Mi` |
+
+### camunda
+
+| Name | Description | Default |
+|---|---|---|
+| `camunda.enabled` | Deploy the `camunda` `Application`. | `true` |
+| `camunda.repoURL` | Helm repo the camunda-platform chart is pulled from. | `https://helm.camunda.io` |
+| `camunda.chart` | Chart name within that repo. | `camunda-platform` |
+| `camunda.chartVersion` | camunda-platform chart version. Pinned to the same version `airlock-stack` pins. | `13.4.1` |
+
+### openldap
+
+| Name | Description | Default |
+|---|---|---|
+| `openldap.enabled` | Deploy a local OpenLDAP as a stand-in for an external AD. Testing only. | `false` |
+| `openldap.repoURL` | Helm repo the chart is pulled from. | `https://jp-gouin.github.io/helm-openldap/` |
+| `openldap.chart` | Chart name within that repo. | `openldap-stack-ha` |
+| `openldap.chartVersion` | openldap-stack-ha chart version. | `4.3.3` |
+| `openldap.storageSize` | Size of its data PVC. | `1Gi` |
+| `openldap.ldapDomain` | Dot-form LDAP domain (the chart's `global.ldapDomain`). Keep the domain component in step with `agent.ldap.baseDn` if both are left at their defaults. | `camundaephemeral.local` |
+
+### tesk
+
+| Name | Description | Default |
+|---|---|---|
+| `tesk.enabled` | Deploy an in-cluster TESK. Alternative to an external TES URL — see **GA4GH TES backend** above. | `false` |
+| `tesk.repoURL` | Harbor OCI chart repository. | `harbor.ukserp.ac.uk/tesk/chart` |
+| `tesk.chart` | Chart name within that repository. | `tesk` |
+| `tesk.chartVersion` | TESK chart version. | `0.1.0` |
+| `tesk.image` | TESK API image. | `harbor.ukserp.ac.uk/tesk/tesk-api:1.0.1` |
+| `tesk.taskmasterImage.name`/`.version` | Taskmaster sidecar image. | see values.yaml |
+| `tesk.filerImage.name`/`.version` | Filer sidecar image. | see values.yaml |
+
+### rabbitmq
+
+| Name | Description | Default |
+|---|---|---|
+| `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
+| `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
+| `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
+| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead. See **RabbitMQ** above. | `true` |
+
+### postgres
+
+| Name | Description | Default |
+|---|---|---|
+| `postgres.database` | Name of the api's own database (the `dare-tre` `Database` object). See **CloudNativePG** above. | `DARE-Tre` |
+| `postgres.credentialsDatabase` | Name of the shared Credentials database (the `tre-credentials` `Database` object). | `TRE_Credentials` |
+| `postgres.egressDatabase` | Name of the optional egress product's database (the `data-egress` `Database` object). Only created when `egress.enabled` is `true`. | `DATA-Egress` |
+| `postgres.instances` | CNPG `Cluster` instance count. | `1` |
+| `postgres.version` | PostgreSQL major/minor version. Changing this on a running cluster is a major upgrade. | `16.15` |
+| `postgres.storageSize` | Size of the `Cluster`'s data PVC. | `10Gi` |
+| `postgres.connectionPooler.instances` | `Pooler` (pgbouncer) instance count. | `1` |
+| `postgres.connectionPooler.maxClientConn` | pgbouncer `max_client_conn`. | `3000` |
+| `postgres.connectionPooler.defaultPoolSize` | pgbouncer `default_pool_size`. | `120` |
+| `postgres.connectionPooler.reservePoolSize` | pgbouncer `reserve_pool_size`. | `20` |
+| `postgres.connectionPooler.reservePoolTimeout` | pgbouncer `reserve_pool_timeout` (seconds). | `5` |
+| `postgres.connectionPooler.serverIdleTimeout` | pgbouncer `server_idle_timeout` (seconds). | `300` |
+| `postgres.backups.enabled` | Turn on CNPG's own `barman-cloud` backup (`ObjectStore`/`ScheduledBackup`). See **Backups** above. | `false` |
+| `postgres.backups.destinationPath` | `s3://` path backups are written to. | `""` |
+| `postgres.backups.endpointURL` | S3-compatible endpoint URL for the destination. | `""` |
+| `postgres.backups.endpointCASecretName` | Secret with `ca.crt` for the destination's certificate. Not created by this chart. | `""` |
+| `postgres.backups.retention` | How long CloudNativePG keeps backups in the bucket. | `30d` |
+| `postgres.backups.schedule` | Six-field cron (seconds first) for the base backup. | `0 0 0 * * *` |
+| `postgres.backups.vault.path` | Vault path holding the destination's S3 credentials. | `""` |
+| `postgres.backups.vault.accessKeyField` | Field name at that path for the access key. | `access_key` |
+| `postgres.backups.vault.secretKeyField` | Field name at that path for the secret key. | `secret_key` |

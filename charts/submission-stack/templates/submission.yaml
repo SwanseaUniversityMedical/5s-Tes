@@ -1,0 +1,88 @@
+{{- if .Values.submission.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: submission
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    # Our C# code starts after its dependencies.
+    argocd.argoproj.io/sync-wave: "5"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "harbor.federated-analytics.ac.uk/5s-tes/chart"
+    chart: submission
+    # renovate: datasource=helm-oci depName=5s-tes/chart/submission registryUrl=https://harbor.federated-analytics.ac.uk
+    targetRevision: "{{ .Values.submission.chartVersion }}"
+    helm:
+      valuesObject:
+        # Must match the selector on the Velero Schedule in backup.yaml.
+        persistentVolumeLabels:
+          {{- toYaml .Values.global.persistentVolumeLabels | nindent 10 }}
+
+        # Multi-node clusters need RWX (api and ui may land on different
+        # nodes); single-node local overrides to RWO.
+        dataProtection:
+          accessModes:
+            {{- toYaml .Values.submission.dataProtection.accessModes | nindent 12 }}
+          {{- with .Values.submission.dataProtection.storageClassName }}
+          storageClassName: {{ . | quote }}
+          {{- end }}
+
+        global:
+          tag: "{{ .Values.submission.imageVersion }}"
+
+          config:
+            aspnetEnvironment: "Production"
+            seqUrl: "http://seq:5341"
+
+          oidc:
+            authority: "{{ .Values.global.oidc.authority }}"
+
+          monitoring:
+            enabled: {{ .Values.global.monitoring.enabled }}
+            pushgatewayUrl: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+
+          ingress:
+            enabled: {{ .Values.global.ingress.enabled }}
+            className: "{{ .Values.global.ingress.className }}"
+            host: "{{ .Values.global.ingress.host }}"
+            certClusterIssuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+            tls: {{ .Values.global.ingress.tls }}
+
+          trustClusterCa:
+            enabled: {{ .Values.global.trustClusterCa.enabled }}
+            configMapName: "{{ .Values.global.trustClusterCa.configMapName }}"
+            key: "{{ .Values.global.trustClusterCa.key }}"
+            mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
+
+        api:
+          rabbitmqHost: "rabbitmq"
+          s3Url: "http://rustfs-svc:9000"
+          vaultUrl: "{{ .Values.vault.address }}"
+          s3ConsoleUrl: "{{ .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+          publicUrl: "{{ .Values.submission.api.publicUrl | default (printf "%s://submission-api.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+
+        ui:
+          s3ConsoleUrl: "{{ .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}"
+          # Secure cookies require HTTPS end-to-end; follows ingress TLS.
+          sslCookies: "{{ .Values.global.ingress.tls }}"
+{{- end }}

@@ -1,0 +1,133 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-import
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "submission-devstack.labels" . | nindent 4 }}
+data:
+  # Wildcard redirectUris and ROPC are dev shortcuts; never copy for a real realm.
+  dare-control.json: |-
+    {
+      "realm": "Dare-Control",
+      "enabled": true,
+      "sslRequired": "none",
+      "registrationAllowed": false,
+      "clients": [
+        {
+          "clientId": "Dare-Control-API",
+          "name": "Submission API (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-control-api",
+          "standardFlowEnabled": false,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": true,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        },
+        {
+          "clientId": "Dare-Control-UI",
+          "name": "Submission UI (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-control-ui",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "audience-dare-control-api",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-audience-mapper",
+              "config": {
+                "included.client.audience": "Dare-Control-API",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "userinfo.token.claim": "true"
+              }
+            }
+          ]
+        },
+        {
+          "clientId": "Dare-Control-S3",
+          "name": "Submission S3 console (dev)",
+          "enabled": true,
+          "protocol": "openid-connect",
+          "publicClient": false,
+          "secret": "devsecret-control-s3",
+          "standardFlowEnabled": true,
+          "directAccessGrantsEnabled": true,
+          "serviceAccountsEnabled": false,
+          "redirectUris": ["*"],
+          "webOrigins": ["*"]
+        }
+      ],
+      "roles": {
+        "realm": [
+          {
+            "name": "dare-control-admin",
+            "description": "Full admin access in the Submission API/UI ([Authorize(Roles=\"dare-control-admin\")])."
+          },
+          {
+            "name": "dare-tre-admin",
+            "description": "TRE-scoped admin access; also KeycloakAdmin:ServiceAccountRole, granted by the API to every TRE service account it creates."
+          }
+        ]
+      },
+      "users": [
+        {
+          "username": "service-account-dare-control-api",
+          "enabled": true,
+          "serviceAccountClientId": "Dare-Control-API",
+          "realmRoles": ["dare-tre-admin"]
+        },
+        {
+          "username": "dev",
+          "enabled": true,
+          "email": "dev@localtest.me",
+          "emailVerified": true,
+          "firstName": "Dev",
+          "lastName": "User",
+          "realmRoles": [
+            "default-roles-dare-control",
+            "dare-control-admin"
+          ],
+          "credentials": [
+            {
+              "type": "password",
+              "value": "password123",
+              "temporary": false
+            }
+          ]
+        },
+        {
+          "username": "dare-control-realm-user",
+          "enabled": true,
+          "email": "dare-control-realm-user@localtest.me",
+          "emailVerified": true,
+          "firstName": "Dare Control",
+          "lastName": "Realm Admin",
+          "realmRoles": [
+            "default-roles-dare-control",
+            "dare-tre-admin"
+          ],
+          "clientRoles": {
+            "realm-management": ["manage-clients", "manage-users", "view-users"]
+          },
+          "credentials": [
+            {
+              "type": "password",
+              "value": "admin",
+              "temporary": false
+            }
+          ]
+        }
+      ]
+    }
+{{- end }}

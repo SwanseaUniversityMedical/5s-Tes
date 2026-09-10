@@ -1,0 +1,159 @@
+global:
+  argoProject: submission
+  namespace: 5s-tes-submission
+
+  oidc:
+    authority: "https://keycloak.example.ac.uk/realms/Dare-Control"
+
+  ingress:
+    enabled: true
+    host: "example.ac.uk"
+    className: "nginx"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  storageClass: "ceph-block"
+
+  trustClusterCa:
+    enabled: true
+    configMapName: overlay-castore
+    key: ca-certificates.crt
+    mountPath: /etc/ssl/certs/ca-certificates.crt
+
+  # Volume backups only; PostgreSQL backs itself up via the postgres block.
+  veleroBackup:
+    enabled: true
+    namespace: "hiru-mgmt-velero"
+    schedule: "0 1 * * *"
+    ttl: "168h0m0s"
+
+  persistentVolumeLabels:
+    hiru.io/backup: "enabled"
+
+  monitoring:
+    enabled: true
+    pushgatewayUrl: "http://prometheus-pushgateway.hiru-mgmt-monitoring.svc.cluster.local:9091/metrics"
+
+# ---- Our own C# code ----
+submission:
+  enabled: true
+  # renovate: datasource=helm-oci depName=5s-tes/chart/submission registryUrl=https://harbor.federated-analytics.ac.uk
+  chartVersion: "1.0.0"
+  # renovate: datasource=docker depName=5s-tes/submission-api registryUrl=https://harbor.federated-analytics.ac.uk
+  imageVersion: "3.2.0"
+  # Public RustFS console URL shown to users. Empty computes
+  # "<scheme>://rustfs.<global.ingress.host>" from global.ingress.
+  s3ConsoleUrl: ""
+  api:
+    # Public URL embedded in TRE onboarding JSON. Empty computes
+    # "<scheme>://submission-api.<global.ingress.host>" from global.ingress.
+    publicUrl: ""
+  dataProtection:
+    # Needs an RWX-capable class (e.g. CephFS) when accessModes is
+    # ReadWriteMany; null uses the cluster default.
+    storageClassName: null
+    accessModes:
+      - ReadWriteMany
+
+# --------------------------------------------------------------------
+# Dependencies installed from somebody else's chart.
+# --------------------------------------------------------------------
+
+rustfs:
+  enabled: true
+  repoURL: "https://rustfs.github.io/helm/"
+  chart: rustfs
+  # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
+  chartVersion: "1.0.0-rc.4"
+  storageSize: "10Gi"
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+seq:
+  enabled: true
+  repoURL: "https://helm.datalust.co"
+  chart: seq
+  # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
+  chartVersion: "2025.2.1"
+  storageSize: "10Gi"
+  # Leave false: no seqApiKey is wired into either component, so true
+  # rejects every app log.
+  requireAuthForIngestion: false
+  resources:
+    requests:
+      cpu: "250m"
+      memory: "512Mi"
+    limits:
+      memory: "512Mi"
+
+# Secret source settings, and this stack's own Vault Application.
+vault:
+  role: submission
+  secretPath: kvv2/data/prod/prod/submission
+  authPath: kubernetes
+  # This stack's own Vault, not the operator's default connection.
+  address: "http://submission-vault:8200"
+
+  # The API calls this Vault at runtime, so this stays true even where
+  # secretsEnabled is false.
+  enabled: true
+  # Gates every VaultSecret. False only where something else provides the
+  # Secrets (e.g. the devstack's static Secrets).
+  secretsEnabled: true
+  repoURL: "https://helm.releases.hashicorp.com"
+  chart: vault
+  # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
+  chartVersion: "0.34.1"
+  dataStorageSize: "10Gi"
+  # Vault Agent Injector webhook; nothing here uses injected secrets.
+  injector:
+    enabled: false
+
+# --------------------------------------------------------------------
+# Dependencies that are operator objects, not charts.
+# --------------------------------------------------------------------
+
+rabbitmq:
+  replicas: 1
+  storageSize: "10Gi"
+  # Extra rabbitmq.conf lines, passed to the operator verbatim.
+  additionalConfig: ""
+  # Set false only on a cluster without Vault (local dev); the operator
+  # then generates "rabbitmq-default-user" instead.
+  vaultDefaultUser: true
+
+postgres:
+  # Owned by the "app" role CNPG's default bootstrap creates.
+  database: "DARE-Control"
+  instances: 1
+  # Changing this on a running cluster is a major upgrade, not a text edit.
+  # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
+  version: "16.15"
+  storageSize: "10Gi"
+  connectionPooler:
+    instances: 1
+    maxClientConn: 3000
+    defaultPoolSize: 120
+    reservePoolSize: 20
+    reservePoolTimeout: 5
+    serverIdleTimeout: 300
+  # PostgreSQL backups to object storage, through CloudNativePG.
+  backups:
+    enabled: false
+    destinationPath: ""
+    endpointURL: ""
+    # Secret holding ca.crt for the object storage endpoint's certificate.
+    # Not created by this chart; must already exist.
+    endpointCASecretName: ""
+    retention: "30d"
+    # SIX fields, seconds first.
+    schedule: "0 0 0 * * *"
+    # Vault path for the backup destination's S3 credentials.
+    vault:
+      path: ""
+      accessKeyField: access_key
+      secretKeyField: secret_key

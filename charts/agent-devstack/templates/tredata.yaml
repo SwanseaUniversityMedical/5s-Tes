@@ -1,0 +1,51 @@
+{{- if .Values.tredata.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tredata
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.tredata.repoURL }}"
+    chart: "{{ .Values.tredata.chart }}"
+    # renovate: datasource=helm-oci depName=bitnamicharts/postgresql registryUrl=https://registry-1.docker.io
+    targetRevision: "{{ .Values.tredata.chartVersion }}"
+    helm:
+      valuesObject:
+        global:
+          imageRegistry: "{{ .Values.tredata.imageRegistry }}"
+          security:
+            # Required for any non-Bitnami registry (our Harbor mirror).
+            allowInsecureImages: true
+
+        image:
+          # renovate: datasource=docker depName=bitnami/postgresql registryUrl=https://harbor.ukserp.ac.uk
+          tag: "{{ .Values.tredata.imageTag }}"
+
+        # Static password, as with local Keycloak above: ArgoCD re-renders
+        # on every sync, so a generated one would drift.
+        auth:
+          postgresPassword: "password123"
+          database: "tredata"
+{{- end }}

@@ -1,0 +1,35 @@
+# Values for `helm install agent charts/agent` from the working tree,
+# standing in for the disabled agent Application.
+processModels:
+  accessModes:
+    - ReadWriteMany
+
+global:
+  config:
+    aspnetEnvironment: "Production"
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+  ingress:
+    host: "agent.localtest.me"
+    tls: false
+
+submission:
+  oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+  apiUrl: "http://submission-api.submission.localtest.me"
+  s3Url: "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"
+
+api:
+  image:
+    repository: 5s-tes/agent-api
+    tag: local
+  publicUrl: "http://agent-api.agent.localtest.me"
+
+ui:
+  image:
+    repository: 5s-tes/agent-ui
+    tag: local
+
+camunda:
+  image:
+    repository: 5s-tes/credentials-camunda
+    tag: local

@@ -1,0 +1,56 @@
+# Values for `helm install egress` from a DARE-Control working tree. The
+# egress chart is not published, so agent-stack's egress Application is
+# disabled locally (egress.appEnabled=false) and this file supplies the same
+# values translated to the local endpoints. Applied manually after the base
+# bootstrap, not by cluster-setup.sh.
+#
+# tls: true (unlike agent-stack-local.yaml): ui.sslCookies="true" below marks
+# cookies Secure, which needs HTTPS.
+global:
+  tag: "3.0.4"
+
+  config:
+    aspnetEnvironment: "Production"
+    seqUrl: "http://seq:5341"
+
+  oidc:
+    authority: "http://keycloak.agent.localtest.me/realms/Data-Egress"
+
+  monitoring:
+    enabled: false
+
+  ingress:
+    enabled: true
+    className: "nginx"
+    host: "agent.localtest.me"
+    certClusterIssuer: "ca-issuer"
+    tls: true
+
+  trustClusterCa:
+    enabled: false
+
+# Cross-realm: the api obtains a service token from Dare-TRE to call the
+# Agent api. Same realm as the agent-stack install's global.oidc.authority.
+tre:
+  oidcAuthority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+
+api:
+  s3Url: "http://rustfs-svc:9000"
+  # Static Service name of the agent chart's api.
+  treApiAddress: "http://agent-api"
+  keycloakDemoMode: "true"
+  # Built locally (docker build + kind load): the published 3.0.4 images
+  # predate /health and fail the chart's probes.
+  image:
+    repository: dare-control/egress-api
+    tag: local
+    pullPolicy: IfNotPresent
+
+ui:
+  sslCookies: "true"
+  s3ConsoleUrl: "http://rustfs.agent.localtest.me"
+  # Same image/health mismatch as api.image above.
+  image:
+    repository: dare-control/egress-ui
+    tag: local
+    pullPolicy: IfNotPresent

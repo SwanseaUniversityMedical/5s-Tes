@@ -29,9 +29,14 @@ try
     {
         Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
         builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+    }
+
+    var dpSection = builder.Configuration.GetSection("DataProtectionSettings");
+    if (bool.TryParse(dpSection["PersistKeys"], out var persistKeys) && persistKeys)
+    {
         builder.Services.AddDataProtection()
-            .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-            .DisableAutomaticKeyGeneration();
+            .PersistKeysToFileSystem(new DirectoryInfo(dpSection["KeysPath"] ?? "/keys"))
+            .SetApplicationName("agent");
     }
     //builder.Host.UseSerilog();
     IdentityModelEventSource.ShowPII = true;
@@ -52,6 +57,7 @@ try
     var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
     treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
     builder.Services.AddSingleton(treKeyCloakSettings);
+    builder.Services.AddSingleton<BaseKeyCloakSettings>(treKeyCloakSettings);
     Log.Information("{Function} Step 1 Authority {Authority}","Main",  treKeyCloakSettings.Authority);
     var UIName = new UIName();
     configuration.Bind(nameof(UIName), UIName);
@@ -61,6 +67,7 @@ try
 
     builder.Services.AddHttpContextAccessor();
     builder.Services.AddHttpClient();
+    builder.Services.AddHealthChecks();
 
 
 //add services here
@@ -297,6 +304,15 @@ try
         "Program", treKeyCloakSettings.Authority, treKeyCloakSettings.MetadataAddress, treKeyCloakSettings.ClientId,
         treKeyCloakSettings.ValidAudiences);
     var app = builder.Build();
+    if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+    {
+        var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+        {
+            Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+            Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+        });
+        pusher.Start();
+    }
     app.UseCors();
     app.UseForwardedHeaders();
 
@@ -329,7 +345,7 @@ try
         });
     }
 
-    if (app.Environment.IsDevelopment())
+    if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Development_Kind"))
     {
         app.UseDeveloperExceptionPage();
     }
@@ -386,6 +402,8 @@ try
     app.UseAuthentication();
     app.UseAuthorization();
 
+    // Anonymous: probed by Kubernetes, which cannot authenticate.
+    app.MapHealthChecks("/health").AllowAnonymous();
 
     app.MapControllerRoute(
         name: "default",

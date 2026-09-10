@@ -1,0 +1,164 @@
+{{- if .Values.camunda.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-camunda
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: camunda
+spec:
+  # Shared ReadWriteOnce processmodels PVC; cannot scale past one replica.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: camunda
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: camunda
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: process-models
+          persistentVolumeClaim:
+            claimName: agent-processmodels
+        {{- if .Values.global.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.global.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+      initContainers:
+        # Seeds the shared PVC from the image's own /app/ProcessModels on
+        # first boot. Mounted at /models, not /app/ProcessModels, so the
+        # source files (baked into the image) are not hidden by the empty
+        # volume it is copying into. Idempotent, so it is safe to run from
+        # both api and camunda even if camunda is disabled.
+        - name: seed-process-models
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.camunda.image.repository }}:{{ .Values.camunda.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.camunda.image.pullPolicy }}
+          command: ["/bin/sh", "-c", "if [ ! -f /models/credentials.dmn ]; then find /app/ProcessModels -mindepth 1 -maxdepth 1 ! -name credentials.dmn -exec cp -r {} /models/ \\; ; cp /app/ProcessModels/credentials.dmn /models/.credentials.dmn.tmp.$HOSTNAME && mv /models/.credentials.dmn.tmp.$HOSTNAME /models/credentials.dmn; fi"]
+          volumeMounts:
+            - name: process-models
+              mountPath: /models
+          resources:
+            {{- toYaml .Values.camunda.resources | nindent 12 }}
+      containers:
+        - name: camunda
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.camunda.image.repository }}:{{ .Values.camunda.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.camunda.image.pullPolicy }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            - name: process-models
+              mountPath: /app/ProcessModels
+            {{- if .Values.global.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.global.trustClusterCa.mountPath }}
+              subPath: {{ .Values.global.trustClusterCa.key }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.camunda.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: Serilog__SeqServerUrl
+              value: "{{ .Values.global.config.seqUrl }}"
+            - name: Serilog__MinimumLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            - name: DmnPath__Path
+              value: "/app/ProcessModels"
+            - name: ZeebeBootstrap__Client__GatewayAddress
+              value: "{{ .Values.global.config.zeebeGatewayAddress }}"
+            - name: ZeebeBootstrap__Worker__MaxJobsActive
+              value: "{{ .Values.camunda.zeebe.worker.maxJobsActive }}"
+            - name: ZeebeBootstrap__Worker__TimeoutInMilliseconds
+              value: "{{ .Values.camunda.zeebe.worker.timeoutInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__PollIntervalInMilliseconds
+              value: "{{ .Values.camunda.zeebe.worker.pollIntervalInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__PollingTimeoutInMilliseconds
+              value: "{{ .Values.camunda.zeebe.worker.pollingTimeoutInMilliseconds }}"
+            - name: ZeebeBootstrap__Worker__RetryTimeoutInMilliseconds
+              value: "{{ .Values.camunda.zeebe.worker.retryTimeoutInMilliseconds }}"
+            - name: LdapSettings__Host
+              value: "{{ .Values.camunda.ldap.host }}"
+            - name: LdapSettings__Port
+              value: "{{ .Values.camunda.ldap.port }}"
+            - name: LdapSettings__AdminDn
+              value: "{{ .Values.camunda.ldap.adminDn }}"
+            - name: LdapSettings__AdminPassword
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camunda.secretName }}
+                  key: ldapAdminPassword
+            - name: LdapSettings__BaseDn
+              value: "{{ .Values.camunda.ldap.baseDn }}"
+            - name: LdapSettings__UserOu
+              value: "{{ .Values.camunda.ldap.userOu }}"
+            - name: LdapSettings__UseSSL
+              value: "{{ .Values.camunda.ldap.useSsl }}"
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vaultUrl }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camunda.secretName }}
+                  key: vaultToken
+            - name: VaultSettings__TimeoutSeconds
+              value: "{{ .Values.camunda.vault.timeoutSeconds }}"
+            - name: VaultSettings__SecretEngine
+              value: "{{ .Values.camunda.vault.secretEngine }}"
+            - name: VaultSettings__EnableRetry
+              value: "{{ .Values.camunda.vault.enableRetry }}"
+            - name: VaultSettings__MaxRetryAttempts
+              value: "{{ .Values.camunda.vault.maxRetryAttempts }}"
+            - name: ConnectionStrings__CredentialsConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camunda.secretName }}
+                  key: connectionStringCredentials
+            - name: ConnectionStrings__TREPostgresConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.camunda.secretName }}
+                  key: connectionStringTreData
+            {{- if .Values.global.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-credentials-camunda
+            {{- end }}
+            {{- with .Values.camunda.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
+          resources:
+            {{- toYaml .Values.camunda.resources | nindent 12 }}
+{{- end }}

@@ -1,0 +1,6 @@
+# Per-family ingress host suffix: both families render the same hostnames
+# (keycloak., adminer., seq., rustfs.), so on one shared cluster the hosts
+# must differ or ingress-nginx drops one Ingress per host.
+global:
+  ingress:
+    host: "submission.localtest.me"
