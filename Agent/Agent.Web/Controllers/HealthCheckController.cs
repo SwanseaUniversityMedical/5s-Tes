@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Agent.Web.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "dare-tre-admin")]
     [Route("[controller]")]
     public class HealthCheckController : Controller
     {

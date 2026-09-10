@@ -1,4 +1,4 @@
-﻿using Credentials.Models.Models;
+using Credentials.Models.Models;
 using Microsoft.EntityFrameworkCore;
 
 namespace Credentials.Models.DbContexts
@@ -10,6 +10,7 @@ namespace Credentials.Models.DbContexts
         }
 
         public DbSet<EphemeralCredential> EphemeralCredentials { get; set; }
+        public DbSet<ApprovedSubmission> ApprovedSubmissions { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -17,7 +18,11 @@ namespace Credentials.Models.DbContexts
 
             modelBuilder.Entity<EphemeralCredential>()
                 .HasIndex(m => new { m.SubmissionId, m.ProcessInstanceKey })
-                .IsUnique(false);           
+                .IsUnique(false);
+
+            modelBuilder.Entity<ApprovedSubmission>()
+                .HasIndex(m => m.SubmissionId)
+                .IsUnique();
         }
     }
 }

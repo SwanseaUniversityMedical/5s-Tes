@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System.Text;
 using System.Text.Json;
@@ -8,6 +8,7 @@ using Credentials.Models.DbContexts;
 using Credentials.Models.Models;
 using Credentials.Models.Models.Zeebe;
 using Zeebe.Client.Accelerator.Abstractions;
+using System.Security.Cryptography;
 
 namespace Credentials.Camunda.ProcessHandlers
 {
@@ -173,9 +174,7 @@ namespace Credentials.Camunda.ProcessHandlers
         protected static string GenerateSecurePassword()
         {
             const string chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*";
-            var random = new Random();
-            return new string(Enumerable.Repeat(chars, 16)
-                .Select(s => s[random.Next(s.Length)]).ToArray());
+            return new string(Enumerable.Repeat(0, 16).Select(_ => chars[RandomNumberGenerator.GetInt32(chars.Length)]).ToArray());
         }
 
         /// <summary>
@@ -192,6 +191,42 @@ namespace Credentials.Camunda.ProcessHandlers
                 return false;
             }
             return true;
+        }
+
+        /// <summary>
+        /// Removes a Vault secret to prevent it from being orphaned after an account creation failure.
+        /// </summary>
+        /// <param name="vaultPath">The path in Vault at which the secret is stored.</param>
+        /// <param name="credentialType">The type of credential we are rolling back.</param>
+        protected async Task RollBackVaultCredentialAsync(string vaultPath, string credentialType)
+        {
+            try
+            {
+                await _vaultCredentialsService.RemoveCredentialAsync(vaultPath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex,"Failed to roll back Vault secret at {VaultPath} for {CredentialType} after account creation failure", vaultPath, credentialType);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that job variables correspond to real, approved records.
+        /// </summary>
+        /// <param name="extraction">The DTO containing the extracted credentials.</param>
+        protected async Task<bool> IsSubmissionApprovedAsync(CredentialExtraction extraction) 
+        {
+            if (string.IsNullOrEmpty(extraction.SubmissionId) || !int.TryParse(extraction.SubmissionId, out var submissionId)) 
+            {
+                return false;
+            }
+
+            if (!int.TryParse(extraction.User, out var userId)) 
+            {
+                return false;
+            }
+
+            return await _credentialsDbContext.ApprovedSubmissions.AnyAsync(x => !x.IsProcessed && x.SubmissionId == submissionId && x.Project == extraction.Project && x.UserId == userId);
         }
 
         /// <summary>

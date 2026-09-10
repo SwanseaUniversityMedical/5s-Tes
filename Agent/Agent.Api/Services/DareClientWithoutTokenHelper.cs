@@ -13,7 +13,7 @@ namespace Agent.Api.Services
         private readonly ApiEndpointSettings _apiEndpointSettings;
         public DareClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
-            IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.SubmissionApiUrl
+            IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.SubmissionApiUrl
             , false)
         {
           _apiEndpointSettings = apiEndpointSettings.Value;
@@ -27,7 +27,7 @@ namespace Agent.Api.Services
             if (CheckCredsAreAvailable())
             {
                 _username = _keycloakSettings.Username;
-                _password = encDec.Decrypt(_keycloakSettings.PasswordEnc);
+                _password = _keycloakSettings.PasswordEnc;
                 _requiredRole = "dare-tre-admin";
             }
             //Log.Information("{Function} Creds are there? {Creds} with username {Username}, Password {Password} and role {Role}", "DareClientWithoutTokenHelper", _username, _password, _requiredRole);

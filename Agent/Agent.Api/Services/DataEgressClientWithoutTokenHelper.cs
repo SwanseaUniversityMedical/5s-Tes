@@ -13,7 +13,7 @@ namespace Agent.Api.Services
 
         public DataEgressClientWithoutTokenHelper(IHttpClientFactory httpClientFactory,
             IHttpContextAccessor httpContextAccessor, IConfiguration config, ApplicationDbContext db,
-            IEncDecHelper encDec, IOptionsMonitor<DataEgressKeyCloakSettings> settings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.EgressApiUrl , false)
+            IOptionsMonitor<DataEgressKeyCloakSettings> settings, IOptions<ApiEndpointSettings> apiEndpointSettings) : base(httpClientFactory, httpContextAccessor,apiEndpointSettings.Value.EgressApiUrl , false)
         {
           _apiEndpointSettings = apiEndpointSettings.Value;
           _keycloakSettings = settings.CurrentValue;
@@ -23,7 +23,7 @@ namespace Agent.Api.Services
             if (CheckCredsAreAvailable())
             {
                 _username = _keycloakSettings.Username;
-                _password = encDec.Decrypt(_keycloakSettings.PasswordEnc);
+                _password = _keycloakSettings.PasswordEnc;
                 _requiredRole = "dare-tre-admin";
             }
 

@@ -1,18 +1,18 @@
-﻿using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using Credentials.Camunda.ProcessHandlers;
 using Credentials.Camunda.Services;
 using Credentials.Camunda.Settings;
 using Credentials.Models.DbContexts;
-using IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
-using VaultCredentialsService = Credentials.Camunda.Services.VaultCredentialsService;
-using IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
-using PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
+using IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
+using PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
 using Services_IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
 using Services_IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
 using Services_PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
 using Services_VaultCredentialsService = Credentials.Camunda.Services.VaultCredentialsService;
+using VaultCredentialsService = Credentials.Camunda.Services.VaultCredentialsService;
 
 
 namespace Credentials.Camunda.Extensions

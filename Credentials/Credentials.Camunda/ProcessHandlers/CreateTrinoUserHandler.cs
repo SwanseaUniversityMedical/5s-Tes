@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text;
 using Credentials.Camunda.Models;
 using Credentials.Camunda.Services;
@@ -39,6 +39,13 @@ namespace Credentials.Camunda.ProcessHandlers
                 submissionId = extraction.SubmissionId;
                 parentProcessKey = extraction.ParentProcessKey;
 
+                // Refuse to provision unless this submission was approved by Agent.Api
+                if (!await IsSubmissionApprovedAsync(extraction))
+                {
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres", "No matching approved submission record found");
+                    return CreateStatusResponse("ERROR: Submission not approved.");
+                }
+
                 if (extraction.EnvList?.FirstOrDefault() == null)
                 {
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "trino",
@@ -73,16 +80,6 @@ namespace Credentials.Camunda.ProcessHandlers
                     CanCreateRole = false
                 };
 
-                // Call LDAP service to create user
-                var result = await _ldapUserManagementService.CreateUserAsync(createUserRequest);
-
-                if (!result.Success)
-                {
-                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "trino",
-                        $"Failed to create Trino user: {result.ErrorMessage}");
-                    return CreateStatusResponse("ERROR: Failed credential creation");
-                }
-
                 // Build credential data
                 var credentialData = BuildCredentialData(extraction.EnvList, password);
 
@@ -93,6 +90,18 @@ namespace Credentials.Camunda.ProcessHandlers
                 // Store in vault
                 if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, credentialData, "trino"))
                     return CreateStatusResponse("ERROR: Credential store in vault failed");
+
+                // Call LDAP service to create user
+                var result = await _ldapUserManagementService.CreateUserAsync(createUserRequest);
+
+                if (!result.Success)
+                {
+                    // Remove the credential from Vault so that it isn't left orphaned in the event of an account creation failure.
+                    await RollBackVaultCredentialAsync(vaultPath, "trino");
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "trino",
+                        $"Failed to create Trino user: {result.ErrorMessage}");
+                    return CreateStatusResponse("ERROR: Failed credential creation");
+                }
 
                 // Record success
                 await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, "trino");

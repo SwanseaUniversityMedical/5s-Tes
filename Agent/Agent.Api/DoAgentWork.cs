@@ -564,6 +564,25 @@ namespace Agent.Api
                                     try
                                     {
                                         var project = aSubmission.Project.Name;
+
+                                        // Record this submission in the db so it can be verified by Credentials.Camunda.
+
+                                        // ... but don't create a new one if a record exists already for this submission
+                                        var existingApproval = await _credsDbContext.ApprovedSubmissions.FirstOrDefaultAsync(a => a.SubmissionId == aSubmission.Id);
+
+                                        if (existingApproval == null)
+                                        {
+                                            _credsDbContext.ApprovedSubmissions.Add(new()
+                                            {
+                                                SubmissionId = aSubmission.Id,
+                                                Project = project,
+                                                UserId = aSubmission.SubmittedBy.Id,
+                                                CreatedAt = DateTime.UtcNow
+                                            });
+
+                                            await _credsDbContext.SaveChangesAsync();
+                                        }
+
                                         await TriggerStartCredentialsAsync(aSubmission.Id, project,
                                             aSubmission.SubmittedBy.Id);
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);

@@ -1,4 +1,4 @@
-﻿
+
 using Microsoft.Extensions.Configuration;
 using System;
 using System.Collections.Generic;
@@ -150,57 +150,6 @@ namespace Credentials.Camunda.Services
             }
         }
 
-        public async Task<bool> GrantSchemaPermissionsAsync(string username, string schemaName, DatabasePermissions permissions)
-        {
-            try
-            {
-                using var connection = new NpgsqlConnection(_connectionString);
-                await connection.OpenAsync();
-
-                await GrantSchemaPermissionsInternalAsync(connection, username, schemaName, permissions);
-
-                Log.Information("Successfully granted {Permissions} permissions on schema {Schema} to user {Username}",
-                    permissions, schemaName, username);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error granting schema permissions to user: {Username}, Schema: {Schema}", username, schemaName);
-                return false;
-            }
-        }
-
-        public async Task<bool> RevokeSchemaPermissionsAsync(string username, string schemaName)
-        {
-            try
-            {
-                using var connection = new NpgsqlConnection(_connectionString);
-                await connection.OpenAsync();
-
-                var commands = new List<string>
-                {
-                    $"REVOKE ALL ON SCHEMA \"{schemaName}\" FROM \"{username}\"",
-                    $"REVOKE ALL ON ALL TABLES IN SCHEMA \"{schemaName}\" FROM \"{username}\"",
-                    $"REVOKE ALL ON ALL SEQUENCES IN SCHEMA \"{schemaName}\" FROM \"{username}\"",
-                    $"ALTER DEFAULT PRIVILEGES IN SCHEMA \"{schemaName}\" REVOKE ALL ON TABLES FROM \"{username}\""
-                };
-
-                foreach (var command in commands)
-                {
-                    using var cmd = new NpgsqlCommand(command, connection);
-                    await cmd.ExecuteNonQueryAsync();
-                }
-
-                Log.Information("Successfully revoked permissions on schema {Schema} from user {Username}", schemaName, username);
-                return true;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Error revoking schema permissions from user: {Username}, Schema: {Schema}", username, schemaName);
-                return false;
-            }
-        }
-
         public async Task<List<string>> GetUserSchemasAsync(string username)
         {
             try
@@ -264,6 +213,15 @@ namespace Credentials.Camunda.Services
         private async Task GrantSchemaPermissionsInternalAsync(NpgsqlConnection connection, string username,
             string schemaName, DatabasePermissions permissions)
         {
+            if (!IsValidUsername(username))
+            {
+                throw new ArgumentException($"Invalid username: '{username}'", nameof(username));
+            }
+            if (!IsValidSchemaName(schemaName))
+            {
+                throw new ArgumentException($"Invalid schema name: '{schemaName}'", nameof(schemaName));
+            }
+
             var commands = new List<string>();
 
             // Always grant USAGE on schema first
@@ -326,16 +284,9 @@ namespace Credentials.Camunda.Services
         
         private async Task EnsureSchemaExistsAsync(NpgsqlConnection connection, string schemaName)
         {
-            if (string.IsNullOrWhiteSpace(schemaName))
-            {
-                Log.Warning("Schema name is empty, skipping EnsureSchemaExistsAsync");
-                return;
-            }
-
             if (!IsValidSchemaName(schemaName))
             {
-                Log.Warning("Invalid schema name: {SchemaName}, skipping creation", schemaName);
-                return;
+                throw new ArgumentException($"Invalid schema name: '{schemaName}'", nameof(schemaName));
             }
 
             // Use double quotes to preserve case-sensitivity and allow names starting with digits

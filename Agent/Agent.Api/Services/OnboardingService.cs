@@ -19,7 +19,6 @@ public class OnboardingService(
   IConfigurationService configService,
   IOptionsMonitor<TreOnboardingConfig> configSettings,
   JobSettings jobSettings,
-  IEncDecHelper encDec,
   IServiceProvider serviceProvider,
   IOptions<ApiEndpointSettings> apiEndpoints)
   : IOnboardingService
@@ -122,7 +121,7 @@ public class OnboardingService(
                     credentials.ClientId,
                     credentials.ClientSecret,
                     Username = credentials.ClientId,
-                    PasswordEnc = encDec.Encrypt(credentials.ClientSecret),
+                    PasswordEnc = credentials.ClientSecret,
                     ConfigInputMethod = ConfigInputMethod.Upload
                 };
 

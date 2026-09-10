@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Text.Json;
 using Credentials.Camunda.Services;
 using Credentials.Models.Models.Zeebe;
@@ -56,24 +56,9 @@ namespace Credentials.Camunda.ProcessHandlers
         /// Handle vault operations: remove credentials and update expiration
         /// </summary>
         protected async Task HandleVaultOperationsAsync(
-            string? submissionId,
+            string? vaultPath,
             CancellationToken cancellationToken)
         {
-            if (string.IsNullOrEmpty(submissionId) || !int.TryParse(submissionId, out int submissionIdInt))
-            {
-                _logger.LogWarning("Invalid or missing submissionId: {SubmissionId}", submissionId);
-                return;
-            }
-
-            var vaultPath = await _ephemeralCredentialsService.GetVaultPathBySubmissionIdAsync(
-                submissionIdInt, CredentialType, cancellationToken);
-
-            if (string.IsNullOrEmpty(vaultPath))
-            {
-                _logger.LogWarning("No vaultPath found for submissionId: {SubmissionId}", submissionId);
-                return;
-            }
-
             _logger.LogInformation("Removing credentials from Vault at path: {VaultPath}", vaultPath);
 
             var vaultDeleteResult = await _vaultCredentialsService.RemoveCredentialAsync(vaultPath);
@@ -128,6 +113,20 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: No credential information found in envList");
                 }
 
+                if (string.IsNullOrEmpty(extraction.SubmissionId) || !int.TryParse(extraction.SubmissionId, out int submissionId)) 
+                {
+                    _logger.LogWarning("Invalid or missing submissionId for {CredentialType} delete job.", CredentialType);
+                    return CreateStatusResponse("ERROR: Invalid or missing submissionId.");
+                }
+
+                // Ensure a real and successfully issued credential exists for this submission
+                string? vaultPath = await _ephemeralCredentialsService.GetVaultPathBySubmissionIdAsync(submissionId, CredentialType, cancellationToken);
+                if (string.IsNullOrEmpty(vaultPath))
+                {
+                    _logger.LogWarning("No vaultPath found for submissionId: {SubmissionId}", submissionId);
+                    return CreateStatusResponse($"ERROR: No matching {CredentialType} credential record found for this submission.");
+                }
+
                 // Extract username - common across all handlers
                 string? username = extraction.EnvList
                         .Where(x => x.env.ToLower().Contains("username"))
@@ -166,7 +165,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     CredentialType, username);
 
                 // Handle vault cleanup
-                await HandleVaultOperationsAsync(extraction.SubmissionId, cancellationToken);
+                await HandleVaultOperationsAsync(vaultPath, cancellationToken);
 
                 sw.Stop();
                 _logger.LogInformation("{HandlerName} took {Seconds} seconds",
