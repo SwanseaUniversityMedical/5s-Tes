@@ -79,7 +79,7 @@
                             <li><hr class="dropdown-divider"></li>
                             @if (@User?.FindFirst("name")?.Value == null)
                             {
-                                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Logout">Login</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Login">Login</a></li>
                             }
                             else
                             {
