@@ -239,6 +239,95 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
+        /// <summary>
+        /// Removes every object from a bucket (paginated list + bulk delete) without removing the
+        /// bucket itself. S3/MinIO requires a bucket to be empty before it can be deleted, so this is
+        /// also the first step of <see cref="DeleteBucketAsync"/>.
+        /// </summary>
+        public async Task<bool> EmptyBucketAsync(string bucketName)
+        {
+            if (string.IsNullOrWhiteSpace(bucketName))
+            {
+                return false;
+            }
+
+            var amazonS3Client = GenerateAmazonS3Client();
+
+            try
+            {
+                string? continuationToken = null;
+                do
+                {
+                    var listRequest = new ListObjectsV2Request
+                    {
+                        BucketName = bucketName,
+                        ContinuationToken = continuationToken
+                    };
+
+                    var listResponse = await amazonS3Client.ListObjectsV2Async(listRequest);
+
+                    if (listResponse.S3Objects.Count > 0)
+                    {
+                        var deleteRequest = new DeleteObjectsRequest
+                        {
+                            BucketName = bucketName,
+                            Objects = listResponse.S3Objects.Select(o => new KeyVersion { Key = o.Key }).ToList()
+                        };
+
+                        await amazonS3Client.DeleteObjectsAsync(deleteRequest);
+                    }
+
+                    continuationToken = listResponse.IsTruncated ? listResponse.NextContinuationToken : null;
+                }
+                while (continuationToken != null);
+
+                Log.Information("Emptied bucket {BucketName}", bucketName);
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Log.Error(ex, "Failed to empty bucket {BucketName}", bucketName);
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Deletes a bucket entirely: empties it first (S3 requires an empty bucket) then removes it.
+        /// If the bucket does not exist, the method returns true because there is nothing to delete. so cleanup is idempotent.
+        /// </summary>
+        public async Task<bool> DeleteBucketAsync(string bucketName)
+        {
+            if (string.IsNullOrWhiteSpace(bucketName))
+            {
+                return false;
+            }
+
+            if (!await CheckBucketExists(bucketName))
+            {
+                Log.Information("Bucket {BucketName} does not exist; nothing to delete", bucketName);
+                return true;
+            }
+
+            if (!await EmptyBucketAsync(bucketName))
+            {
+                return false;
+            }
+
+            var amazonS3Client = GenerateAmazonS3Client();
+
+            try
+            {
+                await amazonS3Client.DeleteBucketAsync(bucketName);
+                Log.Information("Deleted bucket {BucketName}", bucketName);
+                return true;
+            }
+            catch (AmazonS3Exception ex)
+            {
+                Log.Error(ex, "Failed to delete bucket {BucketName}", bucketName);
+                return false;
+            }
+        }
+
         public async Task<bool> CheckObjectExists(string bucketName, string objectKey)
         {
             var request = new GetObjectMetadataRequest
@@ -726,11 +815,11 @@ namespace FiveSafesTes.Core.Services
                 if (string.IsNullOrEmpty(secretKey))
                 {
                     // Generate secret key automatically
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 }
                 else
                 {
-                    command = $"mc admin user add {_minioSettings.Alias} {accessKey} {secretKey}";
+                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)} {ShellQuote(secretKey)}";
                 }
 
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
@@ -769,7 +858,7 @@ namespace FiveSafesTes.Core.Services
             {
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
-                var command = $"mc admin user remove {_minioSettings.Alias} {accessKey}";
+                var command = $"mc admin user remove {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -842,7 +931,7 @@ namespace FiveSafesTes.Core.Services
             {
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
-                var command = $"mc admin user info {_minioSettings.Alias} {accessKey}";
+                var command = $"mc admin user info {_minioSettings.Alias} {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -942,6 +1031,22 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
+        /// Returns true when an S3 access key (user) already exists on the object store.
+        /// Wraps <see cref="GetMinioSecretAsync"/> (mc admin user info), which succeeds only
+        /// when the user is present.
+        /// </summary>
+        public async Task<bool> UserExistsAsync(string accessKey, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(accessKey))
+            {
+                return false;
+            }
+
+            var result = await GetMinioSecretAsync(accessKey, cancellationToken);
+            return result.Success;
+        }
+
+        /// <summary>
         /// Attaches a canned policy to an S3 access key user.
         /// </summary>
         public async Task<bool> AttachPolicyToUserAsync(
@@ -954,7 +1059,7 @@ namespace FiveSafesTes.Core.Services
                 await EnsureMinioClientInitializedAsync(cancellationToken);
 
                 var command =
-                    $"mc admin policy attach {_minioSettings.Alias} {policyName} --user {accessKey}";
+                    $"mc admin policy attach {_minioSettings.Alias} {ShellQuote(policyName)} --user {ShellQuote(accessKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -979,6 +1084,44 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
+        /// <summary>
+        /// Removes a canned policy from the object store. Used to clean up the per-key policy
+        /// created alongside an ephemeral S3 access key when that key is revoked, so policies
+        /// don't accumulate. Removing the access-key user detaches the policy but leaves the
+        /// canned policy itself behind, hence this explicit cleanup.
+        /// </summary>
+        public async Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default)
+        {
+            if (string.IsNullOrWhiteSpace(policyName))
+            {
+                return false;
+            }
+
+            try
+            {
+                await EnsureMinioClientInitializedAsync(cancellationToken);
+
+                var command = $"mc admin policy rm {_minioSettings.Alias} {ShellQuote(policyName)}";
+                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+
+                if (result.Success)
+                {
+                    Log.Information("Removed S3 policy {PolicyName}", policyName);
+                    return true;
+                }
+
+                Log.Warning(
+                    "Failed to remove S3 policy {PolicyName}. Error: {Error}",
+                    policyName, result.Error);
+                return false;
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "Exception removing S3 policy {PolicyName}", policyName);
+                return false;
+            }
+        }
+
         #endregion
 
         #region MinIO Client Helper Methods
@@ -987,7 +1130,8 @@ namespace FiveSafesTes.Core.Services
         {
             if (!_isMinioClientInitialized)
             {
-                var command = $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {_minioSettings.AccessKey} {_minioSettings.SecretKey}";
+                var command =
+                    $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {ShellQuote(_minioSettings.AccessKey)} {ShellQuote(_minioSettings.SecretKey)}";
                 var result = await ExecuteMinioCommandAsync(command, cancellationToken);
 
                 if (result.Success)
@@ -1004,6 +1148,9 @@ namespace FiveSafesTes.Core.Services
             }
             return true;
         }
+
+        private static string ShellQuote(string value) =>
+            "'" + value.Replace("'", "'\\''") + "'";
 
         private async Task<MinioCommandResult> ExecuteMinioCommandAsync(string command, CancellationToken cancellationToken = default)
         {

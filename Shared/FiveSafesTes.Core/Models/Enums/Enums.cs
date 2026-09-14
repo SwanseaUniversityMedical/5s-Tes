@@ -14,17 +14,17 @@ namespace FiveSafesTes.Core.Models.Enums
         [Display(Name = "Waiting for Child Subs To Complete")]
         WaitingForChildSubsToComplete = 0,
         //Stage 1
-        [Display(Name = "Waiting for Agent To Transfer")]
+        [Display(Name = "Waiting for TRE Agent to Transfer")]
         WaitingForAgentToTransfer = 1,
         //Stage 2
-        [Display(Name = "Transferred To Pod")]
+        [Display(Name = "Sent to TES")]
         TransferredToPod = 2,
         //Stage 3
-        [Display(Name = "Pod Processing")]
+        [Display(Name = "Running in TES")]
         PodProcessing = 3,
         //Stage 3
         //Green
-        [Display(Name = "Pod Processing Complete")]
+        [Display(Name = "TES Processing Complete")]
         PodProcessingComplete = 4,
         //Stage 4
         [Display(Name = "Data Out Approval Begun")]
@@ -87,11 +87,11 @@ namespace FiveSafesTes.Core.Models.Enums
         [Display(Name = "Validation Successful")]
         ValidationSuccessful = 20,
         //Stage 2
-        [Display(Name = "Agent Transferring To Pod")]
+        [Display(Name = "Transferred to TRE")]
         AgentTransferringToPod = 21,
         //Stage 2
         //Red
-        [Display(Name = "Transfer To Pod Failed")]
+        [Display(Name = "Transfer to TRE Failed")]
         TransferToPodFailed = 22,
         //Unused
         [Display(Name = "Tre Rejected Project")]
@@ -101,7 +101,7 @@ namespace FiveSafesTes.Core.Models.Enums
         TREApprovedProject = 24,
         //Stage 3
         //Red
-        [Display(Name = "Pod Processing Failed")]
+        [Display(Name = "TES Processing Failed")]
         PodProcessingFailed = 25,
         //Stage 1
         //Parent only
@@ -179,6 +179,9 @@ namespace FiveSafesTes.Core.Models.Enums
         //Parent Only
         [Display(Name = "Complete but not all TREs returned a result")]
         PartialResult = 49,
+        //Stage 2
+        [Display(Name = "Processing Ephemeral Credentials")]
+        ProcessingCredentials = 50,
 
 
     }
