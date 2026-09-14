@@ -176,6 +176,7 @@ builder.Services.AddScoped<ISubmissionHelper, SubmissionHelper>();
 builder.Services.AddScoped<IDoSyncWork, DoSyncWork>();
 builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
 builder.Services.AddScoped<IDoHealthCheckWork, DoHealthCheckWork>();
+builder.Services.AddScoped<IDoBucketCleanupWork, DoBucketCleanupWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
@@ -496,6 +497,14 @@ else
     RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName,
         x => x.Execute(),
         Cron.MinuteInterval(jobSettings.scanSchedule));
+
+string bucketCleanupJobName = jobSettings.BucketCleanupJobName;
+if (jobSettings.bucketCleanupSchedule <= 0)
+    RecurringJob.RemoveIfExists(bucketCleanupJobName);
+else
+    RecurringJob.AddOrUpdate<IDoBucketCleanupWork>(bucketCleanupJobName,
+        x => x.Execute(),
+        Cron.Daily(Math.Clamp(jobSettings.bucketCleanupSchedule, 1, 23)));
 
 
 if (HasuraSettings.IsEnabled)
