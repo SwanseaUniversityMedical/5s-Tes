@@ -42,6 +42,7 @@ namespace Agent.Web.Controllers
             //return View();
         }
        
+        [AllowAnonymous]
         public IActionResult LoginAfterTokenExpired()
         {
             return new SignOutResult(new[]
@@ -54,13 +55,14 @@ namespace Agent.Web.Controllers
             });
         }
 
+        [AllowAnonymous]
         public IActionResult Login()
         {
             if (!HttpContext.User.Identity.IsAuthenticated)
             {
                 return Challenge(OpenIdConnectDefaults.AuthenticationScheme);
             }
-            return RedirectToAction("Login", "Home");
+            return RedirectToAction("Index", "Home");
         }
         [Authorize]
         public IActionResult Logout()
