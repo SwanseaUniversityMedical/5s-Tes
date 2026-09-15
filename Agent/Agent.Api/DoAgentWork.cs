@@ -565,6 +565,22 @@ namespace Agent.Api
                                     {
                                         var project = aSubmission.Project.Name;
 
+                                        // Record this submission in the db so it can be verified by Credentials.Camunda.
+                                        // ... but don't create a new one if a record exists already for this submission
+                                        var existingApproval = await _credsDbContext.ApprovedSubmissions.FirstOrDefaultAsync(a => a.SubmissionId == aSubmission.Id);
+
+                                        if (existingApproval == null)
+                                        {
+                                            _credsDbContext.ApprovedSubmissions.Add(new()
+                                            {
+                                                SubmissionId = aSubmission.Id,
+                                                Project = project,
+                                                UserId = aSubmission.SubmittedBy.Id,
+                                                CreatedAt = DateTime.UtcNow
+                                            });
+
+                                            await _credsDbContext.SaveChangesAsync();
+                                        }
                                         // Ephemeral S3 credentials are scoped to the project's TRE
                                         // buckets, so pass them on the kickoff payload for the DMN to
                                         // emit into the s3 credential branch. The workload-facing S3
