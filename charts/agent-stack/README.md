@@ -19,7 +19,7 @@ lives in this chart; that is all in `charts/agent`.
 | `templates/postgres.yaml` | CNPG `Cluster` `postgres`, `Database`s `dare-tre`/`tre-credentials`/`data-egress` (optional, `egress.enabled`), `Pooler` `pg-pooler`, PodMonitors | 3 |
 | `templates/backup.yaml` | Velero `Schedule` (volumes) + CNPG `ObjectStore`/`ScheduledBackup` (off by default) | 2/3 |
 | `templates/agent.yaml` | ArgoCD `Application` `agent`, the standalone chart | 5 |
-| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off, independently gated by `egress.appEnabled` | 5 |
+| `templates/egress.yaml` | ArgoCD `Application` `egress`, optional, default off | 5 |
 
 ## What the cluster must already have
 
@@ -237,10 +237,9 @@ ever loads — meaningless below 2 replicas regardless.
 `egress.enabled` (default `false`) composes the optional Data-Egress product as the `egress`
 `Application` (`templates/egress.yaml`), pulled from `harbor.ukserp.ac.uk/dare-trefx/chart`
 (the DARE-Control charts project) — a different Harbor registry and project than `agent`'s own
-`harbor.federated-analytics.ac.uk/5s-tes/chart`. **When `egress.appEnabled` is also `true`
-(the default), the `egress` chart must already exist at that coordinate, at
-`egress.chartVersion`, before turning `egress.enabled` on** — ArgoCD fails the sync otherwise.
-Turning `egress.enabled` on also:
+`harbor.federated-analytics.ac.uk/5s-tes/chart`. The cluster's ArgoCD needs an OCI repo
+registration for it (locally: `dev-env-setup/files/argo/repo.yaml`), and the `egress` chart
+must exist there at `egress.chartVersion`. Turning `egress.enabled` on also:
 
 - Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
   stack's own `postgres` `Cluster` — see **CloudNativePG** below.
@@ -252,16 +251,9 @@ Turning `egress.enabled` on also:
 - Sets `egress.yaml`'s `api.keycloakDemoMode` from `egress.keycloakDemoMode` (default
   `"false"`, production-safe — production's Keycloak is HTTPS).
 
-`egress.appEnabled` (default `true`) gates ONLY the `egress` `Application` on top of
-`egress.enabled` — the Database, VaultSecrets, and `agent.yaml`'s `api.egress` wiring above stay
-gated on `egress.enabled` alone. Set it `false` to compose the rest of the egress wiring without
-the un-publishable Application, e.g. for a local install of the egress product by helm from a
-working tree (see `agent-devstack`'s README).
-
-Publish order is images → chart → enable: `egress.imageVersion` must point at a
-`control-egress-api`/`control-egress-ui` release that contains the `/health` endpoint the egress
-chart's probes require. The default `"3.0.4"` predates `/health` and CrashLoops on its own
-probes — it is not a working image tag.
+`egress.imageVersion` must point at a `control-egress-api`/`control-egress-ui` release that
+contains the `/health` endpoint the egress chart's probes require — `3.1.0` (the default) or
+later.
 
 Independent of the toggle, `agent.yaml` always wires `api.keycloakDemoMode` from
 `agent.api.keycloakDemoMode` (default `"false"`). Both settings relax the outbound
@@ -507,10 +499,9 @@ only in-flight workflow instance state, not the system of record.
 
 | Name | Description | Default |
 |---|---|---|
-| `egress.enabled` | Compose the egress product's Database, VaultSecrets, and agent `api.egress` wiring. See **Egress** above. | `false` |
-| `egress.appEnabled` | Also create the `egress` `Application` (on top of `egress.enabled`). The chart must already exist in Harbor at `egress.chartVersion` — see **Egress** above. | `true` |
-| `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.0` |
-| `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.0.4` |
+| `egress.enabled` | Compose the egress product: the `egress` `Application`, its Database and VaultSecrets, and the agent `api.egress` wiring. See **Egress** above. | `false` |
+| `egress.chartVersion` | Version of the `egress` chart in Harbor. | `1.0.1` |
+| `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.1.0` |
 | `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |
 | `egress.keycloakDemoMode` | Local-only. Relaxes the egress api's own outbound password-grant token helpers' discovery-endpoint check to HTTP (covers both its `Data-Egress` and cross-realm `Dare-TRE` calls). See **Egress** above. | `"false"` |
 

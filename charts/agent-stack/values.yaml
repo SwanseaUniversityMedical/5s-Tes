@@ -69,18 +69,13 @@ agent:
     userOu: "ou=Users"
     useSsl: false
 
-# Optional Data-Egress product, deployed as part of this stack. Requires the
-# egress chart published in Harbor. See README.
+# Optional Data-Egress product, deployed as part of this stack. See README.
 egress:
   enabled: false
-  # Gates only the egress Application; the Database, VaultSecrets and agent
-  # wiring follow egress.enabled. Local installs set this false and install
-  # the egress chart from a working tree instead.
-  appEnabled: true
   # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
-  chartVersion: "1.0.0"
+  chartVersion: "1.0.1"
   # renovate: datasource=docker depName=dare-trefx/control-egress-api registryUrl=https://harbor.ukserp.ac.uk
-  imageVersion: "3.0.4"
+  imageVersion: "3.1.0"
   # Full Data-Egress realm URL. Bare realm URL: no trailing slash, no
   # .well-known suffix.
   oidcAuthority: "https://keycloak.example.ac.uk/realms/Data-Egress"
