@@ -57,7 +57,6 @@ namespace Agent.Web.Controllers
         [HttpPost]
         public async Task<IActionResult> EditMemberships(List<TreMembershipDecision> model)
         {
-            TempData["success"] = "Editing Membership";
             if (!ModelState.IsValid) // SonarQube security
             {
                 return View("/");
