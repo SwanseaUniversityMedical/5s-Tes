@@ -20,12 +20,12 @@ KEYS_FILE="$(cd "$(dirname "$0")" && pwd)/.vault-keys-${NAMESPACE}"
 
 echo "Vault ($NAMESPACE): waiting for $VAULT_POD to exist"
 # `kubectl wait` errors immediately on a not-yet-created resource rather
-# than waiting for it - ArgoCD needs a moment after `helm install` to sync
-# the vault Application's StatefulSet into existence.
+# than waiting for it - ArgoCD must sync the stack Application (a chart pull
+# from Harbor) and then the vault Application before the pod exists.
 elapsed=0
 until kubectl get "pod/$VAULT_POD" -n "$NAMESPACE" --context "$CONTEXT" >/dev/null 2>&1; do
-  if [ "$elapsed" -ge 120 ]; then
-    echo "$VAULT_POD did not appear in $NAMESPACE within 120s. Check: kubectl -n $NAMESPACE get application $VAULT_RELEASE -o yaml" >&2
+  if [ "$elapsed" -ge 300 ]; then
+    echo "$VAULT_POD did not appear in $NAMESPACE within 300s. Check: kubectl -n $NAMESPACE get application $VAULT_RELEASE -o yaml" >&2
     exit 1
   fi
   sleep 5; elapsed=$((elapsed + 5))

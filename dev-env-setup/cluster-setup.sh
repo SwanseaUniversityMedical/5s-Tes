@@ -39,7 +39,6 @@ CNPG_CHART_VERSION="0.29.0"
 RABBITMQ_OPERATOR_VERSION="v2.22.5"
 
 cd "$(dirname "$0")"
-REPO_ROOT="$(cd .. && pwd)"
 
 echo "5S-TES dev env setup"
 echo "  platform : $(uname -s)"
@@ -94,10 +93,10 @@ show_unhealthy_pods() {
   done
 }
 
-# wait_for_argocd_apps <namespace> <friendly-label>
+# wait_for_argocd_apps <namespace> <friendly-label> [timeout-seconds]
 wait_for_argocd_apps() {
   local ns="$1" label="$2"
-  local timeout="${ARGO_WAIT_TIMEOUT:-2400}" poll=15 stable_needed=3
+  local timeout="${3:-${ARGO_WAIT_TIMEOUT:-2400}}" poll=15 stable_needed=3
   local deadline app_rows total not_ready stable=0 last_total=-1
 
   deadline=$(( $(date +%s) + timeout ))
@@ -179,47 +178,6 @@ wait_for_rabbitmq_ready() {
   echo "rabbitmq ($ns) is Ready."
 }
 
-###############################################################################
-# Local app images: built from the working tree and loaded into kind's
-# containerd.
-###############################################################################
-
-# restart_product_deployments <namespace> <deployment>...
-# The ":local" tag never changes, so only an explicit rollout picks up a
-# rebuilt image. No-op for deployments that don't exist yet.
-restart_product_deployments() {
-  local ns="$1"; shift
-  local dep restarted=""
-  for dep in "$@"; do
-    if kubectl -n "$ns" get deployment "$dep" --context "$CONTEXT" >/dev/null 2>&1; then
-      kubectl -n "$ns" rollout restart "deployment/$dep" --context "$CONTEXT"
-      restarted="$restarted $dep"
-    fi
-  done
-  for dep in $restarted; do
-    kubectl -n "$ns" rollout status "deployment/$dep" --timeout=5m --context "$CONTEXT"
-  done
-}
-
-build_and_load_images() {
-  echo
-  echo "Building local app images from the working tree"
-  docker build -q -f "$REPO_ROOT/Submission/Submission.Api/Dockerfile" -t 5s-tes/submission-api:local "$REPO_ROOT"
-  docker build -q -f "$REPO_ROOT/Submission/Submission.Web/Dockerfile" -t 5s-tes/submission-ui:local "$REPO_ROOT"
-  docker build -q -f "$REPO_ROOT/Agent/Agent.Api/Dockerfile" -t 5s-tes/agent-api:local "$REPO_ROOT"
-  docker build -q -f "$REPO_ROOT/Agent/Agent.Web/Dockerfile" -t 5s-tes/agent-ui:local "$REPO_ROOT"
-  docker build -q -f "$REPO_ROOT/Credentials/Credentials.Camunda/Dockerfile" -t 5s-tes/credentials-camunda:local "$REPO_ROOT"
-
-  echo "Loading local app images into kind"
-  kind load docker-image \
-    5s-tes/submission-api:local \
-    5s-tes/submission-ui:local \
-    5s-tes/agent-api:local \
-    5s-tes/agent-ui:local \
-    5s-tes/credentials-camunda:local \
-    --name "$CLUSTER_NAME"
-}
-
 if [ "$CLUSTER_EXISTS" = "0" ]; then
   kind create cluster --config=kind-config.yaml
 fi
@@ -298,40 +256,36 @@ kubectl wait --for=condition=Available deployment/argocd-server \
 kubectl wait --for=condition=Available deployment/argocd-repo-server \
   -n argocd --timeout=10m --context "$CONTEXT"
 
-echo "Applying ArgoCD AppProjects and the Bitnami OCI repo registration"
+echo "Applying ArgoCD AppProjects and the OCI repo registrations"
 kubectl apply -f files/argo/submission-project.yaml --context "$CONTEXT"
 kubectl apply -f files/argo/agent-project.yaml --context "$CONTEXT"
 kubectl apply -f files/argo/repo.yaml --context "$CONTEXT"
 
-build_and_load_images
-
-echo "Restarting product Deployments to pick up freshly rebuilt :local images"
-restart_product_deployments "$SUBMISSION_NS" submission-api submission-ui
-restart_product_deployments "$AGENT_NS" agent-api agent-ui agent-camunda
-
 ###############################################################################
-# Install order: each family's devstack, then its stack (the product
-# Applications are disabled locally). All charts install from the working tree.
+# Install order: each family's devstack (from the working tree — devstacks
+# are never published), then its stack as an ArgoCD Application pulling the
+# published chart from Harbor with local overrides in its valuesObject.
 ###############################################################################
 
 kubectl create namespace "$SUBMISSION_NS" --dry-run=client -o yaml | kubectl apply --context "$CONTEXT" -f - >/dev/null
 kubectl create namespace "$AGENT_NS" --dry-run=client -o yaml | kubectl apply --context "$CONTEXT" -f - >/dev/null
 
+# Per-family global.ingress.host suffix: both families render the same
+# hostnames (keycloak., adminer., seq., rustfs.), so on one shared cluster
+# the hosts must differ or ingress-nginx drops one Ingress per host.
 echo "Installing submission-devstack"
 helm upgrade --install submission-devstack ../charts/submission-devstack \
-  --namespace "$SUBMISSION_NS" -f files/values/submission-devstack-local.yaml --kube-context "$CONTEXT"
-
-echo "Installing submission-stack"
-helm upgrade --install submission-stack ../charts/submission-stack \
-  --namespace "$SUBMISSION_NS" -f files/values/submission-stack-local.yaml --kube-context "$CONTEXT"
+  --namespace "$SUBMISSION_NS" \
+  --set global.ingress.host=submission.localtest.me --kube-context "$CONTEXT"
 
 echo "Installing agent-devstack"
 helm upgrade --install agent-devstack ../charts/agent-devstack \
-  --namespace "$AGENT_NS" -f files/values/agent-devstack-local.yaml --kube-context "$CONTEXT"
+  --namespace "$AGENT_NS" \
+  --set global.ingress.host=agent.localtest.me --kube-context "$CONTEXT"
 
-echo "Installing agent-stack"
-helm upgrade --install agent-stack ../charts/agent-stack \
-  --namespace "$AGENT_NS" -f files/values/agent-stack-local.yaml --kube-context "$CONTEXT"
+echo "Applying the submission-stack and agent-stack ArgoCD Applications"
+kubectl apply -f files/argo/submission-app.yaml --context "$CONTEXT"
+kubectl apply -f files/argo/agent-app.yaml --context "$CONTEXT"
 
 ###############################################################################
 # Vault starts sealed, so its Application never reports Healthy until
@@ -342,6 +296,9 @@ helm upgrade --install agent-stack ../charts/agent-stack \
 ./vault-init.sh "$AGENT_NS" "$CONTEXT" "$AGENT_VAULT"
 
 DEPS_HEALTHY=1
+# Short timeout: the two root Applications only pull and sync the stack
+# charts; anything slow here is a broken pull, not image downloads.
+wait_for_argocd_apps "argocd" "the stack Applications" 600 || DEPS_HEALTHY=0
 wait_for_argocd_apps "$SUBMISSION_NS" "submission dependencies" || DEPS_HEALTHY=0
 wait_for_argocd_apps "$AGENT_NS" "agent dependencies" || DEPS_HEALTHY=0
 
@@ -361,21 +318,8 @@ wait_for_cnpg_ready "$AGENT_NS"
 wait_for_rabbitmq_ready "$SUBMISSION_NS"
 wait_for_rabbitmq_ready "$AGENT_NS"
 
-###############################################################################
-# The product charts themselves - installed directly, standing in for the
-# submission-stack/agent-stack Applications that are disabled locally.
-###############################################################################
-
-echo "Installing submission"
-helm upgrade --install submission ../charts/submission \
-  --namespace "$SUBMISSION_NS" -f files/values/submission-product-local.yaml --kube-context "$CONTEXT"
-
-echo "Installing agent"
-helm upgrade --install agent ../charts/agent \
-  --namespace "$AGENT_NS" -f files/values/agent-product-local.yaml --kube-context "$CONTEXT"
-
 echo
-echo "Waiting for the submission/agent Deployments to become Available (up to 10m)"
+echo "Waiting for every Deployment to become Available (up to 10m)"
 kubectl -n "$SUBMISSION_NS" wait --for=condition=Available deployment --all --timeout=600s --context "$CONTEXT"
 kubectl -n "$AGENT_NS" wait --for=condition=Available deployment --all --timeout=600s --context "$CONTEXT"
 
@@ -387,22 +331,23 @@ cat <<SUMMARY
  5S-TES local dev environment is up.
 
  Submission (ns $SUBMISSION_NS):
-   UI            http://submission.submission.localtest.me
-   API           http://submission-api.submission.localtest.me
    Keycloak      http://keycloak.submission.localtest.me (admin/admin, realm Dare-Control)
    Adminer       http://adminer.submission.localtest.me
    Seq           http://seq.submission.localtest.me
    RustFS console http://rustfs.submission.localtest.me
 
  Agent (ns $AGENT_NS):
-   UI            http://agent.agent.localtest.me
-   API           http://agent-api.agent.localtest.me
    Keycloak      http://keycloak.agent.localtest.me (admin/admin, realm Dare-TRE)
    Adminer       http://adminer.agent.localtest.me
    Seq           http://seq.agent.localtest.me
+   RustFS console http://rustfs.agent.localtest.me
    Camunda       http://camunda.agent.localtest.me
 
  ArgoCD          http://argocd.localtest.me (admin/admin)
+
+ The product apps run from the IDE — see the root README "Running apps from
+ VS Code against kind". To run them in-cluster instead, set enabled: true in
+ files/argo/<family>-app.yaml and kubectl apply it.
 
  Dev login (both realms): dev/password123
  Vault keys: dev-env-setup/.vault-keys-$SUBMISSION_NS, .vault-keys-$AGENT_NS (gitignored)

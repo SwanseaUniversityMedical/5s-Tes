@@ -48,8 +48,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 ## Local install
 
 Install this chart first, then `submission-stack` configured to hand off to its static
-Secrets, drop the objects a local cluster doesn't have, and reach the local Keycloak,
-e.g. (mirrors `serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
+Secrets, drop the objects a local cluster doesn't have, and reach the local Keycloak, e.g.:
 
 ```
 --set global.oidc.authority=http://keycloak.localtest.me/realms/Dare-Control
@@ -66,9 +65,9 @@ default_pass = password123
 loopback_users.submission = false"
 ```
 
-`dev-env-setup/files/values/submission-devstack-local.yaml` and `submission-stack-local.yaml`
-carry this set (plus the per-family host suffix below) for the two-family bootstrap; this
-recipe stays canonical for running Submission alone.
+`dev-env-setup/files/argo/submission-app.yaml`'s `valuesObject` carries this set (plus the
+per-family host suffix below) for the two-family bootstrap; this recipe stays canonical for
+running Submission alone.
 
 **Running Submission alongside Agent on one cluster** (what `dev-env-setup/cluster-setup.sh`
 does): both devstack charts render a Keycloak Ingress at `keycloak.<global.ingress.host>` and
@@ -117,8 +116,7 @@ the stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
 
 With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD are
 **not** required locally (nothing renders that needs them). The setup script
-(`dev-env-setup/`, not yet created in this repo) is expected to install, before both
-charts:
+(`dev-env-setup/cluster-setup.sh`) installs, before both charts:
 
 - ingress-nginx,
 - ArgoCD, watching `Application`s in `5s-tes-submission`, with a matching `AppProject`,

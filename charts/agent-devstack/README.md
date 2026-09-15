@@ -60,8 +60,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 ## Local install
 
 Install this chart first, then `agent-stack` configured to hand off to its static Secrets,
-drop the objects a local cluster doesn't have, and reach the local Keycloak, e.g. (mirrors
-`serp-provisioning`'s `dev-env-setup/files/argo/app.yaml`):
+drop the objects a local cluster doesn't have, and reach the local Keycloak, e.g.:
 
 ```
 --set global.oidc.authority=http://keycloak.localtest.me/realms/Dare-TRE
@@ -78,9 +77,9 @@ default_pass = password123
 loopback_users.agent = false"
 ```
 
-`dev-env-setup/files/values/agent-devstack-local.yaml` and `agent-stack-local.yaml` carry
-this set (plus the per-family host suffix below) for the two-family bootstrap; this recipe
-stays canonical for running Agent alone.
+`dev-env-setup/files/argo/agent-app.yaml`'s `valuesObject` carries this set (plus the
+per-family host suffix below) for the two-family bootstrap; this recipe stays canonical for
+running Agent alone.
 
 **Running Agent alongside Submission on one cluster** (what `dev-env-setup/cluster-setup.sh`
 does): both devstack charts render a Keycloak Ingress at `keycloak.<global.ingress.host>` and
@@ -142,76 +141,35 @@ Both toggles use `admin` for the bind/config-admin passwords (see **Credentials*
 
 ### Optional: local Data Egress
 
-The commands below assume `dev-env-setup/` as the working directory — chart paths (`../charts/*`)
-are relative to it, matching `cluster-setup.sh`'s own layout.
-
 ```
 --set egress.enabled=true    # on THIS chart, so the Data-Egress realm import and
                              # egress-api-secret/egress-ui-secret render
 ```
 
-and, on `agent-stack`:
+and, in `dev-env-setup/files/argo/agent-app.yaml`'s `valuesObject`, set `egress.enabled: true`
+and `kubectl apply` the file — the local `egress.oidcAuthority` and `egress.keycloakDemoMode`
+overrides are already in place there. ArgoCD syncs the published `egress` chart from
+`harbor.ukserp.ac.uk/dare-trefx/chart` (registered in `dev-env-setup/files/argo/repo.yaml`).
 
-```
---set egress.enabled=true
---set egress.appEnabled=false
---set egress.oidcAuthority=http://keycloak.agent.localtest.me/realms/Data-Egress
---set egress.keycloakDemoMode=true
---set agent.api.keycloakDemoMode=true
-```
+The stack's `api.egress.*` wiring reaches the in-cluster `agent-api` only when `agent.enabled`
+is also `true` in the same `valuesObject`. An `Agent.Api` run from the host instead needs the
+matching `DataEgressKeyCloakSettings__*`/`ApiEndpoints__EgressApiUrl` keys in its own profile —
+the env names are in `charts/agent/templates/api/deployment.yaml`'s `api.egress` block.
 
-`egress.appEnabled=false` turns off only `agent-stack`'s `egress` ArgoCD `Application` — the
-`egress` chart is not published to Harbor, so nothing can sync it locally. `egress.enabled=true`
-still renders the `data-egress` `Database` and the `egress-*` `VaultSecret`s (or reads this
-chart's static Secrets directly if `vault.secretsEnabled=false`, same as the rest of this
-recipe) — but **not** the running `agent-api`'s own wiring: `agent-stack`'s `api.egress.*` block
-only reaches the (disabled) `egress` Application's `valuesObject`, never the actually-installed
-`agent` product release, because `agent-stack-local.yaml` sets `agent.enabled: false` (the
-direct-install pattern — see `dev-env-setup`'s own **Why the product charts are installed
-directly**). Wire the running `agent-api` on the same `helm upgrade agent` command
-`dev-env-setup` already runs (re-supplying its own `-f` file so nothing else in it resets):
+Both `egress.enabled` toggles must agree — `agent-stack`'s renders the `egress` `Application`,
+the `data-egress` `Database`, and the `egress-*` `VaultSecret`s (or reads this chart's static
+Secrets directly if `vault.secretsEnabled=false`, same as the rest of this recipe); this
+chart's renders the realm clients and matching static Secrets those need. Mismatched toggles
+fail differently depending on direction: this chart's `egress.enabled=false` with
+`agent-stack`'s `true` leaves `agent-api-secret.egressKeycloakClientSecret` at the inert
+`dev-egress-unused` placeholder (see **Credentials** above) — the ROPC call fails with a bad
+client secret, not an obviously missing object.
 
-```
-helm upgrade --install agent ../charts/agent -f files/values/agent-product-local.yaml \
-  --set api.egress.enabled=true \
-  --set api.egress.authority=http://keycloak.agent.localtest.me/realms/Data-Egress \
-  --set api.egress.apiUrl=http://egress-api --set api.keycloakDemoMode=true \
-  --kube-context kind-5s-tes
-```
-
-Install the egress PRODUCT itself directly from its working tree too, mirroring the same
-direct-install pattern:
-
-```
-helm upgrade --install egress /path/to/DARE-Control/charts/egress \
-  --namespace <this stack's namespace> -f files/values/egress-product-local.yaml \
-  --kube-context <cluster context>
-```
-
-`dev-env-setup/files/values/egress-product-local.yaml` reproduces the `helm.valuesObject`
-`agent-stack`'s (disabled) `egress` `Application` would have rendered, translated to local
-endpoints — see that file's own header comment for the exact fields, and for why it turns TLS on
-for just the egress ingress (`Data-Egress-UI`'s cookie handling needs it locally).
-
-The extra `egress.oidcAuthority` override is needed for the same reason as `global.oidc.authority`
-above: `agent-stack`'s own default is the production Data-Egress authority, which does not exist
-locally. Both toggles must agree — `agent-stack`'s `egress.enabled` renders the `data-egress`
-`Database` and the `egress-*` `VaultSecret`s (or reads this chart's static Secrets directly if
-`vault.secretsEnabled=false`, same as the rest of this recipe); this chart's `egress.enabled`
-renders the realm clients and matching static Secrets those need. Mismatched toggles fail
-differently depending on direction: this chart's `egress.enabled=false` with `agent-stack`'s
-`true` leaves `agent-api-secret.egressKeycloakClientSecret` at the inert `dev-egress-unused`
-placeholder (see **Credentials** above) — the ROPC call fails with a bad client secret, not an
-obviously missing object. This precondition is production-only: a production install (which
-leaves `egress.appEnabled` at its default `true`) still needs the egress chart
-(`harbor.ukserp.ac.uk/dare-trefx/chart/egress`) published to Harbor before turning
-`egress.enabled` on — see `agent-stack`'s own README **Egress** section. The local recipe above,
-with `egress.appEnabled=false`, never touches Harbor.
-
-`egress.keycloakDemoMode`/`agent.api.keycloakDemoMode` (both default `"false"`, production-safe)
-relax the outbound password-grant token helpers' discovery-endpoint check from HTTPS to HTTP
-(`KeycloakCommon.cs`'s `RequireHttps = !keycloakDemoMode`, both DARE-Control's and this repo's
-copy of that file) — required because `http://keycloak.agent.localtest.me` above is plain HTTP.
+`egress.keycloakDemoMode`/`agent.api.keycloakDemoMode` (chart defaults `"false"`,
+production-safe; both preset `"true"` in `agent-app.yaml`) relax the outbound password-grant
+token helpers' discovery-endpoint check from HTTPS to HTTP (`KeycloakCommon.cs`'s
+`RequireHttps = !keycloakDemoMode`, both DARE-Control's and this repo's copy of that file) —
+required because `http://keycloak.agent.localtest.me` is plain HTTP.
 `egress.keycloakDemoMode` covers the egress api's own outbound calls (to `Data-Egress`'s own
 discovery endpoint, and, via the same value, to `Dare-TRE` as `Dare-TRE-API` — DARE-Control
 `Data-Egress-API/Program.cs:69,77` sets both `TreKeyCloakSettings` and `DataEgressKeyCloakSettings`
@@ -233,8 +191,7 @@ backend**). A local GA4GH Funnel instance is an equally valid substitute if you 
 
 With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD are
 **not** required locally (nothing renders that needs them). The setup script
-(`dev-env-setup/`, not yet created in this repo) is expected to install, before both
-charts:
+(`dev-env-setup/cluster-setup.sh`) installs, before both charts:
 
 - ingress-nginx,
 - ArgoCD, watching `Application`s in `5s-tes-agent`, with a matching `AppProject`,

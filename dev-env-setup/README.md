@@ -1,9 +1,7 @@
 # dev-env-setup
 
 One-command kind bootstrap for both product families (Submission and Agent) on a single
-local cluster. Cloned from `Director-Airlock/dev-env-setup` (RWX provisioner patch, CoreDNS
-mechanism, idempotent re-run structure) with `SERP-Provisioning/dev-env-setup`'s operator
-install steps as a secondary reference.
+local cluster.
 
 ```
 ./cluster-setup.sh
@@ -12,7 +10,9 @@ install steps as a secondary reference.
 Re-running it is safe: an existing `5s-tes` kind cluster is reused, and every step after
 cluster creation - operator/ArgoCD installs included - is a `helm upgrade --install` or
 `kubectl apply`, so it resumes correctly even if a previous run stopped right after
-`kind create cluster`. Only reach for `./clean-up.sh` (deletes the cluster and the saved
+`kind create cluster`. A re-run does reset any `--set` toggle you added by hand to a
+devstack install (e.g. `openldap.enabled`, `egress.enabled`) - re-apply those afterwards.
+Only reach for `./clean-up.sh` (deletes the cluster and the saved
 Vault keys) if the kind cluster itself looks broken rather than just mid-install.
 
 ## What it does
@@ -23,26 +23,22 @@ Vault keys) if the kind cluster itself looks broken rather than just mid-install
    `ReadWriteMany` claims (single-node only - see the script's comment and the linked kind
    issue). This is why both product charts' RWX defaults
    (`submission.dataProtection.accessModes`, `agent.processModels.accessModes`) are left at
-   `[ReadWriteMany]` in the local values files instead of overridden to `ReadWriteOnce`.
+   `[ReadWriteMany]` locally instead of overridden to `ReadWriteOnce`.
 3. Installs ingress-nginx.
 4. Rewrites CoreDNS so `*.localtest.me` resolves in-cluster to the ingress controller
    (`files/deps/coredns.yaml`) - otherwise every pod's own loopback answers first, since
    `*.localtest.me` is a wildcard to `127.0.0.1`.
 5. Installs cert-manager (+ self-signed `ClusterIssuer` `ca-issuer`), the CloudNativePG
    operator, the RabbitMQ Cluster Operator, and ArgoCD.
-6. Builds the five app images (`submission-api`, `submission-ui`, `agent-api`, `agent-ui`,
-   `credentials-camunda`) from this working tree, loads them into kind, and rolls out any
-   product Deployment that already exists (a rebuild keeps the `:local` tag, so only an
-   explicit rollout picks up the new image) - nothing is published to Harbor yet (see
-   **Why the product charts are installed directly**).
-7. Installs, in order: `submission-devstack` → `submission-stack` → `agent-devstack` →
-   `agent-stack`, each from its local chart directory with its `files/values/*-local.yaml`.
-8. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.
-9. Waits for every ArgoCD Application, the CNPG `postgres` Cluster, and the `rabbitmq`
-   RabbitmqCluster to be healthy in both namespaces.
-10. Installs `submission` and `agent` (the standalone product charts) directly, and waits for
-    their Deployments.
-11. Prints a URL summary.
+6. Creates both family namespaces, installs each family's devstack from the working tree
+   (devstacks are never published; `--set global.ingress.host=<family>.localtest.me`),
+   then applies
+   `files/argo/submission-app.yaml`/`agent-app.yaml` — the two stack Applications (see
+   **Stack Applications** below).
+7. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.
+8. Waits for every ArgoCD Application, the CNPG `postgres` Cluster, and the `rabbitmq`
+   RabbitmqCluster to be healthy, then for every Deployment in both namespaces.
+9. Prints a URL summary.
 
 ## Why both families use a per-family ingress host suffix, not `localtest.me` directly
 
@@ -66,56 +62,23 @@ exactly this. Running only one family locally still works with the plain `localt
 from the README recipes; the split host is only needed once both run together, which is what
 this bootstrap does by default. Both devstack READMEs' "Local install" sections now note this.
 
-## Why the product charts are installed directly, not through ArgoCD
+## Stack Applications
 
-`submission-stack`/`agent-stack`'s own `templates/submission.yaml`/`agent.yaml` render an
-ArgoCD `Application` pointing at `harbor.federated-analytics.ac.uk/5s-tes/chart` (a literal in
-the template, not a value, per this repo's convention that only `targetRevision` is
-surfaced as a value for the org's own chart releases) with `chart: submission`/`agent`. No
-version has ever been published there (the publish workflow exists; it has not been
-run), and the two clone sources' pattern of pulling PR-tagged builds from a real Harbor
-doesn't apply here - there's nothing to pull yet.
+`files/argo/submission-app.yaml` and `agent-app.yaml` deploy the published
+`submission-stack`/`agent-stack` charts from `harbor.federated-analytics.ac.uk/5s-tes/chart`,
+with every local override inline in each Application's `helm.valuesObject`. `targetRevision`
+pins the chart version: a `0.0.0-pr.<number>` build while the branch's PR is open, the
+released version after merge. `files/argo/repo.yaml` registers the OCI chart repos ArgoCD
+pulls from.
 
-Rather than stand up a throwaway OCI registry and redirect that hardcoded hostname to it
-(more moving parts, and still not "installed from the local paths" per the task brief), this
-bootstrap sets `submission.enabled: false`/`agent.enabled: false` in the *-stack-local.yaml
-values (a local-only override of an existing, genuinely deployment-specific toggle - never a
-chart default change) so that inner `Application` never renders, and instead directly runs
-`helm upgrade --install submission ../charts/submission -f files/values/submission-product-local.yaml`
-(and the same for `agent`). `files/values/*-product-local.yaml` reproduce exactly the
-`helm.valuesObject` the disabled `Application` would have rendered, for this bootstrap's
-local settings - kept in sync by hand against `templates/submission.yaml`/`agent.yaml` since
-there are only two of them.
+The product apps (`submission.enabled`/`agent.enabled`) are `false` in both `valuesObject`s:
+devs run the apps from the IDE against the in-cluster dependencies (root README, "Running
+apps from VS Code against kind"). To run a product in-cluster instead, set `enabled: true`
+with a published `chartVersion`/`imageVersion` in the same file and `kubectl apply` it.
 
-The full stack still runs by default locally, just orchestrated by plain `helm install`
-against the working tree instead of ArgoCD-via-Harbor. Once a first `submission`/`agent`
-chart release lands in Harbor, `submission.enabled`/`agent.enabled` can flip back to `true`
-and this bootstrap can drop its two `*-product-local.yaml` files and direct `helm install`
-steps.
-
-A seventh values file, `files/values/egress-product-local.yaml`, follows the same
-`*-product-local.yaml` pattern for the optional `egress` product (DARE-Control's own repo,
-`charts/egress`) — but it is not run by this script. Egress is off by default; enabling it is
-a manual step (`agent-devstack`'s README **Optional: local Data Egress**), because it is never
-published to Harbor either and needs the same `egress.appEnabled=false` +
-direct-`helm install` treatment as `submission`/`agent` above.
-
-### Local images
-
-Nothing is published to Harbor for the five C# components. The script builds all five from
-this working tree (`docker build`, native platform - Apple Silicon builds arm64) and
-`kind load docker-image`s them, tagged `5s-tes/<component>:local`; the product
-values files point each component's `image.repository`/`image.tag` at these instead of the
-chart's own Harbor default, with `pullPolicy: IfNotPresent` (already the chart default) so
-nothing tries to reach Harbor. Rebuilding is cheap on a re-run (Docker layer cache); a code
-change needs `./cluster-setup.sh` run again to rebuild and reload.
-
-**Known limitation, not fixed here**: `Submission.Api/Dockerfile` and
-`Credentials.Camunda/Dockerfile` `wget` a hardcoded `linux-amd64` `mc` (MinIO client) binary
-into their final image regardless of target platform. Built natively on Apple Silicon, the
-resulting image is `arm64` with an `amd64` `mc` binary that cannot execute. This only affects
-code paths that shell out to `mc` (S3 user/policy provisioning); it does not stop the pods
-from starting.
+The optional egress product follows the same pattern (`egress.enabled` in `agent-app.yaml`,
+plus `--set egress.enabled=true` on the `agent-devstack` install) — see
+`charts/agent-devstack/README.md` **Optional: local Data Egress**.
 
 ## Vault
 
@@ -167,8 +130,8 @@ from VS Code are documented in the root README's "Running apps from VS Code agai
   dev default (a broken loopback address once in-cluster) per both devstack READMEs' own
   guidance - use `director-wfs.sh` for local TES testing, not `tesk.enabled`.
 - **OpenLDAP** (Agent): off by default; the Credentials Camunda worker's LDAP bind fails
-  until `openldap.enabled=true` is set on both `agent-devstack-local.yaml` and
-  `agent-stack-local.yaml` (see `agent-devstack`'s README).
+  until `openldap.enabled=true` is set on both the `agent-devstack` install and
+  `agent-app.yaml`'s `valuesObject` (see `agent-devstack`'s README).
 - **RWX and single-node only**: the provisioner patch in step 2 is documented as single-node
   only by kind itself; it is not a fix for a real multi-node RWX requirement.
 - **Known platform limitation (Docker Desktop for Mac)**: despite `listenAddress: "127.0.0.1"`

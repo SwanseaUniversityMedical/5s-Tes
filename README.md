@@ -99,7 +99,7 @@ Select the profile with `ASPNETCORE_ENVIRONMENT=Development_Kind`; give each app
 |---|---|---|
 | `Submission/Submission.Api` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:7163 dotnet run --no-launch-profile` | submission Postgres/RabbitMQ/RustFS/Seq/Vault (dev-access NodePorts), Keycloak `http://keycloak.submission.localtest.me/realms/Dare-Control` |
 | `Submission/Submission.Web` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5179 dotnet run --no-launch-profile` | the Submission.Api above (`http://localhost:7163`), same Keycloak realm |
-| `Agent/Agent.Api` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5269 dotnet run --no-launch-profile` | agent Postgres/RabbitMQ/RustFS/Seq/Vault/Zeebe (dev-access NodePorts), Keycloak `http://keycloak.agent.localtest.me/realms/Dare-TRE`, in-cluster Submission API/Keycloak via ingress |
+| `Agent/Agent.Api` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5269 dotnet run --no-launch-profile` | agent Postgres/RabbitMQ/RustFS/Seq/Vault/Zeebe (dev-access NodePorts), Keycloak `http://keycloak.agent.localtest.me/realms/Dare-TRE`, the host-run Submission.Api (`http://localhost:7163`), Submission Keycloak via ingress |
 | `Agent/Agent.Web` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:5233 dotnet run --no-launch-profile` | the Agent.Api above (`http://localhost:5269`), agent Keycloak |
 | `Credentials/Credentials.Camunda` | `ASPNETCORE_ENVIRONMENT=Development_Kind ASPNETCORE_URLS=http://localhost:65170 dotnet run --no-launch-profile` | agent Zeebe/LDAP/Vault/Postgres (dev-access NodePorts) |
 
@@ -117,41 +117,21 @@ metadata by relative resolution against it); Agent's `Authority`/`MetadataAddres
 `.well-known` URL — both shapes copied from the charts' own templates
 (`charts/submission/templates/api/deployment.yaml`, `charts/agent/templates/api/deployment.yaml`).
 
-### Avoiding double consumers: turn off the in-cluster copy first
+### Avoiding double consumers: keep the in-cluster copy off
 
 Running an app from the host while its in-cluster copy is also running means two processes
-sharing one RabbitMQ queue, one Hangfire schema, or one Zeebe job type — `helm upgrade` the
-family's product release (`submission` / `agent`, the direct helm installs named in
-`dev-env-setup/cluster-setup.sh`) with the component turned off, re-supplying its own
-`-f` values file so nothing else in it is reset:
+sharing one RabbitMQ queue, one Hangfire schema, or one Zeebe job type. The local env avoids
+this by default: `dev-env-setup/files/argo/submission-app.yaml`/`agent-app.yaml` set
+`submission.enabled: false`/`agent.enabled: false` in each stack Application's `valuesObject`,
+so no product runs in-cluster. If you turned a product on there, set it back to `false` in the
+same file and `kubectl apply` it before running that family's apps from the host.
 
-```bash
-cd dev-env-setup
-
-# Before running Submission.Api and/or Submission.Web from the host:
-helm upgrade submission ../charts/submission --namespace 5s-tes-submission \
-  -f files/values/submission-product-local.yaml \
-  --set api.enabled=false --set ui.enabled=false --kube-context kind-5s-tes
-
-# Before running Agent.Api from the host:
-helm upgrade agent ../charts/agent --namespace 5s-tes-agent \
-  -f files/values/agent-product-local.yaml \
-  --set api.enabled=false --kube-context kind-5s-tes
-
-# Restore afterwards (drop the --set flags, keep the same -f file):
-helm upgrade submission ../charts/submission --namespace 5s-tes-submission \
-  -f files/values/submission-product-local.yaml --kube-context kind-5s-tes
-helm upgrade agent ../charts/agent --namespace 5s-tes-agent \
-  -f files/values/agent-product-local.yaml --kube-context kind-5s-tes
-```
-
-`Credentials.Camunda` needs no component-off step for its own dev-access dependencies
+`Credentials.Camunda` needs no such step for its own dev-access dependencies
 (Keycloak/Zeebe/LDAP/Vault/Postgres are shared read/connect targets, not single-consumer
-queues); its LDAP path additionally needs
-`openldap.enabled=true` set on **both** `agent-devstack` and `agent-stack` (own `-f` file +
-`--set openldap.enabled=true` on each, same pattern as above) — see `charts/agent-devstack/README.md`
-"Optional: local OpenLDAP". Revert with the same `--set openldap.enabled=false` (or drop the flag)
-afterwards.
+queues); its LDAP path additionally needs `openldap.enabled=true` set on **both**
+`agent-devstack` (`--set` on its helm install) and the `agent-stack` Application
+(`openldap.enabled: true` in `agent-app.yaml`'s `valuesObject`) — see
+`charts/agent-devstack/README.md` "Optional: local OpenLDAP". Revert both afterwards.
 
 [5s-tes-logo]: https://raw.githubusercontent.com/federated-research/docs/refs/heads/main/website/public/logos/five-safes-tes/five_safes_tes_primary.svg
 [5s-tes-docs]: https://docs.federated-analytics.ac.uk/five_safes_tes
