@@ -30,6 +30,7 @@ namespace Credentials.Camunda.ProcessHandlers
             string? submissionId = null;
             long? parentProcessKey = null;
             long processInstanceKey = job.ProcessInstanceKey;
+            string connectionTag = "postgres"; 
 
             try
             {
@@ -40,6 +41,7 @@ namespace Credentials.Camunda.ProcessHandlers
 
                 if (extraction.EnvList?.FirstOrDefault() == null)
                 {
+                    connectionTag = extraction.EnvList.FirstOrDefault()?.tag ?? "postgres";
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
                         "No credential information found in envList");
                     return CreateStatusResponse("ERROR: Missing credentials, cannot proceed.");
@@ -69,13 +71,17 @@ namespace Credentials.Camunda.ProcessHandlers
                     string.IsNullOrEmpty(server) || string.IsNullOrEmpty(port) ||
                     string.IsNullOrEmpty(extraction.User) || string.IsNullOrEmpty(extraction.Project))
                 {
-                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, connectionTag,
                         "Missing credentials; cannot proceed with Postgres user creation.");
                     return CreateStatusResponse("ERROR: Missing credentials, cannot proceed.");
                 }
 
+                string? rawPermissions = extraction.EnvList.FirstOrDefault(x => x.env.Equals("postgresPermissions", StringComparison.OrdinalIgnoreCase))?.value?.ToString();
+
                 // Generate password
                 var password = GenerateSecurePassword();
+
+                var permissions = CreatePermissions(rawPermissions, connectionTag);
 
                 // Create schema permissions for PostgreSQL
                 var schemaPermissions = new List<SchemaPermission>
@@ -83,7 +89,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     new SchemaPermission
                     {
                         SchemaName = schemaName,
-                        Permissions = DatabasePermissions.Read | DatabasePermissions.Write | DatabasePermissions.CreateTables
+                        Permissions = permissions
                     }
                 };
 
@@ -102,7 +108,7 @@ namespace Credentials.Camunda.ProcessHandlers
                 var result = await _postgreSQLUserManagementService.CreateUserAsync(createUserRequest);
                 if (!result.Success)
                 {
-                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres",
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, connectionTag,
                         $"Failed to create PostgreSQL user: {result.ErrorMessage}");
                     return CreateStatusResponse("ERROR: Failed credential creation");
                 }
@@ -111,12 +117,12 @@ namespace Credentials.Camunda.ProcessHandlers
                 var credentialData = BuildCredentialData(extraction.EnvList, password);
 
                 // Store in vault
-                string vaultPath = $"postgres/{extraction.User}/{submissionId}/{extraction.Project}";
-                if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, credentialData, "postgres"))
+                string vaultPath = $"{connectionTag}/{extraction.User}/{submissionId}/{extraction.Project}";
+                if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, credentialData, connectionTag))
                     return CreateStatusResponse("ERROR: Credential store in vault failed");
 
                 // Record success
-                await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, "postgres");
+                await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey, processInstanceKey, vaultPath, connectionTag);
 
                 _logger.LogInformation("Successfully created PostgreSQL user: {Username} for project: {Project}",
                     username, extraction.Project);
@@ -139,6 +145,33 @@ namespace Credentials.Camunda.ProcessHandlers
                 if (sw.IsRunning) sw.Stop();
                 _logger.LogInformation("CreatePostgresUserHandler took {Seconds} seconds", sw.Elapsed.TotalSeconds);
             }
+        }
+
+        private DatabasePermissions CreatePermissions(string rawPermissions, string connectionTag) 
+        {
+            DatabasePermissions permissions = DatabasePermissions.Read;
+
+            if (!string.IsNullOrWhiteSpace(rawPermissions))
+            {
+                var parsedPermissions = DatabasePermissions.None;
+                foreach (var part in rawPermissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
+                {
+                    if (Enum.TryParse<DatabasePermissions>(part, ignoreCase: true, out var parsedFlag))
+                    {
+                        parsedPermissions |= parsedFlag;
+                    }
+                    else
+                    {
+                        _logger.LogWarning("Unrecognised postgres permission '{Permission}' for tag {Tag}, ignoring", part, connectionTag);
+                    }
+                }
+                if (parsedPermissions != DatabasePermissions.None)
+                {
+                    permissions = parsedPermissions;
+                }
+            }
+
+            return permissions;
         }
     }
 }
