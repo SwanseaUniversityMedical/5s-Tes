@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
@@ -327,7 +327,7 @@ namespace Submission.Web.Controllers
             var result =
                 await _clientHelper.CallAPI<ProjectUser, ProjectUser?>("/api/Project/RemoveUserMembership", model);
             TempData["success"] = "User Remove Successfully";
-            return RedirectToAction("GetProject", new { id = projectId });
+            return new RedirectResult(Url.Action("GetProject", new { id = projectId }) + "#people");
         }
 
         [HttpGet]
@@ -347,7 +347,7 @@ namespace Submission.Web.Controllers
             var result =
                 await _clientHelper.CallAPI<ProjectTre, ProjectTre?>("/api/Project/RemoveTreMembership", model);
             TempData["success"] = "Tre Remove Successfully";
-            return RedirectToAction("GetProject", new { id = projectId });
+            return new RedirectResult(Url.Action("GetProject", new { id = projectId }) + "#tre");
         }
 
         [HttpPost]

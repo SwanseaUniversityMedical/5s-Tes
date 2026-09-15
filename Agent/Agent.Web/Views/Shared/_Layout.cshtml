@@ -1,4 +1,4 @@
-﻿@using Agent.Web.Models
+@using Agent.Web.Models
 @using Microsoft.Extensions.Configuration;
 @inject IConfiguration Configuration
 @inject UIName UIName
@@ -53,6 +53,9 @@
                         <li class="nav-item">
                             <a class="nav-link text-dark" asp-area="" asp-controller="Dmn" asp-action="Index">DMN Rules</a>
                         </li>
+                        <li class="nav-item">
+                            <a class="nav-link text-dark" asp-area="" asp-controller="DeploymentAdmin" asp-action="Index">Deployment Admin</a>
+                        </li>
                         <li class="mobile-account-nav">
                             <hr class="mobile-account-nav dropdown-divider" />
                         </li>
@@ -76,7 +79,7 @@
                             <li><hr class="dropdown-divider"></li>
                             @if (@User?.FindFirst("name")?.Value == null)
                             {
-                                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Logout">Login</a></li>
+                                <li><a class="dropdown-item" asp-area="" asp-controller="Home" asp-action="Login">Login</a></li>
                             }
                             else
                             {
@@ -149,6 +152,10 @@
             ]
         });
         new DataTable('#memberList');
+        new DataTable('#statusTable', {
+            order: [[3, 'desc']],
+            columnDefs: [{ orderable: false, targets: 4 }]
+        });
         $('#launch-button').on('click', function () {
 
             $('#welcomeModal').modal('show');

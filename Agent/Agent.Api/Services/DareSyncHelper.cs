@@ -1,4 +1,4 @@
-﻿using System.Text;
+using System.Text;
 using Agent.Api.Repositories.DbContexts;
 using Credentials.Models.DbContexts;
 using FiveSafesTes.Core.Models;
@@ -25,7 +25,9 @@ namespace Agent.Api.Services
 
         private readonly IFeatureManager _features;
 
-        public DareSyncHelper(ApplicationDbContext dbContext, IDareClientWithoutTokenHelper dareClient,  IMinioTreHelper minioTreHelper, CredentialsDbContext credentialsDbContext, IHttpClientFactory httpClientFactory, IConfiguration config, IFeatureManager features)
+        private readonly IProjectS3AccessKeySyncService _projectS3AccessKeySyncService;
+
+        public DareSyncHelper(ApplicationDbContext dbContext, IDareClientWithoutTokenHelper dareClient,  IMinioTreHelper minioTreHelper, CredentialsDbContext credentialsDbContext, IHttpClientFactory httpClientFactory, IConfiguration config, IFeatureManager features, IProjectS3AccessKeySyncService projectS3AccessKeySyncService)
         {
             _DbContext = dbContext;
             _dareclientHelper = dareClient;
@@ -39,6 +41,8 @@ namespace Agent.Api.Services
             _features = features;
 
             _config = config;
+
+            _projectS3AccessKeySyncService = projectS3AccessKeySyncService;
         }
 
         public async Task<BoolReturn> SyncSubmissionWithTre()
@@ -94,6 +98,13 @@ namespace Agent.Api.Services
 
             foreach (var treProject in projectArchives)
             {
+                // Stamp the archive time only on transition into archived so the original timestamp
+                // is preserved across repeated syncs (used as a fallback anchor for bucket cleanup).
+                if (!treProject.Archived)
+                {
+                    treProject.ArchivedOn = DateTime.UtcNow;
+                }
+
                 treProject.Archived = true;
                 foreach (var treProjectMemberDecision in treProject.MemberDecisions)
                 {
@@ -104,6 +115,18 @@ namespace Agent.Api.Services
             foreach (var projectUnarchive in projectUnarchives)
             {
                 projectUnarchive.Archived = false;
+                projectUnarchive.ArchivedOn = null;
+            }
+
+            // Keep the expiry date in step with the Submission layer's EndDate on every sync
+            // (it is otherwise only set at insert), so the bucket-cleanup grace window is accurate.
+            foreach (var treProject in dbprojs)
+            {
+                var subProject = subprojs.FirstOrDefault(y => y.Id == treProject.SubmissionProjectId);
+                if (subProject != null)
+                {
+                    treProject.ProjectExpiryDate = subProject.EndDate;
+                }
             }
 
             await _DbContext.SaveChangesAsync();
@@ -210,6 +233,15 @@ namespace Agent.Api.Services
 
                 Log.Error(ex.ToString());
             }
+
+            try
+            {
+                await SyncProjectS3AccessKeys(subprojs);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Failed to sync project S3 access keys", "SyncSubmissionWithTre");
+            }
        
 
             return new BoolReturn()
@@ -246,6 +278,13 @@ namespace Agent.Api.Services
 
             return result.Result;
 
+        }
+
+        private async Task SyncProjectS3AccessKeys(List<Project> subprojs)
+        {
+            // Each sync handles its own errors and returns null on failure, so it is safe to fan out.
+            await Task.WhenAll(
+                subprojs.Select(project => _projectS3AccessKeySyncService.SyncProjectAccessKeyAsync(project.Id)));
         }
 
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId)

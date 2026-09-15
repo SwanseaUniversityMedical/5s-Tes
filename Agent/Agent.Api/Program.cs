@@ -1,4 +1,17 @@
+using System.Net;
+using System.Reflection;
+using Agent.Api;
+using Agent.Api.Constants;
+using Agent.Api.Models;
+using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Services;
+using Credentials.Models.DbContexts;
 using EasyNetQ;
+using FiveSafesTes.Core.Extensions;
+using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Rabbit;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Hangfire.Dashboard;
 using Hangfire.Dashboard.BasicAuthorization;
@@ -14,20 +27,11 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using Newtonsoft.Json;
 using Serilog;
-using System.Net;
-using Zeebe.Client.Accelerator.Extensions;
-using System.Reflection;
-using Agent.Api;
-using Agent.Api.Constants;
-using Agent.Api.Models;
-using Agent.Api.Repositories.DbContexts;
-using Agent.Api.Services;
-using Credentials.Models.DbContexts;
-using FiveSafesTes.Core.Models.Settings;
-using FiveSafesTes.Core.Models.ViewModels;
-using FiveSafesTes.Core.Rabbit;
-using FiveSafesTes.Core.Services;
 using Serilog.Events;
+using VaultSharp;
+using VaultSharp.V1.AuthMethods;
+using VaultSharp.V1.AuthMethods.Token;
+using Zeebe.Client.Accelerator.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -81,28 +85,31 @@ AddVaultServices(builder, configuration);
 
 builder.Services.Configure<RabbitMQSetting>(configuration.GetSection("RabbitMQ"));
 builder.Services.AddTransient(cfg => cfg.GetService<IOptions<RabbitMQSetting>>().Value);
+
+var rabbitSettings = configuration.GetSection("RabbitMQ").Get<RabbitMQSetting>();
+var sslPart = rabbitSettings.UseSsl ? $";ssl=true;sslserverName={configuration["RabbitMQ:HostAddress"]}" : "";
+
 var bus =
     builder.Services.AddSingleton(RabbitHutch.CreateBus(
-        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}"));
+        $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}{sslPart}"));
 await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"],
     configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
 
-var treKeyCloakSettings = new TreKeyCloakSettings();
-configuration.Bind(nameof(treKeyCloakSettings), treKeyCloakSettings);
-var keycloakDemomode = configuration["KeycloakDemoMode"].ToLower() == "true";
-treKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(treKeyCloakSettings);
+builder.Services.AddKeycloakSettings<TreKeyCloakSettings>(
+  configuration, "TreKeyCloakSettings");
+var treKeyCloakSettings = configuration
+  .GetSection("TreKeyCloakSettings")
+  .Get<TreKeyCloakSettings>()!;
 
-var dataEgressKeyCloakSettings = new DataEgressKeyCloakSettings();
-configuration.Bind(nameof(dataEgressKeyCloakSettings), dataEgressKeyCloakSettings);
-dataEgressKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(dataEgressKeyCloakSettings);
+treKeyCloakSettings.KeycloakDemoMode =
+  configuration.GetValue<bool>("KeycloakDemoMode");
+builder.Services.AddKeycloakSettings<DataEgressKeyCloakSettings>(
+  configuration, "DataEgressKeyCloakSettings");
 
-var submissionKeyCloakSettings = new SubmissionKeyCloakSettings();
-configuration.Bind(nameof(submissionKeyCloakSettings), submissionKeyCloakSettings);
-submissionKeyCloakSettings.KeycloakDemoMode = keycloakDemomode;
-builder.Services.AddSingleton(submissionKeyCloakSettings);
-
+builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(
+  configuration, "SubmissionKeyCloakSettings");
+builder.Services.Configure<ApiEndpointSettings>(
+  builder.Configuration.GetSection("ApiEndpoints"));
 var HasuraSettings = new HasuraSettings();
 configuration.Bind(nameof(HasuraSettings), HasuraSettings);
 builder.Services.AddSingleton(HasuraSettings);
@@ -135,6 +142,11 @@ var AgentSettings = new AgentSettings();
 configuration.Bind(nameof(AgentSettings), AgentSettings);
 builder.Services.AddSingleton(AgentSettings);
 
+//For hangfire
+var jobSettings = new JobSettings();
+configuration.Bind(nameof(JobSettings), jobSettings);
+builder.Services.AddSingleton(jobSettings);
+
 builder.Services.AddFeatureManagement(
     builder.Configuration.GetSection("Features"));
 
@@ -145,8 +157,14 @@ builder.Services.AddHostedService<ConsumeInternalMessageService>();
 builder.Services.AddScoped<IDareClientWithoutTokenHelper, DareClientWithoutTokenHelper>();
 builder.Services.AddScoped<IDataEgressClientWithoutTokenHelper, DataEgressClientWithoutTokenHelper>();
 
+builder.Services.AddSingleton(new AutomaticRetryAttribute());
+
 string hangfireConnectionString = builder.Configuration.GetConnectionString("DefaultConnection");
-builder.Services.AddHangfire(config => { config.UsePostgreSqlStorage(hangfireConnectionString); });
+builder.Services.AddHangfire((provider, config) => 
+{ 
+    config.UsePostgreSqlStorage(hangfireConnectionString);
+    config.UseFilter(provider.GetRequiredService<AutomaticRetryAttribute>());
+});
 
 builder.Services.AddHangfireServer();
 var encryptionSettings = new EncryptionSettings();
@@ -160,9 +178,14 @@ builder.Services.AddScoped<IDareSyncHelper, DareSyncHelper>();
 builder.Services.AddScoped<ISubmissionHelper, SubmissionHelper>();
 builder.Services.AddScoped<IDoSyncWork, DoSyncWork>();
 builder.Services.AddScoped<IDoAgentWork, DoAgentWork>();
+builder.Services.AddScoped<IDoHealthCheckWork, DoHealthCheckWork>();
+builder.Services.AddScoped<IDoBucketCleanupWork, DoBucketCleanupWork>();
 builder.Services.AddScoped<IHasuraService, HasuraService>();
 builder.Services.AddScoped<IHasuraAuthenticationService, HasuraAuthenticationService>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
+builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
+builder.Services.AddScoped<IOnboardingService, OnboardingService>();
+builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
 
 var TVP = new TokenValidationParameters
 {
@@ -216,7 +239,7 @@ builder.Services.AddAuthentication(options =>
         options.MetadataAddress = treKeyCloakSettings.MetadataAddress;
 
         options.RequireHttpsMetadata = treKeyCloakSettings.RequireHttpsMetadata; 
-        options.IncludeErrorDetails = true;
+        options.IncludeErrorDetails = environment.IsDevelopment();
 
         options.TokenValidationParameters = TVP;
     });
@@ -227,22 +250,6 @@ Log.Information(
     treKeyCloakSettings.ValidAudiences);
 // - authorize here
 
-
-// Enable CORS
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-builder.Services.AddCors(options =>
-{
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-        policy =>
-        {
-            policy.WithOrigins(
-                    configuration["TreAPISettings:Address"]
-                )
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        });
-});
 
 var app = builder.Build();
 app.UseForwardedHeaders(new ForwardedHeadersOptions
@@ -272,28 +279,51 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
-    //app.UseHsts();
+    app.UseHsts();
 }
 
 
+var submissionKeycloakSettings = app.Services
+  .GetRequiredService<IOptions<SubmissionKeyCloakSettings>>();
+var egressKeycloakSettings = app.Services
+  .GetRequiredService<IOptions<DataEgressKeyCloakSettings>>();
 using (var scope = app.Services.CreateScope())
 {
     var db = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
     var credDb = scope.ServiceProvider.GetRequiredService<CredentialsDbContext>();
     var encDec = scope.ServiceProvider.GetRequiredService<IEncDecHelper>();
+    var configService = scope.ServiceProvider.GetRequiredService<IConfigurationService>();
+
     IFeatureManager featureManager = app.Services.GetRequiredService<IFeatureManager>();
+
+    var options = app.Services.GetRequiredService<IOptions<VaultSettings>>().Value;
+    IAuthMethodInfo authMethod = new TokenAuthMethodInfo(options.Token);
+    var vaultClientSettings = new VaultClientSettings(options.BaseUrl, authMethod);
+    IVaultClient vaultClient = new VaultClient(vaultClientSettings);
+
+    configuration.AddVault(vaultClient, scope.ServiceProvider, options.VaultConfigPath, options.SecretEngine, TimeSpan.FromMinutes(options.VaultConfigReloadInterval));
+
     db.Database.Migrate();
-    var initialiser = new DataInitaliser(db, encDec);
+    var initialiser = new DataInitaliser(db, encDec, submissionKeycloakSettings, egressKeycloakSettings, configService, configuration);
     if (await featureManager.IsEnabledAsync(FeatureFlags.SeedDemoData))
     {
         Log.Information("Demo mode is on, seeding data...");
-        initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
+        await initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
 }
 
 
-//app.UseHttpsRedirection();
+var httpsRedirect = configuration["httpsRedirect"];
+if (httpsRedirect != null && httpsRedirect.ToLower() == "true")
+{
+    Log.Information("Turning on https Redirect");
+    app.UseHttpsRedirection();
+}
+else
+{
+    Log.Information("Https redirect disabled. Http only");
+}
 app.UseStaticFiles();
 app.UseRouting();
 //app.UseCookiePolicy(new CookiePolicyOptions
@@ -301,7 +331,6 @@ app.UseRouting();
 //    Secure = CookieSecurePolicy.Always
 //});
 
-app.UseCors(MyAllowSpecificOrigins);
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllerRoute(
@@ -334,6 +363,8 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
 
     builder.Services.AddScoped<IMinioTreHelper, MinioTreHelper>();
     builder.Services.AddScoped<IMinioSubHelper, MinioSubHelper>();
+    builder.Services.AddScoped<IProjectS3AccessKeySyncService, ProjectS3AccessKeySyncService>();
+    builder.Services.AddScoped<IProjectS3SubHelperFactory, ProjectS3SubHelperFactory>();
     builder.Services.AddMvc().AddControllersAsServices();
 }
 
@@ -342,6 +373,8 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
     //Configure Vault settings
     builder.Services.Configure<VaultSettings>(
         configuration.GetSection("VaultSettings"));
+
+    builder.Services.Configure<TreOnboardingConfig>(configuration.GetSection("TreOnboardingConfig"));
 
     // Register HttpClient for Vault service
     builder.Services.AddHttpClient<IVaultCredentialsService, VaultCredentialsService>((sp, client) =>
@@ -406,17 +439,10 @@ void AddServices(WebApplicationBuilder builder)
     }
 }
 
-//Hangfire
-var jobSettings = new JobSettings();
-configuration.Bind(nameof(JobSettings), jobSettings);
-var extHangfire = configuration["Hangfire:EnableExternalHangfire"];
-if (extHangfire != null && extHangfire.ToLower() == "true")
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        Authorization = new List<IDashboardAuthorizationFilter>()
+    Authorization = new List<IDashboardAuthorizationFilter>()
         {
-            //new LocalRequestsOnlyAuthorizationFilter(),
             new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
             {
                 RequireSsl = false,
@@ -431,23 +457,22 @@ if (extHangfire != null && extHangfire.ToLower() == "true")
                     },
                 },
             }),
-        },
-        //IsReadOnlyFunc = (DashboardContext context) => true,
-    });
-}
+        }
+});
+
+string healthCheckJobName = jobSettings.HealthCheckJobName;
+if (jobSettings.healthCheckSchedule == 0)
+    RecurringJob.RemoveIfExists(healthCheckJobName);
 else
-{
-    app.UseHangfireDashboard();
-}
+    RecurringJob.AddOrUpdate<IDoHealthCheckWork>(healthCheckJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.healthCheckSchedule));
 
-
-const string syncJobName = "Sync Projects and Membership";
+string syncJobName = jobSettings.SyncJobName;
 if (jobSettings.syncSchedule == 0)
     RecurringJob.RemoveIfExists(syncJobName);
 else
     RecurringJob.AddOrUpdate<IDoSyncWork>(syncJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.syncSchedule));
 
-const string scanJobName = "Sync Submissions";
+string scanJobName = jobSettings.ScanJobName;
 
 if (jobSettings.scanSchedule == 0)
     RecurringJob.RemoveIfExists(scanJobName);
@@ -455,6 +480,14 @@ else
     RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName,
         x => x.Execute(),
         Cron.MinuteInterval(jobSettings.scanSchedule));
+
+string bucketCleanupJobName = jobSettings.BucketCleanupJobName;
+if (jobSettings.bucketCleanupSchedule <= 0)
+    RecurringJob.RemoveIfExists(bucketCleanupJobName);
+else
+    RecurringJob.AddOrUpdate<IDoBucketCleanupWork>(bucketCleanupJobName,
+        x => x.Execute(),
+        Cron.Daily(Math.Clamp(jobSettings.bucketCleanupSchedule, 1, 23)));
 
 
 if (HasuraSettings.IsEnabled)

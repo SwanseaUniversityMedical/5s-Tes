@@ -1,4 +1,4 @@
-﻿using Serilog;
+using Serilog;
 using System.Reflection;
 using Credentials.Models.Services;
 using FiveSafesTes.Core.Models;
@@ -45,9 +45,6 @@ namespace Credentials.Camunda.Services
 
         public async Task DeployProcessDefinitionAndDecisionModels()
         {
-
-
-
             /* Testing connection */
             var gatewayAddress = _configuration["ZeebeBootstrap:Client:GatewayAddress"];
 

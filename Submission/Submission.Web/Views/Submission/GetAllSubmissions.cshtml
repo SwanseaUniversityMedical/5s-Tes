@@ -1,4 +1,4 @@
-﻿@using FiveSafesTes.Core.Models.Enums
+@using FiveSafesTes.Core.Models.Enums
 @using FiveSafesTes.Core.Models.Helpers
 @model List<FiveSafesTes.Core.Models.Submission.SubmissionSummary>
 @{
@@ -20,7 +20,7 @@
 	<div class="table-responsive">
 		<table id="submissionList" class="table" order="[[3, 'asc' ]]">
 			<caption>List of Submissions</caption>
-			<thead>
+			<thead class="@(submissionCount == 0 ? "hidden" : "")">
 				<tr>
 					<th></th>
 					<th>Submission Name</th>

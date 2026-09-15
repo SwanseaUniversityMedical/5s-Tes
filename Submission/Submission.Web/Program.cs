@@ -20,9 +20,12 @@ using Microsoft.AspNetCore.DataProtection;
 using Serilog.Events;
 
 var builder = WebApplication.CreateBuilder(args);
-IdentityModelEventSource.ShowPII = true;
 ConfigurationManager configuration = builder.Configuration;
 IWebHostEnvironment environment = builder.Environment;
+if (environment.IsDevelopment())
+{
+    IdentityModelEventSource.ShowPII = true;
+}
 
 Log.Logger = CreateSerilogLogger(configuration, environment);
 try
@@ -81,17 +84,6 @@ builder.Services.AddScoped<IDareClientHelper, DareClientHelper>();
 builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
 
 builder.Services.AddMvc().AddViewComponentsAsServices();
-
-builder.Services.Configure<CookiePolicyOptions>(options =>
-{
-    options.MinimumSameSitePolicy = SameSiteMode.Unspecified;
-    options.OnAppendCookie = cookieContext =>
-        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-    options.OnDeleteCookie = cookieContext =>
-        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions);
-});
-
-
 
 builder.Services.AddAuthorization(options =>
 {
@@ -259,16 +251,6 @@ builder.Services.AddAuthentication(options =>
                         Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
                         Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
 
-                        foreach (var header in context.HttpContext.Request.Headers)
-                        {
-                            Log.Information("Request Header {key} - {value}", header.Key, header.Value);
-                        }
-
-                        foreach (var header in context.HttpContext.Response.Headers)
-                        {
-                            Log.Information("Response Header {key} - {value}", header.Key, header.Value);
-                        }
-
                         if (submissionKeyCloakSettings.UseRedirectURL)
                         {
                             context.ProtocolMessage.RedirectUri = submissionKeyCloakSettings.RedirectURL;
@@ -280,7 +262,7 @@ builder.Services.AddAuthentication(options =>
                     }
                 };
                 //options.MetadataAddress = submissionKeyCloakSettings.MetadataAddress;
-                Log.Information("{Function} Keycloak Settings Auth {Auth}, Client {Client}, Secret {Secret}, Meta {Meta}", "Main", submissionKeyCloakSettings.Authority, submissionKeyCloakSettings.ClientId, submissionKeyCloakSettings.ClientSecret, submissionKeyCloakSettings.MetadataAddress);
+                Log.Information("{Function} Keycloak Settings Auth {Auth}, Client {Client}, Meta {Meta}", "Main", submissionKeyCloakSettings.Authority, submissionKeyCloakSettings.ClientId, submissionKeyCloakSettings.MetadataAddress);
                 options.RequireHttpsMetadata = submissionKeyCloakSettings.RequireHttpsMetadata;
                 options.SaveTokens = true;
                 options.Scope.Add("openid");
@@ -323,31 +305,37 @@ builder.Services.AddAuthentication(options =>
                 }
             });
 
-var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
-builder.Services.AddCors(options =>
-{
-    options.AddDefaultPolicy(
-        builder =>
-        {
-            builder
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        });
-    options.AddPolicy(name: MyAllowSpecificOrigins,
-        policy =>
-        {
-            policy.WithOrigins(configuration["DareAPISettings:Address"])
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        });
-});
-
 var app = builder.Build();
-app.UseCors();
 app.UseForwardedHeaders();
+
+/// DemoStack only: redirect browser requests to the configured host before login.
+// This keeps the Keycloak OIDC flow on the same site and prevents the
+// correlation cookie from being created on a different host, which can cause
+// a "Correlation failed" error.
+// This only applies to top-level HTML GET requests. Nothing happens unless
+// demo mode is enabled and a valid RedirectURL is configured.
+if (keycloakDemomode &&
+    Uri.TryCreate(submissionKeyCloakSettings.RedirectURL, UriKind.Absolute, out var canonicalUri))
+{
+    var canonicalAuthority = canonicalUri.Authority; // host[:port]
+    app.Use(async (context, next) =>
+    {
+        var request = context.Request;
+        var accept = request.Headers["Accept"].ToString();
+        if (HttpMethods.IsGet(request.Method) &&
+            accept.Contains("text/html", StringComparison.OrdinalIgnoreCase) &&
+            !string.Equals(request.Host.Value, canonicalAuthority, StringComparison.OrdinalIgnoreCase))
+        {
+            var target = $"{canonicalUri.Scheme}://{canonicalAuthority}{request.PathBase}{request.Path}{request.QueryString}";
+            Log.Information("{Function} Redirecting {From} to canonical host {To} to keep OIDC same-site",
+                "CanonicalHostRedirect", request.Host.Value, canonicalAuthority);
+            context.Response.Redirect(target, permanent: false);
+            return;
+        }
+
+        await next();
+    });
+}
 
 if (app.Environment.IsDevelopment())
 {
@@ -379,27 +367,37 @@ else
 
     app.UseStaticFiles();
 
-    //This is a biggy. If having issues with keycloak DISABLE THIS
-    if (configuration["sslcookies"] == "true")
-    {
-        Log.Information("Enabling Secure SSL Cookies");
-        app.UseCookiePolicy(new CookiePolicyOptions
-        {
-            Secure = CookieSecurePolicy.Always
-        });
-    }
-    else
-    {
-        Log.Information("Disabling Secure SSL Cookies");
-        app.UseCookiePolicy();
-    }
+  //This is a biggy. If having issues with keycloak DISABLE THIS
+  // If we fail to parse the configuration value, it needs to default to true. Otherwise, use the parsed value.
+  bool secureSslCookies = !bool.TryParse(configuration["sslcookies"], out bool useSslCookies) || useSslCookies;
 
-    app.UseRouting();
+  Log.Information(
+      secureSslCookies ? "Enabling Secure SSL Cookies" : "Disabling Secure SSL Cookies"
+  );
+
+  app.UseCookiePolicy(new CookiePolicyOptions
+  {
+    Secure = secureSslCookies
+          ? CookieSecurePolicy.Always
+          : CookieSecurePolicy.None,
+
+    // Over HTTP, leave the minimum SameSite policy as Unspecified rather than Lax.
+    MinimumSameSitePolicy = secureSslCookies
+          ? SameSiteMode.None
+          : SameSiteMode.Unspecified,
+
+    OnAppendCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies),
+
+    OnDeleteCookie = cookieContext =>
+        CheckSameSite(cookieContext.Context, cookieContext.CookieOptions, secureSslCookies)
+  });
+
+app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
 
-app.UseCors();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");
@@ -436,17 +434,31 @@ Serilog.ILogger CreateSerilogLogger(ConfigurationManager configuration, IWebHost
 
 #region SameSite Cookie Issue - https://community.auth0.com/t/correlation-failed-unknown-location-error-on-chrome-but-not-in-safari/40013/7
 
-void CheckSameSite(HttpContext httpContext, CookieOptions options)
+void CheckSameSite(HttpContext httpContext, CookieOptions options, bool secureSslCookies)
 {
+  if (!secureSslCookies)
+  {
+    // Non-HTTPS/dev deployments: do not mark cookies as Secure,
+    // otherwise browsers will not send OIDC correlation/nonce cookies back over HTTP.
+    options.Secure = false;
     if (options.SameSite == SameSiteMode.None)
     {
-        var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
+      // Don't set Lax explicitly - it gets dropped on Keycloak's cross-site form_post callback
+      // (localhost <-> *.localtest.me) so login fails. Leaving it unset relies on the Lax+POST grace.
+      options.SameSite = SameSiteMode.Unspecified;
+    }
+    return;
+  }
+
+  if (options.SameSite == SameSiteMode.None)
+  {
+    var userAgent = httpContext.Request.Headers["User-Agent"].ToString();
         //configure cookie policy to omit samesite=none when request is not https
         if (!httpContext.Request.IsHttps || DisallowsSameSiteNone(userAgent))
         {
             options.SameSite = SameSiteMode.Unspecified;
         }
-    }
+  }
 }
 
 

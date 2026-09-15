@@ -35,10 +35,6 @@ namespace Agent.Api.Services
                     x.CredentialType == type);
                 if (creds != null)
                 {
-                    if (string.IsNullOrWhiteSpace(creds.UserName))
-                    {
-                        var sdfsdf = 1;
-                    }
                     var token = await keycloakTokenHelper.GetTokenForUser(creds.UserName,
                         encDecHelper.Decrypt(creds.PasswordEnc), "dare-tre-admin");
                     result.Result = !string.IsNullOrWhiteSpace(token.token);

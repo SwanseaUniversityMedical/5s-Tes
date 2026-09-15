@@ -1,4 +1,4 @@
-﻿using FiveSafesTes.Core.Models.Settings;
+using FiveSafesTes.Core.Models.Settings;
 using IdentityModel.Client;
 using Newtonsoft.Json;
 using Serilog;
@@ -18,8 +18,9 @@ namespace FiveSafesTes.Core.Services
         public bool _useProxy { get; set; }
         public bool _keycloakDemoMode { get; set; }
         public string _proxyUrl { get; set; }
+        public bool _isServiceAccount { get; set; }
 
-        public KeycloakTokenHelper(string keycloakBaseUrl, string clientId, string clientSecret, bool useProxy, string proxyurl, bool keycloakDemoMode)
+        public KeycloakTokenHelper(string keycloakBaseUrl, string clientId, string clientSecret, bool useProxy, string proxyurl, bool keycloakDemoMode, bool isServiceAccount = false)
         {
             _keycloakBaseUrl = keycloakBaseUrl;
             _clientId = clientId;
@@ -27,6 +28,7 @@ namespace FiveSafesTes.Core.Services
             _useProxy = useProxy;
             _proxyUrl = proxyurl;
             _keycloakDemoMode = keycloakDemoMode;
+            _isServiceAccount = isServiceAccount;
         }
 
         public async Task<(string token, string Errorstring)> GetTokenForUser(string username, string password, string requiredRole)
@@ -47,7 +49,7 @@ namespace FiveSafesTes.Core.Services
 
             Log.Information("{Function} 2  user {KeycloakDemoMode}", "GetTokenForUser", _keycloakDemoMode);
             // Create an HttpClient with the handler
-            return await KeycloakCommon.GetTokenForUserGuts(username, password, requiredRole, handler, keycloakBaseUrl, clientId, clientSecret, _keycloakDemoMode);
+            return await KeycloakCommon.GetTokenForUserGuts(username, password, requiredRole, handler, keycloakBaseUrl, clientId, clientSecret, _keycloakDemoMode, _isServiceAccount);
 
         }
     }

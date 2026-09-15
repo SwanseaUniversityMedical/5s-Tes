@@ -1,4 +1,4 @@
-﻿using System.Security.Claims;
+using System.Security.Claims;
 using FiveSafesTes.Core.Models;
 using Microsoft.AspNetCore.Authentication;
 using Serilog;
@@ -34,7 +34,7 @@ namespace Submission.Api.Services
         public static Tre? GetUserTre(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
         {
             var usersName = (from x in loggedInUser.Claims where x.Type == "preferred_username" select x.Value).First();
-            var tre = dbContext.Tres.FirstOrDefault(x => x.AdminUsername.ToLower() == usersName.ToLower());
+            var tre = dbContext.Tres.FirstOrDefault(x => (x.AdminUsername.ToLower() == usersName.ToLower()) || (("service-account-" + x.KeycloakClientId).ToLower() == usersName.ToLower()));
             if (tre == null)
             {
                 throw new Exception("User " + usersName + " doesn't have a tre");
@@ -43,6 +43,21 @@ namespace Submission.Api.Services
             return tre;
         }
 
+        /// <summary>
+        /// Determine whether a user has a TRE without throwing an exception.
+        /// </summary>
+        public static bool IsUserAssignedTRE(ClaimsPrincipal loggedInUser, ApplicationDbContext dbContext)
+        {
+            try
+            {
+                Tre? tre = GetUserTre(loggedInUser, dbContext);
+                return true;
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+        }
 
         public static async Task RemoveUserFromMinioBucket(User user, Project project,
             IHttpContextAccessor httpContextAccessor, string attributeName,

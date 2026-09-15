@@ -1,14 +1,16 @@
-﻿using Microsoft.Extensions.Options;
 using System.Net.Http.Headers;
 using Credentials.Camunda.ProcessHandlers;
 using Credentials.Camunda.Services;
 using Credentials.Camunda.Settings;
 using Credentials.Models.DbContexts;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
+using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
 using IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
 using VaultCredentialsService = Credentials.Camunda.Services.VaultCredentialsService;
 using IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
 using PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
-using Microsoft.EntityFrameworkCore;
 using Services_IPostgreSQLUserManagementService = Credentials.Camunda.Services.IPostgreSQLUserManagementService;
 using Services_IVaultCredentialsService = Credentials.Camunda.Services.IVaultCredentialsService;
 using Services_PostgreSQLUserManagementService = Credentials.Camunda.Services.PostgreSQLUserManagementService;
@@ -70,6 +72,14 @@ namespace Credentials.Camunda.Extensions
 
             services.AddScoped<CreateTreCredentialsHandler>();
             services.AddScoped<DeleteTreCredentialsHandler>();
+
+            // S3 / RustFS ephemeral credentials (reuses the shared MinioHelper).
+            var minioSettings = new MinioSettings();
+            configuration.Bind("MinioSettings", minioSettings);
+            services.AddSingleton(minioSettings);
+            services.AddSingleton<IMinioHelper, MinioHelper>();
+            services.AddScoped<CreateS3SecretHandler>();
+            services.AddScoped<DeleteS3UserHandler>();
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using Credentials.Camunda.Services;
 using Credentials.Models.DbContexts;
 using Zeebe.Client.Accelerator.Abstractions;
@@ -47,6 +47,13 @@ namespace Credentials.Camunda.ProcessHandlers
                 var extraction = ExtractCredentials(job);
                 submissionId = extraction.SubmissionId;
                 parentProcessKey = extraction.ParentProcessKey;
+
+                // Refuse to provision unless this submission was approved by Agent.Api
+                if (!await IsSubmissionApprovedAsync(extraction))
+                {
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "postgres", "No matching approved submission record found");
+                    return CreateStatusResponse("ERROR: Submission not approved.");
+                }
 
                 if (extraction.EnvList?.FirstOrDefault() == null)
                 {

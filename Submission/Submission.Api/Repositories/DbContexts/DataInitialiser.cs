@@ -16,38 +16,138 @@ namespace Submission.Api.Repositories.DbContexts
         private readonly IKeycloakTokenApiHelper _keycloackTokenApiHelper;
         private readonly IKeycloakMinioUserService _userService;
         private readonly IMinioHelper _minioHelper;
+        private readonly IKeycloakAdminService _keycloakAdminService;
+        private readonly IVaultCredentialsService _vaultCredentialsService;
 
         public DataInitialiser(MinioSettings minioSettings, ApplicationDbContext dbContext,
             IKeycloakTokenApiHelper keycloackTokenApiHelper, IKeycloakMinioUserService userService,
-            IMinioHelper minioHelper)
+            IMinioHelper minioHelper, IKeycloakAdminService keycloakAdminService,
+            IVaultCredentialsService vaultCredentialsService)
         {
             _minioSettings = minioSettings;
             _dbContext = dbContext;
             _keycloackTokenApiHelper = keycloackTokenApiHelper;
             _userService = userService;
             _minioHelper = minioHelper;
+            _keycloakAdminService = keycloakAdminService;
+            _vaultCredentialsService = vaultCredentialsService;
         }
 
-        public void SeedDemoData()
+        public async Task SeedDemoDataAsync()
         {
             try
             {
-                var trename = "DEMO";
-                var tre = _dbContext.Tres.FirstOrDefault(x => x.Name.ToLower() == "D".ToLower());
-                if (tre == null)
+                const string treName = "DEMO";
+                var demoTre = _dbContext.Tres.FirstOrDefault(x => x.Name.ToLower() == treName.ToLower());
+                if (demoTre == null)
                 {
-                    var demo = CreateTre(trename, "accessfromtretosubmission");
+                    demoTre = CreateTre(treName, "accessfromtretosubmission");
                     var globaladmin = CreateUser("globaladminuser", "globaladminuser@example.com");
                     var testing = CreateProject("Testing");
-                    AddMissingTre(testing, demo);
+                    AddMissingTre(testing, demoTre);
                     AddMissingUser(testing, globaladmin);
                     _dbContext.SaveChanges();
                 }
+
+                await EnsureTreKeycloakServiceAccountAsync(demoTre);
             }
             catch (Exception e)
             {
-                Log.Error(e, "{Function} Error seeding data", "SeedAllInOneData");
+                Log.Error(e, "{Function} Error seeding data", nameof(SeedDemoDataAsync));
                 throw;
+            }
+        }
+
+        private static string GetTreKeycloakVaultPath(Tre tre) =>
+            $"tre/{tre.Name.ToLowerInvariant()}/keycloak";
+
+        private static bool TryGetKeycloakCredentialsFromVault(
+            Dictionary<string, object> vaultCreds,
+            out string clientId,
+            out string clientSecret,
+            out string? clientUuid)
+        {
+            clientId = vaultCreds.TryGetValue("clientId", out var clientIdObj)
+                ? clientIdObj?.ToString() ?? string.Empty
+                : string.Empty;
+            clientSecret = vaultCreds.TryGetValue("clientSecret", out var clientSecretObj)
+                ? clientSecretObj?.ToString() ?? string.Empty
+                : string.Empty;
+            clientUuid = vaultCreds.TryGetValue("clientUuid", out var clientUuidObj)
+                ? clientUuidObj?.ToString()
+                : null;
+
+            return !string.IsNullOrWhiteSpace(clientId) && !string.IsNullOrWhiteSpace(clientSecret);
+        }
+
+        private async Task EnsureTreKeycloakServiceAccountAsync(Tre tre)
+        {
+            var vaultPath = GetTreKeycloakVaultPath(tre);
+            // GetCredentialAsync returns null when Vault is unreachable and retries are exhausted;
+            // fall back to an empty dictionary so we treat it as "no credentials" and provision instead of crashing.
+            var vaultCreds = await _vaultCredentialsService.GetCredentialAsync(vaultPath)
+                             ?? new Dictionary<string, object>();
+            var vaultHasCredentials = TryGetKeycloakCredentialsFromVault(
+                vaultCreds, out var vaultClientId, out _, out _);
+
+            if (vaultHasCredentials &&
+                !string.IsNullOrEmpty(tre.KeycloakClientId) &&
+                string.Equals(tre.KeycloakClientId, vaultClientId, StringComparison.Ordinal))
+            {
+                return;
+            }
+
+            if (vaultHasCredentials)
+            {
+                if (!string.Equals(tre.KeycloakClientId, vaultClientId, StringComparison.Ordinal))
+                {
+                    tre.KeycloakClientId = vaultClientId;
+                    await _dbContext.SaveChangesAsync();
+                    Log.Information(
+                        "{Function} Backfilled KeycloakClientId from Vault for demo TRE {TreName}",
+                        nameof(EnsureTreKeycloakServiceAccountAsync), tre.Name);
+                }
+
+                return;
+            }
+
+            try
+            {
+                var (clientUuid, clientId, clientSecret) =
+                    await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
+
+                var vaultWritten = await _vaultCredentialsService.AddCredentialAsync(
+                    vaultPath,
+                    new Dictionary<string, object>
+                    {
+                        { "clientId", clientId },
+                        { "clientSecret", clientSecret },
+                        { "clientUuid", clientUuid }
+                    });
+
+                if (!vaultWritten)
+                {
+                    Log.Error(
+                        "{Function} Keycloak client {ClientId} was provisioned but Vault write failed for demo TRE {TreName}. KeycloakClientId was not saved; will retry on next startup.",
+                        nameof(EnsureTreKeycloakServiceAccountAsync), clientId, tre.Name);
+                    return;
+                }
+
+                if (!string.Equals(tre.KeycloakClientId, clientId, StringComparison.Ordinal))
+                {
+                    tre.KeycloakClientId = clientId;
+                    await _dbContext.SaveChangesAsync();
+                }
+
+                Log.Information(
+                    "{Function} Service account {ClientId} created and stored in Vault for demo TRE {TreName}",
+                    nameof(EnsureTreKeycloakServiceAccountAsync), clientId, tre.Name);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex,
+                    "{Function} Failed to provision service account for demo TRE {TreName}. Will retry on next startup.",
+                    nameof(EnsureTreKeycloakServiceAccountAsync), tre.Name);
             }
         }
 

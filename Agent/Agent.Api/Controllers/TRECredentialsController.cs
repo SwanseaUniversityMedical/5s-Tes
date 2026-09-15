@@ -6,6 +6,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Options;
 
 namespace Agent.Api.Controllers
 {
@@ -18,13 +19,15 @@ namespace Agent.Api.Controllers
         private readonly ApplicationDbContext _DbContext;
         private readonly IEncDecHelper _encDecHelper;
         private readonly KeycloakTokenHelper _keycloakTokenHelper;
+        private readonly TreKeyCloakSettings _treKeyCloakSettings;
 
-        public TRECredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, TreKeyCloakSettings keycloakSettings)
+        public TRECredentialsController(ApplicationDbContext applicationDbContext, IEncDecHelper encDec, IOptions<TreKeyCloakSettings> treKeyCloakSettings)
         {
             _encDecHelper = encDec;
             _DbContext = applicationDbContext;
-            _keycloakTokenHelper = new KeycloakTokenHelper(keycloakSettings.BaseUrl, keycloakSettings.ClientId,
-                keycloakSettings.ClientSecret, keycloakSettings.Proxy, keycloakSettings.ProxyAddresURL, keycloakSettings.KeycloakDemoMode);
+            _treKeyCloakSettings = treKeyCloakSettings.Value;
+            _keycloakTokenHelper = new KeycloakTokenHelper(_treKeyCloakSettings.BaseUrl, _treKeyCloakSettings.ClientId,
+              _treKeyCloakSettings.ClientSecret, _treKeyCloakSettings.Proxy, _treKeyCloakSettings.ProxyAddresURL, _treKeyCloakSettings.KeycloakDemoMode);
         }
 
         [Authorize(Roles = "dare-tre-admin")]

@@ -31,11 +31,37 @@ namespace FiveSafesTes.Core.Services
         Task<bool> BucketPolicySetPublic(string bucketName);
 
         Task DeleteObject(string bucketName, string objectKey);
+
+        /// <summary>
+        /// Removes every object from a bucket without removing the bucket itself.
+        /// </summary>
+        Task<bool> EmptyBucketAsync(string bucketName);
+
+        /// <summary>
+        /// Deletes a bucket entirely (empties it first, since S3 requires an empty bucket).
+        /// Idempotent: returns true when the bucket does not exist.
+        /// </summary>
+        Task<bool> DeleteBucketAsync(string bucketName);
+
         Task WriteToStore(string bucketName, string objectKey, MemoryStream file);
 
         Task<MinioCommandResult> CreateMinioSecretAsync(string accessKey, string secretKey = "", CancellationToken cancellationToken = default);
         Task<MinioCommandResult> DeleteMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
         Task<MinioCommandResult> ListMinioSecretsAsync(CancellationToken cancellationToken = default);
         Task<MinioCommandResult> GetMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
+
+        Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string submissionBucket, string outputBucket);
+        Task<bool> AttachPolicyToUserAsync(string policyName, string accessKey, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Removes a canned policy from the object store (cleanup for the per-key policy created
+        /// alongside an ephemeral S3 access key). Removing the user detaches but does not delete it.
+        /// </summary>
+        Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Returns true when an S3 access key (user) already exists on the object store.
+        /// </summary>
+        Task<bool> UserExistsAsync(string accessKey, CancellationToken cancellationToken = default);
     }
 }
