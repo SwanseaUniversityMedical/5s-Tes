@@ -38,8 +38,8 @@ Two Vault instances matter to this stack, with distinct jobs:
 
 - **The platform Vault** supplies every deploy-time Secret. Each `VaultSecret` under
   `templates/secrets/` uses the redhatcop operator's default connection, authenticating
-  with `vault.authPath`/`vault.role` (the tenant name) and reading
-  `vault.secretPath/...` — see the paths table below. Mounts, Kubernetes auth and
+  with `vault.authPath`/`vault.role` (the tenant name) and reading the secret at
+  `vault.secretPath` — see **What must be in Vault** below. Mounts, Kubernetes auth and
   policies there are platform-managed; this chart assumes they exist and never
   configures that Vault.
 - **This stack's own runtime Vault** (`templates/vault.yaml`, release
@@ -80,28 +80,28 @@ Renaming an existing installation's Vault release abandons its PVC and all seale
 a pre-existing install must migrate (re-attach the PVC under the new release name, or
 re-init) before upgrading across this rename.
 
-### Platform-Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/submission`)
+### What must be in Vault
 
-The standalone chart's README lists the Kubernetes Secret names and keys each of these
-fills; the two must agree.
+One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/submission`):
 
-| Path | Field | Fills | Used for |
-|---|---|---|---|
-| `.../postgres` | `postgres_password` | `postgres-secret` / `password` | CNPG superuser password |
-| `.../submission-api` | `connection_string` | `submission-api-secret` / `connectionString` | Full PostgreSQL connection string, assembled in Vault |
-| `.../submission-api` | `keycloak_client_secret` | `submission-api-secret` / `keycloakClientSecret` | `Dare-Control-API` client secret |
-| `.../submission-api` | `keycloak_admin_username` | `submission-api-secret` / `keycloakAdminUsername` | `dare-control-realm-user` username |
-| `.../submission-api` | `keycloak_admin_password` | `submission-api-secret` / `keycloakAdminPassword` | `dare-control-realm-user` password |
-| `.../submission-api` | `s3_access_key` | `submission-api-secret` / `s3AccessKey` | RustFS access key. Must equal `.../rustfs`'s `access_key`. |
-| `.../submission-api` | `s3_secret_key` | `submission-api-secret` / `s3SecretKey` | RustFS secret key. Must equal `.../rustfs`'s `secret_key`. |
-| `.../submission-api` | `rabbit_username` | `submission-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
-| `.../submission-api` | `rabbit_password` | `submission-api-secret` / `rabbitPassword` | RabbitMQ default user password |
-| `.../submission-ui` | `keycloak_client_secret` | `submission-ui-secret` / `keycloakClientSecret` | `Dare-Control-UI` client secret |
-| `.../rustfs` | `access_key` | `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../submission-api`'s `s3_access_key` |
-| `.../rustfs` | `secret_key` | `submission-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../submission-api`'s `s3_secret_key` |
-| `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
-| `.../seq` | `admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`), not a Submission app secret |
-| `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below. |
+| Key | Fills | Used for |
+|---|---|---|
+| `postgres_password` | `postgres-secret` / `password`, and the password inside `submission-api-secret` / `connectionString` | CNPG superuser. The connection string (`Server=pg-pooler;Port=5432;Database=<postgres.database>;User Id=postgres;Password=…`) is composed in `templates/secrets/submission.yaml`. |
+| `kc_api_client_secret` | `submission-api-secret` / `keycloakClientSecret` | `Dare-Control-API` client secret |
+| `kc_ui_client_secret` | `submission-ui-secret` / `keycloakClientSecret` | `Dare-Control-UI` client secret |
+| `kc_admin_username`, `kc_admin_password` | `submission-api-secret` / `keycloakAdminUsername`, `keycloakAdminPassword` | The Keycloak admin user the api logs in as. See **Keycloak**. |
+| `s3_access_key`, `s3_secret_key` | `submission-api-secret` / `s3AccessKey`, `s3SecretKey` and `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY` | RustFS credentials; the api uses the same pair |
+| `seq_admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`) |
+
+A second KV secret at `vault.secretPath`**/rabbitmq** with keys `username` and `password`,
+the names the RabbitMQ Cluster Operator's `secretBackend.vault` requires. The
+`RabbitmqCluster` reads it directly; `submission-api-secret` reads the same two keys into
+`rabbitUsername`/`rabbitPassword`.
+
+The CNPG backup credentials are not under `vault.secretPath`: they come from
+`postgres.backups.vault.path`, set only once backups are enabled. See **Backups**.
+
+The standalone chart's README lists the Secret keys each component reads; the two must agree.
 
 ### RabbitMQ: the default user needs management permissions
 
@@ -114,9 +114,8 @@ generates its own `rabbitmq-default-user` Secret with a random password instead.
 `EasyNetQ.Management.Client`'s `ManagementClient(hostname, username, password)`, which
 defaults to **port 15672 over plain HTTP** — the RabbitMQ **management HTTP API**, not
 AMQP (5672). At startup the API creates a vhost, an exchange and a queue through that API.
-The Vault-supplied default user at `{{ .Values.vault.secretPath }}/rabbitmq` (read by the
-`RabbitmqCluster`'s `secretBackend.vault`, and by `submission-api-secret`'s
-`rabbit_username`/`rabbit_password`) must therefore carry the `management` tag /
+The Vault-supplied default user at `vault.secretPath/rabbitmq` (read by both the
+`RabbitmqCluster` and `submission-api-secret`) must therefore carry the `management` tag /
 administrator permissions, not just messaging permissions, or vhost/exchange/queue setup
 fails silently on every restart.
 
@@ -128,15 +127,45 @@ stack value.
 
 ## Keycloak
 
-The external realm at `global.oidc.authority` must already have:
+The realm at `global.oidc.authority` must have:
 
-- **`Dare-Control-API`** — confidential client, service accounts enabled. Its service
-  account needs the `dare-tre-admin` realm role (`api.keycloakAdmin.serviceAccountRole`
-  in the standalone chart) for the endpoints under `[Authorize(Roles = "dare-tre-admin")]`.
-- **`Dare-Control-UI`** — the UI's OIDC client.
-- **A `dare-control-realm-user` admin user** — a realm user (not a service account) the
-  API logs in as to call the Keycloak Admin REST API (`KeycloakAdminService`). Its
-  username/password are `keycloakAdminUsername`/`keycloakAdminPassword` above.
+- **Realm roles `dare-control-admin` and `dare-tre-admin`.** Both components authorise on
+  realm roles (`[Authorize(Roles = ...)]`, read from the token's `realm_access.roles`). The
+  api also looks `dare-tre-admin` up by name (`api.keycloakAdmin.serviceAccountRole`) and
+  grants it to every TRE service account it creates.
+- **Realm roles in the ID token.** The `roles` client scope's `realm roles` mapper must have
+  *Add to ID token* on. Keycloak's stock mapper puts `realm_access.roles` in the access
+  token only, and the ui builds its signed-in user from the ID token (userinfo claims other
+  than the standard profile ones are dropped), so with the stock setting no ui role check
+  passes.
+- **`Dare-Control-UI`** — confidential client, standard flow. Valid redirect URI
+  `https://submission.<global.ingress.host>/signin-oidc`; valid post-logout redirect URI
+  `https://submission.<global.ingress.host>/signout-callback-oidc`. The ui forwards the
+  signed-in user's access token to the api, which validates the audience, so this client's
+  access tokens need an `aud` in `api.oidc.validAudiences` (default
+  `Dare-Control-UI,Dare-Control-API,Dare-Control-Minio`): a client scope carrying an
+  *Audience* mapper for `Dare-Control-API`, assigned to this client as a default scope.
+- **`Dare-Control-API`** — confidential client; its client ID is the api's JWT audience.
+  Direct Access Grants are needed only when `api.features.seedDemoData` is on (the seed
+  logs in through this client with a password grant). Nothing uses this client's service
+  account.
+- **That audience scope in the realm's default client scopes.** The api creates a
+  `tre-agent-<name>` client per TRE with no scope configuration, and the TRE's agent later
+  calls the api with that client's client-credentials tokens. Those tokens carry an
+  accepted `aud` only if the realm's *default client scopes* include the audience scope
+  above.
+- **The admin user** (`kc_admin_username`/`kc_admin_password`) — a user in this realm, not
+  `master`; the api gets its token with a password grant through the realm's built-in
+  `admin-cli` client. It needs the `realm-management` client roles `manage-clients`
+  (create/delete a TRE client, read its secret), `view-realm` (read the `dare-tre-admin`
+  role) and `manage-users` (map that role onto the client's service account).
+- **`dare-control-admin` users need `realm-management` / `manage-users` too.** Adding or
+  removing a project user makes the api write a `policy` attribute on that Keycloak user
+  with the calling admin's own token.
+
+Not needed by this stack: the `Dare-Control-Minio` client and `minio-authorization` scope
+(they serve MinIO/RustFS OIDC login, which `templates/rustfs.yaml` does not configure), and
+a `groups` claim (the ui declares group policies but no endpoint uses them).
 
 `SubmissionKeyCloakSettings__Authority` renders as `<realm>/` (trailing slash, no well-known
 suffix) and `__MetadataAddress` as `<realm>/.well-known/openid-configuration`, matching compose
@@ -226,9 +255,9 @@ With today's defaults, real data sits in four places with different protection:
 | Name | Description | Default |
 |---|---|---|
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `submission` |
-| `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/submission` |
+| `vault.secretPath` | KV path of the single secret holding every key in **What must be in Vault**. The RabbitMQ default user is a second secret at `<secretPath>/rabbitmq`. | `kvv2/data/prod/prod/submission` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address` so the redhatcop operator's platform-Vault default doesn't apply. See **Vault** above. | `http://submission-vault:8200` |
+| `vault.address` | This stack's own runtime Vault Service address, passed to the api as `api.vaultUrl`. The VaultSecrets do not read from it. See **Vault** above. | `http://submission-vault:8200` |
 | `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (the API calls it directly for ephemeral credentials), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
 | `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |
@@ -283,7 +312,7 @@ With today's defaults, real data sits in four places with different protection:
 | `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
 | `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
 | `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
-| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead. See **RabbitMQ** above. | `true` |
+| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead; only valid with `vault.secretsEnabled: false`, since `submission-api-secret` reads the same Vault path. See **RabbitMQ** above. | `true` |
 
 ### postgres
 
