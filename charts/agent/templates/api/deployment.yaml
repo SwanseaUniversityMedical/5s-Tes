@@ -251,8 +251,6 @@ spec:
                 secretKeyRef:
                   name: {{ .Values.api.secretName }}
                   key: encryptionKey
-            - name: Hangfire__EnableExternalHangfire
-              value: "{{ .Values.api.hangfire.enableExternal }}"
             - name: Hangfire__Username
               valueFrom:
                 secretKeyRef:

@@ -81,11 +81,11 @@ Set by `api.secretName`.
 | `encryptionKey` | Base64 encryption key. Read into `EncryptionSettings__Key`. | Yes |
 | `hangfireUsername` | Hangfire dashboard username. Read into `Hangfire__Username`. | Yes |
 | `hangfirePassword` | Hangfire dashboard password. Read into `Hangfire__Password`. | Yes |
+| `hasuraAdminSecret` | Hasura admin secret. Read into `HasuraSettings__HasuraAdminSecret`. Only used when `api.hasura.enabled` is `true`. | Only if `api.hasura.enabled` |
 
 `VaultSettings__Token` is not in this Secret: both the api and the Camunda worker read
 it from the static `agent-vault-token` Secret (key `vaultToken`), written by the
 stack's vault-init CronJob.
-| `hasuraAdminSecret` | Hasura admin secret. Read into `HasuraSettings__HasuraAdminSecret`. Only used when `api.hasura.enabled` is `true`. | Only if `api.hasura.enabled` |
 
 ### `agent-ui-secret`
 
@@ -224,7 +224,6 @@ deployment.
 | `api.zeebe.worker.pollIntervalInMilliseconds` | Interval between job polls. | `1000` |
 | `api.zeebe.worker.pollingTimeoutInMilliseconds` | Long-poll timeout per request. | `5000` |
 | `api.zeebe.worker.retryTimeoutInMilliseconds` | Retry timeout on a failed job. | `5000` |
-| `api.hangfire.enableExternal` | Use the external Hangfire dashboard/storage. | `"true"` |
 | `api.jobs.scanSchedule` | Minutes between scans of the Submission layer for available submissions. | `1` |
 | `api.jobs.syncSchedule` | Minutes between project/user syncs between TRE and Submission layers. | `10` |
 | `api.jobs.healthCheckSchedule` | Minutes between health checks. | `10` |

@@ -156,9 +156,6 @@ api:
       pollingTimeoutInMilliseconds: 5000
       retryTimeoutInMilliseconds: 5000
 
-  hangfire:
-    enableExternal: "true"
-
   jobs:
     scanSchedule: 1
     syncSchedule: 10
