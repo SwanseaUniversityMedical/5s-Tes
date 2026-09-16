@@ -59,8 +59,8 @@ agent:
     storageClassName: null
     accessModes:
       - ReadWriteMany
-  # Active Directory settings for the Credentials Camunda worker. Defaults
-  # match the optional openldap Application below; production sets the real AD.
+  # The Credentials Camunda worker's ephemeral-credentials OpenLDAP (Trino
+  # users) — the optional openldap Application below, not the site AD.
   ldap:
     host: "openldap"
     port: 389
@@ -68,6 +68,17 @@ agent:
     baseDn: "dc=camundaephemeral,dc=local"
     userOu: "ou=Users"
     useSsl: false
+  # Teleport user management: a job host syncing approved project users from
+  # the Submission API into this TRE's Active Directory. Needs network reach
+  # to that AD.
+  teleport:
+    enabled: false
+    ad:
+      domain: "chi.swan.ac.uk"
+      machine: "chi.swan.ac.uk"
+      useSsl: true
+      baseOu: ""
+      shortDomain: "CHI"
 
 # Optional Data-Egress product, deployed as part of this stack. See README.
 egress:
@@ -136,7 +147,8 @@ camunda:
   # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
   chartVersion: "10.11.3"
 
-# Local/test OpenLDAP standing in for a real Active Directory (agent.ldap.*).
+# OpenLDAP directory holding the Credentials worker's ephemeral Trino users
+# (agent.ldap.*).
 openldap:
   enabled: false
   repoURL: "https://jp-gouin.github.io/helm-openldap/"

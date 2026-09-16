@@ -101,15 +101,6 @@ fills; the two must agree.
 | `.../rustfs` | `secret_key` | `submission-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../submission-api`'s `s3_secret_key` |
 | `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
 | `.../seq` | `admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`), not a Submission app secret |
-| `.../teleport` | `ad_username` | `teleport-user-management-secret` / `adUsername` | Central-AD bind username. This and the rows below are only needed if `submission.teleport.enabled` |
-| `.../teleport` | `ad_password` | `teleport-user-management-secret` / `adPassword` | Central-AD bind password |
-| `.../teleport` | `keycloak_client_secret` | `teleport-user-management-secret` / `keycloakClientSecret` | `Teleport-User-Management` client secret |
-| `.../teleport` | `keycloak_username` | `teleport-user-management-secret` / `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account |
-| `.../teleport` | `keycloak_password_enc` | `teleport-user-management-secret` / `keycloakPasswordEnc` | AES-encrypted password matching `keycloak_username` (encrypted with `encryption_key`) |
-| `.../teleport` | `connection_string` | `teleport-user-management-secret` / `connectionString` | Full PostgreSQL connection string for `DARE-Control` on `pg-pooler` (Hangfire storage) |
-| `.../teleport` | `hangfire_username` | `teleport-user-management-secret` / `hangfireUsername` | Hangfire dashboard username |
-| `.../teleport` | `hangfire_password` | `teleport-user-management-secret` / `hangfirePassword` | Hangfire dashboard password |
-| `.../teleport` | `encryption_key` | `teleport-user-management-secret` / `encryptionKey` | Base64 AES key (16/24/32 bytes) |
 | `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below. |
 
 ### RabbitMQ: the default user needs management permissions

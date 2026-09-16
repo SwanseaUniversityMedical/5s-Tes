@@ -102,6 +102,15 @@ the two must agree.
 | `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
 | `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
 | `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `ui` component) |
+| `.../teleport` | `ad_username` | `teleport-user-management-secret` / `adUsername` | TRE-AD bind username. This and the rows below are only needed if `agent.teleport.enabled` |
+| `.../teleport` | `ad_password` | `teleport-user-management-secret` / `adPassword` | TRE-AD bind password |
+| `.../teleport` | `keycloak_client_secret` | `teleport-user-management-secret` / `keycloakClientSecret` | `Teleport-User-Management` client secret (in the Submission product's realm) |
+| `.../teleport` | `keycloak_username` | `teleport-user-management-secret` / `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account |
+| `.../teleport` | `keycloak_password_enc` | `teleport-user-management-secret` / `keycloakPasswordEnc` | AES-encrypted password matching `keycloak_username` (encrypted with `encryption_key`) |
+| `.../teleport` | `connection_string` | `teleport-user-management-secret` / `connectionString` | Full PostgreSQL connection string for the teleport Hangfire storage on `pg-pooler` |
+| `.../teleport` | `hangfire_username` | `teleport-user-management-secret` / `hangfireUsername` | Hangfire dashboard username |
+| `.../teleport` | `hangfire_password` | `teleport-user-management-secret` / `hangfirePassword` | Hangfire dashboard password |
+| `.../teleport` | `encryption_key` | `teleport-user-management-secret` / `encryptionKey` | Base64 AES key (16/24/32 bytes) |
 | `.../egress-api` | `connection_string` | `egress-api-secret` / `connectionString` | PostgreSQL connection string for `DATA-Egress` on `pg-pooler`. Only needed if `egress.enabled` |
 | `.../egress-api` | `tre_keycloak_client_secret` | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret (cross-realm; the egress api authenticates as this client against `Dare-TRE`) |
 | `.../egress-api` | `data_egress_keycloak_client_secret` | `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the egress api itself |

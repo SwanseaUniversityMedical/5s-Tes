@@ -65,16 +65,6 @@ submission:
     storageClassName: null
     accessModes:
       - ReadWriteMany
-  # Teleport user management: a job host syncing approved project users into
-  # the central Active Directory. Needs network reach to that AD.
-  teleport:
-    enabled: false
-    ad:
-      domain: "chi.swan.ac.uk"
-      machine: "chi.swan.ac.uk"
-      useSsl: true
-      baseOu: ""
-      shortDomain: "CHI"
 
 # --------------------------------------------------------------------
 # Dependencies installed from somebody else's chart.

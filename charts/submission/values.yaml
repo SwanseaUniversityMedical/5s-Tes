@@ -191,33 +191,3 @@ ui:
   # Rare one-off settings only. If you find yourself adding a third entry
   # here, it belongs above as a named key instead.
   extraEnv: []
-
-# Hangfire job host syncing approved project users into the central Active
-# Directory for Teleport. Needs network reach to that AD; off unless the
-# deployment has it.
-teleport:
-  enabled: false
-  image:
-    repository: harbor.federated-analytics.ac.uk/5s-tes/teleport-user-management
-    tag: ""
-    pullPolicy: IfNotPresent
-  containerPort: 8080
-  resources: {}
-  # Expected keys: adUsername, adPassword, keycloakClientSecret,
-  # keycloakUsername, keycloakPasswordEnc, connectionString,
-  # hangfireUsername, hangfirePassword, encryptionKey. See README Secrets
-  # section.
-  secretName: teleport-user-management-secret
-  oidc:
-    clientId: "Teleport-User-Management"
-  ad:
-    domain: "chi.swan.ac.uk"
-    machine: "chi.swan.ac.uk"
-    useSsl: true
-    baseOu: ""
-    shortDomain: "CHI"
-  jobs:
-    projectJobNamePrefix: "Project"
-    # Minutes between Hangfire runs.
-    projectCheckSchedule: 5
-    projectDiscoverySchedule: 10

@@ -12,6 +12,11 @@ Standalone chart for the Agent product.
   Zeebe job worker. It has no Service and no Ingress: nothing calls it directly. It
   administers the TRE object store (ephemeral per-submission S3 credentials), reusing
   `api.s3Url` and `agent-api-secret`'s `s3AccessKey`/`s3SecretKey` root keys.
+- **teleport** (optional, `teleport.enabled`, default off) — the Teleport user-management
+  job host (`teleport-user-management` image): Hangfire jobs that read approved project
+  users from the Submission API (`submission.apiUrl`) and create/maintain them in this
+  TRE's Active Directory (`teleport.ad.*`). It has no Service and no Ingress; nothing
+  calls it. Enable it only where the cluster can reach that AD.
 
 `api` and `camunda` share one PersistentVolumeClaim, `agent-processmodels`, holding the
 Camunda DMN/BPMN process models, and both stay at `replicas: 1` because that PVC is
@@ -39,7 +44,7 @@ already-seeded PVC — delete the sentinel or the PVC to force a reseed.
 
 ## What must already exist
 
-- The three Secrets listed below.
+- The three Secrets listed below (four with `teleport.enabled`).
 - A reachable Keycloak realm at `global.oidc.authority` (Dare-TRE) and, for the
   cross-stack settings, the Submission product's Keycloak realm, API and S3 endpoint at
   `submission.oidcAuthority`/`submission.apiUrl`/`submission.s3Url`.
@@ -50,7 +55,8 @@ already-seeded PVC — delete the sentinel or the PVC to force a reseed.
   Vault, Seq, Zeebe gateway and OpenLDAP directory, at the addresses
   given by `api.rabbitmqHost`, the `connectionString*` secrets, `api.s3Url`,
   `global.config.vaultUrl`, `global.config.seqUrl`, `global.config.zeebeGatewayAddress`
-  and `camunda.ldap.*`.
+  and `camunda.ldap.*`. With `teleport.enabled`, also the TRE's Active Directory at
+  `teleport.ad.machine`, including an existing OU at `teleport.ad.baseOu`.
 - The cluster CA bundle ConfigMap named by `global.trustClusterCa.configMapName`, if
   `global.trustClusterCa.enabled` is `true`.
 
@@ -106,6 +112,26 @@ Set by `camunda.secretName`.
 | `ldapAdminPassword` | OpenLDAP admin bind password. Read into `LdapSettings__AdminPassword`. | Yes |
 | `connectionStringCredentials` | PostgreSQL connection string for the shared Credentials database. Read into `ConnectionStrings__CredentialsConnection`. | Yes |
 | `connectionStringTreData` | PostgreSQL connection string the worker uses to create ephemeral credentials against a TRE data database. Read into `ConnectionStrings__TREPostgresConnection`. | Yes |
+
+### `teleport-user-management-secret`
+
+Set by `teleport.secretName`. Only needed if `teleport.enabled`.
+
+| **Key** | **Used for** | **Required** |
+|---|---|---|
+| `adUsername` | TRE-AD bind username. Read into `ActiveDirectorySettings__Connection__Username`. | Yes |
+| `adPassword` | TRE-AD bind password. Read into `ActiveDirectorySettings__Connection__Password`. | Yes |
+| `keycloakClientSecret` | Client secret for the `Teleport-User-Management` Keycloak client in the Submission product's realm. Read into `SubmissionKeyCloakSettings__ClientSecret`. | Yes |
+| `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account. Read into `SubmissionKeyCloakSettings__Username`. | Yes (may be empty) |
+| `keycloakPasswordEnc` | AES-encrypted password matching `keycloakUsername` (encrypted with `encryptionKey`). Read into `SubmissionKeyCloakSettings__PasswordEnc`. | Yes (may be empty) |
+| `connectionString` | PostgreSQL connection string for the Hangfire storage database. Read into `ConnectionStrings__DefaultConnection`. | Yes |
+| `hangfireUsername` | Hangfire dashboard username. Read into `Hangfire__Username`. | Yes |
+| `hangfirePassword` | Hangfire dashboard password. Read into `Hangfire__Password`. | Yes |
+| `encryptionKey` | Base64 AES key (16/24/32 bytes); the app refuses to start without it. Read into `EncryptionSettings__Key`. | Yes |
+
+`VaultSettings__Token` is not in this Secret: like the other components, teleport reads
+it from the static `agent-vault-token` Secret (key `vaultToken`), written by the stack's
+vault-init CronJob.
 
 ## Parameters
 
@@ -294,7 +320,7 @@ calls directly.
 | `camunda.zeebe.worker.pollIntervalInMilliseconds` | Interval between job polls. | `1000` |
 | `camunda.zeebe.worker.pollingTimeoutInMilliseconds` | Long-poll timeout per request. | `5000` |
 | `camunda.zeebe.worker.retryTimeoutInMilliseconds` | Retry timeout on a failed job. | `5000` |
-| `camunda.ldap.host` | LDAP host: the stack.s own OpenLDAP. | `openldap` |
+| `camunda.ldap.host` | LDAP host: the stack's ephemeral-credentials OpenLDAP. | `openldap` |
 | `camunda.ldap.port` | LDAP port. | `389` |
 | `camunda.ldap.adminDn` | LDAP admin bind DN. | `cn=admin,dc=camundaephemeral,dc=local` |
 | `camunda.ldap.baseDn` | LDAP base DN for user searches. | `dc=camundaephemeral,dc=local` |
@@ -305,3 +331,27 @@ calls directly.
 | `camunda.vault.enableRetry` | Retry failed Vault calls. | `true` |
 | `camunda.vault.maxRetryAttempts` | Maximum Vault retry attempts. | `3` |
 | `camunda.extraEnv` | Rare one-off environment variables. Anything the app always needs is a named value above instead. | `[]` |
+
+### Teleport parameters
+
+`teleport` has no Service and no Ingress: it is a Hangfire job host that nothing calls
+directly.
+
+| **Name** | **Description** | **Value** |
+|---|---|---|
+| `teleport.enabled` | Deploy the Teleport user-management component. | `false` |
+| `teleport.image.repository` | Image for the job host. | `harbor.federated-analytics.ac.uk/5s-tes/teleport-user-management` |
+| `teleport.image.tag` | Image tag. Falls back to `global.tag` when empty. | `""` |
+| `teleport.image.pullPolicy` | Image pull policy for the job host. | `IfNotPresent` |
+| `teleport.containerPort` | Port the ASP.NET app listens on inside the container, used by its liveness/readiness probes. | `8080` |
+| `teleport.resources` | Container resource requests/limits. | `{}` |
+| `teleport.secretName` | Name of the Kubernetes Secret holding this component's secrets. See **Secrets** above. | `teleport-user-management-secret` |
+| `teleport.oidc.clientId` | Keycloak client (in the Submission product's realm) the job host authenticates as. | `Teleport-User-Management` |
+| `teleport.ad.domain` | AD DNS domain; also builds the `DC=` part of every DN. | `chi.swan.ac.uk` |
+| `teleport.ad.machine` | Domain controller host the LDAP(S) connection targets. | `chi.swan.ac.uk` |
+| `teleport.ad.useSsl` | Use LDAPS (port 636); plain LDAP (389) otherwise. | `true` |
+| `teleport.ad.baseOu` | Comma-separated OU names, parent first (e.g. `Parent,Child`), where users and groups are created and searched. Must name an existing OU; the app does not treat empty as the domain root. | `""` |
+| `teleport.ad.shortDomain` | NetBIOS-style short domain name. | `CHI` |
+| `teleport.jobs.projectJobNamePrefix` | Prefix on per-project Hangfire job names. | `Project` |
+| `teleport.jobs.projectCheckSchedule` | Minutes between per-project AD sync runs. | `5` |
+| `teleport.jobs.projectDiscoverySchedule` | Minutes between project-discovery runs. | `10` |

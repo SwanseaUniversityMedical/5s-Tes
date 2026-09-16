@@ -113,4 +113,9 @@ spec:
             baseDn: "{{ .Values.agent.ldap.baseDn }}"
             userOu: "{{ .Values.agent.ldap.userOu }}"
             useSsl: {{ .Values.agent.ldap.useSsl }}
+
+        teleport:
+          enabled: {{ .Values.agent.teleport.enabled }}
+          ad:
+            {{- toYaml .Values.agent.teleport.ad | nindent 12 }}
 {{- end }}

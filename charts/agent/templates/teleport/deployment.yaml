@@ -2,28 +2,28 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "submission.fullname" . }}-teleport
+  name: {{ include "agent.fullname" . }}-teleport
   annotations:
     # Stakater Reloader (platform-provided): restart when the vault-init
     # CronJob rotates the runtime-Vault app token.
-    secret.reloader.stakater.com/reload: "submission-vault-token"
+    secret.reloader.stakater.com/reload: "agent-vault-token"
   labels:
-    {{- include "submission.labels" . | nindent 4 }}
+    {{- include "agent.labels" . | nindent 4 }}
     app.kubernetes.io/component: teleport
 spec:
   # A single Hangfire job host; nothing calls it.
   replicas: 1
   selector:
     matchLabels:
-      {{- include "submission.selectorLabels" . | nindent 6 }}
+      {{- include "agent.selectorLabels" . | nindent 6 }}
       app.kubernetes.io/component: teleport
   template:
     metadata:
       labels:
-        {{- include "submission.selectorLabels" . | nindent 8 }}
+        {{- include "agent.selectorLabels" . | nindent 8 }}
         app.kubernetes.io/component: teleport
     spec:
-      serviceAccountName: {{ include "submission.serviceAccountName" . }}
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
       {{- with .Values.imagePullSecrets }}
       imagePullSecrets:
         {{- toYaml . | nindent 8 }}
@@ -114,15 +114,15 @@ spec:
                   name: {{ .Values.teleport.secretName }}
                   key: hangfirePassword
             - name: VaultSettings__BaseUrl
-              value: "{{ .Values.api.vaultUrl }}"
+              value: "{{ .Values.global.config.vaultUrl }}"
             - name: VaultSettings__Token
               valueFrom:
                 secretKeyRef:
                   # Static: written by the stack's vault-init CronJob.
-                  name: submission-vault-token
+                  name: agent-vault-token
                   key: vaultToken
             - name: SubmissionKeyCloakSettings__BaseUrl
-              value: "{{ .Values.global.oidc.authority }}"
+              value: "{{ .Values.submission.oidcAuthority }}"
             - name: SubmissionKeyCloakSettings__ClientId
               value: "{{ .Values.teleport.oidc.clientId }}"
             - name: SubmissionKeyCloakSettings__ClientSecret
@@ -141,8 +141,7 @@ spec:
                   name: {{ .Values.teleport.secretName }}
                   key: keycloakPasswordEnc
             - name: ApiEndpoints__SubmissionApiUrl
-              # Static: the api Service name this chart renders.
-              value: "http://submission-api"
+              value: "{{ .Values.submission.apiUrl }}"
             - name: EncryptionSettings__Key
               valueFrom:
                 secretKeyRef:

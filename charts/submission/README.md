@@ -6,11 +6,6 @@ Standalone chart for the Submission product.
 
 - **api** — the Submission API (`submission-api` image), listening on `/health` at port 8080.
 - **ui** — the Submission web UI (`submission-ui` image), listening on `/health` at port 8080.
-- **teleport** (optional, `teleport.enabled`, default off) — the Teleport user-management
-  job host (`teleport-user-management` image): Hangfire jobs that read approved project
-  users from the api and create/maintain them in the central Active Directory
-  (`teleport.ad.*`). It has no Service and no Ingress; nothing calls it. Enable it only
-  where the cluster can reach that AD.
 
 Both components share one PersistentVolumeClaim, `submission-dataprotection`, that holds
 ASP.NET data-protection keys, and both stay at `replicas: 1` because that PVC is
@@ -23,7 +18,7 @@ for production.
 
 ## What must already exist
 
-- The two Secrets listed below (three with `teleport.enabled`).
+- The two Secrets listed below.
 - A reachable Keycloak realm at `global.oidc.authority`.
 - `SubmissionKeyCloakSettings__Authority` renders as `<realm>/` (trailing slash, no
   well-known suffix) and `__MetadataAddress` as `<realm>/.well-known/openid-configuration`,
@@ -73,25 +68,6 @@ Set by `ui.secretName`.
 | **Key** | **Used for** | **Required** |
 |---|---|---|
 | `keycloakClientSecret` | Client secret for the `Dare-Control-UI` Keycloak client. Read into `SubmissionKeyCloakSettings__ClientSecret`. | Yes |
-
-### `teleport-user-management-secret`
-
-Set by `teleport.secretName`. Only needed if `teleport.enabled`.
-
-| **Key** | **Used for** | **Required** |
-|---|---|---|
-| `adUsername` | Central-AD bind username. Read into `ActiveDirectorySettings__Connection__Username`. | Yes |
-| `adPassword` | Central-AD bind password. Read into `ActiveDirectorySettings__Connection__Password`. | Yes |
-| `keycloakClientSecret` | Client secret for the `Teleport-User-Management` Keycloak client. Read into `SubmissionKeyCloakSettings__ClientSecret`. | Yes |
-| `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account. Read into `SubmissionKeyCloakSettings__Username`. | Yes (may be empty) |
-| `keycloakPasswordEnc` | AES-encrypted password matching `keycloakUsername` (encrypted with `encryptionKey`). Read into `SubmissionKeyCloakSettings__PasswordEnc`. | Yes (may be empty) |
-| `connectionString` | PostgreSQL connection string for the `DARE-Control` database (Hangfire storage). Read into `ConnectionStrings__DefaultConnection`. | Yes |
-| `hangfireUsername` | Hangfire dashboard username. Read into `Hangfire__Username`. | Yes |
-| `hangfirePassword` | Hangfire dashboard password. Read into `Hangfire__Password`. | Yes |
-| `encryptionKey` | Base64 AES key (16/24/32 bytes); the app refuses to start without it. Read into `EncryptionSettings__Key`. | Yes |
-
-`VaultSettings__Token` comes from the static `submission-vault-token` Secret, the same
-as the api.
 
 ## Parameters
 
