@@ -1,4 +1,4 @@
-﻿using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -64,7 +64,8 @@ namespace Agent.Web.Controllers
 
             var result =
                 await _treclientHelper.CallAPI<List<TreMembershipDecision>, List<TreMembershipDecision>>("/api/Approval/UpdateMembershipDecisions", model);
-
+            
+            TempData["success"] = "Membership Updated Successfully";
             return View(result);
         }
 
@@ -79,6 +80,7 @@ namespace Agent.Web.Controllers
             var result =
                 await _treclientHelper.CallAPI<List<TreProject>, List<TreProject>>("/api/Approval/UpdateProjects", new List<TreProject>(){ model});
 
+            TempData["success"] = "Project Updated Successfully";
             return View(result.First());
         }
         
