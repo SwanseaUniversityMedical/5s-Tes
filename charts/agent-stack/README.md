@@ -107,7 +107,6 @@ the two must agree.
 | `.../teleport` | `keycloak_client_secret` | `teleport-user-management-secret` / `keycloakClientSecret` | `Teleport-User-Management` client secret (in the Submission product's realm) |
 | `.../teleport` | `keycloak_username` | `teleport-user-management-secret` / `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account |
 | `.../teleport` | `keycloak_password_enc` | `teleport-user-management-secret` / `keycloakPasswordEnc` | AES-encrypted password matching `keycloak_username` (encrypted with `encryption_key`) |
-| `.../teleport` | `connection_string` | `teleport-user-management-secret` / `connectionString` | Full PostgreSQL connection string for the teleport Hangfire storage on `pg-pooler` |
 | `.../teleport` | `hangfire_username` | `teleport-user-management-secret` / `hangfireUsername` | Hangfire dashboard username |
 | `.../teleport` | `hangfire_password` | `teleport-user-management-secret` / `hangfirePassword` | Hangfire dashboard password |
 | `.../teleport` | `encryption_key` | `teleport-user-management-secret` / `encryptionKey` | Base64 AES key (16/24/32 bytes) |
@@ -330,7 +329,7 @@ enable `tesk.enabled` on a security-restricted namespace, create both the Config
 `valuesObject` minimal (per the brief) rather than reproducing director-wfs's cluster-hardening
 layer (Gatekeeper, trust-manager, Falco) as well.
 
-## CloudNativePG: two required databases, one optional, one external
+## CloudNativePG: two required databases, two optional, one external
 
 CNPG's `bootstrap.initdb` is left at its defaults, which creates a database and a role both
 named `app`. Declarative `Database` objects then create the real application databases, owned
@@ -341,6 +340,12 @@ by that same `app` role:
   (`ConnectionStrings__CredentialsConnection`).
 - **`data-egress`** → `DATA-Egress` (`postgres.egressDatabase`), the egress api's own database.
   Only created when `egress.enabled` is `true`. See **Egress** above.
+- **`teleport`** → `TELEPORT` (`postgres.teleportDatabase`), the teleport job host's Hangfire
+  storage. Only created when `agent.teleport.enabled` is `true`. Its own database because both
+  `agent-api` and teleport run a Hangfire server with the provider's default schema — shared
+  storage would make each dequeue the other's jobs. Its connection string is not in Vault: the
+  `teleport-user-management-secret` VaultSecret derives it from `.../postgres`'s
+  `postgres_password`, direct to `postgres-rw`.
 
 **Production's TRE data database is external.** `ConnectionStrings__TREPostgresConnection`
 (the database the Camunda worker creates ephemeral credentials against) is not a `Database`

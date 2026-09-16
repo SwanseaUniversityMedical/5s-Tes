@@ -86,6 +86,24 @@ spec:
   owner: app
 {{- end }}
 
+{{- if .Values.agent.teleport.enabled }}
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Database
+metadata:
+  name: teleport
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  cluster:
+    name: postgres
+  name: "{{ .Values.postgres.teleportDatabase }}"
+  owner: app
+{{- end }}
+
 ---
 
 apiVersion: postgresql.cnpg.io/v1

@@ -233,6 +233,8 @@ postgres:
   credentialsDatabase: "TRE_Credentials"
   # The optional egress product's database.
   egressDatabase: "DATA-Egress"
+  # The optional teleport job host's Hangfire database.
+  teleportDatabase: "TELEPORT"
   instances: 1
   # Changing this on a running cluster is a major upgrade, not a text edit.
   # renovate: datasource=docker depName=cloudnative-pg/postgresql registryUrl=https://ghcr.io
