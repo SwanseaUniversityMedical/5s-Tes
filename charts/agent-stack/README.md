@@ -113,7 +113,7 @@ the two must agree.
 | `.../egress-ui` | `keycloak_client_secret` | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
 | `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
 | `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
-| `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the directory named by `agent.ldap.*` — the external AD in production, or `.../ldap`'s `admin_password` if `openldap.enabled` |
+| `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the stack.s own OpenLDAP — must equal `.../ldap`.s `admin_password` |
 | `.../rustfs` | `access_key` | `agent-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../agent-api`'s `s3_access_key` |
 | `.../rustfs` | `secret_key` | `agent-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../agent-api`'s `s3_secret_key` |
 | `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
@@ -163,12 +163,15 @@ belongs to the Submission deployment, not to this stack, and must already exist 
 compose — deliberate: issuer validation is satisfied by the OIDC metadata's fetched `Issuer`
 field, not a literal match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
 
-### External AD (or OpenLDAP)
+### The worker's directory (OpenLDAP)
 
-The Credentials Camunda worker binds to a directory named by `agent.ldap.*`. Production points
-these at a real Active Directory:
+The Credentials Camunda worker CREATES and DELETES ephemeral Trino users in the
+directory named by `agent.ldap.*` (`LdapUserManagementService`), so that directory is
+the stack's own `openldap` Application — never the org AD. Production deployments set
+`openldap.enabled: true`; the defaults of `agent.ldap.*` already match it. The TRE's
+Trino must authenticate against this same directory for the minted users to work.
 
-- `agent.ldap.host`/`port`/`useSsl` — the AD host and whether to use LDAPS.
+- `agent.ldap.host`/`port`/`useSsl` — the directory host and whether to use LDAPS.
 - `agent.ldap.adminDn`/`baseDn`/`userOu` — the bind DN and search base.
 - The bind password is `credentials-camunda-secret`'s `ldapAdminPassword`
   (`.../credentials-camunda`'s `ldap_admin_password` in Vault).
@@ -508,7 +511,7 @@ only in-flight workflow instance state, not the system of record.
 
 | Name | Description | Default |
 |---|---|---|
-| `openldap.enabled` | Deploy a local OpenLDAP as a stand-in for an external AD. Testing only. | `false` |
+| `openldap.enabled` | The directory the Camunda worker writes ephemeral users into. Production deployments enable it. | `false` |
 | `openldap.repoURL` | Helm repo the chart is pulled from. | `https://jp-gouin.github.io/helm-openldap/` |
 | `openldap.chart` | Chart name within that repo. | `openldap-stack-ha` |
 | `openldap.chartVersion` | openldap-stack-ha chart version. | `4.3.3` |

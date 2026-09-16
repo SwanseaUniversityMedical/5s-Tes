@@ -45,7 +45,7 @@ already-seeded PVC — delete the sentinel or the PVC to force a reseed.
   matching compose exactly — deliberate: issuer validation is satisfied by the OIDC metadata's
   fetched `Issuer` field, not by a literal string match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
 - A reachable RabbitMQ broker, PostgreSQL database(s), RustFS (S3-compatible) endpoint,
-  Vault, Seq, Zeebe gateway and OpenLDAP (or external AD) directory, at the addresses
+  Vault, Seq, Zeebe gateway and OpenLDAP directory, at the addresses
   given by `api.rabbitmqHost`, the `connectionString*` secrets, `api.s3Url`,
   `global.config.vaultUrl`, `global.config.seqUrl`, `global.config.zeebeGatewayAddress`
   and `camunda.ldap.*`.
@@ -101,7 +101,7 @@ Set by `camunda.secretName`.
 
 | **Key** | **Used for** | **Required** |
 |---|---|---|
-| `ldapAdminPassword` | OpenLDAP (or external AD) admin bind password. Read into `LdapSettings__AdminPassword`. | Yes |
+| `ldapAdminPassword` | OpenLDAP admin bind password. Read into `LdapSettings__AdminPassword`. | Yes |
 | `connectionStringCredentials` | PostgreSQL connection string for the shared Credentials database. Read into `ConnectionStrings__CredentialsConnection`. | Yes |
 | `connectionStringTreData` | PostgreSQL connection string the worker uses to create ephemeral credentials against a TRE data database. Read into `ConnectionStrings__TREPostgresConnection`. | Yes |
 
@@ -290,7 +290,7 @@ calls directly.
 | `camunda.zeebe.worker.pollIntervalInMilliseconds` | Interval between job polls. | `1000` |
 | `camunda.zeebe.worker.pollingTimeoutInMilliseconds` | Long-poll timeout per request. | `5000` |
 | `camunda.zeebe.worker.retryTimeoutInMilliseconds` | Retry timeout on a failed job. | `5000` |
-| `camunda.ldap.host` | LDAP host. Production overrides this to an external AD. | `openldap` |
+| `camunda.ldap.host` | LDAP host: the stack.s own OpenLDAP. | `openldap` |
 | `camunda.ldap.port` | LDAP port. | `389` |
 | `camunda.ldap.adminDn` | LDAP admin bind DN. | `cn=admin,dc=camundaephemeral,dc=local` |
 | `camunda.ldap.baseDn` | LDAP base DN for user searches. | `dc=camundaephemeral,dc=local` |

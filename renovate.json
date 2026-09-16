@@ -3,6 +3,14 @@
   "extends": [
     ":enableRenovate"
   ],
+  "packageRules": [
+    {
+      "description": "Camunda 8.6+ (chart 11+) needs a paid production licence",
+      "matchDatasources": ["helm"],
+      "matchPackageNames": ["camunda-platform"],
+      "allowedVersions": "<11.0.0"
+    }
+  ],
   "customManagers": [
     {
       "customType": "regex",

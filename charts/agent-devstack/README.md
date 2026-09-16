@@ -125,8 +125,8 @@ stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
 
 ### Optional: local OpenLDAP
 
-`agent-stack`'s Credentials Camunda worker binds to a directory (`agent.ldap.*`), production's
-external AD. To stand up the bundled OpenLDAP instead:
+`agent-stack`'s Credentials Camunda worker binds to a directory (`agent.ldap.*`) — the
+stack's own OpenLDAP in production. To stand it up locally too:
 
 ```
 --set openldap.enabled=true    # on THIS chart, so agent-openldap-secret renders
