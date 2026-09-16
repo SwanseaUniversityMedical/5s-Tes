@@ -33,12 +33,15 @@ spec:
     targetRevision: "{{ .Values.camunda.chartVersion }}"
     helm:
       valuesObject:
-        # Zeebe + Elasticsearch only. Operate, Tasklist, Optimize, Identity and
-        # Connectors are non-production-only without an Enterprise licence.
+        # Zeebe only. Operate, Tasklist, Optimize, Identity and Connectors are
+        # non-production-only without an Enterprise licence; without them
+        # nothing reads Elasticsearch, so no exporter is configured.
         global:
           identity:
             auth:
               enabled: false
+          elasticsearch:
+            enabled: false
 
         zeebe:
           clusterSize: "1"
@@ -68,19 +71,5 @@ spec:
           enabled: false
 
         elasticsearch:
-          # Upstream moved these tags to the frozen bitnamilegacy repository;
-          # the org mirror carries them under bitnami/, with the full Bitnami
-          # tag rather than the bare version the chart assumes.
-          image:
-            registry: "{{ .Values.camunda.bitnamiRegistry }}"
-            repository: bitnami/elasticsearch
-            tag: "{{ .Values.camunda.elasticsearchTag }}"
-          sysctlImage:
-            registry: "{{ .Values.camunda.bitnamiRegistry }}"
-            repository: bitnami/os-shell
-            tag: "{{ .Values.camunda.osShellTag }}"
-          master:
-            replicaCount: 1
-            persistence:
-              size: 10Gi
+          enabled: false
 {{- end }}

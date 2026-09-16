@@ -135,13 +135,6 @@ camunda:
   # production use. Renovate is capped to match (see renovate.json).
   # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
   chartVersion: "10.11.3"
-  # The Elasticsearch subchart's images. The chart's own defaults point at the
-  # frozen bitnamilegacy repository, so both are pinned to the org mirror.
-  bitnamiRegistry: "harbor.ukserp.ac.uk"
-  # renovate: datasource=docker depName=bitnami/elasticsearch registryUrl=https://harbor.ukserp.ac.uk
-  elasticsearchTag: "8.12.2-debian-12-r1"
-  # renovate: datasource=docker depName=bitnami/os-shell registryUrl=https://harbor.ukserp.ac.uk
-  osShellTag: "12-debian-12-r50"
 
 # Local/test OpenLDAP standing in for a real Active Directory (agent.ldap.*).
 openldap:
