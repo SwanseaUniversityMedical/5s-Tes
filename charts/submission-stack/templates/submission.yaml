@@ -74,6 +74,11 @@ spec:
             key: "{{ .Values.global.trustClusterCa.key }}"
             mountPath: "{{ .Values.global.trustClusterCa.mountPath }}"
 
+        teleport:
+          enabled: {{ .Values.submission.teleport.enabled }}
+          ad:
+            {{- toYaml .Values.submission.teleport.ad | nindent 12 }}
+
         api:
           service:
             {{- toYaml .Values.submission.api.service | nindent 12 }}
