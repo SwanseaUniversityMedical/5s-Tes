@@ -164,13 +164,24 @@ tesk:
     # renovate: datasource=docker depName=tesk/tesk-core-filer registryUrl=https://harbor.ukserp.ac.uk
     version: "v0.10.5"
 
-# Secret source settings, and this stack's own Vault Application.
+# The VaultSecrets' platform-Vault settings, and this stack's own runtime
+# Vault Application.
 vault:
+  # Kubernetes-auth role on the platform Vault; the tenant name in SERP.
   role: agent
   secretPath: kvv2/data/prod/prod/agent
   authPath: kubernetes
-  # This stack's own Vault, not the operator's default connection.
+  # This stack's own runtime Vault, read and written by the api and the
+  # Credentials Camunda worker. The VaultSecrets do NOT read from it.
   address: "http://agent-vault:8200"
+
+  # Images for the vault-init CronJob. Keep vaultImage's tag equal to the
+  # server image the vault chart below deploys.
+  init:
+    # renovate: datasource=docker depName=hashicorp/vault
+    vaultImage: "hashicorp/vault:2.0.4"
+    # renovate: datasource=docker depName=alpine/kubectl
+    kubectlImage: "alpine/kubectl:1.35.4"
 
   # The api and camunda worker call this Vault at runtime, so this stays
   # true even where secretsEnabled is false.

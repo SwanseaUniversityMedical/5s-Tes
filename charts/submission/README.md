@@ -56,7 +56,10 @@ Set by `api.secretName`.
 | `keycloakClientSecret` | Client secret for the `Dare-Control-API` Keycloak client. Read into `SubmissionKeyCloakSettings__ClientSecret`. | Yes |
 | `keycloakAdminUsername` | Username the API uses to call the Keycloak admin API. Read into `KeycloakAdmin__Username`. | Yes |
 | `keycloakAdminPassword` | Password matching `keycloakAdminUsername`. Read into `KeycloakAdmin__Password`. | Yes |
-| `vaultToken` | Vault token. Read into `VaultSettings__Token`. | Yes |
+
+`VaultSettings__Token` is not in this Secret: the api reads it from the static
+`submission-vault-token` Secret (key `vaultToken`), written by the stack's vault-init
+CronJob.
 
 ### `submission-ui-secret`
 

@@ -3,6 +3,10 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: {{ include "agent.fullname" . }}-camunda
+  annotations:
+    # Stakater Reloader (platform-provided): restart when the vault-init
+    # CronJob rotates the runtime-Vault app token.
+    secret.reloader.stakater.com/reload: "agent-vault-token"
   labels:
     {{- include "agent.labels" . | nindent 4 }}
     app.kubernetes.io/component: camunda
@@ -130,7 +134,8 @@ spec:
             - name: VaultSettings__Token
               valueFrom:
                 secretKeyRef:
-                  name: {{ .Values.camunda.secretName }}
+                  # Static: written by the stack's vault-init CronJob.
+                  name: agent-vault-token
                   key: vaultToken
             - name: VaultSettings__TimeoutSeconds
               value: "{{ .Values.camunda.vault.timeoutSeconds }}"

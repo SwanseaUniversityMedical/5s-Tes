@@ -57,6 +57,35 @@ spec:
             enabled: true
             storageClass: {{ .Values.global.storageClass }}
             size: "{{ .Values.vault.dataStorageSize }}"
+          extraContainers:
+            - name: unseal-watch
+              image: "{{ .Values.vault.init.vaultImage }}"
+              command: ["/bin/sh", "/scripts/unseal-watch.sh"]
+              env:
+                - name: VAULT_ADDR
+                  value: "http://127.0.0.1:8200"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 32Mi
+              volumeMounts:
+                - name: init-scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: vault-keys
+                  mountPath: /existing-keys
+                  readOnly: true
+          volumes:
+            - name: init-scripts
+              configMap:
+                name: submission-vault-init
+                defaultMode: 0555
+            - name: vault-keys
+              secret:
+                secretName: submission-vault-keys
+                optional: true
 
         injector:
           enabled: {{ .Values.vault.injector.enabled }}

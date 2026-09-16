@@ -94,7 +94,7 @@ api:
   # Expected keys: connectionStringDefault, connectionStringCredentials,
   # rabbitUsername, rabbitPassword, treKeycloakClientSecret,
   # submissionKeycloakClientSecret, egressKeycloakClientSecret,
-  # s3AccessKey, s3SecretKey, vaultToken, encryptionKey, hangfireUsername,
+  # s3AccessKey, s3SecretKey, encryptionKey, hangfireUsername,
   # hangfirePassword, hasuraAdminSecret. See README Secrets section.
   secretName: agent-api-secret
   ingress:
@@ -244,9 +244,8 @@ camunda:
     pullPolicy: IfNotPresent
   containerPort: 8080
   resources: {}
-  # Expected keys: ldapAdminPassword, vaultToken,
-  # connectionStringCredentials, connectionStringTreData. See README Secrets
-  # section.
+  # Expected keys: ldapAdminPassword, connectionStringCredentials,
+  # connectionStringTreData. See README Secrets section.
   secretName: credentials-camunda-secret
 
   zeebe:

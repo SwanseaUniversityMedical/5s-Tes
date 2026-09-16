@@ -8,7 +8,8 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
 
 | Component | What it is | Sync wave |
 |---|---|---|
-| `templates/vault.yaml` | ArgoCD `Application` `vault`, hashicorp/vault chart, standalone (file) mode | 1 |
+| `templates/vault.yaml` | ArgoCD `Application` `vault`, hashicorp/vault chart, standalone (file) mode, with an unseal-watch sidecar | 1 |
+| `templates/vault-init.yaml` | CronJob converging the runtime Vault (see **Vault** below) | 1 |
 | `templates/secrets/*.yaml` | `VaultSecret` objects | 1 |
 | `templates/rabbitmq.yaml` | `RabbitmqCluster` named `rabbitmq` | 2 |
 | `templates/rustfs.yaml` | ArgoCD `Application` `rustfs`, RustFS chart, standalone mode | 3 |
@@ -23,7 +24,9 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
   `Database` and a `Pooler`; nothing runs unless the operator is watching for them.
   Requires CNPG **>= 1.25** for the `Database` CRD.
 - **The RabbitMQ Cluster Operator**, for `templates/rabbitmq.yaml`'s `RabbitmqCluster`.
-- **The redhatcop VaultSecret CRDs/operator**, for every object under `templates/secrets/`.
+- **The redhatcop VaultSecret CRDs/operator**, for every object under `templates/secrets/`,
+  with its default connection pointing at the platform Vault and a Kubernetes-auth role
+  (`vault.role`) that accepts the `default` ServiceAccount in this namespace.
 - **ArgoCD**, watching this namespace, with a project matching `global.argoProject`.
 - **Velero**, in `global.veleroBackup.namespace`, if `global.veleroBackup.enabled` is `true`.
 - A `monitoring.coreos.com` PodMonitor CRD (Prometheus Operator), if `global.monitoring.enabled`
@@ -31,101 +34,53 @@ Ingress for C# code lives in this chart; that is all in `charts/submission`.
 
 ## Vault
 
-This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned
-runtime Vault**, holding ephemeral researcher credentials — not the platform Vault on
-the `management` cluster.
+Two Vault instances matter to this stack, with distinct jobs:
 
-Because it isn't the platform Vault, the redhatcop operator's own default connection
-(the standard `VAULT_ADDR`-style environment variables on the operator's Deployment,
-pointed at the platform Vault) is the wrong instance. Every `VaultSecret` below sets
-`vaultSecretDefinitions[].connection.address` to `vault.address` (default
-`http://submission-vault:8200`, this stack's own Vault Service) to override that default
-per definition.
+- **The platform Vault** supplies every deploy-time Secret. Each `VaultSecret` under
+  `templates/secrets/` uses the redhatcop operator's default connection, authenticating
+  with `vault.authPath`/`vault.role` (the tenant name) and reading
+  `vault.secretPath/...` — see the paths table below. Mounts, Kubernetes auth and
+  policies there are platform-managed; this chart assumes they exist and never
+  configures that Vault.
+- **This stack's own runtime Vault** (`templates/vault.yaml`, release
+  `submission-vault`) holds only the ephemeral researcher credentials the api reads and
+  writes at runtime via `VaultCredentialsService` (`secret` kv-v2 mount,
+  `api.vault.secretEngine`). File-storage standalone mode, explicitly not `server.dev`.
 
-It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`).
-Every step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev
-equivalent (init/unseal/`secret` mount/token, not the `kvv2`/Kubernetes-auth steps below,
-which only matter where `vault.secretsEnabled=true`).
+### The vault-init CronJob
+
+`templates/vault-init.yaml` converges the runtime Vault every 5 minutes, so its whole
+lifecycle is hands-off:
+
+- initialises it on first run (1 key share) and stores the unseal key and root token in
+  the `submission-vault-keys` Secret;
+- ensures the `secret` kv-v2 mount and the `submission-app` policy (`secret/*`);
+- mints a periodic app token, publishes it as the `submission-vault-token` Secret (key
+  `vaultToken`, read by the api Deployment's `VaultSettings__Token`), and renews it on
+  every later run so it never expires.
+
+Unsealing is faster than the 5-minute cadence: an `unseal-watch` sidecar in the vault
+pod (`server.extraContainers` in `templates/vault.yaml`) polls every 10 seconds and
+unseals from the keys Secret — file-storage standalone always restarts sealed. The
+CronJob also unseals, as a backstop.
+
+Anyone who can read Secrets in this namespace can read the unseal key and root token —
+acceptable for this Vault's ephemeral contents, and the reason it must never hold
+anything else. If `submission-vault-token` is ever replaced (e.g. after a re-init), the
+api Deployment's `secret.reloader.stakater.com/reload` annotation restarts it
+automatically — on a cluster without Stakater Reloader (e.g. local kind) that restart
+is manual. Locally, `dev-env-setup/vault-init.sh` only adds the fixed `dev-only-token`
+for IDE-run apps on top of what the CronJob does.
 
 The hashicorp/vault chart names its cluster-scoped `ClusterRoleBinding` from the
-release name alone, so each stack's release is family-prefixed. This stack's release is
-`submission-vault` (`agent-stack`'s is `agent-vault`); the pod below is
-`submission-vault-0`.
+release name alone, so each stack's release is family-prefixed: `submission-vault` here,
+`agent-vault` in `agent-stack`.
 
 Renaming an existing installation's Vault release abandons its PVC and all sealed state —
 a pre-existing install must migrate (re-attach the PVC under the new release name, or
-re-init and re-seed) before upgrading across this rename.
+re-init) before upgrading across this rename.
 
-1. **Init and unseal** (first time only):
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault operator init
-   # Record the five unseal keys and the root token somewhere safe (not Git).
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault operator unseal   # x3, different keys
-   ```
-
-2. **Enable the kv-v2 mount** at the path base — the first segment of
-   `vault.secretPath` (`kvv2` by default):
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault login   # root token from step 1
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault secrets enable -path=kvv2 kv-v2
-   ```
-
-   Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
-   `v1/{mount}/data/{path}`, the KV v2 shape: `Shared/FiveSafesTes.Core/Services/VaultCredentialsService.cs:38,60,82,117`),
-   at `api.vault.secretEngine`/`VaultSettings__SecretEngine`'s default (`secret`, compose
-   parity):
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault secrets enable -path=secret -version=2 kv
-   ```
-
-   `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
-   operator-read store the redhatcop `VaultSecret`s pull deploy-time app Secrets from;
-   `secret` is the store `api` reads and writes at runtime (via `VaultCredentialsService`).
-
-3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault auth enable -path=kubernetes kubernetes
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault write auth/kubernetes/config \
-     kubernetes_host="https://kubernetes.default.svc"
-   ```
-
-4. **Create the policy and role** (`vault.role`), bound to the namespace's `default`
-   ServiceAccount — every VaultSecret's `authentication.serviceAccount.name` is
-   `default`:
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault policy write submission - <<'EOF'
-   path "kvv2/data/prod/prod/submission/*" {
-     capabilities = ["read"]
-   }
-   EOF
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault write auth/kubernetes/role/submission \
-     bound_service_account_names=default \
-     bound_service_account_namespaces=<namespace> \
-     policies=submission \
-     ttl=1h
-   ```
-
-   Adjust the policy path to match `vault.secretPath` if it's overridden.
-
-5. **Write the app secrets**, one per row of the paths table below. The `vault kv put`
-   CLI inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
-
-   ```bash
-   kubectl exec -n <namespace> -it submission-vault-0 -- vault kv put kvv2/prod/prod/submission/postgres \
-     postgres_password='...'
-   ```
-
-   Last, write the app's own Vault token, at `{{ .Values.vault.secretPath }}/submission-api`,
-   key `vault_token`, so the `submission-api-secret` VaultSecret can inject it as
-   `vaultToken` (read by `VaultSettings__Token`, used by the app's own runtime calls to
-   this Vault instance via `IVaultCredentialsService`).
-
-### Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/submission`)
+### Platform-Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/submission`)
 
 The standalone chart's README lists the Kubernetes Secret names and keys each of these
 fills; the two must agree.
@@ -141,7 +96,6 @@ fills; the two must agree.
 | `.../submission-api` | `s3_secret_key` | `submission-api-secret` / `s3SecretKey` | RustFS secret key. Must equal `.../rustfs`'s `secret_key`. |
 | `.../submission-api` | `rabbit_username` | `submission-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
 | `.../submission-api` | `rabbit_password` | `submission-api-secret` / `rabbitPassword` | RabbitMQ default user password |
-| `.../submission-api` | `vault_token` | `submission-api-secret` / `vaultToken` | Token for this stack's own Vault |
 | `.../submission-ui` | `keycloak_client_secret` | `submission-ui-secret` / `keycloakClientSecret` | `Dare-Control-UI` client secret |
 | `.../rustfs` | `access_key` | `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../submission-api`'s `s3_access_key` |
 | `.../rustfs` | `secret_key` | `submission-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../submission-api`'s `s3_secret_key` |

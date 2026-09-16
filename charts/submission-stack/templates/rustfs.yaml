@@ -44,6 +44,12 @@ spec:
         secret:
           existingSecret: submission-rustfs-secret
 
+        service:
+          type: {{ .Values.rustfs.service.type }}
+          {{- with .Values.rustfs.service.loadBalancerIP }}
+          loadBalancerIP: {{ . | quote }}
+          {{- end }}
+
         # Labels every object the chart creates, including its PVCs, so the
         # Velero Schedule's selector in backup.yaml covers rustfs's own data.
         commonLabels:

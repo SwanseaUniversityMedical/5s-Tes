@@ -12,8 +12,8 @@ cluster creation - operator/ArgoCD installs included - is a `helm upgrade --inst
 `kubectl apply`, so it resumes correctly even if a previous run stopped right after
 `kind create cluster`. A re-run does reset any `--set` toggle you added by hand to a
 devstack install (e.g. `openldap.enabled`, `egress.enabled`) - re-apply those afterwards.
-Only reach for `./clean-up.sh` (deletes the cluster and the saved
-Vault keys) if the kind cluster itself looks broken rather than just mid-install.
+Only reach for `./clean-up.sh` (deletes the cluster) if the kind cluster itself looks
+broken rather than just mid-install.
 
 ## What it does
 
@@ -35,7 +35,8 @@ Vault keys) if the kind cluster itself looks broken rather than just mid-install
    then applies
    `files/argo/submission-app.yaml`/`agent-app.yaml` — the two stack Applications (see
    **Stack Applications** below).
-7. `vault-init.sh` initialises, unseals, and configures each family's own runtime Vault.
+7. `vault-init.sh` creates each family's IDE `dev-only-token` once the stack's
+   `vault-init` CronJob has initialised that family's runtime Vault.
 8. Waits for every ArgoCD Application, the CNPG `postgres` Cluster, and the `rabbitmq`
    RabbitmqCluster to be healthy, then for every Deployment in both namespaces.
 9. Prints a URL summary.
@@ -84,30 +85,18 @@ plus `--set egress.enabled=true` on the `agent-devstack` install) — see
 
 Each family's own Vault (`vault.enabled` stays `true`, `vault.secretsEnabled=false` locally -
 see both devstack READMEs' **Local install**) runs in the stack's own prod mode
-(`server.standalone`, not `server.dev`), so it starts sealed on every fresh
-cluster and needs real init/unseal.
+(`server.standalone`, not `server.dev`). Init, unseal, the `secret` mount and the
+in-cluster app token are all handled by the stack's `vault-init` CronJob and unseal-watch sidecar (see the stack
+READMEs' **Vault** section); its keys land in the `<vault-release-name>-keys` Secret.
 `vault-init.sh <namespace> <kube-context> <vault-release-name>` (the third argument is
-`submission-vault`/`agent-vault`):
+`submission-vault`/`agent-vault`) waits for that Secret, then creates a token with the
+literal ID `dev-only-token` and the root policy - the fixed token IDE launch profiles
+use, which the CronJob's random app token cannot provide:
 
 ```bash
 ./vault-init.sh 5s-tes-submission kind-5s-tes submission-vault
 ./vault-init.sh 5s-tes-agent kind-5s-tes agent-vault
 ```
-
-1. Initialises with `-key-shares=1 -key-threshold=1` (single operator, local dev only) if not
-   already initialised, saving the unseal key and root token to
-   `dev-env-setup/.vault-keys-<namespace>` (gitignored, `chmod 600`).
-2. Unseals if sealed, using the saved key.
-3. Enables the `secret` kv-v2 mount at runtime (`api.vault.secretEngine` default) - the
-   *only* mount needed locally, since `vault.secretsEnabled=false` means no VaultSecret CRs
-   exist to need the operator-read `kvv2` mount or Kubernetes auth.
-4. Creates a token with the literal ID `dev-only-token` and the root policy, as a child of
-   the real (random) root token init produced - `vault operator init` cannot choose the root
-   token's own ID, so this is how the static Secrets' `vaultToken: dev-only-token` becomes a
-   real, working token without patching any Secret or restarting any pod.
-
-Delete `dev-env-setup/.vault-keys-<namespace>` only together with that Vault's PVC (e.g. via
-`./clean-up.sh`) - an orphaned keys file for an already-initialised Vault cannot unseal it.
 
 ## Host access for development
 

@@ -39,7 +39,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client) |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-control-admin` realm role so admin-gated pages/endpoints work |
 | S3 (RustFS) access/secret key | `s3-submission` / `s3-submission-pass` | `submission-api-secret.s3AccessKey`/`s3SecretKey` + `submission-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | `MinioSettings__AccessKey`/`SecretKey`; RustFS chart's own root credentials |
-| Vault token | `dev-only-token` | `submission-api-secret.vaultToken` | `VaultSettings__Token` — the local Vault runs (`vault.enabled` stays `true`; see **Local install**) and must be configured with a token equal to this value after init/unseal, or this Secret's value updated to match the real token |
+| Vault token | `dev-only-token` | none (IDE launch profiles only) | `VaultSettings__Token` for IDE-run apps; `dev-env-setup/vault-init.sh` creates it. In-cluster, the api reads the stack CronJob's `submission-vault-token` Secret instead |
 | RabbitMQ default user | `submission` / `password123` | `submission-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
 | Keycloak admin console | `admin` / `admin` | `keycloak-admin-secret` | Keycloak's own `auth.existingSecret` |
 | Seq first-run admin | `admin` / `admin` | `seq-admin-password-secret` | Seq's own `firstRunAdminPasswordSecret` |
@@ -101,11 +101,10 @@ the stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
   source for bootstrap Secrets. `vault.secretsEnabled=false` drops only the five
   `VaultSecret`s across the four files under `templates/secrets/`, so this chart's static
   Secrets are the only thing producing those names/keys.
-- The local Vault still starts sealed and needs init/unseal:
-  `dev-env-setup/vault-init.sh` does this (init, unseal, enable the `secret` mount, and
-  create a `dev-only-token` root-policy token matching this Secret's `vaultToken` — see its
-  README section). See `submission-stack`'s README **Vault** section for the manual/prod
-  steps this mirrors.
+- The local Vault's init/unseal/`secret` mount and the in-cluster app token are handled
+  by the stack's vault-init CronJob and unseal-watch sidecar (see `submission-stack`'s README **Vault**
+  section); `dev-env-setup/vault-init.sh` only adds the fixed `dev-only-token` for
+  IDE-run apps.
 - `rabbitmq.vaultDefaultUser=false` drops the `RabbitmqCluster`'s `secretBackend.vault`
   block. The `additionalConfig` lines then set the broker's own default user to
   `submission`/`password123` — the same values as this chart's `submission-api-secret`

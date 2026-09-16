@@ -350,6 +350,6 @@ cat <<SUMMARY
  files/argo/<family>-app.yaml and kubectl apply it.
 
  Dev login (both realms): dev/password123
- Vault keys: dev-env-setup/.vault-keys-$SUBMISSION_NS, .vault-keys-$AGENT_NS (gitignored)
+ Vault keys: the <family>-vault-keys Secrets in each namespace
 ===============================================================================
 SUMMARY

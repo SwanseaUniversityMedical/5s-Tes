@@ -78,10 +78,13 @@ Set by `api.secretName`.
 | `egressKeycloakClientSecret` | Client secret for the `Data-Egress-API` Keycloak client. Read into `DataEgressKeyCloakSettings__ClientSecret`. Only used when `api.egress.enabled` is `true`. | Only if `api.egress.enabled` |
 | `s3AccessKey` | Access key for the TRE RustFS bucket. Read into `MinioTRESettings__AccessKey`. | Yes |
 | `s3SecretKey` | Secret key matching `s3AccessKey`. Read into `MinioTRESettings__SecretKey`. | Yes |
-| `vaultToken` | Vault token. Read into `VaultSettings__Token`. | Yes |
 | `encryptionKey` | Base64 encryption key. Read into `EncryptionSettings__Key`. | Yes |
 | `hangfireUsername` | Hangfire dashboard username. Read into `Hangfire__Username`. | Yes |
 | `hangfirePassword` | Hangfire dashboard password. Read into `Hangfire__Password`. | Yes |
+
+`VaultSettings__Token` is not in this Secret: both the api and the Camunda worker read
+it from the static `agent-vault-token` Secret (key `vaultToken`), written by the
+stack's vault-init CronJob.
 | `hasuraAdminSecret` | Hasura admin secret. Read into `HasuraSettings__HasuraAdminSecret`. Only used when `api.hasura.enabled` is `true`. | Only if `api.hasura.enabled` |
 
 ### `agent-ui-secret`
@@ -99,7 +102,6 @@ Set by `camunda.secretName`.
 | **Key** | **Used for** | **Required** |
 |---|---|---|
 | `ldapAdminPassword` | OpenLDAP (or external AD) admin bind password. Read into `LdapSettings__AdminPassword`. | Yes |
-| `vaultToken` | Vault token. Read into `VaultSettings__Token`. | Yes |
 | `connectionStringCredentials` | PostgreSQL connection string for the shared Credentials database. Read into `ConnectionStrings__CredentialsConnection`. | Yes |
 | `connectionStringTreData` | PostgreSQL connection string the worker uses to create ephemeral credentials against a TRE data database. Read into `ConnectionStrings__TREPostgresConnection`. | Yes |
 

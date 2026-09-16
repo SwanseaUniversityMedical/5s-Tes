@@ -8,7 +8,8 @@ lives in this chart; that is all in `charts/agent`.
 
 | Component | What it is | Sync wave |
 |---|---|---|
-| `templates/vault.yaml` | ArgoCD `Application` `vault`, hashicorp/vault chart, standalone (file) mode | 1 |
+| `templates/vault.yaml` | ArgoCD `Application` `vault`, hashicorp/vault chart, standalone (file) mode, with an unseal-watch sidecar | 1 |
+| `templates/vault-init.yaml` | CronJob converging the runtime Vault (see **Vault** below) | 1 |
 | `templates/secrets/*.yaml` | `VaultSecret` objects | 1 |
 | `templates/rabbitmq.yaml` | `RabbitmqCluster` named `rabbitmq` | 2 |
 | `templates/openldap.yaml` | ArgoCD `Application` `openldap`, optional, default off | 2 |
@@ -28,7 +29,9 @@ lives in this chart; that is all in `charts/agent`.
   nothing runs unless the operator is watching for them.
 - **The RabbitMQ Cluster Operator**, for `templates/rabbitmq.yaml`'s `RabbitmqCluster`.
 - **The redhatcop `vault-config-operator`** (the `VaultSecret` CRD), for every object under
-  `templates/secrets/`.
+  `templates/secrets/`, with its default connection pointing at the platform Vault and a
+  Kubernetes-auth role (`vault.role`) that accepts the `default` ServiceAccount in this
+  namespace.
 - **ArgoCD**, watching this namespace, with a project matching `global.argoProject`.
 - **Velero**, in `global.veleroBackup.namespace`, if `global.veleroBackup.enabled` is `true`.
 - **The `barman-cloud.cloudnative-pg.io` CNPG plugin**, only if `postgres.backups.enabled` is
@@ -38,92 +41,46 @@ lives in this chart; that is all in `charts/agent`.
 
 ## Vault
 
-This stack deploys its own Vault instance (`templates/vault.yaml`): an **app-owned runtime
-Vault**, holding ephemeral researcher credentials that both `api` and the Credentials Camunda
-worker call at runtime via `VaultSettings__BaseUrl`/`VaultSettings__Token` — not the platform
-Vault on the `management` cluster.
+Two Vault instances matter to this stack, with distinct jobs:
 
-Because it is not the platform Vault, every `VaultSecret` below sets
-`vaultSecretDefinitions[].connection.address` to `vault.address` (default
-`http://agent-vault:8200`, this stack's own Vault Service) to override the redhatcop
-operator's own default connection, which otherwise points at the platform Vault.
+- **The platform Vault** supplies every deploy-time Secret. Each `VaultSecret` under
+  `templates/secrets/` uses the redhatcop operator's default connection, authenticating
+  with `vault.authPath`/`vault.role` (the tenant name) and reading
+  `vault.secretPath/...` — see the paths table below. Mounts, Kubernetes auth and
+  policies there are platform-managed; this chart assumes they exist and never
+  configures that Vault.
+- **This stack's own runtime Vault** (`templates/vault.yaml`, release `agent-vault`)
+  holds only the ephemeral researcher credentials that `api` and the Credentials
+  Camunda worker read and write at runtime via `VaultCredentialsService` (`secret`
+  kv-v2 mount, `api.vault.secretEngine`). File-storage standalone mode, explicitly not
+  `server.dev`.
 
-It starts sealed, using file storage (`server.standalone`, explicitly not `server.dev`). Every
-step below is manual; `dev-env-setup/vault-init.sh` automates the local-dev equivalent
-(init/unseal/`secret` mount/token).
+### The vault-init CronJob
 
-The release is named `agent-vault`, so the pod below is `agent-vault-0`.
+`templates/vault-init.yaml` converges the runtime Vault every 5 minutes, so its whole
+lifecycle is hands-off:
 
-1. **Init and unseal** (first time only):
+- initialises it on first run (1 key share) and stores the unseal key and root token in
+  the `agent-vault-keys` Secret;
+- ensures the `secret` kv-v2 mount and the `agent-app` policy (`secret/*`);
+- mints a periodic app token, publishes it as the `agent-vault-token` Secret (key
+  `vaultToken`, read by the api and camunda Deployments' `VaultSettings__Token`), and
+  renews it on every later run so it never expires.
 
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator init
-   # Record the five unseal keys and the root token somewhere safe (not Git).
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault operator unseal   # x3, different keys
-   ```
+Unsealing is faster than the 5-minute cadence: an `unseal-watch` sidecar in the vault
+pod (`server.extraContainers` in `templates/vault.yaml`) polls every 10 seconds and
+unseals from the keys Secret — file-storage standalone always restarts sealed. The
+CronJob also unseals, as a backstop.
 
-2. **Enable the kv-v2 mount** at the path base — the first segment of `vault.secretPath`
-   (`kvv2` by default):
+Anyone who can read Secrets in this namespace can read the unseal key and root token —
+acceptable for this Vault's ephemeral contents, and the reason it must never hold
+anything else. If `agent-vault-token` is ever replaced (e.g. after a re-init), the api
+and camunda Deployments' `secret.reloader.stakater.com/reload` annotations restart them
+automatically — on a cluster without Stakater Reloader (e.g. local kind) that restart
+is manual. Locally, `dev-env-setup/vault-init.sh` only adds the fixed `dev-only-token`
+for IDE-run apps on top of what the CronJob does.
 
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault login   # root token from step 1
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=kvv2 kv-v2
-   ```
-
-   Also enable a second mount, `secret` (KV v2 — `VaultCredentialsService` reads/writes
-   `v1/{mount}/data/{path}`, the KV v2 shape: `Shared/FiveSafesTes.Core/Services/VaultCredentialsService.cs:38,60,82,117`),
-   at `api.vault.secretEngine`/`VaultSettings__SecretEngine`'s default (`secret`, compose
-   parity):
-
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault secrets enable -path=secret -version=2 kv
-   ```
-
-   `kvv2` and `secret` are two different mounts for two different things: `kvv2` is the
-   operator-read store the redhatcop `VaultSecret`s pull deploy-time app Secrets from;
-   `secret` is the store `api`/`camunda` read and write at runtime (ephemeral researcher
-   credentials, via `VaultCredentialsService`).
-
-3. **Enable Kubernetes auth** at `vault.authPath`, and point it at this cluster's API:
-
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault auth enable -path=kubernetes kubernetes
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/config \
-     kubernetes_host="https://kubernetes.default.svc"
-   ```
-
-4. **Create the policy and role** (`vault.role`), bound to the namespace's `default`
-   ServiceAccount — every VaultSecret's `authentication.serviceAccount.name` is `default`:
-
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault policy write agent - <<'EOF'
-   path "kvv2/data/prod/prod/agent/*" {
-     capabilities = ["read"]
-   }
-   EOF
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault write auth/kubernetes/role/agent \
-     bound_service_account_names=default \
-     bound_service_account_namespaces=<namespace> \
-     policies=agent \
-     ttl=1h
-   ```
-
-   Adjust the policy path to match `vault.secretPath` if it is overridden.
-
-5. **Write the app secrets**, one per row of the paths table below. The `vault kv put` CLI
-   inserts the kv-v2 `data/` segment itself, so drop it from the path you type:
-
-   ```bash
-   kubectl exec -n <namespace> -it agent-vault-0 -- vault kv put kvv2/prod/prod/agent/postgres \
-     postgres_password='...'
-   ```
-
-   Last, write the api's and the Camunda worker's own Vault tokens, at
-   `{{ .Values.vault.secretPath }}/agent-api` and `.../credentials-camunda`, key `vault_token`
-   both times, so `agent-api-secret` and `credentials-camunda-secret` can inject them as
-   `vaultToken` (`VaultSettings__Token`).
-
-### Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/agent`)
+### Platform-Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/agent`)
 
 The standalone chart's README lists the Kubernetes Secret names and keys each of these fills;
 the two must agree.
@@ -141,7 +98,6 @@ the two must agree.
 | `.../agent-api` | `rabbit_username` | `agent-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
 | `.../agent-api` | `rabbit_password` | `agent-api-secret` / `rabbitPassword` | RabbitMQ default user password |
 | `.../agent-api` | `encryption_key` | `agent-api-secret` / `encryptionKey` | Base64 encryption key |
-| `.../agent-api` | `vault_token` | `agent-api-secret` / `vaultToken` | Token for this stack's own Vault, used by the api |
 | `.../agent-api` | `hangfire_username` | `agent-api-secret` / `hangfireUsername` | Hangfire dashboard username |
 | `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
 | `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
@@ -158,7 +114,6 @@ the two must agree.
 | `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
 | `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
 | `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the directory named by `agent.ldap.*` — the external AD in production, or `.../ldap`'s `admin_password` if `openldap.enabled` |
-| `.../credentials-camunda` | `vault_token` | `credentials-camunda-secret` / `vaultToken` | Token for this stack's own Vault, used by the worker |
 | `.../rustfs` | `access_key` | `agent-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../agent-api`'s `s3_access_key` |
 | `.../rustfs` | `secret_key` | `agent-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../agent-api`'s `s3_secret_key` |
 | `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |

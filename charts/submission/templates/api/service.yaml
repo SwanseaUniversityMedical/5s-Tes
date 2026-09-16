@@ -4,11 +4,18 @@ kind: Service
 metadata:
   # Static: ui's DareAPISettings__Address is a template literal pointing here.
   name: submission-api
+  {{- with .Values.api.service.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   labels:
     {{- include "submission.labels" . | nindent 4 }}
     app.kubernetes.io/component: api
 spec:
   type: {{ .Values.api.service.type }}
+  {{- with .Values.api.service.loadBalancerIP }}
+  loadBalancerIP: {{ . }}
+  {{- end }}
   ports:
     - port: 80
       targetPort: http

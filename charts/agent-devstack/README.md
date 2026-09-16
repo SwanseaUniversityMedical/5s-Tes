@@ -46,7 +46,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | Data Egress AES key/IV | `ZGV2ZWdyZXNza2V5MTYhIQ==` / `ZGV2ZWdyZXNzYmFzZTE2IQ==` (base64, 16 bytes each) | `egress-api-secret.encryptionKey`/`encryptionBase` | AES-128 key/IV decrypting `KeycloakCredentials.PasswordEnc` rows in the `DATA-Egress` DB; fixed dev values, distinct from any real deployment's — changing them after data exists makes those rows undecryptable |
 | Data Egress demo seed password | `password123` | `egress-api-secret.demoModeDefaultPassword` | Seeded verbatim as the Keycloak password for two demo service-account credential rows when the egress api's own `DemoMode` is on |
 | S3 (RustFS) access/secret key | `s3-tre` / `s3-tre-pass` | `agent-api-secret.s3AccessKey`/`s3SecretKey` + `agent-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` + `egress-api-secret.s3AccessKey`/`s3SecretKey` (if `egress.enabled`) | RustFS chart's own root credentials; api's and egress api's S3 client — egress uses the same TRE object store, no separate bucket/credentials |
-| Vault token | `dev-only-token` | `agent-api-secret.vaultToken` + `credentials-camunda-secret.vaultToken` | `VaultSettings__Token` on both api and the Credentials Camunda worker — the local Vault runs (`vault.enabled` stays `true`; see **Local install**) and must be configured with a token equal to this value after init/unseal, or these Secrets' values updated to match the real token |
+| Vault token | `dev-only-token` | none (IDE launch profiles only) | `VaultSettings__Token` for IDE-run apps; `dev-env-setup/vault-init.sh` creates it. In-cluster, the api and Camunda worker read the stack CronJob's `agent-vault-token` Secret instead |
 | RabbitMQ default user | `agent` / `password123` | `agent-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
 | Encryption key | `ZGV2LWFnZW50LWVuY3J5cHRpb24ta2V5LTMyYnl0ZSE=` (base64, 32 bytes) | `agent-api-secret.encryptionKey` | The api's encryption key setting |
 | Hangfire dashboard | `admin` / `password123` | `agent-api-secret.hangfireUsername`/`hangfirePassword` | Hangfire basic auth |
@@ -114,11 +114,9 @@ stack's own default (`[ReadWriteMany]`) will not bind against the plain kind
   credentials, not just a source for bootstrap Secrets. `vault.secretsEnabled=false` drops only
   the `VaultSecret`s under `templates/secrets/`, so this chart's static Secrets are the only
   thing producing those names/keys.
-- The local Vault still starts sealed and needs init/unseal:
-  `dev-env-setup/vault-init.sh` does this (init, unseal, enable the `secret` mount, and
-  create a `dev-only-token` root-policy token matching these Secrets' `vaultToken` — see its
-  README section). See `agent-stack`'s README **Vault** section for the manual/prod steps
-  this mirrors.
+- The local Vault's init/unseal/`secret` mount and the in-cluster app token are handled
+  by the stack's vault-init CronJob and unseal-watch sidecar (see `agent-stack`'s README **Vault** section);
+  `dev-env-setup/vault-init.sh` only adds the fixed `dev-only-token` for IDE-run apps.
 - `rabbitmq.vaultDefaultUser=false` drops the `RabbitmqCluster`'s `secretBackend.vault`
   block. The `additionalConfig` lines then set the broker's own default user to
   `agent`/`password123` — the same values as this chart's `agent-api-secret`
