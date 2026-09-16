@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.0.31903.59
+# Visual Studio Version 18
+VisualStudioVersion = 18.7.12002.237
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Shared", "Shared", "{4F52FD11-658E-A102-6CD3-7D7C16FFA15B}"
 EndProject
@@ -24,6 +24,10 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Submission.Web", "Submission\Submission.Web\Submission.Web.csproj", "{9E966E9C-6995-41B1-8353-4D5A7CD72C22}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Credentials.Camunda", "Credentials\Credentials.Camunda\Credentials.Camunda.csproj", "{0CF43E59-2B84-461D-B6F8-CA84322EDF1E}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Teleport", "Teleport", "{C4C3C373-C3CB-4E5B-8F4F-9D3966E98352}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeleportUserManagement", "Teleport\TeleportUserManagement\TeleportUserManagement\TeleportUserManagement.csproj", "{F8756B53-E2DB-93AC-FD71-40370A186901}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -119,6 +123,18 @@ Global
 		{0CF43E59-2B84-461D-B6F8-CA84322EDF1E}.Release|x64.Build.0 = Release|Any CPU
 		{0CF43E59-2B84-461D-B6F8-CA84322EDF1E}.Release|x86.ActiveCfg = Release|Any CPU
 		{0CF43E59-2B84-461D-B6F8-CA84322EDF1E}.Release|x86.Build.0 = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|x64.Build.0 = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Debug|x86.Build.0 = Debug|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x64.ActiveCfg = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x64.Build.0 = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x86.ActiveCfg = Release|Any CPU
+		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -131,6 +147,10 @@ Global
 		{62E9885C-F797-46C6-81AF-23B59CF0DA91} = {BBDCE393-E449-BBF0-AC9C-BB4BA76B59C8}
 		{9E966E9C-6995-41B1-8353-4D5A7CD72C22} = {BBDCE393-E449-BBF0-AC9C-BB4BA76B59C8}
 		{0CF43E59-2B84-461D-B6F8-CA84322EDF1E} = {B6BC038F-1391-9A93-076E-BD02A467D421}
+		{F8756B53-E2DB-93AC-FD71-40370A186901} = {C4C3C373-C3CB-4E5B-8F4F-9D3966E98352}
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {18363902-D01D-4FE4-897A-14F5688E48B8}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {11FDE52B-E787-4EDB-AEAB-B4A701C92E91}

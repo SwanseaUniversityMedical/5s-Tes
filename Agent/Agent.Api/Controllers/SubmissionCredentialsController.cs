@@ -19,7 +19,6 @@ namespace Agent.Api.Controllers
     [ApiController]
     public class SubmissionCredentialsController : Controller
     {
-        private readonly IEncDecHelper _encDecHelper;
         private readonly KeycloakTokenHelper _keycloakTokenHelper;
         private readonly IConfigurationService _configurationService;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
@@ -27,12 +26,11 @@ namespace Agent.Api.Controllers
         private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
         private readonly IDareClientWithoutTokenHelper _clientHelper;
 
-        public SubmissionCredentialsController(IConfiguration config, IEncDecHelper encDec, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IOptionsMonitor<TreOnboardingConfig> onboardingConfig, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
+        public SubmissionCredentialsController(IConfiguration config, IOptionsMonitor<SubmissionKeyCloakSettings> settings, IOptionsMonitor<TreOnboardingConfig> onboardingConfig, IConfigurationService configurationService, IDareClientWithoutTokenHelper clientHelper)
         {
             _keycloakSettings = settings.CurrentValue;
             _onboardingConfig = onboardingConfig;
 
-            _encDecHelper = encDec;
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,
                 _keycloakSettings.ClientSecret, _keycloakSettings.Proxy, _keycloakSettings.ProxyAddresURL, keycloakDemoMode);
@@ -58,7 +56,7 @@ namespace Agent.Api.Controllers
 
                 if (!string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc))
                 {
-                    var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _encDecHelper.Decrypt(_keycloakSettings.PasswordEnc), "dare-tre-admin");
+                    var token = await _keycloakTokenHelper.GetTokenForUser(_keycloakSettings.Username, _keycloakSettings.PasswordEnc, "dare-tre-admin");
                     result.Result = !string.IsNullOrWhiteSpace(token.token);
                 }
 
@@ -92,7 +90,7 @@ namespace Agent.Api.Controllers
             object credsToSave = new
             {
                 Username = creds.UserName,
-                PasswordEnc = _encDecHelper.Encrypt(creds.PasswordEnc),
+                PasswordEnc = creds.PasswordEnc,
                 ConfigInputMethod = ConfigInputMethod.Manual
             };
 
