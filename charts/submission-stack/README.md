@@ -89,6 +89,7 @@ One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/submission`):
 | `postgres_password` | `postgres-secret` / `password`, and the password inside `submission-api-secret` / `connectionString` | CNPG superuser. The connection string (`Server=pg-pooler;Port=5432;Database=<postgres.database>;User Id=postgres;Password=…`) is composed in `templates/secrets/submission.yaml`. |
 | `kc_api_client_secret` | `submission-api-secret` / `keycloakClientSecret` | `Dare-Control-API` client secret |
 | `kc_ui_client_secret` | `submission-ui-secret` / `keycloakClientSecret` | `Dare-Control-UI` client secret |
+| `kc_s3_client_secret` | `submission-rustfs-secret` / `RUSTFS_IDENTITY_OPENID_CLIENT_SECRET` | `Dare-Control-S3` client secret, for the RustFS console's OpenID login |
 | `kc_admin_username`, `kc_admin_password` | `submission-api-secret` / `keycloakAdminUsername`, `keycloakAdminPassword` | The Keycloak admin user the api logs in as. See **Keycloak**. |
 | `s3_access_key`, `s3_secret_key` | `submission-api-secret` / `s3AccessKey`, `s3SecretKey` and `submission-rustfs-secret` / `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY` | RustFS credentials; the api uses the same pair |
 | `seq_admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`) |
@@ -163,9 +164,18 @@ The realm at `global.oidc.authority` must have:
   removing a project user makes the api write a `policy` attribute on that Keycloak user
   with the calling admin's own token.
 
-Not needed by this stack: the `Dare-Control-Minio` client and `minio-authorization` scope
-(they serve MinIO/RustFS OIDC login, which `templates/rustfs.yaml` does not configure), and
-a `groups` claim (the ui declares group policies but no endpoint uses them).
+- **`Dare-Control-S3`** (`rustfs.oidcClientId`) — confidential client, standard flow, for
+  the RustFS console's OpenID login (`templates/rustfs.yaml`). Valid redirect URI
+  `<submission.s3ConsoleUrl>/rustfs/admin/v3/oidc/callback/default` (by default
+  `https://rustfs.<global.ingress.host>/...`). Its ID tokens must carry a `policy` claim: a
+  client scope with a *User Attribute* mapper from user attribute `policy` to claim `policy`
+  (multivalued, added to the ID token), assigned to this client as a default scope. The api
+  writes that attribute when it adds a user to a project, naming the `<bucket>_policy`
+  policies it creates in RustFS, so a user signing in to the console sees their project
+  buckets and nothing else.
+
+Not needed by this stack: a `groups` claim (the ui declares group policies but no endpoint
+uses them).
 
 `SubmissionKeyCloakSettings__Authority` renders as `<realm>/` (trailing slash, no well-known
 suffix) and `__MetadataAddress` as `<realm>/.well-known/openid-configuration`, matching compose
@@ -286,6 +296,7 @@ With today's defaults, real data sits in four places with different protection:
 | `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
 | `rustfs.chart` | Chart name within that repo. | `rustfs` |
 | `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
+| `rustfs.oidcClientId` | Keycloak client the RustFS console logs users in with. See **Keycloak** above. | `Dare-Control-S3` |
 | `rustfs.storageSize` | Size of both the data and log PVCs. | `10Gi` |
 | `rustfs.resources.requests.cpu` | CPU request. | `250m` |
 | `rustfs.resources.requests.memory` | Memory request. | `512Mi` |

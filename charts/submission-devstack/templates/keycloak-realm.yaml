@@ -65,7 +65,23 @@ data:
           "directAccessGrantsEnabled": true,
           "serviceAccountsEnabled": false,
           "redirectUris": ["*"],
-          "webOrigins": ["*"]
+          "webOrigins": ["*"],
+          "protocolMappers": [
+            {
+              "name": "policy",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-attribute-mapper",
+              "config": {
+                "user.attribute": "policy",
+                "claim.name": "policy",
+                "jsonType.label": "String",
+                "multivalued": "true",
+                "aggregate.attrs": "true",
+                "id.token.claim": "true",
+                "access.token.claim": "true"
+              }
+            }
+          ]
         }
       ],
       "roles": {

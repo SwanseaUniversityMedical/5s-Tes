@@ -1,4 +1,6 @@
 {{- if .Values.rustfs.enabled }}
+{{- $kc := urlParse .Values.global.oidc.authority }}
+{{- $console := .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -43,6 +45,29 @@ spec:
 
         secret:
           existingSecret: submission-rustfs-secret
+
+        # OpenID console login against the realm the api and ui use; the
+        # ID token's "policy" claim names the RustFS policies the api creates.
+        # RustFS blocks a provider on a private address unless allowlisted.
+        extraEnv:
+          - name: RUSTFS_IDENTITY_OPENID_ENABLE
+            value: "on"
+          - name: RUSTFS_IDENTITY_OPENID_CONFIG_URL
+            value: "{{ .Values.global.oidc.authority }}"
+          - name: RUSTFS_IDENTITY_OPENID_CLIENT_ID
+            value: "{{ .Values.rustfs.oidcClientId }}"
+          - name: RUSTFS_IDENTITY_OPENID_SCOPES
+            value: "openid"
+          - name: RUSTFS_IDENTITY_OPENID_CLAIM_NAME
+            value: "policy"
+          - name: RUSTFS_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC
+            value: "off"
+          - name: RUSTFS_IDENTITY_OPENID_REDIRECT_URI
+            value: "{{ $console }}/rustfs/admin/v3/oidc/callback/default"
+          - name: RUSTFS_IDENTITY_OPENID_DISPLAY_NAME
+            value: "Keycloak"
+          - name: RUSTFS_OUTBOUND_ALLOW_ORIGINS
+            value: "{{ $kc.scheme }}://{{ $kc.host }}"
 
         service:
           type: {{ .Values.rustfs.service.type }}

@@ -90,6 +90,7 @@ One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/agent`). A key
 | `postgres_password` | `postgres-secret` / `password`, and the password inside every composed connection string: `agent-api-secret` / `connectionStringDefault`, `connectionStringCredentials`; `credentials-camunda-secret` / `connectionStringCredentials`; `egress-api-secret` / `connectionString`; `teleport-user-management-secret` / `connectionString` | CNPG superuser. The strings are `Server=pg-pooler;Port=5432;Database=<postgres.database / credentialsDatabase / egressDatabase>;User Id=postgres;Password=…`, composed in `templates/secrets/`; teleport's goes direct to `postgres-rw` with `postgres.teleportDatabase`. |
 | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | The external TRE data database. See **CloudNativePG**. |
 | `kc_tre_ui_client_secret` | `agent-api-secret` / `treKeycloakClientSecret`, `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret |
+| `kc_s3_client_secret` | `agent-rustfs-secret` / `RUSTFS_IDENTITY_OPENID_CLIENT_SECRET` | `Dare-TRE-S3` client secret, for the RustFS console's OpenID login |
 | `kc_control_api_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret, in the Submission product's realm. See **Keycloak**. |
 | `kc_egress_api_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret`, `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret. The api only reads it with `egress.enabled`. |
 | `kc_tre_api_client_secret` *(egress)* | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret |
@@ -166,9 +167,16 @@ The `Dare-TRE` realm at `global.oidc.authority` must have:
   handed to the egress api, whose own Keycloak needs belong to the egress chart (not in this
   repository).
 
-Not needed by this stack: the `Dare-TRE-Minio` client and `minio-authorization` scope (they
-serve MinIO/RustFS OIDC login, which `templates/rustfs.yaml` does not configure), and the
-`CamundaAccess` and `dare-control-admin` roles (nothing in this repository reads them).
+- **`Dare-TRE-S3`** (`rustfs.oidcClientId`) — confidential client, standard flow, for the
+  RustFS console's OpenID login (`templates/rustfs.yaml`). Valid redirect URI
+  `https://rustfs.<global.ingress.host>/rustfs/admin/v3/oidc/callback/default`. Its ID
+  tokens must carry a `policy` claim: a client scope with a *User Attribute* mapper from
+  user attribute `policy` to claim `policy` (multivalued, added to the ID token), assigned to
+  this client as a default scope. The claim's values name the policies the api creates in
+  RustFS.
+
+Not needed by this stack: the `CamundaAccess` and `dare-control-admin` roles (nothing in
+this repository reads them).
 
 Two other realms are involved:
 
@@ -513,6 +521,7 @@ only in-flight workflow instance state, not the system of record.
 | `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
 | `rustfs.chart` | Chart name within that repo. | `rustfs` |
 | `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
+| `rustfs.oidcClientId` | Keycloak client the RustFS console logs users in with. See **Keycloak** above. | `Dare-TRE-S3` |
 | `rustfs.storageSize` | Size of both the data and log PVCs. | `10Gi` |
 | `rustfs.resources.requests.cpu` | CPU request. | `250m` |
 | `rustfs.resources.requests.memory` | Memory request. | `512Mi` |

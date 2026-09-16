@@ -35,7 +35,7 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | PostgreSQL superuser | `postgres` / `password123` | `postgres-secret` | `submission-stack`'s CNPG `Cluster` superuserSecret; also embedded in `submission-api-secret`'s `connectionString` |
 | `Dare-Control-API` client secret | `devsecret-control-api` | realm import + `submission-api-secret.keycloakClientSecret` | `SubmissionKeyCloakSettings__ClientSecret` |
 | `Dare-Control-UI` client secret | `devsecret-control-ui` | realm import + `submission-ui-secret.keycloakClientSecret` | `SubmissionKeyCloakSettings__ClientSecret` (UI) |
-| `Dare-Control-S3` client secret | `devsecret-control-s3` | realm import only | Not yet consumed by any app Secret — the client exists for a future S3-console SSO wire-up; no chart currently reads this value |
+| `Dare-Control-S3` client secret | `devsecret-control-s3` | realm import + `submission-rustfs-secret.RUSTFS_IDENTITY_OPENID_CLIENT_SECRET` | The RustFS console's OpenID login (`submission-stack`'s `templates/rustfs.yaml`) |
 | Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client) |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-control-admin` realm role so admin-gated pages/endpoints work |
 | S3 (RustFS) access/secret key | `s3-submission` / `s3-submission-pass` | `submission-api-secret.s3AccessKey`/`s3SecretKey` + `submission-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | `MinioSettings__AccessKey`/`SecretKey`; RustFS chart's own root credentials |
@@ -133,9 +133,11 @@ With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD a
   same three client IDs, same `dare-tre-admin` role name so `KeycloakAdmin__ServiceAccountRole`
   behaves identically) but is a hand-written, minimal stand-in: `sslRequired: none` and pure
   wildcard `redirectUris`/`webOrigins` (`["*"]`) are dev shortcuts, never to be copied into a
-  real realm. One protocol mapper is carried over: `Dare-Control-UI` gets an
-  `oidc-audience-mapper` adding `Dare-Control-API` to its tokens' audience, mirroring
-  production's `Dare-Control-API-cs` client scope
+  real realm. Two protocol mappers are carried over: `Dare-Control-UI` gets an
+  `oidc-audience-mapper` adding `Dare-Control-API` to its tokens' audience, and
+  `Dare-Control-S3` gets a user-attribute mapper emitting the `policy` claim the RustFS
+  console maps to policies — mirroring production's `Dare-Control-API-cs` and
+  `minio-authorization` client scopes
   (`DeploymentStack/Submission/config/realm-config/sub-layer.json`).
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
   inside pods (the API and UI reaching `global.oidc.authority`) would otherwise resolve

@@ -76,6 +76,8 @@ rustfs:
   chart: rustfs
   # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
   chartVersion: "1.0.0-rc.4"
+  # Keycloak client the RustFS console logs users in with.
+  oidcClientId: "Dare-Control-S3"
   service:
     type: ClusterIP
     loadBalancerIP: ""
