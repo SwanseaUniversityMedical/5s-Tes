@@ -9,7 +9,9 @@ Standalone chart for the Agent product.
   `/health` at port 8080. This is the primary user-facing UI, at
   `agent.<global.ingress.host>`.
 - **camunda** — the Credentials Camunda worker (`credentials-camunda` image), a headless
-  Zeebe job worker. It has no Service and no Ingress: nothing calls it directly.
+  Zeebe job worker. It has no Service and no Ingress: nothing calls it directly. It
+  administers the TRE object store (ephemeral per-submission S3 credentials), reusing
+  `api.s3Url` and `agent-api-secret`'s `s3AccessKey`/`s3SecretKey` root keys.
 
 `api` and `camunda` share one PersistentVolumeClaim, `agent-processmodels`, holding the
 Camunda DMN/BPMN process models, and both stay at `replicas: 1` because that PVC is
@@ -228,6 +230,8 @@ deployment.
 | `api.jobs.syncSchedule` | Minutes between project/user syncs between TRE and Submission layers. | `10` |
 | `api.jobs.healthCheckSchedule` | Minutes between health checks. | `10` |
 | `api.jobs.daysBeforeHealthLogDeletion` | Days a health check log is kept before deletion. | `30` |
+| `api.jobs.bucketCleanupSchedule` | Expired-project bucket cleanup: `0` disables, `1`-`23` is the UTC hour of the daily run. | `1` |
+| `api.jobs.daysAfterExpiryBeforeBucketDeletion` | Days after project expiry before its buckets are deleted. | `90` |
 | `api.useTesk` | Use the TESK backend for task execution. | `"true"` |
 | `api.tesApiUrl` | URL of the TES backend. Read into `AgentSettings__TESKAPIURL`. | `http://localhost:8000/v1/tasks` |
 | `api.teskOutputBucketPrefix` | Output bucket prefix the TES executing agent writes results to. Read into `AgentSettings__TESKOutputBucketPrefix`. | `s3://` |

@@ -129,6 +129,20 @@ spec:
               value: "{{ .Values.camunda.ldap.userOu }}"
             - name: LdapSettings__UseSSL
               value: "{{ .Values.camunda.ldap.useSsl }}"
+            # Ephemeral per-submission S3 credentials: the worker administers
+            # the same TRE object store as the api, with the same root keys.
+            - name: MinioSettings__Url
+              value: "{{ .Values.api.s3Url }}"
+            - name: MinioSettings__AccessKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3AccessKey
+            - name: MinioSettings__SecretKey
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: s3SecretKey
             - name: VaultSettings__BaseUrl
               value: "{{ .Values.global.config.vaultUrl }}"
             - name: VaultSettings__Token

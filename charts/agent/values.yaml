@@ -161,6 +161,10 @@ api:
     syncSchedule: 10
     healthCheckSchedule: 10
     daysBeforeHealthLogDeletion: 30
+    # 0 disables expired-project bucket cleanup; 1-23 is the UTC hour of the
+    # daily run.
+    bucketCleanupSchedule: 1
+    daysAfterExpiryBeforeBucketDeletion: 90
 
   useTesk: "true"
   tesApiUrl: "http://localhost:8000/v1/tasks"

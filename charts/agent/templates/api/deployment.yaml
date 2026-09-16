@@ -269,6 +269,10 @@ spec:
               value: "{{ .Values.api.jobs.healthCheckSchedule }}"
             - name: JobSettings__DaysBeforeHealthLogDeletion
               value: "{{ .Values.api.jobs.daysBeforeHealthLogDeletion }}"
+            - name: JobSettings__bucketCleanupSchedule
+              value: "{{ .Values.api.jobs.bucketCleanupSchedule }}"
+            - name: JobSettings__DaysAfterExpiryBeforeBucketDeletion
+              value: "{{ .Values.api.jobs.daysAfterExpiryBeforeBucketDeletion }}"
             - name: AgentSettings__UseTESK
               value: "{{ .Values.api.useTesk }}"
             - name: AgentSettings__TESKAPIURL
