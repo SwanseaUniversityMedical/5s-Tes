@@ -45,8 +45,8 @@ Two Vault instances matter to this stack, with distinct jobs:
 
 - **The platform Vault** supplies every deploy-time Secret. Each `VaultSecret` under
   `templates/secrets/` uses the redhatcop operator's default connection, authenticating
-  with `vault.authPath`/`vault.role` (the tenant name) and reading
-  `vault.secretPath/...` — see the paths table below. Mounts, Kubernetes auth and
+  with `vault.authPath`/`vault.role` (the tenant name) and reading the secret at
+  `vault.secretPath` — see **What must be in Vault** below. Mounts, Kubernetes auth and
   policies there are platform-managed; this chart assumes they exist and never
   configures that Vault.
 - **This stack's own runtime Vault** (`templates/vault.yaml`, release `agent-vault`)
@@ -80,55 +80,43 @@ automatically — on a cluster without Stakater Reloader (e.g. local kind) that 
 is manual. Locally, `dev-env-setup/vault-init.sh` only adds the fixed `dev-only-token`
 for IDE-run apps on top of what the CronJob does.
 
-### Platform-Vault paths (under `vault.secretPath`, default `kvv2/data/prod/prod/agent`)
+### What must be in Vault
 
-The standalone chart's README lists the Kubernetes Secret names and keys each of these fills;
-the two must agree.
+One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/agent`). A key marked
+*(egress)*, *(teleport)* or *(openldap)* is only read when that component is enabled.
 
-| Path | Field | Fills | Used for |
-|---|---|---|---|
-| `.../postgres` | `postgres_password` | `postgres-secret` / `password` | CNPG superuser password |
-| `.../agent-api` | `connection_string_default` | `agent-api-secret` / `connectionStringDefault` | PostgreSQL connection string for `DARE-Tre` on `pg-pooler` |
-| `.../agent-api` | `connection_string_credentials` | `agent-api-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
-| `.../agent-api` | `tre_keycloak_client_secret` | `agent-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-UI` client secret (api authenticates as this client) |
-| `.../agent-api` | `submission_keycloak_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret (cross-realm; see below) |
-| `.../agent-api` | `egress_keycloak_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the agent api. Only read when `api.egress.enabled` is `true` — this stack sets that from `egress.enabled` (see **Egress** below) |
-| `.../agent-api` | `s3_access_key` | `agent-api-secret` / `s3AccessKey` | Agent RustFS access key. Must equal `.../rustfs`'s `access_key` |
-| `.../agent-api` | `s3_secret_key` | `agent-api-secret` / `s3SecretKey` | Agent RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
-| `.../agent-api` | `rabbit_username` | `agent-api-secret` / `rabbitUsername` | RabbitMQ default user (see below) |
-| `.../agent-api` | `rabbit_password` | `agent-api-secret` / `rabbitPassword` | RabbitMQ default user password |
-| `.../agent-api` | `encryption_key` | `agent-api-secret` / `encryptionKey` | Base64 encryption key |
-| `.../agent-api` | `hangfire_username` | `agent-api-secret` / `hangfireUsername` | Hangfire dashboard username |
-| `.../agent-api` | `hangfire_password` | `agent-api-secret` / `hangfirePassword` | Hangfire dashboard password |
-| `.../agent-api` | `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Hasura admin secret. Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
-| `.../agent-ui` | `keycloak_client_secret` | `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret (the primary `ui` component) |
-| `.../teleport` | `ad_username` | `teleport-user-management-secret` / `adUsername` | TRE-AD bind username. This and the rows below are only needed if `agent.teleport.enabled` |
-| `.../teleport` | `ad_password` | `teleport-user-management-secret` / `adPassword` | TRE-AD bind password |
-| `.../teleport` | `keycloak_client_secret` | `teleport-user-management-secret` / `keycloakClientSecret` | `Teleport-User-Management` client secret (in the Submission product's realm) |
-| `.../teleport` | `keycloak_username` | `teleport-user-management-secret` / `keycloakUsername` | Realm user for the password-grant fallback; empty uses the client's service account |
-| `.../teleport` | `keycloak_password_enc` | `teleport-user-management-secret` / `keycloakPasswordEnc` | AES-encrypted password matching `keycloak_username` (encrypted with `encryption_key`) |
-| `.../teleport` | `hangfire_username` | `teleport-user-management-secret` / `hangfireUsername` | Hangfire dashboard username |
-| `.../teleport` | `hangfire_password` | `teleport-user-management-secret` / `hangfirePassword` | Hangfire dashboard password |
-| `.../teleport` | `encryption_key` | `teleport-user-management-secret` / `encryptionKey` | Base64 AES key (16/24/32 bytes) |
-| `.../egress-api` | `connection_string` | `egress-api-secret` / `connectionString` | PostgreSQL connection string for `DATA-Egress` on `pg-pooler`. Only needed if `egress.enabled` |
-| `.../egress-api` | `tre_keycloak_client_secret` | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret (cross-realm; the egress api authenticates as this client against `Dare-TRE`) |
-| `.../egress-api` | `data_egress_keycloak_client_secret` | `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret, as seen by the egress api itself |
-| `.../egress-api` | `s3_access_key` | `egress-api-secret` / `s3AccessKey` | Egress RustFS access key. Must equal `.../rustfs`'s `access_key` |
-| `.../egress-api` | `s3_secret_key` | `egress-api-secret` / `s3SecretKey` | Egress RustFS secret key. Must equal `.../rustfs`'s `secret_key` |
-| `.../egress-api` | `encryption_key` | `egress-api-secret` / `encryptionKey` | AES-128 key decrypting DB-stored Keycloak admin credentials. Must stay byte-stable across deployments — a changed value makes existing `KeycloakCredentials` rows undecryptable |
-| `.../egress-api` | `encryption_base` | `egress-api-secret` / `encryptionBase` | AES IV paired with `encryption_key`. Same byte-stability requirement |
-| `.../egress-api` | `demo_mode_default_password` | `egress-api-secret` / `demoModeDefaultPassword` | Seeded Keycloak service-account password, written when the egress chart's own `demoMode` is on |
-| `.../egress-ui` | `keycloak_client_secret` | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
-| `.../credentials-camunda` | `connection_string_credentials` | `credentials-camunda-secret` / `connectionStringCredentials` | PostgreSQL connection string for `TRE_Credentials` on `pg-pooler` |
-| `.../credentials-camunda` | `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | Connection string to the **external** TRE data database (not deployed by this chart — see **CloudNativePG** below) |
-| `.../credentials-camunda` | `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword` | Bind password for the stack.s own OpenLDAP — must equal `.../ldap`.s `admin_password` |
-| `.../rustfs` | `access_key` | `agent-rustfs-secret` / `RUSTFS_ACCESS_KEY` | Must equal `.../agent-api`'s `s3_access_key` |
-| `.../rustfs` | `secret_key` | `agent-rustfs-secret` / `RUSTFS_SECRET_KEY` | Must equal `.../agent-api`'s `s3_secret_key` |
-| `.../rabbitmq` | (read directly by the operator's `secretBackend.vault`, not a VaultSecret) | RabbitMQ default user | See below |
-| `.../seq` | `admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password, not an Agent app secret |
-| `.../ldap` | `admin_password` | `agent-openldap-secret` / `LDAP_ADMIN_PASSWORD` | Only needed if `openldap.enabled`. Must equal `.../credentials-camunda`'s `ldap_admin_password` |
-| `.../ldap` | `config_password` | `agent-openldap-secret` / `LDAP_CONFIG_ADMIN_PASSWORD` | Only needed if `openldap.enabled` |
-| `postgres.backups.vault.path` (not under `vault.secretPath` — a separate, backup-destination-specific path, set only once backups are enabled) | `postgres.backups.vault.accessKeyField`/`secretKeyField` | `postgres-secret` / `backupAccessKey`, `backupSecretKey` | CNPG's own `ObjectStore` S3 credentials. See **Backups** below |
+| Key | Fills | Used for |
+|---|---|---|
+| `postgres_password` | `postgres-secret` / `password`, and the password inside every composed connection string: `agent-api-secret` / `connectionStringDefault`, `connectionStringCredentials`; `credentials-camunda-secret` / `connectionStringCredentials`; `egress-api-secret` / `connectionString`; `teleport-user-management-secret` / `connectionString` | CNPG superuser. The strings are `Server=pg-pooler;Port=5432;Database=<postgres.database / credentialsDatabase / egressDatabase>;User Id=postgres;Password=…`, composed in `templates/secrets/`; teleport's goes direct to `postgres-rw` with `postgres.teleportDatabase`. |
+| `connection_string_tre_data` | `credentials-camunda-secret` / `connectionStringTreData` | The external TRE data database. See **CloudNativePG**. |
+| `kc_tre_ui_client_secret` | `agent-api-secret` / `treKeycloakClientSecret`, `agent-ui-secret` / `keycloakClientSecret` | `Dare-TRE-UI` client secret |
+| `kc_control_api_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret, in the Submission product's realm. See **Keycloak**. |
+| `kc_egress_api_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret`, `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret. The api only reads it with `egress.enabled`. |
+| `kc_tre_api_client_secret` *(egress)* | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret |
+| `kc_egress_ui_client_secret` *(egress)* | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
+| `kc_teleport_client_secret`, `teleport_kc_username`, `teleport_kc_password_enc` *(teleport)* | `teleport-user-management-secret` / `keycloakClientSecret`, `keycloakUsername`, `keycloakPasswordEnc` | `Teleport-User-Management` client secret and the realm user teleport logs in as; the password AES-encrypted with `teleport_encryption_key`. See **Keycloak**. |
+| `s3_access_key`, `s3_secret_key` | `agent-api-secret` and `egress-api-secret` / `s3AccessKey`, `s3SecretKey`; `agent-rustfs-secret` / `RUSTFS_ACCESS_KEY`, `RUSTFS_SECRET_KEY` | RustFS credentials; every consumer uses the same pair |
+| `encryption_key` | `agent-api-secret` / `encryptionKey` | Base64 AES key the api encrypts stored credentials with |
+| `hangfire_username`, `hangfire_password` | `agent-api-secret` / `hangfireUsername`, `hangfirePassword` | The api's Hangfire dashboard |
+| `hasura_admin_secret` | `agent-api-secret` / `hasuraAdminSecret` | Only read when `api.hasura.enabled` is `true` (not surfaced by this stack) |
+| `teleport_ad_username`, `teleport_ad_password` *(teleport)* | `teleport-user-management-secret` / `adUsername`, `adPassword` | TRE-AD bind account |
+| `teleport_hangfire_username`, `teleport_hangfire_password` *(teleport)* | `teleport-user-management-secret` / `hangfireUsername`, `hangfirePassword` | Teleport's Hangfire dashboard |
+| `teleport_encryption_key` *(teleport)* | `teleport-user-management-secret` / `encryptionKey` | Base64 AES key (16/24/32 bytes) |
+| `egress_encryption_key`, `egress_encryption_base` *(egress)* | `egress-api-secret` / `encryptionKey`, `encryptionBase` | AES-128 key and IV for DB-stored Keycloak admin credentials. Must stay byte-stable across deployments, or existing `KeycloakCredentials` rows become undecryptable. |
+| `egress_demo_mode_default_password` *(egress)* | `egress-api-secret` / `demoModeDefaultPassword` | Seeded service-account password, written when the egress chart's own `demoMode` is on |
+| `ldap_admin_password` | `credentials-camunda-secret` / `ldapAdminPassword`; `agent-openldap-secret` / `LDAP_ADMIN_PASSWORD` *(openldap)* | Bind password for the worker's directory. See **The worker's directory**. |
+| `ldap_config_password` *(openldap)* | `agent-openldap-secret` / `LDAP_CONFIG_ADMIN_PASSWORD` | OpenLDAP config admin |
+| `seq_admin_password` | `seq-admin-password-secret` / `password` | Seq's own first-run admin password (`firstRunAdminPasswordSecret`) |
+
+A second KV secret at `vault.secretPath`**/rabbitmq** with keys `username` and `password`,
+the names the RabbitMQ Cluster Operator's `secretBackend.vault` requires. The
+`RabbitmqCluster` reads it directly; `agent-api-secret` reads the same two keys into
+`rabbitUsername`/`rabbitPassword`.
+
+The CNPG backup credentials are not under `vault.secretPath`: they come from
+`postgres.backups.vault.path`, set only once backups are enabled. See **Backups**.
+
+The standalone chart's README lists the Secret keys each component reads; the two must agree.
 
 ### RabbitMQ: the default user needs management permissions
 
@@ -137,8 +125,8 @@ the two must agree.
 on a cluster with no Vault to read from; the RabbitMQ Cluster Operator then generates its own
 `rabbitmq-default-user` Secret with a random password instead.
 
-As with `submission-stack`, the Vault-supplied default user at
-`{{ .Values.vault.secretPath }}/rabbitmq` must carry the `management` tag / administrator
+As with `submission-stack`, the Vault-supplied default user at `vault.secretPath/rabbitmq`
+(read by both the `RabbitmqCluster` and `agent-api-secret`) must carry the `management` tag / administrator
 permissions, not just messaging permissions, or the Agent api's own startup vhost/exchange/queue
 setup fails silently on every restart.
 
@@ -150,26 +138,58 @@ own stack value.
 
 ## Keycloak
 
-The `ui` component, and the api's own TRE-realm identity, both authenticate as the single
-`Dare-TRE-UI` client. The external `Dare-TRE` realm at `global.oidc.authority` must already
-have:
+The `Dare-TRE` realm at `global.oidc.authority` must have:
 
-- **`Dare-TRE-UI`** — confidential client, used by `api` and `ui`. Its client secret fills
-  `treKeycloakClientSecret`/`agent-ui-secret`'s `keycloakClientSecret`.
-- **`Dare-TRE-API`** — a valid audience for tokens issued to `Dare-TRE-UI`
-  (`api.oidc.validAudiences`), not a separately authenticating client in this chart.
-- **`Dare-TRE-S3`** — expected in the realm design alongside the two clients above (this
-  chart's rendered configuration does not itself reference it by name; verify its exact use
-  against the realm import before deploying a new realm).
+- **Realm roles `dare-tre-admin`, `dare-hutch-admin` and `data-egress-admin`.** Both
+  components authorise on realm roles read from the token's `realm_access.roles`:
+  `dare-tre-admin` throughout, `dare-hutch-admin` and `data-egress-admin` on the api's
+  submission endpoints (`Agent.Api/Controllers/SubmissionController.cs`) that Hutch and the
+  egress api call. Whatever identity those two callers use must carry one of these roles.
+- **Realm roles in the ID token.** The `roles` client scope's `realm roles` mapper must have
+  *Add to ID token* on. Keycloak's stock mapper puts `realm_access.roles` in the access
+  token only, and the ui builds its signed-in user from the ID token, so with the stock
+  setting no ui role check passes.
+- **`Dare-TRE-UI`** — confidential client, used by `api` and `ui`. Standard flow, for the ui:
+  valid redirect URI `https://agent.<global.ingress.host>/signin-oidc`, valid post-logout
+  redirect URI `https://agent.<global.ingress.host>/signout-callback-oidc`. Direct Access
+  Grants on: the api checks the TRE admin credentials entered in the ui with a password grant
+  through this client. The ui forwards the signed-in user's access token to the api, which
+  validates the audience, so this client's access tokens need an `aud` in
+  `api.oidc.validAudiences` (default `Dare-TRE-API,Dare-TRE-UI`): a client scope carrying an
+  *Audience* mapper for one of those, assigned to this client as a default scope.
+- **The TRE admin user** (entered in the ui as the TRE credentials, stored encrypted in the
+  api's database) — a realm user holding `dare-tre-admin` and the `realm-management` client
+  role `manage-users`: the api creates and deletes per-project Keycloak users with this
+  user's token, obtained through the realm's built-in `admin-cli` client.
+- **`Dare-TRE-API`** — the other audience name in `api.oidc.validAudiences`. Nothing in this
+  stack authenticates as it; with `egress.enabled` its secret (`kc_tre_api_client_secret`) is
+  handed to the egress api, whose own Keycloak needs belong to the egress chart (not in this
+  repository).
 
-The api also validates tokens from the Submission product's **`Dare-Control`** realm
-(`submission.oidcAuthority`), as **`Dare-Control-API`** — its client secret fills
-`submissionKeycloakClientSecret`/`agent-api-secret`. This is a cross-realm trust: `Dare-Control`
-belongs to the Submission deployment, not to this stack, and must already exist there.
+Not needed by this stack: the `Dare-TRE-Minio` client and `minio-authorization` scope (they
+serve MinIO/RustFS OIDC login, which `templates/rustfs.yaml` does not configure), and the
+`CamundaAccess` and `dare-control-admin` roles (nothing in this repository reads them).
+
+Two other realms are involved:
+
+- **`Dare-Control`**, the Submission product's realm (`submission.oidcAuthority`). Until
+  the onboarding JSON is uploaded, the api reaches the Submission api with a password grant
+  through **`Dare-Control-API`** (`kc_control_api_client_secret`) as the user entered in the
+  ui as the Submission credentials, who must hold `dare-tre-admin` there; that client needs
+  Direct Access Grants on. The upload stores the TRE's own `tre-agent-<name>` client
+  credentials in the runtime Vault, and the api uses that client's service account from then
+  on. **`Teleport-User-Management`** (`agent.teleport.enabled`) is a confidential client in
+  this realm with Direct Access Grants on: teleport always logs in with a password grant as
+  `teleport_kc_username`, a `Dare-Control` user holding `dare-tre-admin`; an empty username
+  fails at token time.
+- **`Data-Egress`** (`egress.oidcAuthority`, with `egress.enabled`): the api reaches the
+  egress api with a password grant through **`Data-Egress-API`**
+  (`kc_egress_api_client_secret`) as the user entered in the ui as the Egress credentials,
+  who must hold `dare-tre-admin` there; that client needs Direct Access Grants on.
 
 `*KeyCloakSettings__Authority` renders as `<realm>/.well-known/openid-configuration`, matching
 compose — deliberate: issuer validation is satisfied by the OIDC metadata's fetched `Issuer`
-field, not a literal match against `Authority` (`Agent.Api/Program.cs:196-198,237,241`).
+field, not a literal match against `Authority` (`Agent.Api/Program.cs:196-204,241,250`).
 
 ### The worker's directory (OpenLDAP)
 
@@ -182,7 +202,7 @@ Trino must authenticate against this same directory for the minted users to work
 - `agent.ldap.host`/`port`/`useSsl` — the directory host and whether to use LDAPS.
 - `agent.ldap.adminDn`/`baseDn`/`userOu` — the bind DN and search base.
 - The bind password is `credentials-camunda-secret`'s `ldapAdminPassword`
-  (`.../credentials-camunda`'s `ldap_admin_password` in Vault).
+  (`ldap_admin_password` in Vault).
 
 `openldap.enabled` (default `false`) deploys a local OpenLDAP as a stand-in — for testing only,
 never the production path. Its defaults already match `agent.ldap.*`'s own defaults
@@ -210,7 +230,7 @@ must exist there at `egress.chartVersion`. Turning `egress.enabled` on also:
 - Creates the `data-egress` `Database` object (`DATA-Egress`, `postgres.egressDatabase`) on this
   stack's own `postgres` `Cluster` — see **CloudNativePG** below.
 - Creates `egress-api-secret`/`egress-ui-secret` (gated additionally on `vault.secretsEnabled`)
-  — see the Vault paths table above.
+  — see **What must be in Vault** above.
 - Sets `agent.yaml`'s `api.egress.enabled: true`, `api.egress.authority`, and
   `api.egress.apiUrl: "http://egress-api"` (the egress chart's own static api Service name), so
   the Agent api starts talking to Data-Egress.
@@ -344,8 +364,8 @@ by that same `app` role:
   storage. Only created when `agent.teleport.enabled` is `true`. Its own database because both
   `agent-api` and teleport run a Hangfire server with the provider's default schema — shared
   storage would make each dequeue the other's jobs. Its connection string is not in Vault: the
-  `teleport-user-management-secret` VaultSecret derives it from `.../postgres`'s
-  `postgres_password`, direct to `postgres-rw`.
+  `teleport-user-management-secret` VaultSecret derives it from `postgres_password`, direct
+  to `postgres-rw`.
 
 **Production's TRE data database is external.** `ConnectionStrings__TREPostgresConnection`
 (the database the Camunda worker creates ephemeral credentials against) is not a `Database`
@@ -441,9 +461,9 @@ only in-flight workflow instance state, not the system of record.
 | Name | Description | Default |
 |---|---|---|
 | `vault.role` | Vault role the cluster's Kubernetes auth uses. | `agent` |
-| `vault.secretPath` | Parent path for every VaultSecret. | `kvv2/data/prod/prod/agent` |
+| `vault.secretPath` | KV path of the single secret holding every key in **What must be in Vault**. The RabbitMQ default user is a second secret at `<secretPath>/rabbitmq`. | `kvv2/data/prod/prod/agent` |
 | `vault.authPath` | Kubernetes-auth mount. | `kubernetes` |
-| `vault.address` | This stack's own Vault Service address, wired into every VaultSecret's `connection.address`. See **Vault** above. | `http://agent-vault:8200` |
+| `vault.address` | This stack's own runtime Vault Service address, passed to the api and the Camunda worker. The VaultSecrets do not read from it. See **Vault** above. | `http://agent-vault:8200` |
 | `vault.enabled` | Deploy this stack's own Vault `Application`. Runtime dependency (`api` and the Camunda worker call it directly), so this stays `true` even where `vault.secretsEnabled` is `false`. | `true` |
 | `vault.secretsEnabled` | Deploy every `VaultSecret` under `templates/secrets/`. `false` only where something else provides those Secrets (e.g. the devstack's static Secrets). | `true` |
 | `vault.repoURL` | Helm repo the Vault chart is pulled from. | `https://helm.releases.hashicorp.com` |
@@ -551,7 +571,7 @@ only in-flight workflow instance state, not the system of record.
 | `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
 | `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
 | `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
-| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead. See **RabbitMQ** above. | `true` |
+| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead; only valid with `vault.secretsEnabled: false`, since `agent-api-secret` reads the same Vault path. See **RabbitMQ** above. | `true` |
 
 ### postgres
 

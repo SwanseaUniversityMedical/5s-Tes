@@ -146,9 +146,9 @@ The realm at `global.oidc.authority` must have:
   `Dare-Control-UI,Dare-Control-API,Dare-Control-Minio`): a client scope carrying an
   *Audience* mapper for `Dare-Control-API`, assigned to this client as a default scope.
 - **`Dare-Control-API`** — confidential client; its client ID is the api's JWT audience.
-  Direct Access Grants are needed only when `api.features.seedDemoData` is on (the seed
-  logs in through this client with a password grant). Nothing uses this client's service
-  account.
+  Direct Access Grants on: a TRE agent that has not yet uploaded its onboarding JSON, and the
+  demo seed (`api.features.seedDemoData`), log in through this client with a password grant.
+  Nothing uses this client's service account.
 - **That audience scope in the realm's default client scopes.** The api creates a
   `tre-agent-<name>` client per TRE with no scope configuration, and the TRE's agent later
   calls the api with that client's client-credentials tokens. Those tokens carry an

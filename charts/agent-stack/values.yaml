@@ -183,6 +183,8 @@ tesk:
 vault:
   # Kubernetes-auth role on the platform Vault; the tenant name in SERP.
   role: agent
+  # One KV secret holding every key the README lists; the RabbitMQ default
+  # user is a second secret at <secretPath>/rabbitmq.
   secretPath: kvv2/data/prod/prod/agent
   authPath: kubernetes
   # This stack's own runtime Vault, read and written by the api and the
