@@ -39,7 +39,6 @@ try
             .SetApplicationName("agent");
     }
     //builder.Host.UseSerilog();
-    IdentityModelEventSource.ShowPII = true;
 
     builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
     {
@@ -79,28 +78,6 @@ try
     builder.Services.AddMvc().AddViewComponentsAsServices();
 
     JwtSecurityTokenHandler.DefaultInboundClaimTypeMap.Clear();
-
-    var MyAllowSpecificOrigins = "_myAllowSpecificOrigins";
-
-    builder.Services.AddCors(options =>
-    {
-        options.AddDefaultPolicy(
-            builder =>
-            {
-                builder
-                    .AllowAnyOrigin()
-                    .AllowAnyMethod()
-                    .AllowAnyHeader();
-            });
-        options.AddPolicy(name: MyAllowSpecificOrigins,
-            policy =>
-            {
-                policy.WithOrigins(configuration["TreAPISettings:InternalApiBaseUrl"])
-                    .AllowAnyMethod()
-                    .AllowAnyHeader()
-                    .AllowCredentials();
-            });
-    });
 
     builder.Services.Configure<ForwardedHeadersOptions>(options =>
     {
@@ -313,15 +290,19 @@ try
         });
         pusher.Start();
     }
-    app.UseCors();
     app.UseForwardedHeaders();
 
-// DemoStack only: redirect browser requests to the configured host before login.
-// This keeps the Keycloak OIDC flow on the same site and prevents the
-// correlation cookie from being created on a different host, which can cause
-// a "Correlation failed" error.
-// This only applies to top-level HTML GET requests. Nothing happens unless
-// demo mode is enabled and a valid RedirectURL is configured.
+    if (app.Environment.IsDevelopment())
+    {
+        IdentityModelEventSource.ShowPII = true;
+    }
+
+    // DemoStack only: redirect browser requests to the configured host before login.
+    // This keeps the Keycloak OIDC flow on the same site and prevents the
+    // correlation cookie from being created on a different host, which can cause
+    // a "Correlation failed" error.
+    // This only applies to top-level HTML GET requests. Nothing happens unless
+    // demo mode is enabled and a valid RedirectURL is configured.
     if (keycloakDemomode &&
         Uri.TryCreate(treKeyCloakSettings.RedirectURL, UriKind.Absolute, out var canonicalUri))
     {

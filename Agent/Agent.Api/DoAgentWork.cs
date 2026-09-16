@@ -411,31 +411,41 @@ namespace Agent.Api
                                 ClearJob(taskID);
                                 var outputBucketGood = outputBucket.Replace(_AgentSettings.TESKOutputBucketPrefix, "");
                                 var data = await _minioTreHelper.GetFilesInBucket(outputBucketGood, $"{subId}");
-                                var files = new List<string>();
 
-                                foreach (var s3Object in data.S3Objects) //TODO is this right?
+                                if (data != null)
                                 {
-                                    Log.Information("{Function} *** added file from outputBucket *** {file} ",
-                                        "CheckTES", s3Object.Key);
-                                    files.Add(s3Object.Key);
+                                    var files = new List<string>();
+
+                                    foreach (var s3Object in data.S3Objects) //TODO is this right?
+                                    {
+                                        Log.Information("{Function} *** added file from outputBucket *** {file} ",
+                                            "CheckTES", s3Object.Key);
+                                        files.Add(s3Object.Key);
+                                    }
+
+                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutRequested, "");
+                                    Log.Information($"  FilesReadyForReview files {files.Count} ");
+                                    if (files.Count == 0)
+                                    {
+                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Complete,
+                                            " Complete - No files to review ");
+                                        return;
+                                    }
+
+                                    _subHelper.FilesReadyForReview(new ReviewFiles()
+                                    {
+                                        SubId = subId.ToString(),
+                                        Files = files,
+                                        tesId = tesId.ToString(),
+                                        Name = NameTes
+                                    }, outputBucketGood);
                                 }
-
-                                _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutRequested, "");
-                                Log.Information($"  FilesReadyForReview files {files.Count} ");
-                                if (files.Count == 0)
+                                else
                                 {
-                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutApprovalRejected,
-                                        " No Files to review ");
+                                    _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Failed,
+                                            " Failed to get files in bucket. ");
                                     return;
                                 }
-
-                                _subHelper.FilesReadyForReview(new ReviewFiles()
-                                {
-                                    SubId = subId.ToString(),
-                                    Files = files,
-                                    tesId = tesId.ToString(),
-                                    Name = NameTes
-                                }, outputBucketGood);
                             }
                         }
                         else
@@ -565,6 +575,22 @@ namespace Agent.Api
                                     {
                                         var project = aSubmission.Project.Name;
 
+                                        // Record this submission in the db so it can be verified by Credentials.Camunda.
+                                        // ... but don't create a new one if a record exists already for this submission
+                                        var existingApproval = await _credsDbContext.ApprovedSubmissions.FirstOrDefaultAsync(a => a.SubmissionId == aSubmission.Id);
+
+                                        if (existingApproval == null)
+                                        {
+                                            _credsDbContext.ApprovedSubmissions.Add(new()
+                                            {
+                                                SubmissionId = aSubmission.Id,
+                                                Project = project,
+                                                UserId = aSubmission.SubmittedBy.Id,
+                                                CreatedAt = DateTime.UtcNow
+                                            });
+
+                                            await _credsDbContext.SaveChangesAsync();
+                                        }
                                         // Ephemeral S3 credentials are scoped to the project's TRE
                                         // buckets, so pass them on the kickoff payload for the DMN to
                                         // emit into the s3 credential branch. The workload-facing S3

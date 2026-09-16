@@ -67,11 +67,11 @@ namespace Submission.Web.Services
                 var tokenJson = JObject.Parse(tokenResponseContent);
                 var newAccessToken = tokenJson["access_token"].ToString();
                 result = newAccessToken;
-                Log.Information("{Function} New Access Token with longer expiry: {newAccessToken}", "NewToken", newAccessToken);
+                Log.Information("{Function} New access token obtained with longer expiry", "NewToken");
             }
             else
             {
-                Log.Error("{Function} Error refreshing token: {tokenResponseContent}", "NewToken", tokenResponseContent);
+                Log.Error("{Function} Error refreshing token. Status: {StatusCode}", "NewToken", tokenResponse.StatusCode);
             }
 
             //var expirationDate = DateTime.Now.AddSeconds(int.Parse(_settings.TokenRefreshSeconds));

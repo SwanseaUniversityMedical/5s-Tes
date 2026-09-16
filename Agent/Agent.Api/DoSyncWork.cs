@@ -5,6 +5,7 @@ using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
+using FiveSafesTes.Core.Services;
 using Hangfire;
 using Microsoft.Extensions.Options;
 
@@ -21,16 +22,18 @@ namespace Agent.Api
         private readonly IServiceProvider _serviceProvider;
         private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
         private readonly IConfigurationService _configurationService;
+        private readonly IEncDecHelper _encDecHelper;
         private readonly ApplicationDbContext _dbContext;
         private readonly VaultConfigurationProvider _vaultConfigProvider;
 
-        public DoSyncWork(IConfiguration config, IServiceProvider serviceProvider, IOptionsMonitor<TreOnboardingConfig> configSettings, 
+        public DoSyncWork(IConfiguration config, IServiceProvider serviceProvider, IEncDecHelper encDec, IOptionsMonitor<TreOnboardingConfig> configSettings, 
             IConfigurationService configService, ApplicationDbContext dbContext)
         {
             _serviceProvider = serviceProvider;
             _onboardingConfig = configSettings;
             _configurationService = configService;
             _dbContext = dbContext;
+            _encDecHelper = encDec;
             _vaultConfigProvider = ((IConfigurationRoot)config).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
         }
 
@@ -71,7 +74,7 @@ namespace Agent.Api
                     object credsToSave = new
                     {
                         Username = creds.UserName,
-                        creds.PasswordEnc,
+                        PasswordEnc = _encDecHelper.Decrypt(creds.PasswordEnc),
                         ConfigInputMethod = ConfigInputMethod.Manual
                     };
 

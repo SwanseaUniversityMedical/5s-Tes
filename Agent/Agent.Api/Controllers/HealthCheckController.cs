@@ -6,7 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Agent.Api.Controllers
 {
-    [Authorize]
+    [Authorize(Roles = "dare-tre-admin")]
     [Route("api/[controller]")]
     [ApiController]
     public class HealthCheckController : Controller
