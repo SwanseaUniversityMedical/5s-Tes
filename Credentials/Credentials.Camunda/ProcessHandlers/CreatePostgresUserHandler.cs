@@ -2,6 +2,7 @@ using System.Diagnostics;
 using Credentials.Camunda.Models;
 using Credentials.Camunda.Services;
 using Credentials.Models.DbContexts;
+using Credentials.Models.Models.Zeebe;
 using Zeebe.Client.Accelerator.Abstractions;
 using Zeebe.Client.Accelerator.Attributes;
 
@@ -34,11 +35,16 @@ namespace Credentials.Camunda.ProcessHandlers
 
             try
             {
+                _logger.LogInformation("RAW job.Variables: {Variables}", job.Variables);
+
                 // Extract common variables
                 var extraction = ExtractCredentials(job);
                 submissionId = extraction.SubmissionId;
                 parentProcessKey = extraction.ParentProcessKey;
-                connectionTag = extraction.EnvList?.FirstOrDefault()?.tag ?? "postgres";
+                connectionTag = extraction.Variables.TryGetValue("tag", out var tagVal) ? tagVal?.ToString() ?? "postgres" : extraction.EnvList?.FirstOrDefault()?.tag ?? "postgres";
+
+                // only use rows relevant to this connection
+                List<CredentialsCamundaOutput> scopedEnvList = extraction.EnvList?.Where(x => string.Equals(x.tag, connectionTag, StringComparison.OrdinalIgnoreCase)).ToList() ?? new();
 
                 // Refuse to provision unless this submission was approved by Agent.Api
                 if (!await IsSubmissionApprovedAsync(extraction))
@@ -47,7 +53,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: Submission not approved.");
                 }
 
-                if (extraction.EnvList?.FirstOrDefault() == null)
+                if (scopedEnvList.Count == 0)
                 {
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, connectionTag,
                         "No credential information found in envList");
@@ -55,21 +61,21 @@ namespace Credentials.Camunda.ProcessHandlers
                 }
 
                 // Extract PostgreSQL-specific variables
-                string? username = extraction.EnvList
+                string? username = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("username"))
                     .FirstOrDefault()?.value?.ToString();
-                string? schemaName = extraction.EnvList
+                string? schemaName = scopedEnvList
                     .FirstOrDefault(x =>
                     x.env.Equals("postgresSchema", StringComparison.OrdinalIgnoreCase))
                     ?.value?.ToString();
 
-                string? database = extraction.EnvList
+                string? database = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("database"))
                     .FirstOrDefault()?.value?.ToString();
-                string? server = extraction.EnvList
+                string? server = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("server"))
                     .FirstOrDefault()?.value?.ToString();
-                string? port = extraction.EnvList
+                string? port = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("port"))
                     .FirstOrDefault()?.value?.ToString();
 
@@ -83,7 +89,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: Missing credentials, cannot proceed.");
                 }
 
-                string? rawPermissions = extraction.EnvList.FirstOrDefault(x => x.env.Equals("postgresPermissions", StringComparison.OrdinalIgnoreCase))?.value?.ToString();
+                string? rawPermissions = scopedEnvList.FirstOrDefault(x => x.env.Equals("postgresPermissions", StringComparison.OrdinalIgnoreCase))?.value?.ToString();
 
                 // Generate password
                 var password = GenerateSecurePassword();
@@ -112,7 +118,7 @@ namespace Credentials.Camunda.ProcessHandlers
                 };
 
                 // Build credential data
-                var credentialData = BuildCredentialData(extraction.EnvList, password);
+                var credentialData = BuildCredentialData(scopedEnvList, password);
 
                 // Store in vault
                 string vaultPath = $"{connectionTag}/{extraction.User}/{submissionId}/{extraction.Project}";
