@@ -8,6 +8,7 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+      - "Teleport/**"
       - "Shared/**"
   push:
     # Only release off of release and maintenance branches for this asset
@@ -19,6 +20,7 @@ on:
       - "Agent/**"
       - "Credentials/**"
       - "Submission/**"
+      - "Teleport/**"
       - "Shared/**"
 
 permissions:
@@ -154,6 +156,21 @@ jobs:
     secrets:
       notation-key: ${{ secrets.NOTATION_KEY }}
       registry-token: ${{ secrets.HARBOR_TOKEN }}
-    
 
-
+  teleport-user-management-container:
+    needs: containers
+    uses: SwanseaUniversityMedical/workflows/.github/workflows/bulk-pr-and-release-container.yaml@v4.0.0-bulk-containers
+    with:
+      job-name: teleport-user-management-container
+      registry: ${{ vars.HARBOR_FEDA_REGISTRY }}
+      registry-user: ${{ vars.HARBOR_USER }}
+      registry-repo: ${{ vars.HARBOR_PROJECT }}/${{ vars.HARBOR_REPO_TELEPORT_USER_MANAGEMENT }}
+      release-info: ${{ needs.containers.outputs.release-info }}
+      notation-cert: ${{ vars.NOTATION_CERT }}
+      nuget-config: ${{ vars.NUGET_CONFIG }}
+      build-file: Teleport/TeleportUserManagement/TeleportUserManagement/Dockerfile
+      build-context: .
+      platforms: "linux/amd64,linux/arm64"
+    secrets:
+      notation-key: ${{ secrets.NOTATION_KEY }}
+      registry-token: ${{ secrets.HARBOR_TOKEN }}

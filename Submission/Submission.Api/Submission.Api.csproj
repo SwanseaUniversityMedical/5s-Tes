@@ -47,6 +47,7 @@
 
 
 	<PackageReference Include="IdentityModel" Version="6.2.0" />
+	<PackageReference Include="prometheus-net" Version="8.2.1" />
 
   </ItemGroup>
 
