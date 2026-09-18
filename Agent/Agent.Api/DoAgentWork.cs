@@ -365,11 +365,11 @@ namespace Agent.Api
                                 if (status.state == "COMPLETE")
                                 {
                                     Log.Information(
-                                        $"  CloseSubmissionForTre with status.state subId {subId.ToString()} == COMPLETE ");
+                                        $"  UpdateStatusForTre with status.state subId {subId.ToString()} == COMPLETE ");
                                     try
                                     {
-                                        result = _subHelper.CloseSubmissionForTre(subId.ToString(),
-                                            StatusType.DataOutRequested, "", "");
+                                        result = _subHelper.UpdateStatusForTre(subId.ToString(),
+                                            StatusType.DataOutRequested, "");
                                     }
                                     catch (Exception ex)
                                     {
@@ -427,7 +427,7 @@ namespace Agent.Api
                                     Log.Information($"  FilesReadyForReview files {files.Count} ");
                                     if (files.Count == 0)
                                     {
-                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Complete,
+                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Completed,
                                             " Complete - No files to review ");
                                         return;
                                     }
