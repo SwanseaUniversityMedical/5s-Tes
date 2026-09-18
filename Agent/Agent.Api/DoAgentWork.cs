@@ -737,6 +737,11 @@ namespace Agent.Api
                             var tesMessage = JsonConvert.DeserializeObject<TesTask>(aSubmission.TesJson);
                             var processedOK = true;
 
+                            if (tesMessage is not null)
+                            {
+                                TesVolumeHelper.ApplyDefaultTmpVolume(tesMessage);
+                            }
+
                             // **************  SEND TO RABBIT
                             if (useRabbit)
                             {
