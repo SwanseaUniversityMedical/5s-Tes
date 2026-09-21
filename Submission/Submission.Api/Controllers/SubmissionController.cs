@@ -118,19 +118,42 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetRequestCancelSubsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetRequestCancelSubsForTre()
+        public virtual async Task<IActionResult> GetRequestCancelSubsForTre(CancellationToken cancellationToken)
         {
 
             var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
             var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+            var treId = tre.Id;
+            var treName = tre.Name;
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
+            // Heartbeat is a blind UPDATE by key rather than a tracked-entity SaveChanges: it avoids
+            // loading the Tre graph and keeps this write off the read path's change tracker.
+            await _DbContext.Tres
+                .Where(x => x.Id == treId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.LastHeartBeatReceived, DateTime.UtcNow),
+                    cancellationToken);
+
+            // Projected explicitly instead of returning tracked entities, and filtered in SQL rather
+            // than in memory over the TRE's whole submission history.
+            var results = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(x => x.Tre != null && x.Tre.Id == treId &&
+                            x.Status == StatusType.RequestCancellation)
+                .OrderBy(x => x.Id)
+                .Take(_maxWaitingSubmissionsPerScan)
+                .Select(x => new FiveSafesTes.Core.Models.Submission
+                {
+                    Id = x.Id,
+                    TesId = x.TesId,
+                    TesName = x.TesName,
+                    Status = x.Status
+                })
+                .ToListAsync(cancellationToken);
 
             Log.Information(
                 "{Function} TRE {TreName} (id {TreId}, user {User}) checked in — {CancelCount} submission(s) awaiting cancellation",
-                "GetRequestCancelSubsForTre", tre.Name, tre.Id, usersName, results.Count);
+                "GetRequestCancelSubsForTre", treName, treId, usersName, results.Count);
 
             return StatusCode(200, results);
         }
