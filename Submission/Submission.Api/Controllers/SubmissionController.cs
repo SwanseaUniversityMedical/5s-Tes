@@ -75,13 +75,7 @@ namespace Submission.Api.Controllers
             // credentials) so the Agent keeps re-picking them until dispatch completes. These are the
             // pre-dispatch TRE stages; once a submission reaches "Sent to TES" it drops out of this set.
             //
-            // Projected explicitly instead of returning tracked entities. Lazy-loading proxies are
-            // enabled, so serialising tracked Submissions walks Project/SubmittedBy/Children/
-            // HistoricStatuses/SubmissionFiles/AuditLogs/Tre and issues a separate query per
-            // navigation while the response is being written — which is what exhausted memory when
-            // several TREs retried this endpoint at once. The shape stays wire-compatible with
-            // List<Submission>: only the properties the Agent actually reads are populated, every
-            // other navigation is left null.
+            // Projected explicitly instead of returning tracked entities.
             var results = await _DbContext.Submissions
                 .AsNoTracking()
                 .Where(x => x.Tre != null && x.Tre.Id == treId &&
