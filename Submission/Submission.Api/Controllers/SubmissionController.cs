@@ -26,6 +26,14 @@ namespace Submission.Api.Controllers
     /// </summary>
     public class SubmissionController : Controller
     {
+        /// <summary>
+        /// Upper bound on submissions returned to a TRE Agent in a single scan. The Agent processes
+        /// the list one submission at a time and re-scans every minute, so anything beyond this is
+        /// picked up on the next pass. The cap keeps a backlog from turning one scan into an
+        /// unbounded response.
+        /// </summary>
+        private const int _maxWaitingSubmissionsPerScan = 20;
+
         private readonly ApplicationDbContext _DbContext;
         private readonly IBus _rabbit;
         private readonly IMinioHelper _minioHelper;
@@ -41,32 +49,65 @@ namespace Submission.Api.Controllers
 
         }
         
-        
         [Authorize(Roles = "dare-control-admin,dare-tre-admin")]
         [HttpGet]
         [Route("GetWaitingSubmissionsForTre")]
         [ValidateModelState]
         [SwaggerOperation("GetWaitingSubmissionsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetWaitingSubmissionsForTre()
+        public virtual async Task<IActionResult> GetWaitingSubmissionsForTre(CancellationToken cancellationToken)
         {
 
             var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
             var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+            var treId = tre.Id;
+            var treName = tre.Name;
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
+            // Heartbeat is a blind UPDATE by key rather than a tracked-entity SaveChanges: it avoids
+            // loading the Tre graph and keeps this write off the read path's change tracker.
+            await _DbContext.Tres
+                .Where(x => x.Id == treId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.LastHeartBeatReceived, DateTime.UtcNow),
+                    cancellationToken);
+
             // Include submissions the Agent has already started transferring (picked up / processing
             // credentials) so the Agent keeps re-picking them until dispatch completes. These are the
             // pre-dispatch TRE stages; once a submission reaches "Sent to TES" it drops out of this set.
-            var results = tre.Submissions.Where(x =>
-                x.Status == StatusType.WaitingForAgentToTransfer ||
-                x.Status == StatusType.AgentTransferringToPod ||
-                x.Status == StatusType.ProcessingCredentials).ToList();
+            //
+            // Projected explicitly instead of returning tracked entities.
+            var results = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(x => x.Tre != null && x.Tre.Id == treId &&
+                            (x.Status == StatusType.WaitingForAgentToTransfer ||
+                             x.Status == StatusType.AgentTransferringToPod ||
+                             x.Status == StatusType.ProcessingCredentials))
+                .OrderBy(x => x.Id)
+                .Take(_maxWaitingSubmissionsPerScan)
+                .Select(x => new FiveSafesTes.Core.Models.Submission
+                {
+                    Id = x.Id,
+                    TesId = x.TesId,
+                    TesName = x.TesName,
+                    TesJson = x.TesJson,
+                    Status = x.Status,
+                    Project = new FiveSafesTes.Core.Models.Project
+                    {
+                        Id = x.Project.Id,
+                        Name = x.Project.Name,
+                        SubmissionBucket = x.Project.SubmissionBucket
+                    },
+                    SubmittedBy = new FiveSafesTes.Core.Models.User
+                    {
+                        Id = x.SubmittedBy.Id,
+                        Name = x.SubmittedBy.Name
+                    }
+                })
+                .ToListAsync(cancellationToken);
 
             Log.Information(
                 "{Function} TRE {TreName} (id {TreId}, user {User}) checked in and is scanning for jobs — {WaitingCount} submission(s) waiting or mid-transfer",
-                "GetWaitingSubmissionsForTre", tre.Name, tre.Id, usersName, results.Count);
+                "GetWaitingSubmissionsForTre", treName, treId, usersName, results.Count);
 
             return StatusCode(200, results);
         }
@@ -77,19 +118,42 @@ namespace Submission.Api.Controllers
         [ValidateModelState]
         [SwaggerOperation("GetRequestCancelSubsForTre")]
         [SwaggerResponse(statusCode: 200, type: typeof(List<FiveSafesTes.Core.Models.Submission>), description: "")]
-        public virtual IActionResult GetRequestCancelSubsForTre()
+        public virtual async Task<IActionResult> GetRequestCancelSubsForTre(CancellationToken cancellationToken)
         {
 
             var usersName = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First();
             var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+            var treId = tre.Id;
+            var treName = tre.Name;
 
-            tre.LastHeartBeatReceived = DateTime.Now.ToUniversalTime();
-            _DbContext.SaveChanges();
-            var results = tre.Submissions.Where(x => x.Status == StatusType.RequestCancellation).ToList();
+            // Heartbeat is a blind UPDATE by key rather than a tracked-entity SaveChanges: it avoids
+            // loading the Tre graph and keeps this write off the read path's change tracker.
+            await _DbContext.Tres
+                .Where(x => x.Id == treId)
+                .ExecuteUpdateAsync(
+                    s => s.SetProperty(x => x.LastHeartBeatReceived, DateTime.UtcNow),
+                    cancellationToken);
+
+            // Projected explicitly instead of returning tracked entities, and filtered in SQL rather
+            // than in memory over the TRE's whole submission history.
+            var results = await _DbContext.Submissions
+                .AsNoTracking()
+                .Where(x => x.Tre != null && x.Tre.Id == treId &&
+                            x.Status == StatusType.RequestCancellation)
+                .OrderBy(x => x.Id)
+                .Take(_maxWaitingSubmissionsPerScan)
+                .Select(x => new FiveSafesTes.Core.Models.Submission
+                {
+                    Id = x.Id,
+                    TesId = x.TesId,
+                    TesName = x.TesName,
+                    Status = x.Status
+                })
+                .ToListAsync(cancellationToken);
 
             Log.Information(
                 "{Function} TRE {TreName} (id {TreId}, user {User}) checked in — {CancelCount} submission(s) awaiting cancellation",
-                "GetRequestCancelSubsForTre", tre.Name, tre.Id, usersName, results.Count);
+                "GetRequestCancelSubsForTre", treName, treId, usersName, results.Count);
 
             return StatusCode(200, results);
         }
