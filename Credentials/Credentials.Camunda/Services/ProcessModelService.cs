@@ -9,14 +9,16 @@ namespace Credentials.Camunda.Services
     public class ProcessModelService : IProcessModelService
     {
         private IServicedZeebeClient _camunda;
+        private readonly IZeebeClient _zeebeClient;
         private readonly IConfiguration _configuration;
         private readonly DmnPath _DmnPath;
         private readonly string path;
 
 
-        public ProcessModelService(IServicedZeebeClient servicedZeebeClient, IConfiguration configuration, DmnPath DmnPath)
+        public ProcessModelService(IServicedZeebeClient servicedZeebeClient, IZeebeClient zeebeClient, IConfiguration configuration, DmnPath DmnPath)
         {
             _camunda = servicedZeebeClient;
+            _zeebeClient = zeebeClient;
             _configuration = configuration;
             // Get DMN file path from configuration or use default
             _DmnPath = DmnPath;
@@ -45,15 +47,8 @@ namespace Credentials.Camunda.Services
 
         public async Task DeployProcessDefinitionAndDecisionModels()
         {
-            /* Testing connection */
-            var gatewayAddress = _configuration["ZeebeBootstrap:Client:GatewayAddress"];
-
-            var zeebeClient = ZeebeClient.Builder()
-                .UseGatewayAddress(gatewayAddress)
-                .UsePlainText()
-                .Build();
-
-            await zeebeClient.TopologyRequest().Send();
+            /* Testing connection - uses the DI client so ZeebeBootstrap TLS/OAuth settings apply */
+            await _zeebeClient.TopologyRequest().Send();
             Log.Information($"Connected to Zeebe cluster");
 
             // Load ProcessModels from file system
