@@ -21,6 +21,7 @@
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
 
     <link rel="stylesheet" href="https://use.typekit.net/tyz0nfb.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/toastr.js/latest/css/toastr.min.css" />
 </head>
 <body class="d-flex flex-column h-100">
     <header>
@@ -205,5 +206,6 @@
 
     </script>
     @await RenderSectionAsync("Scripts", required: false)
+    <partial name="_Notification" />
 </body>
 </html>
