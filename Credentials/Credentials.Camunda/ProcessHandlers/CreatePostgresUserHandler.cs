@@ -64,10 +64,26 @@ namespace Credentials.Camunda.ProcessHandlers
                 string? username = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("username"))
                     .FirstOrDefault()?.value?.ToString();
-                string? schemaName = scopedEnvList
-                    .FirstOrDefault(x =>
-                    x.env.Equals("postgresSchema", StringComparison.OrdinalIgnoreCase))
-                    ?.value?.ToString();
+
+                // Support multiple schema by finding all environment variables containing the phrase "schema"
+                List<CredentialsCamundaOutput> schemaEntries = scopedEnvList.Where(x => x.env.Contains("schema", StringComparison.OrdinalIgnoreCase)).ToList();
+                List<SchemaPermission> schemaPermissions = new();
+
+                foreach (CredentialsCamundaOutput entry in schemaEntries) 
+                {
+                    // get the phrase we are using to identify this schema
+                    string identifier = RemoveKeyword(entry.env, "schema");
+
+                    // and find a matching permissions variable
+                    string? rawSchemaPermissions = scopedEnvList.Where(x => x.env.Contains("permissions", StringComparison.OrdinalIgnoreCase))
+                        .FirstOrDefault(x => string.Equals(RemoveKeyword(x.env, "permissions"), identifier, StringComparison.OrdinalIgnoreCase))?.value?.ToString();
+
+                    schemaPermissions.Add(new()
+                    {
+                        SchemaName = entry.value,
+                        Permissions = CreatePermissions(rawSchemaPermissions, connectionTag)
+                    });
+                }
 
                 string? database = scopedEnvList
                     .Where(x => x.env.ToLower().Contains("database"))
@@ -80,7 +96,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     .FirstOrDefault()?.value?.ToString();
 
                 // Validate all required fields
-                if (string.IsNullOrEmpty(username) || string.IsNullOrEmpty(schemaName) || string.IsNullOrEmpty(database) ||
+                if (string.IsNullOrEmpty(username) || schemaPermissions.Count == 0 || schemaPermissions.Any(x => string.IsNullOrEmpty(x.SchemaName)) || string.IsNullOrEmpty(database) ||
                     string.IsNullOrEmpty(server) || string.IsNullOrEmpty(port) ||
                     string.IsNullOrEmpty(extraction.User) || string.IsNullOrEmpty(extraction.Project))
                 {
@@ -89,22 +105,8 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: Missing credentials, cannot proceed.");
                 }
 
-                string? rawPermissions = scopedEnvList.FirstOrDefault(x => x.env.Equals("postgresPermissions", StringComparison.OrdinalIgnoreCase))?.value?.ToString();
-
                 // Generate password
                 var password = GenerateSecurePassword();
-
-                var permissions = CreatePermissions(rawPermissions, connectionTag);
-
-                // Create schema permissions for PostgreSQL
-                var schemaPermissions = new List<SchemaPermission>
-                {
-                    new SchemaPermission
-                    {
-                        SchemaName = schemaName,
-                        Permissions = permissions
-                    }
-                };
 
                 // Create user request
                 var createUserRequest = new CreateUserRequest
@@ -117,8 +119,9 @@ namespace Credentials.Camunda.ProcessHandlers
                     SchemaPermissions = schemaPermissions
                 };
 
-                // Build credential data
-                var credentialData = BuildCredentialData(scopedEnvList, password);
+                // Build credential data, removing any duplicate entries as vault requires unique keys
+                var vaultEnvList = scopedEnvList.GroupBy(x => x.env, StringComparer.OrdinalIgnoreCase).Select(g => g.First()).ToList();
+                var credentialData = BuildCredentialData(vaultEnvList, password);
 
                 // Store in vault
                 string vaultPath = $"{connectionTag}/{extraction.User}/{submissionId}/{extraction.Project}";
@@ -187,6 +190,18 @@ namespace Credentials.Camunda.ProcessHandlers
             }
 
             return permissions;
+        }
+
+        /// <summary>
+        /// Removes a given phrase from a string.
+        /// </summary>
+        /// <param name="input">The string we want to remove a keyword from.</param>
+        /// <param name="keyword">The keyword we want to remove from the string.</param>
+        /// <returns>Returns the string with the keyword removed.</returns>
+        private string RemoveKeyword(string input, string keyword)
+        {
+            int index = input.IndexOf(keyword, StringComparison.OrdinalIgnoreCase);
+            return index < 0 ? input : input.Remove(index, keyword.Length);
         }
     }
 }
