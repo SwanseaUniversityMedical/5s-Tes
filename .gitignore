@@ -484,3 +484,10 @@ $RECYCLE.BIN/
 
 # Vim temporary swap files
 *.swp
+
+.superpowers/
+.claude-octopus/
+docs/superpowers/*
+
+dev-env-setup/.vault-keys*
+graphify-out
