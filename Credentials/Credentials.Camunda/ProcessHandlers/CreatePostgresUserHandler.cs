@@ -35,8 +35,6 @@ namespace Credentials.Camunda.ProcessHandlers
 
             try
             {
-                _logger.LogInformation("RAW job.Variables: {Variables}", job.Variables);
-
                 // Extract common variables
                 var extraction = ExtractCredentials(job);
                 submissionId = extraction.SubmissionId;
@@ -165,16 +163,22 @@ namespace Credentials.Camunda.ProcessHandlers
             }
         }
 
-        private DatabasePermissions CreatePermissions(string rawPermissions, string connectionTag) 
+        /// <summary>
+        /// Parses a comma-separated permission string (e.g. "Read,Write") into DatabasePermissions.
+        /// </summary>
+        /// <param name="rawPermissions">The raw comma-separated permissions value for this schema.</param>
+        /// <param name="connectionTag">The connection tag this permission set belongs to.</param>
+        /// <returns>The combined DatabasePermissions value.</returns>
+        private DatabasePermissions CreatePermissions(string rawPermissions, string connectionTag)
         {
             DatabasePermissions permissions = DatabasePermissions.Read;
 
             if (!string.IsNullOrWhiteSpace(rawPermissions))
             {
-                var parsedPermissions = DatabasePermissions.None;
+                DatabasePermissions parsedPermissions = DatabasePermissions.None;
                 foreach (var part in rawPermissions.Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
                 {
-                    if (Enum.TryParse<DatabasePermissions>(part, ignoreCase: true, out var parsedFlag))
+                    if (Enum.TryParse<DatabasePermissions>(part, ignoreCase: true, out DatabasePermissions parsedFlag))
                     {
                         parsedPermissions |= parsedFlag;
                     }
