@@ -592,16 +592,41 @@ namespace Submission.Api.Controllers
 
         [HttpGet("GetAllProjectsForTre")]
         [Authorize(Roles = "dare-tre-admin")]
-        public List<Project> GetAllProjectsForTre()
+        public async Task<List<Project>> GetAllProjectsForTre(CancellationToken cancellationToken)
         {
             try
             {
 
                 var tre = ControllerHelpers.GetUserTre(User, _DbContext);
+                var treId = tre.Id;
 
-                var allProjects = tre.Projects;
+                // Projected explicitly rather than returning the tracked tre.Projects collection.
+                var allProjects = await _DbContext.Projects
+                    .AsNoTracking()
+                    .Where(x => x.Tres.Any(t => t.Id == treId))
+                    .OrderBy(x => x.Id)
+                    .Select(x => new Project
+                    {
+                        Id = x.Id,
+                        Name = x.Name,
+                        ProjectDescription = x.ProjectDescription,
+                        StartDate = x.StartDate,
+                        EndDate = x.EndDate,
+                        SubmissionBucket = x.SubmissionBucket,
+                        OutputBucket = x.OutputBucket,
+                        Users = x.Users
+                            .Select(u => new FiveSafesTes.Core.Models.User
+                            {
+                                Id = u.Id,
+                                Name = u.Name,
+                                Email = u.Email
+                            })
+                            .ToList()
+                    })
+                    .ToListAsync(cancellationToken);
 
-                Log.Information("{Function} Projects retrieved successfully", "GetAllProjectsForTre");
+                Log.Information("{Function} Projects retrieved successfully — {ProjectCount} project(s) for TRE {TreId}",
+                    "GetAllProjectsForTre", allProjects.Count, treId);
                 return allProjects;
             }
             catch (Exception ex)
