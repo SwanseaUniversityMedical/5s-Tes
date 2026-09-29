@@ -1,6 +1,7 @@
 using Serilog;
 using System.Reflection;
 using Credentials.Models.Services;
+using FiveSafesTes.Core.Constants;
 using FiveSafesTes.Core.Models;
 using Zeebe.Client;
 
@@ -11,7 +12,10 @@ namespace Credentials.Camunda.Services
         private IServicedZeebeClient _camunda;
         private readonly IConfiguration _configuration;
         private readonly DmnPath _DmnPath;
-        private readonly string path;
+
+        // The editable copy of each managed DMN, keyed by file name. These live on a persistent
+        // volume in a deployed stack, so they are deployed in place of the copies baked into the image.
+        private readonly Dictionary<string, string> managedDmnPaths;
 
 
         public ProcessModelService(IServicedZeebeClient servicedZeebeClient, IConfiguration configuration, DmnPath DmnPath)
@@ -21,27 +25,32 @@ namespace Credentials.Camunda.Services
             // Get DMN file path from configuration or use default
             _DmnPath = DmnPath;
 
-            if (!string.IsNullOrEmpty(DmnPath.Path))
+            managedDmnPaths = DmnFiles.All.ToDictionary(
+                fileName => fileName,
+                fileName => ResolveDmnPath(DmnPath.Path, fileName));
+        }
+
+        /// <summary>
+        /// Resolves the editable copy of a DMN file against the configured DmnPath,
+        /// falling back to the location in the source tree when none is configured.
+        /// </summary>
+        private static string ResolveDmnPath(string? configuredPath, string fileName)
+        {
+            if (!string.IsNullOrEmpty(configuredPath))
             {
                 // Use configured path - make it absolute if relative
-                if (Path.IsPathRooted(DmnPath.Path))
+                if (Path.IsPathRooted(configuredPath))
                 {
-                    path = Path.Combine(DmnPath.Path, "credentials.dmn");
+                    return Path.Combine(configuredPath, fileName);
                 }
-                else
-                {
-                    var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                    path = Path.GetFullPath(Path.Combine(projectDirectory, DmnPath.Path, "credentials.dmn"));
-                }
-            }
-            else
-            {
-                var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials","Credentials.Models","ProcessModels", "credentials.dmn"));
 
-                
+                var configuredProjectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+                return Path.GetFullPath(Path.Combine(configuredProjectDirectory, configuredPath, fileName));
             }
-        }       
+
+            var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
+            return Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials", "Credentials.Models", "ProcessModels", fileName));
+        }
 
         public async Task DeployProcessDefinitionAndDecisionModels()
         {
@@ -96,9 +105,11 @@ namespace Credentials.Camunda.Services
                 {
                     var deploymentFileName = Path.GetFileName(filePath);
 
-                    if (deploymentFileName == "credentials.dmn")
+                    // Skip the baked-in copy of a managed DMN when its editable copy exists,
+                    // so admin edits win. The editable copy is deployed below instead.
+                    if (managedDmnPaths.TryGetValue(deploymentFileName, out var managedPath))
                     {
-                        if (File.Exists(path))
+                        if (File.Exists(managedPath))
                         {
                             continue;
                         }
@@ -123,19 +134,19 @@ namespace Credentials.Camunda.Services
                 Log.Information($"No process model files found in: {processModelsPath}");
             }
 
-            if (File.Exists(path))
+            foreach (var (fileName, managedPath) in managedDmnPaths)
             {
-                using var fileStream = File.OpenRead(path);
-                var fileName = Path.GetFileName(path);
-                await _camunda.DeployModel(fileStream, fileName);
-   
+                if (File.Exists(managedPath))
+                {
+                    using var fileStream = File.OpenRead(managedPath);
+                    await _camunda.DeployModel(fileStream, fileName);
+                    deployedCount++;
+                }
+                else
+                {
+                    Log.Error($"DMN file not found: {managedPath}");
+                }
             }
-            else
-            {
-                Log.Error($"DMN file not found: {path}");
-            }
-
-            
 
             return deployedCount;
         }
