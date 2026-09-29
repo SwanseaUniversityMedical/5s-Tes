@@ -80,6 +80,12 @@ namespace Credentials.Camunda.Extensions
             services.AddSingleton<IMinioHelper, MinioHelper>();
             services.AddScoped<CreateS3SecretHandler>();
             services.AddScoped<DeleteS3UserHandler>();
+
+            // Code resolution: the Codes_resolve_sub subprocess stores every resolved code
+            // for a task at project/taskId so the Agent can read them back in one call.
+            services.AddScoped<ICodeVaultService, CodeVaultService>();
+            services.AddScoped<AddCodesToVaultHandler>();
+            services.AddScoped<MoveSecretCodesToVaultHandler>();
         }
     }
 }

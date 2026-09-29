@@ -1098,13 +1098,19 @@ namespace Agent.Api
         // InputCollections mirrors the top-level variables as a list because the BPMN multi-instance
         // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId,
-            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null)
+            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null,
+            string? taskId = null, IReadOnlyCollection<string>? codes = null)
         {
             var variables = new Dictionary<string, object>
             {
                 ["project"] = projectName,
                 ["user"] = userId.ToString(),
                 ["submissionId"] = submissionId.ToString(),
+                // Consumed by the Codes_resolve_sub subprocess. An empty code list makes its
+                // multi-instance DMN task run zero times, so a message with no placeholders
+                // costs nothing.
+                ["taskId"] = taskId ?? submissionId.ToString(),
+                ["codes"] = codes?.ToList() ?? new List<string>(),
                 ["InputCollections"] = new List<Dictionary<string, object>>
                 {
                     new Dictionary<string, object>
