@@ -1,0 +1,60 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {{ include "submission-stack.fullname" . }}-seq
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+  source:
+    repoURL: "https://helm.datalust.co"
+    chart: seq
+    targetRevision: 2025.2.1
+    helm:
+      valuesObject:
+        {{- if .Values.global.ingress.enabled }}
+        baseURI: "https://seq.{{ .Values.global.ingress.host }}/"
+        {{- end }}
+        listenURI: "http://localhost:80,http://localhost:5341"
+
+        firstRunAdminUsername: "admin"
+        firstRunAdminPasswordHashSecret:
+          name: "seq-admin-password-hash-secret"
+          key: "password"
+        firstRunRequireAuthenticationForHttpIngestion: false
+
+        {{- if .Values.global.ingress.enabled }}
+        ui:
+          ingress:
+            enabled: true
+            path: /
+            hosts:
+              - seq.{{ .Values.global.ingress.host }}
+
+        ingress:
+          className: "{{ .Values.global.ingress.adminClassName }}"
+          annotations:
+            cert-manager.io/cluster-issuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+          tls:
+            - hosts:
+              - seq.{{ .Values.global.ingress.host }}
+              secretName: seq-{{ include "submission-stack.fullname" . }}-tls
+        {{- end }}
+
+        persistence:
+          enabled: true
+          storageClass: {{ .Values.global.storage.defaultClass }}
+          size: "{{ .Values.seq.storageSize }}"
