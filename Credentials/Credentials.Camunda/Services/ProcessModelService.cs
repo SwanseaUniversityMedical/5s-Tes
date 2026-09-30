@@ -10,7 +10,6 @@ namespace Credentials.Camunda.Services
     {
         private IServicedZeebeClient _camunda;
         private readonly IZeebeClient _zeebeClient;
-        private readonly IConfiguration _configuration;
         private readonly DmnPath _DmnPath;
         private readonly string path;
 
@@ -19,7 +18,7 @@ namespace Credentials.Camunda.Services
         {
             _camunda = servicedZeebeClient;
             _zeebeClient = zeebeClient;
-            _configuration = configuration;
+
             // Get DMN file path from configuration or use default
             _DmnPath = DmnPath;
 
