@@ -688,8 +688,9 @@ namespace Agent.Api
                                     Log.Information(
                                         "All credential handlers succeeded for submission {SubId}. Fetching credentials.",
                                         aSubmission.Id);
-                                    credentials =
-                                        await WaitForAndFetchCredentialsAsync(aSubmission.Id, TimeSpan.FromMinutes(10));
+
+                                    int expectedCredentialCount = credsRowforParentKey.Select(c => c.CredentialType).Distinct().Count();
+                                    credentials = await WaitForAndFetchCredentialsAsync(aSubmission.Id, expectedCredentialCount, TimeSpan.FromMinutes(10));
 
                                     if (credentials == null || credentials.Count == 0)
                                     {
@@ -1130,7 +1131,7 @@ namespace Agent.Api
 
 
         private async Task<Dictionary<string, Dictionary<string, object>>> WaitForAndFetchCredentialsAsync(
-            int submissionId, TimeSpan? timeout = null)
+            int submissionId, int expectedCredentialCount, TimeSpan? timeout = null)
         {
             var maxWaitTime = timeout ?? TimeSpan.FromMinutes(5);
             var pollInterval = TimeSpan.FromSeconds(5); //Reduced polling interval for faster fetch
@@ -1173,7 +1174,7 @@ namespace Agent.Api
                         await _credsDbContext.SaveChangesAsync();
                     }
 
-                    if (fetchedCredentials.Count > 0)
+                    if (fetchedCredentials.Count >= expectedCredentialCount)
                     {
                         Log.Information($"Successfully fetched all credentials for submission {submissionId}");
                         return fetchedCredentials;
