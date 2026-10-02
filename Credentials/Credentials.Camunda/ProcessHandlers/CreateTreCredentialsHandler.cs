@@ -1,6 +1,7 @@
 using System.Diagnostics;
 using Credentials.Camunda.Services;
 using Credentials.Models.DbContexts;
+using Credentials.Models.Models.Zeebe;
 using Zeebe.Client.Accelerator.Abstractions;
 using Zeebe.Client.Accelerator.Attributes;
 
@@ -24,6 +25,134 @@ namespace Credentials.Camunda.ProcessHandlers
             : base(vaultCredentialsService, credentialsDbContext, logger)
         {
             _logger = logger;
+        }
+
+        /// <summary>
+        /// Splits the rows into the groups that become vault paths, keyed by image code with
+        /// the empty string for the variables that apply to every image.
+        /// A row may name several image codes, in which case it belongs to each of their
+        /// groups - it is a fan-out, not a partition, so the same variable can be shared by
+        /// a handful of images without duplicating the row.
+        /// </summary>
+        private static SortedDictionary<string, List<CredentialsCamundaOutput>> GroupByImageCode(
+            List<CredentialsCamundaOutput> envList)
+        {
+            var groups = new SortedDictionary<string, List<CredentialsCamundaOutput>>(StringComparer.Ordinal);
+
+            foreach (var credential in envList)
+            {
+                var codes = credential.imageCode.Count == 0
+                    ? new List<string> { string.Empty }   // applies to every image
+                    : credential.imageCode;
+
+                foreach (var code in codes)
+                {
+                    if (!groups.TryGetValue(code, out var group))
+                    {
+                        group = new List<CredentialsCamundaOutput>();
+                        groups[code] = group;
+                    }
+
+                    group.Add(credential);
+                }
+            }
+
+            return groups;
+        }
+
+        /// <summary>
+        /// Builds the values to store, reading the real value out of Vault for any row the
+        /// DMN flagged as a secret.
+        ///
+        /// This is the only credential handler that needs it. The others mint their own
+        /// values - a Postgres or Trino user's password is generated here, so there is no
+        /// literal value for isSecret to override. This handler is a passthrough for
+        /// whatever the DMN supplies, so it is the one place a vault reference makes sense.
+        ///
+        /// Any secret that cannot be read is collected into <paramref name="unreadable"/>
+        /// rather than stored blank or quietly skipped, and the caller fails the job on it.
+        /// Secret values are never logged.
+        /// </summary>
+        private async Task<Dictionary<string, object>> BuildCredentialDataResolvingSecretsAsync(
+            List<CredentialsCamundaOutput> envList,
+            List<string> unreadable)
+        {
+            var credentialData = new Dictionary<string, object>();
+
+            foreach (var credential in envList)
+            {
+                if (!IsSecret(credential))
+                {
+                    credentialData[credential.env] = credential.value;
+                    continue;
+                }
+
+                var secret = await ReadSecretAsync(credential);
+
+                if (string.IsNullOrEmpty(secret))
+                {
+                    _logger.LogError(
+                        "Could not read the secret for environment variable {Env} from vault path {VaultPath}",
+                        credential.env, credential.vaultPath);
+
+                    if (!unreadable.Contains(credential.env, StringComparer.Ordinal))
+                    {
+                        unreadable.Add(credential.env);
+                    }
+
+                    continue;
+                }
+
+                credentialData[credential.env] = secret;
+            }
+
+            return credentialData;
+        }
+
+        /// <summary>
+        /// A row is a secret when the DMN gave it a vault path to read the value from.
+        /// </summary>
+        private static bool IsSecret(CredentialsCamundaOutput credential)
+        {
+            return string.Equals(credential.isSecret, "Y", StringComparison.OrdinalIgnoreCase)
+                   && !string.IsNullOrWhiteSpace(credential.vaultPath);
+        }
+
+        /// <summary>
+        /// Reads one secret from the path the DMN row points at. The vault client builds
+        /// v1/{engine}/data/{path}, so a leading slash would produce a double slash and a 404.
+        /// </summary>
+        private async Task<string?> ReadSecretAsync(CredentialsCamundaOutput credential)
+        {
+            var path = credential.vaultPath!.Trim().Trim('/');
+            var secret = await _vaultCredentialsService.GetCredentialAsync(path);
+
+            if (secret is null || secret.Count == 0)
+            {
+                return null;
+            }
+
+            // The environment variable name is the key by convention.
+            if (secret.TryGetValue(credential.env, out var byName))
+            {
+                return byName?.ToString();
+            }
+
+            // A secret provisioned by hand may hold a single unnamed value instead.
+            if (secret.Count == 1)
+            {
+                _logger.LogInformation(
+                    "Secret at {VaultPath} has no '{Env}' field, using its single field '{Field}'",
+                    path, credential.env, secret.Keys.First());
+
+                return secret.Values.First()?.ToString();
+            }
+
+            _logger.LogError(
+                "Secret at {VaultPath} has no '{Env}' field and holds {Count} fields, so the value is ambiguous. Fields: {Fields}",
+                path, credential.env, secret.Count, string.Join(", ", secret.Keys));
+
+            return null;
         }
 
         /// <summary>
@@ -73,27 +202,68 @@ namespace Credentials.Camunda.ProcessHandlers
                     "Processing tre credentials for user: {User}, project: {Project}",
                     extraction.User, extraction.Project);
 
-                var credentialData = BuildCredentialData(extraction.EnvList, null);
+                string basePath = $"tre/{extraction.User}/{submissionId}/{extraction.Project}";
 
-                string vaultPath = $"tre/{extraction.User}/{submissionId}/{extraction.Project}";
+                // Variables that name no image code go to the base path and reach every
+                // executor. Ones that name an image code go a level deeper, so the Agent can
+                // pick up only the group belonging to the image it is about to run.
+                var groups = GroupByImageCode(extraction.EnvList);
 
-                _logger.LogInformation("Storing tre credentials at vault path: {VaultPath}", vaultPath);
+                // Resolve every group before storing any of them. A secret that cannot be
+                // read fails the whole job, and failing before the first write keeps Vault
+                // free of a half-populated set of paths.
+                var resolved = new List<(string VaultPath, Dictionary<string, object> Data)>();
+                var unreadable = new List<string>();
 
-                if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey,
-                    vaultPath, credentialData, "tre"))
+                foreach (var group in groups)
                 {
-                    return CreateStatusResponse("ERROR: Credential storage in vault failed");
+                    var credentialData = await BuildCredentialDataResolvingSecretsAsync(group.Value, unreadable);
+
+                    if (credentialData.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    resolved.Add((group.Key.Length == 0 ? basePath : $"{basePath}/{group.Key}", credentialData));
                 }
 
-                await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey,
-                    processInstanceKey, vaultPath, "tre");
+                if (unreadable.Count > 0)
+                {
+                    // Nothing downstream checks that an expected variable arrived, so a
+                    // missing secret would otherwise reach the container as a silent gap.
+                    var message = $"Could not read {unreadable.Count} secret(s) from vault: {string.Join(", ", unreadable)}";
+
+                    _logger.LogError("{Message} for submission {SubmissionId}", message, submissionId);
+                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "tre", message);
+
+                    return CreateStatusResponse("ERROR: " + message);
+                }
+
+                var storedPaths = new List<string>();
+
+                foreach (var (vaultPath, credentialData) in resolved)
+                {
+                    _logger.LogInformation("Storing {Count} tre variable(s) at vault path: {VaultPath}",
+                        credentialData.Count, vaultPath);
+
+                    if (!await StoreInVaultAsync(submissionId, parentProcessKey, processInstanceKey,
+                        vaultPath, credentialData, "tre"))
+                    {
+                        return CreateStatusResponse("ERROR: Credential storage in vault failed");
+                    }
+
+                    await CreateCredentialsReadyMessageAsync(submissionId, parentProcessKey,
+                        processInstanceKey, vaultPath, "tre");
+
+                    storedPaths.Add(vaultPath);
+                }
 
                 _logger.LogInformation(
-                    "Successfully stored tre credentials for project: {Project} at path: {VaultPath}",
-                    extraction.Project, vaultPath);
+                    "Successfully stored tre credentials for project: {Project} at {Count} path(s): {VaultPaths}",
+                    extraction.Project, storedPaths.Count, string.Join(", ", storedPaths));
 
                 return CreateStatusResponse(
-                    $"OK: tre credentials stored for project '{extraction.Project}'.");
+                    $"OK: tre credentials stored for project '{extraction.Project}' at {storedPaths.Count} path(s).");
             }
             catch (OperationCanceledException)
             {
