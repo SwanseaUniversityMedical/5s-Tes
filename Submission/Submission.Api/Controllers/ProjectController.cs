@@ -1082,7 +1082,10 @@ namespace Submission.Api.Controllers
           return NotFound();
         }
 
-
+        /// <summary>
+        /// Stores the latest environment variables for a TRE and all its projects in the database.
+        /// </summary>
+        /// <param name="request">The environment variable json payload that we will be storing in the database.</param>
         [HttpPost("SyncEnvironmentVariables")]
         [Authorize(Roles = "dare-tre-admin")]
         public async Task<BoolReturn> SyncEnvironmentVariables([FromBody] ProjectTreEnvironmentVariables request) 
@@ -1112,6 +1115,12 @@ namespace Submission.Api.Controllers
             }
         }
 
+        /// <summary>
+        /// Retrieve all of the environment variables pertaining to a given TRE on a given project.
+        /// </summary>
+        /// <param name="projectId">The ID of the project we want to retrieve variables for.</param>
+        /// <param name="treId">The ID of the TRE the environment variables belong to.</param>
+        /// <returns>Returns the JSON content containing all of the relevant environment variables.</returns>
         [HttpGet("GetEnvironmentVariables/{projectId}/{treId}")]
         [Authorize]
         public async Task<IActionResult> GetEnvironmentVariables(int projectId, int treId)

@@ -18,6 +18,10 @@ public class DmnEnvironmentVariableSyncService : IDmnEnvironmentVariableSyncServ
         _dbContext = dbContext;
     }
 
+    /// <summary>
+    /// Collects all the environment variables for the TRE and creates per-project json arrays containing only the variables relating to each project.
+    /// </summary>
+    /// <param name="dmnPath">The path we are loading our dmn table data from.</param>
     public async Task SyncEnvironmentVariablesWithSubmission(string dmnPath)
     {
         DmnDecisionTable dmnTable = await _dmnService.LoadDmnTableAsync(dmnPath);
