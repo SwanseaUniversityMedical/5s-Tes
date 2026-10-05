@@ -24,7 +24,7 @@ namespace TeleportUserManagement.Services
 
         private readonly List<string> _ouPath;
 
-        public UserService(ILdapService ldapService, ISubmissionClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings) 
+        public UserService(ILdapService ldapService, ISubmissionClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings)
         {
             _ldapService = ldapService;
             _clientHelper = clientHelper;
@@ -76,13 +76,12 @@ namespace TeleportUserManagement.Services
                 if (groupCreationResult == ResultType.Failure) return;
             }
 
-            // Add every user currently approved by every TRE to active directory
+            // Users must already exist in Active Directory - skip those who do not.
             foreach (ProjectUser user in approvedUsers)
             {
                 if (!_ldapService.CheckUserExists(user.Username))
                 {
-                    ResultType userCreationResult = await AddUserToAD(user);
-                    if (userCreationResult == ResultType.Failure) continue;
+                    continue;
                 }
 
                 _ldapService.AddUserToGroup(user.Username, projectName);
@@ -118,15 +117,6 @@ namespace TeleportUserManagement.Services
             }
 
             return users;
-        }
-
-        /// <summary>
-        /// Adds a new user to Active Directory.
-        /// </summary>
-        /// <param name="user">The details of the user we wish to add.</param>
-        private async Task<ResultType> AddUserToAD(ProjectUser user)
-        {
-            return await _ldapService.CreateUserAccount(user.Username, user.FullName, "", user.Email, "", true, false, true, _ouPath);
         }
 
         /// <summary>
