@@ -1082,5 +1082,63 @@ namespace Submission.Api.Controllers
           return NotFound();
         }
 
+        /// <summary>
+        /// Stores the latest environment variables for a TRE and all its projects in the database.
+        /// </summary>
+        /// <param name="envVariables">The environment variable json payload that we will be storing in the database.</param>
+        [HttpPost("SyncEnvironmentVariables")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<BoolReturn> SyncEnvironmentVariables([FromBody] ProjectTreEnvironmentVariables envVariables) 
+        {
+            try 
+            {
+                Tre tre = ControllerHelpers.GetUserTre(User, _DbContext);
+
+                _DbContext.ProjectTreEnvironmentVariables.Add(new()
+                {
+                    ProjectId = envVariables.ProjectId,
+                    TreId = tre.Id,
+                    EnvJson = envVariables.EnvJson,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                await _DbContext.SaveChangesAsync();
+
+                Log.Information("{Function} Environment variables synced for Project {ProjectId}, Tre {TreId}", "SyncEnvironmentVariables", envVariables.ProjectId, tre.Id);
+
+                return new() { Result = true };
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Exception", "SyncEnvironmentVariables");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Retrieve all of the environment variables pertaining to a given TRE on a given project.
+        /// </summary>
+        /// <param name="projectId">The ID of the project we want to retrieve variables for.</param>
+        /// <param name="treId">The ID of the TRE the environment variables belong to.</param>
+        /// <returns>Returns the JSON content containing all of the relevant environment variables.</returns>
+        [HttpGet("GetEnvironmentVariables/{projectId}/{treId}")]
+        [Authorize]
+        public async Task<IActionResult> GetEnvironmentVariables(int projectId, int treId)
+        {
+            try
+            {
+                ProjectTreEnvironmentVariables? row = await _DbContext.ProjectTreEnvironmentVariables.AsNoTracking()
+                    .Where(x => x.ProjectId == projectId && x.TreId == treId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
+
+                if (row == null) return NotFound();
+
+                return Content(row.EnvJson, "application/json");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Exception", "GetEnvironmentVariables");
+                throw;
+            }
+        }
     }
 }

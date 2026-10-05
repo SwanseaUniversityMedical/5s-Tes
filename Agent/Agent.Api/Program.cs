@@ -401,6 +401,9 @@ void AddServices(WebApplicationBuilder builder)
     // DMN Service for managing DMN files
     builder.Services.AddScoped<IDmnService, DmnService>();
 
+    // Service for syncing DMN environment variable names and descriptions with the submission layer.
+    builder.Services.AddScoped<IDmnEnvironmentVariableSyncService, DmnEnvironmentVariableSyncService>();
+
     // Zeebe Client for DMN deployment and evaluation
     builder.Services.AddScoped<Credentials.Models.Services.IServicedZeebeClient, Credentials.Models.Services.ServicedZeebeClient>();
 
