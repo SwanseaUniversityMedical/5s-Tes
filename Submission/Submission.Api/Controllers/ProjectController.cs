@@ -1085,10 +1085,10 @@ namespace Submission.Api.Controllers
         /// <summary>
         /// Stores the latest environment variables for a TRE and all its projects in the database.
         /// </summary>
-        /// <param name="request">The environment variable json payload that we will be storing in the database.</param>
+        /// <param name="envVariables">The environment variable json payload that we will be storing in the database.</param>
         [HttpPost("SyncEnvironmentVariables")]
         [Authorize(Roles = "dare-tre-admin")]
-        public async Task<BoolReturn> SyncEnvironmentVariables([FromBody] ProjectTreEnvironmentVariables request) 
+        public async Task<BoolReturn> SyncEnvironmentVariables([FromBody] ProjectTreEnvironmentVariables envVariables) 
         {
             try 
             {
@@ -1096,15 +1096,15 @@ namespace Submission.Api.Controllers
 
                 _DbContext.ProjectTreEnvironmentVariables.Add(new()
                 {
-                    ProjectId = request.ProjectId,
+                    ProjectId = envVariables.ProjectId,
                     TreId = tre.Id,
-                    EnvJson = request.EnvJson,
+                    EnvJson = envVariables.EnvJson,
                     CreatedAt = DateTime.UtcNow
                 });
 
                 await _DbContext.SaveChangesAsync();
 
-                Log.Information("{Function} Environment variables synced for Project {ProjectId}, Tre {TreId}", "SyncEnvironmentVariables", request.ProjectId, tre.Id);
+                Log.Information("{Function} Environment variables synced for Project {ProjectId}, Tre {TreId}", "SyncEnvironmentVariables", envVariables.ProjectId, tre.Id);
 
                 return new() { Result = true };
             }
