@@ -1,0 +1,46 @@
+{{- if .Values.adminer.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: adminer
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.adminer.repoURL }}"
+    chart: "{{ .Values.adminer.chart }}"
+    # renovate: datasource=helm depName=adminer registryUrl=https://startechnica.github.io/apps
+    targetRevision: "{{ .Values.adminer.chartVersion }}"
+    helm:
+      valuesObject:
+        auth:
+          existingSecret:
+            name: adminer-admin-password
+            keyMapping:
+              client-user-password: password
+        ingress:
+          enabled: true
+          path: /
+          hostname: adminer.{{ .Values.global.ingress.host }}
+          ingressClassName: "{{ .Values.global.ingress.className }}"
+{{- end }}

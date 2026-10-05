@@ -1,0 +1,44 @@
+# OCI repos need an enableOCI registration even without credentials.
+# The stack charts and, through them, the product charts.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-helm-oci-harbor-feda
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  enableOCI: "true"
+  name: "harbor.federated-analytics 5s-tes"
+  type: helm
+  url: harbor.federated-analytics.ac.uk/5s-tes/chart
+---
+# The egress chart, synced once egress.enabled is turned on in
+# files/argo/agent-app.yaml.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-helm-oci-harbor-dare-trefx
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  enableOCI: "true"
+  name: "harbor.ukserp dare-trefx"
+  type: helm
+  url: harbor.ukserp.ac.uk/dare-trefx/chart
+---
+# Serves both devstack charts' keycloak.yaml and agent-devstack's
+# tredata.yaml (Bitnami postgresql), both under this same path.
+apiVersion: v1
+kind: Secret
+metadata:
+  name: argocd-helm-oci-harbor-bitnami
+  namespace: argocd
+  labels:
+    argocd.argoproj.io/secret-type: repository
+stringData:
+  enableOCI: "true"
+  name: "harbor.ukserp bitnami"
+  type: helm
+  url: harbor.ukserp.ac.uk/bitnami/chart
