@@ -1082,5 +1082,54 @@ namespace Submission.Api.Controllers
           return NotFound();
         }
 
+
+        [HttpPost("SyncEnvironmentVariables")]
+        [Authorize(Roles = "dare-tre-admin")]
+        public async Task<BoolReturn> SyncEnvironmentVariables([FromBody] ProjectTreEnvironmentVariables request) 
+        {
+            try 
+            {
+                Tre tre = ControllerHelpers.GetUserTre(User, _DbContext);
+
+                _DbContext.ProjectTreEnvironmentVariables.Add(new()
+                {
+                    ProjectId = request.ProjectId,
+                    TreId = tre.Id,
+                    EnvJson = request.EnvJson,
+                    CreatedAt = DateTime.UtcNow
+                });
+
+                await _DbContext.SaveChangesAsync();
+
+                Log.Information("{Function} Environment variables synced for Project {ProjectId}, Tre {TreId}", "SyncEnvironmentVariables", request.ProjectId, tre.Id);
+
+                return new() { Result = true };
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Exception", "SyncEnvironmentVariables");
+                throw;
+            }
+        }
+
+        [HttpGet("GetEnvironmentVariables/{projectId}/{treId}")]
+        [Authorize]
+        public async Task<IActionResult> GetEnvironmentVariables(int projectId, int treId)
+        {
+            try
+            {
+                ProjectTreEnvironmentVariables? row = await _DbContext.ProjectTreEnvironmentVariables.AsNoTracking()
+                    .Where(x => x.ProjectId == projectId && x.TreId == treId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
+
+                if (row == null) return NotFound();
+
+                return Content(row.EnvJson, "application/json");
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Exception", "GetEnvironmentVariables");
+                throw;
+            }
+        }
     }
 }
