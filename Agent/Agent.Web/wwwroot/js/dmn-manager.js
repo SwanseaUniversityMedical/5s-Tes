@@ -35,6 +35,27 @@ $(document).ready(function () {
 });
 
 /**
+ * Turns a failed request into something an admin can act on.
+ *
+ * Always returns text: a bare "Error saving rule:" with nothing after it hides the
+ * reason completely, and has already concealed both an expired session and a FEEL
+ * syntax error.
+ */
+function describeAjaxError(xhr, error) {
+    if (xhr.status === 401 || xhr.status === 403) {
+        return 'your session may have expired. Please refresh the page and sign in again.';
+    }
+
+    if (xhr.status === 0) {
+        return 'no response from the server. It may still be starting up.';
+    }
+
+    return xhr.responseJSON?.message
+        || error
+        || (xhr.status ? xhr.status + ' ' + xhr.statusText : 'unknown error');
+}
+
+/**
  * Removes the DataTable instance and the rows it was managing, leaving a plain table
  * for the next render to rebuild. Safe to call when there is nothing to destroy.
  */
@@ -508,7 +529,7 @@ function saveRule() {
             }
         },
         error: function (xhr, status, error) {
-            showAlert('Error saving rule: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Error saving rule: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Error saving rule:', xhr);
         }
     });
@@ -546,7 +567,7 @@ function deleteRule() {
         error: function (xhr, status, error) {
             console.error('[ERROR] Delete rule failed:', xhr);
             $('#deleteModal').modal('hide');
-            showAlert('Error deleting rule: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Error deleting rule: ' + describeAjaxError(xhr, error), 'danger');
         }
     });
 }
@@ -562,7 +583,7 @@ function validateDmn() {
             showAlert(response.message, response.success ? 'success' : 'warning');
         },
         error: function (xhr, status, error) {
-            showAlert('Validation failed: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Validation failed: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Validation error:', xhr);
         }
     });
@@ -583,7 +604,7 @@ function deployDmn() {
             showAlert(response.message, response.success ? 'success' : 'danger');
         },
         error: function (xhr, status, error) {
-            showAlert('Deployment failed: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Deployment failed: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Deployment error:', xhr);
         }
     });

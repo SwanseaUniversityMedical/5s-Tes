@@ -1,4 +1,5 @@
-﻿using FiveSafesTes.Core.Constants;
+﻿using System.Text.Json;
+using FiveSafesTes.Core.Constants;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Microsoft.AspNetCore.Authorization;
@@ -49,6 +50,44 @@ namespace Agent.Web.Controllers
         #region API Proxy Methods
 
         /// <summary>
+        /// The part of a failed API call worth showing an admin.
+        ///
+        /// BaseClientHelper puts the whole API response inside its exception message, so the
+        /// useful text - a FEEL parse error, say - ends up wrapped in two layers of JSON.
+        /// Rules are written by hand, so these errors are read often and need to be legible.
+        /// </summary>
+        private static string Readable(Exception exception)
+        {
+            var message = exception.Message;
+            var start = message.IndexOf('{');
+
+            if (start < 0)
+            {
+                return message;
+            }
+
+            try
+            {
+                using var document = JsonDocument.Parse(message[start..]);
+
+                if (document.RootElement.TryGetProperty("message", out var inner))
+                {
+                    var text = inner.GetString();
+                    if (!string.IsNullOrWhiteSpace(text))
+                    {
+                        return text;
+                    }
+                }
+            }
+            catch (JsonException)
+            {
+                // Not the shape we expected; the raw message is better than nothing.
+            }
+
+            return message;
+        }
+
+        /// <summary>
         /// Carries the chosen table through to the API as a query parameter. Null means the
         /// API picks its default, which is the environment variables table.
         /// </summary>
@@ -74,7 +113,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving the list of DMN tables");
-                return Json(new { success = false, message = ex.Message });
+                return Json(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -92,7 +131,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving DMN table");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -109,7 +148,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error retrieving DMN rules");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -126,7 +165,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error adding DMN rule");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -142,7 +181,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error updating DMN rule");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -158,7 +197,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deleting DMN rule");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -174,7 +213,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error validating DMN");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
@@ -190,7 +229,7 @@ namespace Agent.Web.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error deploying DMN to Zeebe");
-                return BadRequest(new { success = false, message = ex.Message });
+                return BadRequest(new { success = false, message = Readable(ex) });
             }
         }
 
