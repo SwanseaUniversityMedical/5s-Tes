@@ -35,6 +35,24 @@ $(document).ready(function () {
 });
 
 /**
+ * Removes the DataTable instance and the rows it was managing, leaving a plain table
+ * for the next render to rebuild. Safe to call when there is nothing to destroy.
+ */
+function destroyDataTable() {
+    if (!dataTable) {
+        return;
+    }
+
+    console.log('[INFO] Destroying existing DataTable');
+    dataTable.destroy();
+    dataTable = null;
+
+    // destroy() puts back the rows it was given, which belong to the table being
+    // replaced. Clearing them stops a stale row count surviving the switch.
+    $('#rulesTable tbody').empty();
+}
+
+/**
  * Load the decision tables this admin can edit, then show the first one.
  * The list comes from the API so adding a table does not mean editing this page.
  */
@@ -100,6 +118,13 @@ function loadDmnTable() {
         method: 'GET',
         success: function (data) {
             dmnTable = data;
+
+            // Tear the DataTable down before the headers change. It caches the column
+            // count at init, so rebuilding the headers underneath a live instance leaves
+            // destroy() restoring a DOM that no longer matches - which shows up as
+            // "Incorrect column count" when switching between tables of different shapes.
+            destroyDataTable();
+
             displayDmnInfo(data);
             buildTableHeaders(data);
             displayRules(data);
@@ -178,11 +203,8 @@ function buildTableHeaders(table) {
 function displayRules(table) {
     console.log('[INFO] displayRules called with', table.rules.length, 'rules');
 
-    if (dataTable) {
-        console.log('[INFO] Destroying existing DataTable');
-        dataTable.destroy();
-        dataTable = null;
-    }
+    // Normally already gone, since the caller tears it down before changing the headers.
+    destroyDataTable();
 
     const tbody = $('#rulesTable tbody');
     tbody.empty();
