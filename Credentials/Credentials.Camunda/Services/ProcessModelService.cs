@@ -1,4 +1,4 @@
-using Serilog;
+﻿using Serilog;
 using System.Reflection;
 using Credentials.Models.Services;
 using FiveSafesTes.Core.Constants;
@@ -28,29 +28,7 @@ namespace Credentials.Camunda.Services
 
             managedDmnPaths = DmnFiles.All.ToDictionary(
                 fileName => fileName,
-                fileName => ResolveDmnPath(DmnPath.Path, fileName));
-        }
-
-        /// <summary>
-        /// Resolves the editable copy of a DMN file against the configured DmnPath,
-        /// falling back to the location in the source tree when none is configured.
-        /// </summary>
-        private static string ResolveDmnPath(string? configuredPath, string fileName)
-        {
-            if (!string.IsNullOrEmpty(configuredPath))
-            {
-                // Use configured path - make it absolute if relative
-                if (Path.IsPathRooted(configuredPath))
-                {
-                    return Path.Combine(configuredPath, fileName);
-                }
-
-                var configuredProjectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                return Path.GetFullPath(Path.Combine(configuredProjectDirectory, configuredPath, fileName));
-            }
-
-            var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-            return Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials", "Credentials.Models", "ProcessModels", fileName));
+                fileName => DmnFiles.ResolvePath(DmnPath.Path, fileName));
         }
 
         public async Task DeployProcessDefinitionAndDecisionModels()

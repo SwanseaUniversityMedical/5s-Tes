@@ -1,11 +1,23 @@
-let dmnTable = null;
+﻿let dmnTable = null;
 let dataTable = null;
+let currentTable = null;
+
+/**
+ * Adds the chosen decision table to a URL. Leaving it off makes the API fall back
+ * to the environment variables table, which is what this page used to edit.
+ */
+function withTable(url) {
+    if (!currentTable) {
+        return url;
+    }
+    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'table=' + encodeURIComponent(currentTable);
+}
 
 // Initialize on page load
 $(document).ready(function () {
     console.log('DMN Manager initialized');
 
-    loadDmnTable();
+    loadTables();
 
     // Event Listeners
     $('#addRuleBtn').on('click', showAddRuleModal);
@@ -14,7 +26,68 @@ $(document).ready(function () {
     $('#deployBtn').on('click', deployDmn);
     $('#saveRuleBtn').on('click', saveRule);
     $('#confirmDeleteBtn').on('click', deleteRule);
+
+    $('#tableSelect').on('change', function () {
+        currentTable = $(this).val();
+        updateTableHelp();
+        loadDmnTable();
+    });
 });
+
+/**
+ * Load the decision tables this admin can edit, then show the first one.
+ * The list comes from the API so adding a table does not mean editing this page.
+ */
+function loadTables() {
+    $.ajax({
+        url: '/Dmn/GetTables',
+        method: 'GET',
+        success: function (tables) {
+            const select = $('#tableSelect');
+            select.empty();
+
+            if (!tables || !tables.length) {
+                console.warn('[WARN] No decision tables returned; falling back to the default');
+                loadDmnTable();
+                return;
+            }
+
+            tables.forEach(function (table) {
+                select.append(
+                    $('<option>')
+                        .val(table.slug)
+                        .text(table.displayName)
+                        .attr('data-decision-id', table.decisionId)
+                        .attr('data-file-name', table.fileName));
+            });
+
+            currentTable = tables[0].slug;
+            select.val(currentTable);
+            updateTableHelp();
+            loadDmnTable();
+        },
+        error: function (xhr, status, error) {
+            // Not fatal: without a selector the page still edits the default table,
+            // which is how it behaved before there was more than one.
+            console.error('[ERROR] Could not load the decision tables:', error);
+            $('#tableSelect').closest('.row').hide();
+            loadDmnTable();
+        }
+    });
+}
+
+/**
+ * Shows which file and decision id the selected table maps to, since those names
+ * differ from each other and that has caused confusion before.
+ */
+function updateTableHelp() {
+    const option = $('#tableSelect option:selected');
+    const fileName = option.attr('data-file-name');
+    const decisionId = option.attr('data-decision-id');
+
+    $('#tableSelectHelp').text(
+        fileName && decisionId ? fileName + '  •  decision id ' + decisionId : '');
+}
 
 /**
  * Load the complete DMN table from TRE-UI Controller
@@ -23,7 +96,7 @@ function loadDmnTable() {
     showLoading(true);
 
     $.ajax({
-        url: '/Dmn/GetTable',
+        url: withTable('/Dmn/GetTable'),
         method: 'GET',
         success: function (data) {
             dmnTable = data;
@@ -392,7 +465,7 @@ function saveRule() {
         outputValues: outputValues
     };
 
-    const url = isEdit ? '/Dmn/UpdateRule' : '/Dmn/AddRule';
+    const url = withTable(isEdit ? '/Dmn/UpdateRule' : '/Dmn/AddRule');
     const method = isEdit ? 'PUT' : 'POST';
 
     $.ajax({
@@ -434,7 +507,7 @@ function deleteRule() {
     const ruleId = $('#deleteRuleId').val();
 
     $.ajax({
-        url: '/Dmn/DeleteRule/' + encodeURIComponent(ruleId),
+        url: withTable('/Dmn/DeleteRule/' + encodeURIComponent(ruleId)),
         method: 'DELETE',
         success: function (response) {
             console.log('[OK] Delete rule response:', response);
@@ -461,7 +534,7 @@ function deleteRule() {
  */
 function validateDmn() {
     $.ajax({
-        url: '/Dmn/ValidateDmn',
+        url: withTable('/Dmn/ValidateDmn'),
         method: 'GET',
         success: function (response) {
             showAlert(response.message, response.success ? 'success' : 'warning');
@@ -482,7 +555,7 @@ function deployDmn() {
     }
 
     $.ajax({
-        url: '/Dmn/DeployDmn',
+        url: withTable('/Dmn/DeployDmn'),
         method: 'POST',
         success: function (response) {
             showAlert(response.message, response.success ? 'success' : 'danger');
