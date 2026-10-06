@@ -13,6 +13,19 @@
 
     <div class="card shadow-sm">
         <div class="card-body">
+            <!-- Which decision table is being edited -->
+            <div class="mb-3 row align-items-center">
+                <label for="tableSelect" class="col-auto col-form-label fw-semibold">Decision table</label>
+                <div class="col-auto">
+                    <select class="form-select" id="tableSelect" aria-describedby="tableSelectHelp">
+                        <!-- Options are loaded from the API so the list is not duplicated here -->
+                    </select>
+                </div>
+                <div class="col">
+                    <span id="tableSelectHelp" class="form-text"></span>
+                </div>
+            </div>
+
             <!-- Action Buttons -->
             <div class="mb-3 d-flex flex-wrap gap-2">
                 <button type="button" class="btn btn-primary" id="addRuleBtn">
@@ -135,5 +148,5 @@
 </div>
 
 @section Scripts {
-    <script src="~/js/dmn-manager.js?v=3"></script>
+    <script src="~/js/dmn-manager.js?v=4"></script>
 }
