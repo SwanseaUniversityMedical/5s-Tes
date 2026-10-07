@@ -572,7 +572,11 @@ table tr {
         }
     }
 
-.hideProjectNameColumn table th:nth-child(3), 
+.hideProjectNameColumn table th:nth-child(3),
 .hideProjectNameColumn table td:nth-child(3) {
     display: none;
+}
+
+.field-validation-error {
+    color: red;
 }
