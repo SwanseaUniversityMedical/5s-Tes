@@ -48,10 +48,12 @@ namespace TeleportUserManagement.Services
         /// </summary>
         public async Task DiscoverProjects()
         {
-            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects");
+            List<Project.ProjectSummary>? projects = await _clientHelper.CallAPIWithoutModel<List<Project.ProjectSummary>>("/api/Project/GetAllProjects?responseType=summary");
             if (projects == null) return;
 
-            foreach (Project project in projects)
+            List<Project.ProjectSummary> teleportProjects = projects.Where(x => x.ProjectType == ProjectType.Teleport).ToList();
+
+            foreach (Project.ProjectSummary project in teleportProjects)
             {
                 SetupRecurringProjectCheck(project.Name);
             }

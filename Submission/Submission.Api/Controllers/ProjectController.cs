@@ -394,6 +394,7 @@ namespace Submission.Api.Controllers
                     ProjectContact = p.ProjectContact,
                     SubmissionBucket = p.SubmissionBucket,
                     OutputBucket = p.OutputBucket,
+                    ProjectType = p.ProjectType,
 
                     Users = p.Users
                         .Select(u => new Project.ProjectUserDto()
@@ -534,6 +535,7 @@ namespace Submission.Api.Controllers
                             SubmissionCount = p.Submissions.Count(s => s.Parent == null),
                             UserCount = p.Users.Count(),
                             TreCount = p.Tres.Count(),
+                            ProjectType = p.ProjectType
                         })
                         .ToListAsync();
 
