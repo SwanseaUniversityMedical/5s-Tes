@@ -2,6 +2,7 @@ using System.Text.Json;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Hangfire;
+using Hangfire.Storage;
 using TeleportUserManagement.Models;
 using TeleportUserManagement.Models.Settings;
 using TeleportUserManagement.Utilities;
@@ -56,6 +57,35 @@ namespace TeleportUserManagement.Services
             foreach (Project.ProjectSummary project in teleportProjects)
             {
                 SetupRecurringProjectCheck(project.Name);
+            }
+
+            PruneNonTeleportProjects(teleportProjects);
+        }
+
+        /// <summary>
+        /// Checks that all of our active hangfire jobs are still for Teleport projects and removes any that have since changed their type.
+        /// </summary>
+        /// <param name="teleportProjects">The list of approved projects that are of ProjectType Teleport.</param>
+        private void PruneNonTeleportProjects(List<Project.ProjectSummary> teleportProjects) 
+        {
+            HashSet<string> expectedJobIds = teleportProjects.Select(x => $"{_jobSettings.ProjectJobNamePrefix}_{x.Name}").ToHashSet();
+
+            IEnumerable<string> registeredJobIds = JobStorage.Current.GetConnection().GetRecurringJobs().Select(x => x.Id)
+                .Where(id => id.StartsWith($"{_jobSettings.ProjectJobNamePrefix}_"));
+
+            foreach (string jobId in registeredJobIds)
+            {
+                if (!expectedJobIds.Contains(jobId))
+                {
+                    RecurringJob.RemoveIfExists(jobId);
+
+                    // Remove all users from this group as the project is no longer of type Teleport
+                    string projectName = jobId.Substring($"{_jobSettings.ProjectJobNamePrefix}_".Length);
+                    foreach (string username in _ldapService.GetGroupMemberUsernames(projectName))
+                    {
+                        _ldapService.RemoveUserFromGroup(username, projectName);
+                    }
+                }
             }
         }
 
