@@ -10,7 +10,7 @@ function withTable(url) {
     if (!currentTable) {
         return url;
     }
-    return url + (url.indexOf('?') === -1 ? '?' : '&') + 'table=' + encodeURIComponent(currentTable);
+    return url + (url.includes('?') ? '&' : '?') + 'table=' + encodeURIComponent(currentTable);
 }
 
 // Initialize on page load
