@@ -147,7 +147,11 @@ namespace Submission.Api.Controllers
                     Id = x.Id,
                     TesId = x.TesId,
                     TesName = x.TesName,
-                    Status = x.Status
+                    Status = x.Status,
+                    // Carried so the TRE can pass the reason on to the terminal status.
+                    // Without it the cancellation steps overwrite it with an empty string
+                    // and the submission ends up Cancelled with no explanation.
+                    StatusDescription = x.StatusDescription
                 })
                 .ToListAsync(cancellationToken);
 
