@@ -114,7 +114,15 @@
                 </div>
             </div>
             <div class="tab-pane fade" id="submissions-tab" role="tabpanel" aria-labelledby="submissions">
-                @if (ViewBag.UserCanDoSubmissions)
+
+                @if (Model.ProjectType != FiveSafesTes.Core.Models.ProjectType.Tes)
+                {
+                    <div class="alert alert-info">
+                        <i class="fa fa-info-circle me-2"></i>
+                        This project is configured for @Model.ProjectType access and cannot make TES submissions.
+                    </div>
+                }
+                else if (ViewBag.UserCanDoSubmissions)
                 {
                     <div class="d-flex align-items-center mb-3">
                         <div class="dropdown">

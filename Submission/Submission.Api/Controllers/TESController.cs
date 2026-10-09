@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
 using System.ComponentModel.DataAnnotations;
 using System.Text;
@@ -268,6 +268,11 @@ namespace Submission.Api.Controllers
                 if (DateTime.UtcNow > dbproj.EndDate.ToUniversalTime())
                 {
                     return BadRequest($"Project '{project}' has ended (end date: {dbproj.EndDate:yyyy-MM-dd}). Cannot create new tasks.");
+                }
+
+                if (dbproj.ProjectType != ProjectType.Tes)
+                {
+                    return BadRequest($"Project '{project}' is configured for {dbproj.ProjectType} access and cannot submit TES tasks.");
                 }
 
                 if (!IsUserOnProject(dbproj, usersName))
