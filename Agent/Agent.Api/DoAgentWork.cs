@@ -491,10 +491,17 @@ namespace Agent.Api
                 {
                     foreach (var cancelsubproj in cancelsubprojs)
                     {
+                        // Carry whatever reason put the submission into RequestCancellation
+                        // through to the terminal status. Passing an empty description here
+                        // overwrote it, so a credential failure ended up as a bare "Cancelled"
+                        // with nothing to explain it.
+                        var cancelReason = cancelsubproj.StatusDescription ?? string.Empty;
+
                         _subHelper.UpdateStatusForTre(cancelsubproj.Id.ToString(), StatusType.CancellationRequestSent,
-                            "");
+                            cancelReason);
                         //TODO Do we need to call Hutch or other stuff to cancel and do other cancel stuff
-                        _subHelper.CloseSubmissionForTre(cancelsubproj.Id.ToString(), StatusType.Cancelled, "", "");
+                        _subHelper.CloseSubmissionForTre(cancelsubproj.Id.ToString(), StatusType.Cancelled,
+                            cancelReason, "");
                     }
                 }
 
@@ -669,14 +676,45 @@ namespace Agent.Api
 
                                     if (anyErrored)
                                     {
-                                        Log.Error("Credential process errored for submission {SubId}.", aSubmission.Id);
+                                        // Name the handler that failed and why. "Credential process
+                                        // failed" on its own leaves a researcher, and whoever they
+                                        // ask, with nothing to go on.
+                                        var failures = credsRowforParentKey
+                                            .Where(c => c.SuccessStatus == SuccessStatus.Error
+                                                        && !string.IsNullOrWhiteSpace(c.ErrorMessage))
+                                            .Select(c => $"{c.CredentialType}: {c.ErrorMessage}")
+                                            .Distinct()
+                                            .ToList();
+
+                                        var reason = failures.Count > 0
+                                            ? "Credential process failed - " + string.Join("; ", failures)
+                                            : "Credential process failed";
+
+                                        Log.Error("{Reason} for submission {SubId}.", reason, aSubmission.Id);
 
                                         var latestRow = creds.First();
-                                        latestRow.ErrorMessage = "Credential process failed";
+                                        latestRow.ErrorMessage = reason;
                                         await _credsDbContext.SaveChangesAsync();
 
+                                        // Handlers run in sequence, so an failure part-way leaves the
+                                        // earlier ones' accounts and vault paths behind. Nothing else
+                                        // collects them: there is no credential sweeper, nothing scans
+                                        // for unexpired rows, and Vault has no expiry on the KV mount.
+                                        // Revoke immediately rather than after the usual delay.
+                                        try
+                                        {
+                                            await TriggerRevokeCredentialsAsync(aSubmission.Id,
+                                                aSubmission.Project.Name, aSubmission.SubmittedBy.Id, 0);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Log.Error(ex,
+                                                "Failed to revoke credentials after a failed credential process for submission {SubId}",
+                                                aSubmission.Id);
+                                        }
+
                                         _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
-                                            StatusType.RequestCancellation, "Credential process failed");
+                                            StatusType.RequestCancellation, reason);
                                         continue;
                                     }
 
