@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc.Rendering;
+using Microsoft.AspNetCore.Mvc.Rendering;
 using System.Text.Json.Serialization;
 
 
@@ -20,6 +20,7 @@ namespace FiveSafesTes.Core.Models.ViewModels
         public string? SubmissionBucket { get; set; }
         public string? OutputBucket { get; set; }
         public string? MinioEndpoint { get; set; }
+        public ProjectType ProjectType { get; set; } = ProjectType.Tes;
 
         [JsonIgnore]
         public virtual List<SubmissionsGetProjectModel> Submissions { get; set; }
