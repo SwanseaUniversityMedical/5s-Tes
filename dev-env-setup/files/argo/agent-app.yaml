@@ -1,0 +1,87 @@
+# Deploys the published agent-stack chart with local-dev overrides.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: agent-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: agent
+  destination:
+    namespace: 5s-tes-agent
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      enabled: true
+      selfHeal: true
+      # So flipping a toggle off also removes what it deployed.
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "harbor.federated-analytics.ac.uk/5s-tes/chart"
+    chart: agent-stack
+    # Pre-release PR build; switch to the released version once PR #169 merges.
+    targetRevision: "0.0.0-pr.169"
+    helm:
+      valuesObject:
+        global:
+          oidc:
+            authority: "http://keycloak.agent.localtest.me/realms/Dare-TRE"
+          ingress:
+            host: "agent.localtest.me"
+            tls: false
+          storageClass: "standard"
+          trustClusterCa:
+            enabled: false
+          veleroBackup:
+            enabled: false
+          monitoring:
+            enabled: false
+
+        vault:
+          secretsEnabled: false
+
+        rabbitmq:
+          vaultDefaultUser: false
+          additionalConfig: |
+            default_user = agent
+            default_pass = password123
+            loopback_users.agent = false
+
+        # Devs run the apps from the IDE by default (root README "Running apps
+        # from VS Code against kind"); flip enabled to run them in-cluster.
+        agent:
+          enabled: false
+          chartVersion: "0.0.0-pr.169"
+          imageVersion: "pr-169"
+          api:
+            # The local Keycloak is plain http.
+            keycloakDemoMode: "true"
+
+        # Optional local Data Egress: flip enabled to true here AND on
+        # agent-devstack — see charts/agent-devstack/README.md.
+        egress:
+          enabled: false
+          chartVersion: "1.0.1"
+          imageVersion: "3.1.0"
+          oidcAuthority: "http://keycloak.agent.localtest.me/realms/Data-Egress"
+          # The local Keycloak is plain http.
+          keycloakDemoMode: "true"
+
+        # Cross-link to the co-located Submission product. oidcAuthority/apiUrl
+        # use the ingress-routed hostnames; s3Url is a cross-namespace Service
+        # DNS name.
+        submission:
+          oidcAuthority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+          apiUrl: "http://submission-api.submission.localtest.me"
+          s3Url: "http://rustfs-svc.5s-tes-submission.svc.cluster.local:9000"

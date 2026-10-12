@@ -1,0 +1,66 @@
+# Deploys the published submission-stack chart with local-dev overrides.
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: submission-stack
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: submission
+  destination:
+    namespace: 5s-tes-submission
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      enabled: true
+      selfHeal: true
+      # So flipping a toggle off also removes what it deployed.
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - SkipDryRunOnMissingResource=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "harbor.federated-analytics.ac.uk/5s-tes/chart"
+    chart: submission-stack
+    # Pre-release PR build; switch to the released version once PR #169 merges.
+    targetRevision: "0.0.0-pr.169"
+    helm:
+      valuesObject:
+        global:
+          oidc:
+            authority: "http://keycloak.submission.localtest.me/realms/Dare-Control"
+          ingress:
+            host: "submission.localtest.me"
+            tls: false
+          storageClass: "standard"
+          trustClusterCa:
+            enabled: false
+          veleroBackup:
+            enabled: false
+          monitoring:
+            enabled: false
+
+        vault:
+          secretsEnabled: false
+
+        rabbitmq:
+          vaultDefaultUser: false
+          additionalConfig: |
+            default_user = submission
+            default_pass = password123
+            loopback_users.submission = false
+
+        # Devs run the apps from the IDE by default (root README "Running apps
+        # from VS Code against kind"); flip enabled to run them in-cluster.
+        submission:
+          enabled: false
+          chartVersion: "0.0.0-pr.169"
+          imageVersion: "pr-169"
