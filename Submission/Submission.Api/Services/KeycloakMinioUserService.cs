@@ -16,68 +16,90 @@ namespace Submission.Api.Services
         }
         public async Task<bool> SetMinioUserAttribute(string accessToken, string userName, string attributeName, string attributeValueToAdd)
         {
-            try
+          try
+          {
+            var baseUrl = _submissionKeyCloakSettings.Server;
+            var realm = _submissionKeyCloakSettings.Realm;
+            var protocol = _submissionKeyCloakSettings.Protocol;
+
+            var userId = await GetUserIDAsync(accessToken, userName);
+
+            if (string.IsNullOrWhiteSpace(userId))
             {
-                var baseUrl = _submissionKeyCloakSettings.Server;
-                var realm = _submissionKeyCloakSettings.Realm;
-                var protocol = _submissionKeyCloakSettings.Protocol;
-                var attributeKey = "policy";
-                var userId = await GetUserIDAsync(accessToken, userName);
-                var userAttributesJson = await GetUserAttributesAsync(baseUrl, realm, accessToken, userId, protocol);
+              Log.Error(
+                "{Function}: Could not find user {UserName}.",
+                nameof(SetMinioUserAttribute),
+                userName);
 
-                if (userAttributesJson != null)
-                {
-
-                    JObject user = JObject.Parse(userAttributesJson);
-
-                    if (user["attributes"] == null)
-                    {
-                        JObject attributes = new JObject();
-
-                        // Add the "attributes" object to the user object
-                        user["attributes"] = attributes;
-                    }
-                    if (user["attributes"][attributeKey] != null)
-                    {
-                        var existingValues = user["attributes"][attributeKey].ToObject<JArray>();
-                        existingValues.Add(attributeValueToAdd);
-                        user["attributes"][attributeKey] = existingValues;
-                    }
-                    else
-                    {
-                        user["attributes"][attributeKey] = new JArray(attributeValueToAdd);
-                    }
-
-
-                    string updatedUserData = user.ToString();
-
-
-                    bool updateResult = await UpdateUserAttributes(baseUrl, realm, userId, accessToken, updatedUserData, protocol);
-
-                    if (updateResult)
-                    {
-                        Log.Information("{Function} attributes added successfully", "SetMinioUserAttribute");
-                        return true;
-                    }
-                    else
-                    {
-                        Log.Error("{Function} Failed to update user attributes.", "SetMinioUserAttribute");
-                        return true;
-                    }
-                }
-                else
-                {
-                    Log.Error("{Function} Failed to retrieve user attributes.", "SetMinioUserAttribute");
-                    return true;
-                }
-
-
+              return false;
             }
-            catch (Exception ex)
+
+            var userJson = await GetUserAttributesAsync(baseUrl, realm, accessToken, userId, protocol);
+
+            if (string.IsNullOrWhiteSpace(userJson))
             {
+              Log.Error(
+                "{Function}: Failed to retrieve user {UserName}.",
+                nameof(SetMinioUserAttribute),
+                userName);
 
-                throw;
+              return false;
             }
+
+            var user = JObject.Parse(userJson);
+
+            if (user["attributes"] is not JObject attributes)
+            {
+              attributes = new JObject();
+              user["attributes"] = attributes;
+            }
+
+            if (attributes[attributeName] is JArray existingValues)
+            {
+              // Avoid adding the same value more than once.
+              if (existingValues.Any(value =>
+                    string.Equals(
+                      value?.ToString(),
+                      attributeValueToAdd,
+                      StringComparison.Ordinal)))
+              {
+                return true;
+              }
+
+              existingValues.Add(attributeValueToAdd);
+            }
+            else
+            {
+              attributes[attributeName] = new JArray(attributeValueToAdd);
+            }
+
+            var updateResult =
+              await UpdateUserAttributes(baseUrl, realm, userId, accessToken, user.ToString(), protocol);
+
+            if (!updateResult)
+            {
+              Log.Error(
+                "{Function}: Failed to update attribute {AttributeName} for user {UserName}.",
+                nameof(SetMinioUserAttribute),
+                attributeName,
+                userName);
+
+              return false;
+            }
+
+            return true;
+          }
+          catch (Exception ex)
+          {
+            Log.Error(
+              ex,
+              "{Function}: Error setting attribute {AttributeName} for user {UserName}.",
+              nameof(SetMinioUserAttribute),
+              attributeName,
+              userName);
+
+            throw;
+          }
         }
         public async Task<bool> RemoveMinioUserAttribute(string accessToken, string userName, string attributeName, string attributeValueToRemove)
         {
