@@ -210,6 +210,32 @@ namespace Submission.Api.Migrations
                     b.ToTable("ProjectTreDecisions");
                 });
 
+            modelBuilder.Entity("FiveSafesTes.Core.Models.ProjectTreEnvironmentVariables", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("EnvJson")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TreId")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("ProjectTreEnvironmentVariables");
+                });
+
             modelBuilder.Entity("FiveSafesTes.Core.Models.Submission", b =>
                 {
                     b.Property<int>("Id")
