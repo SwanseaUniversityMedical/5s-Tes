@@ -1,12 +1,8 @@
-// File to store the environment variables for the application
-import { env } from "next-runtime-env";
-
-// Env variables for the application, exposed to the client, and can be used in runtime thanks to next-runtime-env
-export const helpdeskUrl = env("NEXT_PUBLIC_HELPDESK_URL") || "#";
-
-export const publicKeycloakUrl = env("NEXT_PUBLIC_KEYCLOAK_URL");
-
-export const keycloakRealm = env("NEXT_PUBLIC_KEYCLOAK_REALM");
+// File to store the environment variables for the application.
+// Client components read NEXT_PUBLIC_* at runtime with useEnvContext.
+// Bracket access keeps these values from being inlined at build time.
+// biome-ignore lint/complexity/useLiteralKeys: avoid Next.js build-time inlining
+export const keycloakRealm = process.env["NEXT_PUBLIC_KEYCLOAK_REALM"];
 
 // Env variables used in runtime, not exposed to the client
 export const agentApiUrl = process.env.AGENT_API_URL || "http://localhost:8072";
