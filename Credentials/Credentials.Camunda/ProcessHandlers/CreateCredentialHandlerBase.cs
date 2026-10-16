@@ -81,13 +81,19 @@ namespace Credentials.Camunda.ProcessHandlers
                 if (string.IsNullOrEmpty(submissionId) || !int.TryParse(submissionId, out var submission))
                     return;
 
+                // Only an existing *error* row suppresses this one. A job may now store more
+                // than one vault path, so a success row from an earlier path must not stop a
+                // later failure being recorded - CheckSuccessStatusHandler would otherwise
+                // see nothing but successes and pass the whole job.
                 var existing = await _credentialsDbContext.EphemeralCredentials
-                    .FirstOrDefaultAsync(x => x.SubmissionId == submission && x.ProcessInstanceKey == processInstanceKey);
+                    .FirstOrDefaultAsync(x => x.SubmissionId == submission
+                                              && x.ProcessInstanceKey == processInstanceKey
+                                              && x.SuccessStatus == SuccessStatus.Error);
 
                 if (existing != null)
                 {
                     _logger.LogWarning(
-                        "EphemeralCredential already exists for SubmissionId={SubmissionId} and ProcessKey={ProcessInstanceKey}",
+                        "EphemeralCredential error already recorded for SubmissionId={SubmissionId} and ProcessKey={ProcessInstanceKey}",
                         submissionId, processInstanceKey);
                     return;
                 }
@@ -128,14 +134,20 @@ namespace Credentials.Camunda.ProcessHandlers
                 if (string.IsNullOrEmpty(submissionId) || !int.TryParse(submissionId, out var submissionGuid))
                     return;
 
+                // Matched on the vault path as well, because one job may now store more than
+                // one path: the tre handler writes a separate path per image code. Without
+                // the path in the check, only the first would ever be recorded, and the rest
+                // would sit in Vault unread and never cleaned up.
                 var existing = await _credentialsDbContext.EphemeralCredentials
-                    .FirstOrDefaultAsync(x => x.SubmissionId == submissionGuid && x.ProcessInstanceKey == processInstanceKey);
+                    .FirstOrDefaultAsync(x => x.SubmissionId == submissionGuid
+                                              && x.ProcessInstanceKey == processInstanceKey
+                                              && x.VaultPath == vaultPath);
 
                 if (existing != null)
                 {
                     _logger.LogWarning(
-                        "EphemeralCredential already exists for SubmissionId={SubmissionId}, ProcessInstanceKey={ProcessInstanceKey}",
-                        submissionId, processInstanceKey);
+                        "EphemeralCredential already exists for SubmissionId={SubmissionId}, ProcessInstanceKey={ProcessInstanceKey}, VaultPath={VaultPath}",
+                        submissionId, processInstanceKey, vaultPath);
                     return;
                 }
 

@@ -46,6 +46,33 @@ namespace Credentials.Camunda.Services
             }
         }
 
+        /// <summary>
+        /// Every vault path stored for this submission and credential type, newest first.
+        ///
+        /// The tre handler writes one path per image code, so a single credential type can
+        /// now own several. Deleting only the first would leave the rest behind in Vault.
+        /// </summary>
+        public async Task<List<string>> GetVaultPathsBySubmissionIdAsync(int submissionId, string credentialType, CancellationToken cancellationToken = default)
+        {
+            try
+            {
+                return await _credentialsDbContext.EphemeralCredentials
+                    .Where(c => c.SubmissionId == submissionId
+                        && c.CredentialType == credentialType
+                        && !c.ExpiredAt.HasValue
+                        && c.SuccessStatus == SuccessStatus.Success
+                        && c.VaultPath != null)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Select(c => c.VaultPath!)
+                    .ToListAsync(cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error retrieving vaultPaths for submissionId: {SubmissionId}, credentialType: {CredentialType}", submissionId, credentialType);
+                return new List<string>();
+            }
+        }
+
         public async Task<string?> GetVaultPathBySubmissionIdAsync(int submissionId, string credentialType, CancellationToken cancellationToken = default)
         {
             try
