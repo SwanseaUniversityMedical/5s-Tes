@@ -16,9 +16,6 @@ namespace TeleportUserManagement.Services
 {
     public interface ILdapService
     {
-        Task<ResultType> CreateUserAccount(string userName, string givenName, string surname, string email,
-            string description, bool enabled, bool requirePasswordChange, bool passwordNeverExpires,
-            List<string> ouPath, string passwordOverride = "");
         LdapUser FindUserByIdentityDefault(string userName);
         bool CheckUserExists(string userName);
         bool CheckGroupExists(string groupName);
@@ -30,7 +27,6 @@ namespace TeleportUserManagement.Services
 
     public class LdapService : ILdapService, IDisposable
     {
-        private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly ILogger log;
         private readonly LdapConnection ldapConnection;
         private readonly string domainNameDcFormat;
@@ -46,10 +42,8 @@ namespace TeleportUserManagement.Services
         private string userOu;
         private string groupOu;
 
-        public LdapService(ActiveDirectorySettings adSettings, IVaultCredentialsService vaultCredsService)
+        public LdapService(ActiveDirectorySettings adSettings)
         {
-            _vaultCredentialsService = vaultCredsService;
-
             useSsl = adSettings.Connection.UseSsl;
             log = Serilog.Log.ForContext<LdapService>();
 
@@ -238,108 +232,6 @@ namespace TeleportUserManagement.Services
         #endregion
 
         #region User Creation
-
-        public async Task<ResultType> CreateUserAccount(string userName, string givenName, string surname, string email,
-            string description, bool enabled, bool requirePasswordChange, bool passwordNeverExpires,
-            List<string> ouPath, string passwordOverride = "")
-        {
-            if (CheckUserExists(userName))
-            {
-                return ResultType.Exists;
-            }
-
-            var password = PasswordGenerator.Generate();
-
-            if (!string.IsNullOrWhiteSpace(passwordOverride))
-            {
-                password = passwordOverride;
-            }
-
-            // Add the password to vault
-            bool vaultWriteSuccess = await _vaultCredentialsService.AddCredentialAsync($"passwords/{userName}", new() {{ "password", password }});
-
-            if (!vaultWriteSuccess)
-            {
-                log.Error("{Function} Failed to write password to vault for {UserName}", "CreateUserAccount", userName);
-            }
-
-            GetUserOu(ouPath);
-
-            var ldapou = userOu;
-
-            var userPrincipleName = $"{userName}@{domain}";
-            var userDn = $"CN={EscapeDnValue(userName)},{ldapou}";
-            log.Information("{Function} Creating user {UserName}, {Email}, {GivenName}, {Description}, {PasswordNever}, {W2000Name}, {Post2000} {Enabled}",
-                "CreateUserAccount", userName, email, givenName, description, passwordNeverExpires, userName, userPrincipleName, enabled);
-
-            var attributes = new LdapAttributeSet
-            {
-                new LdapAttribute("objectClass", ["top", "person", "organizationalPerson", "user"]),
-                new LdapAttribute("cn", userName),
-                new LdapAttribute("sAMAccountName", userName),
-                new LdapAttribute("userPrincipalName", userPrincipleName),
-                new LdapAttribute("displayName", userName),
-                new LdapAttribute("givenName", givenName),
-                new LdapAttribute("mail", email)
-            };
-
-            // Only add the following values if they are not empty.
-            if (!string.IsNullOrWhiteSpace(surname))
-            {
-                attributes.Add(new LdapAttribute("sn", surname));
-            }
-
-            if (!string.IsNullOrWhiteSpace(description))
-            {
-                attributes.Add(new LdapAttribute("description", description));
-            }
-
-            var newEntry = new LdapEntry(userDn, attributes);
-
-            // Set the password
-            var quotedPassword = $"\"{password}\"";
-            var passwordBytes = Encoding.Unicode.GetBytes(quotedPassword);
-
-            var pwdMod = new LdapModification(
-                LdapModification.Replace,
-                new LdapAttribute("unicodePwd", passwordBytes)
-            );
-
-            // Enable account (512 = NORMAL_ACCOUNT), disable = 514
-            var userAccountControl = 512;
-            if (!enabled) userAccountControl = 514;
-            if (passwordNeverExpires) userAccountControl |= 0x10000;
-
-            var uacMod = new LdapModification(
-                LdapModification.Replace,
-                new LdapAttribute("userAccountControl", userAccountControl.ToString())
-            );
-
-            var mods = new List<LdapModification> { pwdMod, uacMod };
-
-            if (requirePasswordChange)
-            {
-                var pwdLastSetMod = new LdapModification(
-                    LdapModification.Replace,
-                    new LdapAttribute("pwdLastSet", "0")
-                );
-                mods.Add(pwdLastSetMod);
-            }
-
-            try
-            {
-                // Add the new user
-                ldapConnection.AddAsync(newEntry).Wait();
-                ldapConnection.ModifyAsync(userDn, mods.ToArray()).Wait();
-            }
-            catch (Exception ex)
-            {
-                log.Error(ex, "{Function} Failed to create user {UserName}", "CreateUserAccount", userName);
-                return ResultType.Failure;
-            }
-
-            return ResultType.Success;
-        }
 
         private void GetUserOu(List<string> ouPath)
         {
