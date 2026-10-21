@@ -127,6 +127,10 @@ var minioTRESettings = new MinioTRESettings();
 configuration.Bind(nameof(MinioTRESettings), minioTRESettings);
 builder.Services.AddSingleton(minioTRESettings);
 
+var federatedTaskSettings = new FederatedTaskSettings();
+configuration.Bind(nameof(FederatedTaskSettings), federatedTaskSettings);
+builder.Services.AddSingleton(federatedTaskSettings);
+
 
 var DmnPath = new FiveSafesTes.Core.Models.DmnPath();
 configuration.Bind(nameof(DmnPath), DmnPath);
@@ -311,6 +315,14 @@ using (var scope = app.Services.CreateScope())
         await initialiser.SeedDemoData(configuration["DemoModeDefaultP"]);
     }
     credDb.Database.Migrate();
+
+    // Federated tasks read their datasets from a dedicated TRE bucket. Don't fail startup if
+    // storage is unreachable: tasks will reject with dataset_not_found until it is back.
+    var minioTreHelper = scope.ServiceProvider.GetRequiredService<IMinioTreHelper>();
+    if (!await minioTreHelper.CreateBucket(federatedTaskSettings.DatasetBucket))
+    {
+        Log.Error("Could not create federated task dataset bucket {DatasetBucket}", federatedTaskSettings.DatasetBucket);
+    }
 }
 
 
