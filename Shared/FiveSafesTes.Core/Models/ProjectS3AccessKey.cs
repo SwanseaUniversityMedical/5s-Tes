@@ -8,7 +8,7 @@ namespace FiveSafesTes.Core.Models
     {
         public int ProjectId { get; set; }
         public string ProjectName { get; set; } = string.Empty;
-        /// <summary>S3 access key id (username) on Submission RustFS, e.g. proj-42-s3.</summary>
+        /// <summary>S3 access key id (username) on Submission Ceph RGW, e.g. proj-42-s3.</summary>
         public string AccessKey { get; set; } = string.Empty;
         /// <summary>S3 secret key paired with <see cref="AccessKey"/>.</summary>
         public string SecretKey { get; set; } = string.Empty;

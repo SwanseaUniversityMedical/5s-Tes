@@ -8,7 +8,7 @@ namespace FiveSafesTes.Core.Services
 {
     /// <summary>
     /// Creates and retrieves per-project scoped S3 credentials on the Submission Layer.
-    /// Runs on Submission.Api only (uses root MinIO creds to provision users/policies).
+    /// Runs on Submission.Api only (uses the Ceph RGW admin creds to provision users/bucket policies).
     /// </summary>
     public class ProjectS3AccessKeyService : IProjectS3AccessKeyService
     {
@@ -35,7 +35,7 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// Returns existing credentials from Submission Vault, or creates them on RustFS if missing.
+        /// Returns existing credentials from Submission Vault, or creates them on Ceph RGW if missing.
         /// </summary>
         public async Task<ProjectS3AccessKey?> EnsureAccessKeyAsync(
             int projectId,
@@ -64,18 +64,7 @@ namespace FiveSafesTes.Core.Services
             var secretKey = GenerateSecretKey();
             var policyName = BuildPolicyName(projectId);
 
-            // Step 1: Create an IAM-style policy scoped to this project's two buckets only.
-            var policyCreated = await _minioHelper.CreateProjectS3AccessPolicyAsync(
-                policyName, submissionBucket, outputBucket);
-            if (!policyCreated)
-            {
-                _logger.LogError(
-                    "Failed to create S3 access policy {PolicyName} for project {ProjectId}",
-                    policyName, projectId);
-                return null;
-            }
-
-            // Step 2: Create a RustFS/MinIO user (accessKeyId + secretKey pair) via mc admin.
+            // Step 1: Create a Ceph RGW user (accessKeyId + secretKey pair) via the Admin Ops API.
             var userCreated = await _minioHelper.CreateMinioSecretAsync(accessKeyId, secretKey);
             if (!userCreated.Success)
             {
@@ -85,13 +74,17 @@ namespace FiveSafesTes.Core.Services
                 return null;
             }
 
-            // Step 3: Attach the scoped policy so the user can only reach this project's buckets.
-            var policyAttached = await _minioHelper.AttachPolicyToUserAsync(policyName, accessKeyId);
-            if (!policyAttached)
+            // Step 2: Grant the user access to this project's two buckets only, via
+            // Principal-scoped statements on each bucket policy.
+            var policyCreated = await _minioHelper.CreateProjectS3AccessPolicyAsync(
+                policyName, accessKeyId, submissionBucket, outputBucket);
+            if (!policyCreated)
             {
                 _logger.LogError(
-                    "Failed to attach policy {PolicyName} to user {AccessKeyId} for project {ProjectId}",
-                    policyName, accessKeyId, projectId);
+                    "Failed to apply S3 access policy {PolicyName} for project {ProjectId}",
+                    policyName, projectId);
+                // Don't leave an unusable user behind; a retry recreates both.
+                await _minioHelper.DeleteMinioSecretAsync(accessKeyId);
                 return null;
             }
 

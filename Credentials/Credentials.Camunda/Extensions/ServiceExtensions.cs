@@ -73,7 +73,7 @@ namespace Credentials.Camunda.Extensions
             services.AddScoped<CreateTreCredentialsHandler>();
             services.AddScoped<DeleteTreCredentialsHandler>();
 
-            // S3 / RustFS ephemeral credentials (reuses the shared MinioHelper).
+            // S3 / Ceph RGW ephemeral credentials (reuses the shared MinioHelper).
             var minioSettings = new MinioSettings();
             configuration.Bind("MinioSettings", minioSettings);
             services.AddSingleton(minioSettings);

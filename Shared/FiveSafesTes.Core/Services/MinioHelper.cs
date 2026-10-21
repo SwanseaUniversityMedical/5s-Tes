@@ -7,8 +7,8 @@ using Microsoft.AspNetCore.Http;
 using Minio.DataModel.Args;
 using Minio.Exceptions;
 using Newtonsoft.Json;
+using Newtonsoft.Json.Linq;
 using Serilog;
-using System.Diagnostics;
 using System.Net;
 using System.Text;
 using FiveSafesTes.Core.Models;
@@ -454,110 +454,23 @@ namespace FiveSafesTes.Core.Services
             }
         }
 
-        public async Task<bool> CreateBucketPolicy(string bucketName)
+        /// <summary>
+        /// No-op on Ceph RGW. Under RustFS/MinIO this created a detached "{bucket}_policy" canned
+        /// policy that nothing ever attached to a user. Ceph RGW has no canned-policy objects:
+        /// access is granted by Principal-scoped statements on the bucket policy itself, which
+        /// <see cref="CreateProjectS3AccessPolicyAsync"/> adds once the access key is known.
+        /// Kept so existing bucket-creation call sites keep working.
+        /// </summary>
+        public Task<bool> CreateBucketPolicy(string bucketName)
         {
-            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
-
-            var policyJson = JsonConvert.SerializeObject(new
-            {
-                Version = "2012-10-17",
-                Statement = new[]
-                {
-                    new
-                    {
-                        Effect = "Allow",
-                        Action = new[]
-                        {
-                            "s3:ListBucket",
-                            "s3:PutObject",
-                            "s3:DeleteObject",
-                            "s3:GetBucketLocation",
-                            "s3:GetObject"
-                        },
-                        Resource = new[]
-                        {
-                            $"arn:aws:s3:::{bucketName}",
-                            $"arn:aws:s3:::{bucketName}/*"
-                        }
-                    }
-                }
-            });
-
-            var baseUrl = _minioSettings.Url.TrimEnd('/');
-            var policyName = Uri.EscapeDataString($"{bucketName}_policy");
-            // NOTE: RustFS accepts admin API paths as "/minio/admin/v3/add-canned-policy" or "/rustfs/admin/v3/add-canned-policy" 
-            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
-
-
-            using var client = new HttpClient();
-            using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
-            using var request = new HttpRequestMessage
-            {
-                Method = HttpMethod.Put,
-                RequestUri = new Uri($"{baseUrl}{adminApiPath}?name={policyName}"),
-                Content = content
-            };
-
-            var signedRequest = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
-            using var response = await client.SendAsync(signedRequest);
-
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                return true;
-            }
-
-            var responseBody = await response.Content.ReadAsStringAsync();
-            Log.Warning(
-                "CreateBucketPolicy failed for bucket {BucketName} using {AdminApiPath}. Status: {StatusCode}. Response: {ResponseBody}",
-                bucketName,
-                adminApiPath,
-                response.StatusCode,
-                responseBody);
-            
-            return false;
+            Log.Debug("CreateBucketPolicy is a no-op on Ceph RGW (bucket {BucketName})", bucketName);
+            return Task.FromResult(true);
         }
 
 
-        public async Task<bool> BucketPolicySetPublic(string bucketName)
+        public Task<bool> BucketPolicySetPublic(string bucketName)
         {
-            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
-
-            var content = new StringContent(@"{
-    ""Version"": ""2012-10-17"",
-    ""Statement"": [
-        {
-            ""Effect"": ""Allow"",
-            ""Principal"": ""*"",
-            ""Action"": [
-                ""s3:GetObject"",
-                ""s3:PutObject"",
-                ""s3:ListBucket""
-            ],
-            ""Resource"": [
-                ""arn:aws:s3:::" + bucketName + @"/*""
-            ]
-        }
-    ]
-}");
-
-            var request = new HttpRequestMessage
-            {
-                Method = HttpMethod.Put,
-                RequestUri = new Uri(_minioSettings.Url + "/minio/admin/v3/add-canned-policy?name=" + bucketName +
-                                     "_policy"),
-                Content = content
-            };
-
-            request = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
-            var client = new HttpClient();
-            var response = await client.SendAsync(request);
-
-            if (response.StatusCode != HttpStatusCode.OK)
-            {
-                return false;
-            }
-
-            return true;
+            return SetPublicPolicy(bucketName);
         }
 
         public async Task<bool> CopyObjectToDestination(string destinationBucketName, string destinationObjectKey,
@@ -796,48 +709,53 @@ namespace FiveSafesTes.Core.Services
 
         #region Secret Management Methods
 
-        private bool _isMinioClientInitialized = false;
-
         /// <summary>
-        /// Create a MinIO secret (access key/secret key pair)
+        /// Create an S3 user (access key/secret key pair) via the Ceph RGW Admin Ops API.
+        /// The access key doubles as the RGW uid so bucket-policy Principals can reference it.
         /// </summary>
-        /// <param name="accessKey">The access key name</param>
-        /// <param name="secretKey">The secret key value (optional, will be generated if not provided)</param>
+        /// <param name="accessKey">The access key name (also used as the RGW uid)</param>
+        /// <param name="secretKey">The secret key value (optional, RGW generates one if not provided)</param>
         /// <param name="cancellationToken"></param>
-        /// <returns>MinioCommandResult with the created secret information</returns>
+        /// <returns>MinioCommandResult with the RGW response body in Output</returns>
         public async Task<MinioCommandResult> CreateMinioSecretAsync(string accessKey, string secretKey = "", CancellationToken cancellationToken = default)
         {
             try
             {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
+                var query = new Dictionary<string, string>
+                {
+                    ["uid"] = accessKey,
+                    ["display-name"] = accessKey,
+                    ["key-type"] = "s3",
+                    ["access-key"] = accessKey,
+                };
 
-                string command;
                 if (string.IsNullOrEmpty(secretKey))
                 {
-                    // Generate secret key automatically
-                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)}";
+                    // Let RGW generate the secret key.
+                    query["generate-key"] = "true";
                 }
                 else
                 {
-                    command = $"mc admin user add {_minioSettings.Alias} {ShellQuote(accessKey)} {ShellQuote(secretKey)}";
+                    query["secret-key"] = secretKey;
+                    query["generate-key"] = "false";
                 }
 
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+                var result = await SendRgwAdminRequestAsync(HttpMethod.Put, "user", query, cancellationToken);
 
                 if (result.Success)
                 {
-                    Log.Information("MinIO secret created successfully for access key: {AccessKey}", accessKey);
+                    Log.Information("S3 user created successfully for access key: {AccessKey}", accessKey);
                 }
                 else
                 {
-                    Log.Warning("Failed to create MinIO secret for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
+                    Log.Warning("Failed to create S3 user for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Exception occurred while creating MinIO secret for access key: {AccessKey}", accessKey);
+                Log.Error(ex, "Exception occurred while creating S3 user for access key: {AccessKey}", accessKey);
                 return new MinioCommandResult
                 {
                     Success = false,
@@ -847,34 +765,32 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// Delete a MinIO secret (access key)
+        /// Delete an S3 user (and its keys) via the Ceph RGW Admin Ops API.
         /// </summary>
-        /// <param name="accessKey">The access key to delete</param>
+        /// <param name="accessKey">The access key (RGW uid) to delete</param>
         /// <param name="cancellationToken"></param>
         /// <returns>MinioCommandResult indicating success or failure</returns>
         public async Task<MinioCommandResult> DeleteMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default)
         {
             try
             {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
-
-                var command = $"mc admin user remove {_minioSettings.Alias} {ShellQuote(accessKey)}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+                var query = new Dictionary<string, string> { ["uid"] = accessKey };
+                var result = await SendRgwAdminRequestAsync(HttpMethod.Delete, "user", query, cancellationToken);
 
                 if (result.Success)
                 {
-                    Log.Information("MinIO secret deleted successfully for access key: {AccessKey}", accessKey);
+                    Log.Information("S3 user deleted successfully for access key: {AccessKey}", accessKey);
                 }
                 else
                 {
-                    Log.Warning("Failed to delete MinIO secret for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
+                    Log.Warning("Failed to delete S3 user for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Exception occurred while deleting MinIO secret for access key: {AccessKey}", accessKey);
+                Log.Error(ex, "Exception occurred while deleting S3 user for access key: {AccessKey}", accessKey);
                 return new MinioCommandResult
                 {
                     Success = false,
@@ -884,33 +800,30 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// List all MinIO secrets (access keys)
+        /// List all S3 users (RGW uids) via the Ceph RGW metadata API.
         /// </summary>
         /// <param name="cancellationToken"></param>
-        /// <returns>MinioCommandResult with the list of secrets</returns>
+        /// <returns>MinioCommandResult with a JSON array of uids in Output</returns>
         public async Task<MinioCommandResult> ListMinioSecretsAsync(CancellationToken cancellationToken = default)
         {
             try
             {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
-
-                var command = $"mc admin user list {_minioSettings.Alias}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+                var result = await SendRgwAdminRequestAsync(HttpMethod.Get, "metadata/user", null, cancellationToken);
 
                 if (result.Success)
                 {
-                    Log.Information("MinIO secrets listed successfully");
+                    Log.Information("S3 users listed successfully");
                 }
                 else
                 {
-                    Log.Warning("Failed to list MinIO secrets. Error: {Error}", result.Error);
+                    Log.Warning("Failed to list S3 users. Error: {Error}", result.Error);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Exception occurred while listing MinIO secrets");
+                Log.Error(ex, "Exception occurred while listing S3 users");
                 return new MinioCommandResult
                 {
                     Success = false,
@@ -920,34 +833,33 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// Get information about a specific MinIO secret
+        /// Get information about a specific S3 user via the Ceph RGW Admin Ops API.
+        /// Fails (Success = false, ExitCode = 404) when the user does not exist.
         /// </summary>
-        /// <param name="accessKey">The access key to get information about</param>
+        /// <param name="accessKey">The access key (RGW uid) to get information about</param>
         /// <param name="cancellationToken"></param>
-        /// <returns>MinioCommandResult with the secret information</returns>
+        /// <returns>MinioCommandResult with the RGW user JSON in Output</returns>
         public async Task<MinioCommandResult> GetMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default)
         {
             try
             {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
-
-                var command = $"mc admin user info {_minioSettings.Alias} {ShellQuote(accessKey)}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+                var query = new Dictionary<string, string> { ["uid"] = accessKey };
+                var result = await SendRgwAdminRequestAsync(HttpMethod.Get, "user", query, cancellationToken);
 
                 if (result.Success)
                 {
-                    Log.Information("MinIO secret information retrieved successfully for access key: {AccessKey}", accessKey);
+                    Log.Information("S3 user information retrieved successfully for access key: {AccessKey}", accessKey);
                 }
                 else
                 {
-                    Log.Warning("Failed to get MinIO secret information for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
+                    Log.Warning("Failed to get S3 user information for access key: {AccessKey}. Error: {Error}", accessKey, result.Error);
                 }
 
                 return result;
             }
             catch (Exception ex)
             {
-                Log.Error(ex, "Exception occurred while getting MinIO secret information for access key: {AccessKey}", accessKey);
+                Log.Error(ex, "Exception occurred while getting S3 user information for access key: {AccessKey}", accessKey);
                 return new MinioCommandResult
                 {
                     Success = false,
@@ -957,82 +869,94 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// Creates a canned IAM policy scoped to a project's submission (read) and output (write) buckets.
+        /// Grants an S3 user read on the project's submission bucket and read/write/delete on its
+        /// output bucket. Ceph RGW has no detached canned policies, so this merges
+        /// Principal-scoped statements (Sids tagged with <paramref name="policyName"/>) into each
+        /// bucket's existing policy. Idempotent: statements with the same Sids are replaced.
         /// </summary>
         public async Task<bool> CreateProjectS3AccessPolicyAsync(
             string policyName,
+            string accessKey,
             string submissionBucket,
             string outputBucket)
         {
-            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
-
-            var policyJson = JsonConvert.SerializeObject(new
+            if (string.IsNullOrWhiteSpace(policyName) || string.IsNullOrWhiteSpace(accessKey) ||
+                string.IsNullOrWhiteSpace(submissionBucket) || string.IsNullOrWhiteSpace(outputBucket))
             {
-                Version = "2012-10-17",
-                Statement = new object[]
-                {
-                    new
-                    {
-                        Effect = "Allow",
-                        Action = new[] { "s3:ListBucket", "s3:GetBucketLocation" },
-                        Resource = new[]
-                        {
-                            $"arn:aws:s3:::{submissionBucket}",
-                            $"arn:aws:s3:::{outputBucket}"
-                        }
-                    },
-                    new
-                    {
-                        Effect = "Allow",
-                        Action = new[] { "s3:GetObject" },
-                        Resource = new[] { $"arn:aws:s3:::{submissionBucket}/*" }
-                    },
-                    new
-                    {
-                        Effect = "Allow",
-                        Action = new[] { "s3:PutObject", "s3:GetObject", "s3:DeleteObject" },
-                        Resource = new[] { $"arn:aws:s3:::{outputBucket}/*" }
-                    }
-                }
-            });
-
-            var baseUrl = _minioSettings.Url.TrimEnd('/');
-            var encodedPolicyName = Uri.EscapeDataString(policyName);
-            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
-
-            using var client = new HttpClient();
-            using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
-            using var request = new HttpRequestMessage
-            {
-                Method = HttpMethod.Put,
-                RequestUri = new Uri($"{baseUrl}{adminApiPath}?name={encodedPolicyName}"),
-                Content = content
-            };
-
-            var signedRequest = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
-            using var response = await client.SendAsync(signedRequest);
-
-            if (response.StatusCode == HttpStatusCode.OK)
-            {
-                Log.Information(
-                    "Created project S3 access policy {PolicyName} for buckets {SubmissionBucket}/{OutputBucket}",
-                    policyName, submissionBucket, outputBucket);
-                return true;
+                return false;
             }
 
-            var responseBody = await response.Content.ReadAsStringAsync();
-            Log.Warning(
-                "CreateProjectS3AccessPolicyAsync failed for {PolicyName}. Status: {StatusCode}. Response: {ResponseBody}",
-                policyName,
-                response.StatusCode,
-                responseBody);
+            var principal = new JObject { ["AWS"] = $"arn:aws:iam:::user/{accessKey}" };
+            var sidPrefix = BuildPolicySidPrefix(policyName);
 
-            return false;
+            JObject Statement(string sidSuffix, string[] actions, string resource) => new JObject
+            {
+                ["Sid"] = sidPrefix + sidSuffix,
+                ["Effect"] = "Allow",
+                ["Principal"] = principal.DeepClone(),
+                ["Action"] = new JArray(actions),
+                ["Resource"] = resource
+            };
+
+            // A bucket policy may only reference its own bucket, so group statements per bucket.
+            // When submission and output are the same bucket, all three land on it.
+            var statementsByBucket = new Dictionary<string, List<JObject>>();
+            void Add(string bucket, JObject statement)
+            {
+                if (!statementsByBucket.TryGetValue(bucket, out var list))
+                {
+                    statementsByBucket[bucket] = list = new List<JObject>();
+                }
+                list.Add(statement);
+            }
+
+            Add(submissionBucket, Statement("ListSubmission",
+                new[] { "s3:ListBucket", "s3:GetBucketLocation" }, $"arn:aws:s3:::{submissionBucket}"));
+            Add(submissionBucket, Statement("ReadSubmission",
+                new[] { "s3:GetObject" }, $"arn:aws:s3:::{submissionBucket}/*"));
+            Add(outputBucket, Statement("ListOutput",
+                new[] { "s3:ListBucket", "s3:GetBucketLocation" }, $"arn:aws:s3:::{outputBucket}"));
+            Add(outputBucket, Statement("WriteOutput",
+                new[] { "s3:PutObject", "s3:GetObject", "s3:DeleteObject" }, $"arn:aws:s3:::{outputBucket}/*"));
+
+            try
+            {
+                var amazonS3Client = GenerateAmazonS3Client();
+
+                foreach (var (bucket, statements) in statementsByBucket)
+                {
+                    var policy = await GetBucketPolicyDocumentAsync(amazonS3Client, bucket);
+                    var merged = StripPolicyStatements(policy, sidPrefix);
+                    foreach (var statement in statements)
+                    {
+                        merged.Add(statement);
+                    }
+
+                    policy["Statement"] = merged;
+                    await amazonS3Client.PutBucketPolicyAsync(new PutBucketPolicyRequest
+                    {
+                        BucketName = bucket,
+                        Policy = policy.ToString(Formatting.None)
+                    });
+                }
+
+                Log.Information(
+                    "Applied project S3 access policy {PolicyName} for {AccessKey} on buckets {SubmissionBucket}/{OutputBucket}",
+                    policyName, accessKey, submissionBucket, outputBucket);
+                return true;
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex,
+                    "CreateProjectS3AccessPolicyAsync failed for {PolicyName} on buckets {SubmissionBucket}/{OutputBucket}",
+                    policyName, submissionBucket, outputBucket);
+                return false;
+            }
         }
 
         /// <summary>
         /// Returns true when an S3 access key (user) already exists on the object store.
-        /// Wraps <see cref="GetMinioSecretAsync"/> (mc admin user info), which succeeds only
+        /// Wraps <see cref="GetMinioSecretAsync"/> (GET /admin/user), which succeeds only
         /// when the user is present.
         /// </summary>
         public async Task<bool> UserExistsAsync(string accessKey, CancellationToken cancellationToken = default)
@@ -1047,176 +971,175 @@ namespace FiveSafesTes.Core.Services
         }
 
         /// <summary>
-        /// Attaches a canned policy to an S3 access key user.
+        /// Strips the statements tagged with <paramref name="policyName"/> from the submission and
+        /// output bucket policies (cleanup for an access key's grants when it is revoked). The
+        /// bucket policy is deleted outright when nothing else remains in it. Idempotent: a bucket
+        /// with no policy, or no matching statements, counts as success.
         /// </summary>
-        public async Task<bool> AttachPolicyToUserAsync(
+        public async Task<bool> RemovePolicyAsync(
             string policyName,
-            string accessKey,
+            string submissionBucket,
+            string outputBucket,
             CancellationToken cancellationToken = default)
-        {
-            try
-            {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
-
-                var command =
-                    $"mc admin policy attach {_minioSettings.Alias} {ShellQuote(policyName)} --user {ShellQuote(accessKey)}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
-
-                if (result.Success)
-                {
-                    Log.Information(
-                        "Attached policy {PolicyName} to S3 user {AccessKey}",
-                        policyName, accessKey);
-                    return true;
-                }
-
-                Log.Warning(
-                    "Failed to attach policy {PolicyName} to user {AccessKey}. Error: {Error}",
-                    policyName, accessKey, result.Error);
-                return false;
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex,
-                    "Exception attaching policy {PolicyName} to user {AccessKey}",
-                    policyName, accessKey);
-                return false;
-            }
-        }
-
-        /// <summary>
-        /// Removes a canned policy from the object store. Used to clean up the per-key policy
-        /// created alongside an ephemeral S3 access key when that key is revoked, so policies
-        /// don't accumulate. Removing the access-key user detaches the policy but leaves the
-        /// canned policy itself behind, hence this explicit cleanup.
-        /// </summary>
-        public async Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(policyName))
             {
                 return false;
             }
 
-            try
+            var sidPrefix = BuildPolicySidPrefix(policyName);
+            var buckets = new[] { submissionBucket, outputBucket }
+                .Where(b => !string.IsNullOrWhiteSpace(b))
+                .Distinct()
+                .ToList();
+
+            if (buckets.Count == 0)
             {
-                await EnsureMinioClientInitializedAsync(cancellationToken);
+                return false;
+            }
 
-                var command = $"mc admin policy rm {_minioSettings.Alias} {ShellQuote(policyName)}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+            var amazonS3Client = GenerateAmazonS3Client();
+            var allRemoved = true;
 
-                if (result.Success)
+            foreach (var bucket in buckets)
+            {
+                try
                 {
-                    Log.Information("Removed S3 policy {PolicyName}", policyName);
-                    return true;
-                }
+                    var policy = await GetBucketPolicyDocumentAsync(amazonS3Client, bucket, cancellationToken);
+                    var existing = NormaliseStatements(policy);
+                    var remaining = StripPolicyStatements(policy, sidPrefix);
 
-                Log.Warning(
-                    "Failed to remove S3 policy {PolicyName}. Error: {Error}",
-                    policyName, result.Error);
-                return false;
+                    if (remaining.Count == existing.Count)
+                    {
+                        continue;
+                    }
+
+                    if (remaining.Count == 0)
+                    {
+                        await amazonS3Client.DeleteBucketPolicyAsync(bucket, cancellationToken);
+                    }
+                    else
+                    {
+                        policy["Statement"] = remaining;
+                        await amazonS3Client.PutBucketPolicyAsync(new PutBucketPolicyRequest
+                        {
+                            BucketName = bucket,
+                            Policy = policy.ToString(Formatting.None)
+                        }, cancellationToken);
+                    }
+
+                    Log.Information("Removed S3 policy {PolicyName} statements from bucket {BucketName}", policyName, bucket);
+                }
+                catch (Exception ex)
+                {
+                    Log.Error(ex, "Exception removing S3 policy {PolicyName} from bucket {BucketName}", policyName, bucket);
+                    allRemoved = false;
+                }
             }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "Exception removing S3 policy {PolicyName}", policyName);
-                return false;
-            }
+
+            return allRemoved;
         }
 
         #endregion
 
-        #region MinIO Client Helper Methods
+        #region Ceph RGW Helper Methods
 
-        private async Task<bool> EnsureMinioClientInitializedAsync(CancellationToken cancellationToken = default)
-        {
-            if (!_isMinioClientInitialized)
+        /// <summary>
+        /// Sid prefix identifying the statements a named policy owns inside a bucket policy.
+        /// Restricted to alphanumerics, the portable Sid character set.
+        /// </summary>
+        private static string BuildPolicySidPrefix(string policyName) =>
+            new string(policyName.Where(char.IsLetterOrDigit).ToArray());
+
+        private static readonly string[] PolicySidSuffixes =
+            { "ListSubmission", "ReadSubmission", "ListOutput", "WriteOutput" };
+
+        private static JArray NormaliseStatements(JObject policy) =>
+            policy["Statement"] switch
             {
-                var command =
-                    $"mc alias set {_minioSettings.Alias ?? "myminio"} {_minioSettings.Url} {ShellQuote(_minioSettings.AccessKey)} {ShellQuote(_minioSettings.SecretKey)}";
-                var result = await ExecuteMinioCommandAsync(command, cancellationToken);
+                JArray array => array,
+                JObject single => new JArray(single),
+                _ => new JArray()
+            };
 
-                if (result.Success)
-                {
-                    _isMinioClientInitialized = true;
-                    Log.Information("MinIO MC client initialized successfully");
-                    return true;
-                }
-                else
-                {
-                    Log.Error("Failed to initialize MinIO MC client: {Error}", result.Error);
-                    return false;
-                }
-            }
-            return true;
+        /// <summary>
+        /// Returns the policy's statements minus those owned by <paramref name="sidPrefix"/>.
+        /// </summary>
+        private static JArray StripPolicyStatements(JObject policy, string sidPrefix)
+        {
+            var ownedSids = PolicySidSuffixes.Select(s => sidPrefix + s).ToHashSet();
+            return new JArray(NormaliseStatements(policy)
+                .Where(s => !ownedSids.Contains(s["Sid"]?.ToString() ?? string.Empty)));
         }
 
-        private static string ShellQuote(string value) =>
-            "'" + value.Replace("'", "'\\''") + "'";
-
-        private async Task<MinioCommandResult> ExecuteMinioCommandAsync(string command, CancellationToken cancellationToken = default)
+        /// <summary>
+        /// Reads a bucket's policy as JSON, or an empty policy document when it has none.
+        /// </summary>
+        private static async Task<JObject> GetBucketPolicyDocumentAsync(
+            AmazonS3Client amazonS3Client,
+            string bucketName,
+            CancellationToken cancellationToken = default)
         {
-            var result = new MinioCommandResult();
-
             try
             {
-                Log.Debug("Executing MinIO command: {Command}", command);
-
-                var processStartInfo = new ProcessStartInfo
+                var response = await amazonS3Client.GetBucketPolicyAsync(bucketName, cancellationToken);
+                if (!string.IsNullOrWhiteSpace(response.Policy))
                 {
-                    FileName = "/bin/sh",
-                    Arguments = $"-c \"{command}\"",
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    UseShellExecute = false,
-                    CreateNoWindow = true
-                };
-
-                using var process = new Process();
-                process.StartInfo = processStartInfo;
-
-                var outputBuilder = new StringBuilder();
-                var errorBuilder = new StringBuilder();
-
-                process.OutputDataReceived += (sender, e) =>
-                {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        outputBuilder.AppendLine(e.Data);
-                };
-
-                process.ErrorDataReceived += (sender, e) =>
-                {
-                    if (!string.IsNullOrEmpty(e.Data))
-                        errorBuilder.AppendLine(e.Data);
-                };
-
-                process.Start();
-                process.BeginOutputReadLine();
-                process.BeginErrorReadLine();
-
-                await process.WaitForExitAsync(cancellationToken);
-
-                result.ExitCode = process.ExitCode;
-                result.Output = outputBuilder.ToString().Trim();
-                result.Error = errorBuilder.ToString().Trim();
-                result.Success = process.ExitCode == 0;
-
-                if (result.Success)
-                {
-                    Log.Debug("MinIO command executed successfully: {Output}", result.Output);
+                    return JObject.Parse(response.Policy);
                 }
-                else
-                {
-                    Log.Warning("MinIO command failed with exit code {ExitCode}: {Error}", result.ExitCode, result.Error);
-                }
-
-                return result;
             }
-            catch (Exception ex)
+            catch (AmazonS3Exception ex) when (ex.ErrorCode == "NoSuchBucketPolicy" ||
+                                               ex.StatusCode == HttpStatusCode.NotFound)
             {
-                Log.Error(ex, "Exception occurred while executing MinIO command: {Command}", command);
-                result.Success = false;
-                result.Error = ex.Message;
-                return result;
+                // No policy yet.
             }
+
+            return new JObject
+            {
+                ["Version"] = "2012-10-17",
+                ["Statement"] = new JArray()
+            };
+        }
+
+        /// <summary>
+        /// Sends an AWS4-signed request to the Ceph RGW Admin Ops API at {Url}/admin/{resource}.
+        /// The configured access key must belong to an RGW user with the matching admin caps
+        /// (users=*, metadata=read).
+        /// </summary>
+        private async Task<MinioCommandResult> SendRgwAdminRequestAsync(
+            HttpMethod method,
+            string resource,
+            IDictionary<string, string>? query,
+            CancellationToken cancellationToken = default)
+        {
+            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
+
+            var queryParams = new Dictionary<string, string>(query ?? new Dictionary<string, string>())
+            {
+                ["format"] = "json"
+            };
+            var queryString = string.Join("&", queryParams.Select(kv =>
+                $"{Uri.EscapeDataString(kv.Key)}={Uri.EscapeDataString(kv.Value)}"));
+
+            var baseUrl = _minioSettings.Url.TrimEnd('/');
+            using var client = new HttpClient();
+            using var request = new HttpRequestMessage
+            {
+                Method = method,
+                RequestUri = new Uri($"{baseUrl}/admin/{resource}?{queryString}")
+            };
+
+            var signedRequest = await signer.Sign(request, _minioSettings.AWSService, _minioSettings.AWSRegion);
+            using var response = await client.SendAsync(signedRequest, cancellationToken);
+            var body = await response.Content.ReadAsStringAsync(cancellationToken);
+
+            return new MinioCommandResult
+            {
+                Success = response.IsSuccessStatusCode,
+                ExitCode = (int)response.StatusCode,
+                Output = response.IsSuccessStatusCode ? body : string.Empty,
+                Error = response.IsSuccessStatusCode ? string.Empty : $"{(int)response.StatusCode} {body}"
+            };
         }
 
         #endregion

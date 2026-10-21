@@ -8,8 +8,8 @@ using Zeebe.Client.Accelerator.Attributes;
 namespace Credentials.Camunda.ProcessHandlers
 {
     /// <summary>
-    /// Creates an ephemeral, per-submission S3 (RustFS/MinIO) access key: a scoped canned
-    /// policy, an access-key/secret pair, the policy attached to that key, and the secret
+    /// Creates an ephemeral, per-submission S3 (Ceph RGW) access key: an access-key/secret pair,
+    /// Principal-scoped grants for that key on the project's bucket policies, and the secret
     /// stored in Vault. Mirrors the Postgres/Trino create handlers.
     /// </summary>
     [JobType("create-s3-secret")]
@@ -87,19 +87,7 @@ namespace Credentials.Camunda.ProcessHandlers
                 var secretKey = GenerateSecurePassword();
                 var policyName = $"{accessKey}-policy";
 
-                // Step 1: canned policy scoped to the project's buckets (read submission,
-                // read/write/delete output). Same shape as the persistent ProjectS3AccessKeyService,
-                // so ephemeral and persistent credentials share one proven policy model.
-                var policyCreated = await _minioHelper.CreateProjectS3AccessPolicyAsync(
-                    policyName, submissionBucket, outputBucket);
-                if (!policyCreated)
-                {
-                    await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "s3",
-                        $"Failed to create S3 access policy {policyName}");
-                    return CreateStatusResponse("ERROR: Failed credential creation");
-                }
-
-                // Step 2: access key + secret pair.
+                // Step 1: access key + secret pair.
                 var userCreated = await _minioHelper.CreateMinioSecretAsync(accessKey, secretKey, cancellationToken);
                 if (!userCreated.Success)
                 {
@@ -108,12 +96,17 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: Failed credential creation");
                 }
 
-                // Step 3: attach the scoped policy to the access key.
-                var policyAttached = await _minioHelper.AttachPolicyToUserAsync(policyName, accessKey, cancellationToken);
-                if (!policyAttached)
+                // Step 2: grant the key access to the project's buckets (read submission,
+                // read/write/delete output) via Principal-scoped bucket-policy statements. Same
+                // shape as the persistent ProjectS3AccessKeyService, so ephemeral and persistent
+                // credentials share one policy model.
+                var policyCreated = await _minioHelper.CreateProjectS3AccessPolicyAsync(
+                    policyName, accessKey, submissionBucket, outputBucket);
+                if (!policyCreated)
                 {
+                    await _minioHelper.DeleteMinioSecretAsync(accessKey, cancellationToken);
                     await RecordErrorAsync(submissionId, parentProcessKey, processInstanceKey, "s3",
-                        $"Failed to attach policy {policyName} to access key {accessKey}");
+                        $"Failed to apply S3 access policy {policyName}");
                     return CreateStatusResponse("ERROR: Failed credential creation");
                 }
 
@@ -121,6 +114,10 @@ namespace Credentials.Camunda.ProcessHandlers
                 // fields, so set the generated secret and endpoint explicitly.
                 var credentialData = BuildCredentialData(extraction.EnvList, secretKey);
                 credentialData["secretKey"] = secretKey;
+                // Persist the resolved buckets: DeleteS3UserHandler needs them to strip this
+                // key's statements from the bucket policies on expiry.
+                credentialData["submissionBucket"] = submissionBucket;
+                credentialData["outputBucket"] = outputBucket;
                 if (!credentialData.ContainsKey("endPoint") ||
                     string.IsNullOrEmpty(credentialData["endPoint"]?.ToString()))
                 {

@@ -27,7 +27,7 @@ namespace Credentials.Camunda.ProcessHandlers
         /// For blank credentials, we skip user deletion (there's no external user)
         /// and only remove from Vault.
         /// </summary>
-        protected override async Task<bool> DeleteUserAsync(string? username, CancellationToken cancellationToken)
+        protected override async Task<bool> DeleteUserAsync(string? username, string vaultPath, CancellationToken cancellationToken)
         {
             // For blank credentials, there's no external user to delete
             // We just return true to continue with vault cleanup

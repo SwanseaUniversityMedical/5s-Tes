@@ -942,7 +942,7 @@ namespace Submission.Api.Controllers
 
         /// <summary>
         /// Returns scoped S3 credentials for a project to an authenticated TRE admin.
-        /// Creates the RustFS user/policy on Submission if they do not exist yet.
+        /// Creates the Ceph RGW user/bucket-policy grants on Submission if they do not exist yet.
         /// </summary>
         [HttpGet("GetProjectS3Credentials/{projectId}")]
         [Authorize(Roles = "dare-tre-admin")]
@@ -970,7 +970,7 @@ namespace Submission.Api.Controllers
                     return BadRequest("Project is missing S3 bucket configuration.");
                 }
 
-                // Returns full credential bundle (access key + secret + buckets), creating on RustFS if missing.
+                // Returns full credential bundle (access key + secret + buckets), creating on Ceph RGW if missing.
                 var projectS3Credentials = await _projectS3AccessKeyService.EnsureAccessKeyAsync(
                     project.Id,
                     project.Name,
