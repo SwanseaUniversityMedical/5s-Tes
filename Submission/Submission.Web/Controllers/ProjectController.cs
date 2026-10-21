@@ -465,5 +465,12 @@ namespace Submission.Web.Controllers
                 }
             }
         }
+
+        public async Task<IActionResult> DownloadEnvironmentVariables(int projectId, int treId)
+        {
+            byte[] bytes = await _clientHelper.CallAPIToGetFile($"/api/Project/GetEnvironmentVariables/{projectId}/{treId}");
+
+            return File(bytes, "application/json", "environment-variables.json");
+        }
     }
 }
