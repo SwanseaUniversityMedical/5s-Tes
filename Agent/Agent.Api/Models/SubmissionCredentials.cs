@@ -20,7 +20,7 @@ namespace Agent.Api.Models
 
         /// <summary>Variables keyed by the image code they belong to.</summary>
         public Dictionary<string, Dictionary<string, string>> ByImageCode { get; } =
-            new(StringComparer.Ordinal);
+            new(StringComparer.OrdinalIgnoreCase);
 
         public bool Any => SharedByType.Count > 0 || ByImageCode.Count > 0;
 

@@ -1234,20 +1234,35 @@ namespace Agent.Api
                         Log.Information(
                             $"Found {record.CredentialType} credentials for submission {submissionId} at vault path: {record.VaultPath}");
 
-                        var credentials = await _vaultService.GetCredentialAsync(record.VaultPath);
-                        if (credentials != null && credentials.Count > 0)
+                        // Scoped to the one path. A read that throws has to put the path back
+                        // the same way an empty read does, or it stays in fetchedPaths, every
+                        // later poll skips it, and the wait spins to its timeout. Catching here
+                        // also keeps one bad path from abandoning the rest of this pass.
+                        try
                         {
-                            AddToSubmissionCredentials(fetchedCredentials, record.CredentialType,
-                                record.VaultPath, credentials);
-                            record.IsProcessed = true;
+                            var credentials = await _vaultService.GetCredentialAsync(record.VaultPath);
+                            if (credentials != null && credentials.Count > 0)
+                            {
+                                AddToSubmissionCredentials(fetchedCredentials, record.CredentialType,
+                                    record.VaultPath, credentials);
+                                record.IsProcessed = true;
 
-                            Log.Information(
-                                $"Successfully fetched {record.CredentialType} credentials for submission {submissionId}");
+                                Log.Information(
+                                    $"Successfully fetched {record.CredentialType} credentials for submission {submissionId}");
+                            }
+                            else
+                            {
+                                // Nothing read, so allow a later poll to try this path again.
+                                fetchedPaths.Remove(record.VaultPath);
+                            }
                         }
-                        else
+                        catch (Exception ex)
                         {
-                            // Nothing read, so allow a later poll to try this path again.
                             fetchedPaths.Remove(record.VaultPath);
+
+                            Log.Error(ex,
+                                "Error reading vault path {VaultPath} for submission {SubmissionId}; will retry",
+                                record.VaultPath, submissionId);
                         }
                     }
 

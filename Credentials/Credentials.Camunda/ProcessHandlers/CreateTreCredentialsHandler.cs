@@ -47,10 +47,12 @@ namespace Credentials.Camunda.ProcessHandlers
 
                 foreach (var code in codes)
                 {
-                    if (!groups.TryGetValue(code, out var group))
+                    var key = code.Trim().ToLowerInvariant();
+
+                    if (!groups.TryGetValue(key, out var group))
                     {
                         group = new List<CredentialsCamundaOutput>();
-                        groups[code] = group;
+                        groups[key] = group;
                     }
 
                     group.Add(credential);
