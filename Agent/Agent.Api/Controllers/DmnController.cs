@@ -1,6 +1,7 @@
-using Agent.Api.Services;
+﻿using Agent.Api.Services;
 using Credentials.Models.Models.Zeebe;
 using Credentials.Models.Services;
+using FiveSafesTes.Core.Constants;
 using FiveSafesTes.Core.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,7 +21,7 @@ namespace Agent.Api.Controllers
         private readonly IServicedZeebeClient _zeebeClient;
         private readonly ILogger<DmnController> _logger;
         private readonly DmnPath _DmnPath;
-        private readonly string path;
+
         public DmnController(
             IDmnService dmnService,
             IServicedZeebeClient zeebeClient,
@@ -31,33 +32,48 @@ namespace Agent.Api.Controllers
             _dmnService = dmnService;
             _zeebeClient = zeebeClient;
             _logger = logger;
-
             _DmnPath = DmnPath;
+        }
 
-            // Get DMN file path from configuration or use default
-            var configuredPath = _DmnPath.Path;
+        /// <summary>
+        /// The table a request is for. Omitting it gives the environment variables table,
+        /// so the endpoints answer exactly as they did before this controller could address
+        /// more than one.
+        /// </summary>
+        private DmnTable TableFor(string? table)
+        {
+            var resolved = DmnFiles.Resolve(table);
 
-
-            if (!string.IsNullOrEmpty(DmnPath.Path))
+            if (!string.IsNullOrWhiteSpace(table)
+                && !string.Equals(resolved.Slug, table.Trim(), StringComparison.OrdinalIgnoreCase))
             {
-                // Use configured path - make it absolute if relative
-                if (Path.IsPathRooted(DmnPath.Path))
-                {
-                    path = Path.Combine(DmnPath.Path, "credentials.dmn");
-                }
-                else
-                {
-                    var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                    path = Path.GetFullPath(Path.Combine(projectDirectory, DmnPath.Path, "credentials.dmn"));
-                }
-            }
-            else
-            {
-                var projectDirectory = Path.GetFullPath(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "..", "..", ".."));
-                path = Path.GetFullPath(Path.Combine(projectDirectory, "..", "..", "Credentials","Credentials.Models","ProcessModels", "credentials.dmn"));
+                _logger.LogWarning("Unknown DMN table '{Requested}', falling back to {Slug}", table, resolved.Slug);
             }
 
+            return resolved;
+        }
+
+        /// <summary>
+        /// Where the editable copy of a table lives. On a deployed stack that is the
+        /// persistent volume, so admin edits survive a restart.
+        /// </summary>
+        private string PathFor(string? table)
+        {
+            var path = DmnFiles.ResolvePath(_DmnPath.Path, TableFor(table).FileName);
             _logger.LogInformation($"DMN file path resolved to: {path}");
+            return path;
+        }
+
+        /// <summary>
+        /// The tables this controller can manage, so the admin UI can offer them without
+        /// hardcoding the list.
+        /// </summary>
+        [HttpGet("tables")]
+        [SwaggerOperation(Summary = "List the DMN tables", Description = "The decision tables a TRE Admin can view and edit")]
+        [ProducesResponseType(typeof(IReadOnlyList<DmnTable>), 200)]
+        public IActionResult GetTables()
+        {
+            return Ok(DmnFiles.Tables);
         }
 
         /// <summary>
@@ -68,8 +84,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Get DMN decision table", Description = "Retrieves the complete DMN decision table including all inputs, outputs, and rules")]
         [ProducesResponseType(typeof(DmnDecisionTable), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> GetDmnTable()
+        public async Task<IActionResult> GetDmnTable([FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             try
             {
                 var table = await _dmnService.LoadDmnTableAsync(path);
@@ -90,8 +108,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Get all DMN rules", Description = "Retrieves all rules from the DMN decision table")]
         [ProducesResponseType(typeof(List<DmnRule>), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> GetRules()
+        public async Task<IActionResult> GetRules([FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             try
             {
                 var table = await _dmnService.LoadDmnTableAsync(path);
@@ -113,8 +133,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Add new DMN rule", Description = "Creates a new rule in the DMN decision table")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> AddRule([FromBody] CreateDmnRuleRequest request)
+        public async Task<IActionResult> AddRule([FromBody] CreateDmnRuleRequest request, [FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             // We use a temp file to prevent invalid rules from contaminating the real DMN file.
             // The rule must be added before validation because ValidateDmnAsync validates the
             // entire DMN file structure (not individual values). The real content validation
@@ -179,8 +201,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Update DMN rule", Description = "Updates an existing rule in the DMN decision table")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> UpdateRule([FromBody] UpdateDmnRuleRequest request)
+        public async Task<IActionResult> UpdateRule([FromBody] UpdateDmnRuleRequest request, [FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             var _tempPath = System.IO.Path.GetTempFileName() + ".dmn";
             try
             {
@@ -237,8 +261,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Delete DMN rule", Description = "Deletes a rule from the DMN decision table")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> DeleteRule(string ruleId)
+        public async Task<IActionResult> DeleteRule(string ruleId, [FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             try
             {
                 await _dmnService.DeleteRuleAsync(path, ruleId);
@@ -274,8 +300,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Validate DMN", Description = "Validates the DMN file structure and rules")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> ValidateDmn()
+        public async Task<IActionResult> ValidateDmn([FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             try
             {
                 await _dmnService.ValidateDmnAsync(path);
@@ -305,7 +333,7 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Test DMN evaluation", Description = "Tests the DMN with provided input variables and returns matching rules")]
         [ProducesResponseType(typeof(DmnTestResponse), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> TestDmn([FromBody] DmnTestRequest request)
+        public async Task<IActionResult> TestDmn([FromBody] DmnTestRequest request, [FromQuery(Name = "table")] string? dmnTable = null)
         {
             try
             {
@@ -317,7 +345,7 @@ namespace Agent.Api.Controllers
                 // Create DMN request for Zeebe
                 var dmnRequest = new DmnRequest
                 {
-                    DecisionId = "CredentialsDMN",
+                    DecisionId = TableFor(dmnTable).DecisionId,
                     Variables = request.InputVariables
                 };
 
@@ -350,8 +378,10 @@ namespace Agent.Api.Controllers
         [SwaggerOperation(Summary = "Deploy DMN to Zeebe", Description = "Deploys the DMN file to the Zeebe workflow engine")]
         [ProducesResponseType(typeof(DmnOperationResult), 200)]
         [ProducesResponseType(400)]
-        public async Task<IActionResult> DeployDmn()
+        public async Task<IActionResult> DeployDmn([FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var path = PathFor(dmnTable);
+
             try
             {
                 await _dmnService.DeployDmnToZeebeAsync(path);
