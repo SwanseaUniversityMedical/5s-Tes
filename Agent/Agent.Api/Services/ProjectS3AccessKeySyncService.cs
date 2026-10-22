@@ -7,7 +7,7 @@ namespace Agent.Api.Services
 {
     /// <summary>
     /// Copies scoped Submission S3 credentials from the Submission Layer API into TRE Vault.
-    /// Submission.Api creates the Ceph RGW user/bucket-policy grants if they do not exist yet (EnsureAccessKeyAsync).
+    /// Submission.Api creates the RustFS user/policy if they do not exist yet (EnsureAccessKeyAsync).
     /// </summary>
     public class ProjectS3AccessKeySyncService : IProjectS3AccessKeySyncService
     {

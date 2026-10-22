@@ -966,7 +966,7 @@ namespace Agent.Api
                                                     $"Injected credentials into environment variables for {aSubmission.Id}");
                                             }
 
-                                            // S3/Ceph RGW ephemeral credentials are also exposed under the
+                                            // S3/RustFS ephemeral credentials are also exposed under the
                                             // conventional AWS/MinIO env var names so a standard S3 client in
                                             // the workload container picks them up without bespoke wiring. The
                                             // generic loop above still injects the raw accessKey/secretKey/
@@ -1004,7 +1004,7 @@ namespace Agent.Api
                                                 }
 
                                                 // Region comes from config (MinioTRESettings); standard
-                                                // S3 SDKs require one. Fall back to the S3 default region.
+                                                // S3 SDKs require one. Fall back to the RustFS/MinIO default.
                                                 var s3Region = _config["MinioTRESettings:AWSRegion"];
                                                 if (string.IsNullOrEmpty(s3Region)) s3Region = "us-east-1";
                                                 Executor.Env["AWS_REGION"] = s3Region;

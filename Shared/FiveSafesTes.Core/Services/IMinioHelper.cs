@@ -14,10 +14,6 @@ namespace FiveSafesTes.Core.Services
         Task<bool> CheckObjectExists(string bucketName, string objectKey);
         Task<bool> FetchAndStoreObject(string url, string bucketName, string key);
         Task<bool> RabbitExternalObject(MQFetchFile msgBytes);
-        /// <summary>
-        /// No-op on Ceph RGW (no detached canned policies); per-user grants are applied by
-        /// <see cref="CreateProjectS3AccessPolicyAsync"/>.
-        /// </summary>
         Task<bool> CreateBucketPolicy(string bucketName);
 
         Task<bool> CopyObjectToDestination(string destinationBucketName, string destinationObjectKey,
@@ -54,18 +50,14 @@ namespace FiveSafesTes.Core.Services
         Task<MinioCommandResult> ListMinioSecretsAsync(CancellationToken cancellationToken = default);
         Task<MinioCommandResult> GetMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
 
-        /// <summary>
-        /// Grants <paramref name="accessKey"/> read on the submission bucket and read/write/delete on
-        /// the output bucket by merging Principal-scoped statements (Sids tagged with
-        /// <paramref name="policyName"/>) into each bucket's policy. The user must already exist.
-        /// </summary>
-        Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string accessKey, string submissionBucket, string outputBucket);
+        Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string submissionBucket, string outputBucket);
+        Task<bool> AttachPolicyToUserAsync(string policyName, string accessKey, CancellationToken cancellationToken = default);
 
         /// <summary>
-        /// Strips the statements tagged with <paramref name="policyName"/> from the submission and
-        /// output bucket policies (cleanup for an access key's grants when it is revoked).
+        /// Removes a canned policy from the object store (cleanup for the per-key policy created
+        /// alongside an ephemeral S3 access key). Removing the user detaches but does not delete it.
         /// </summary>
-        Task<bool> RemovePolicyAsync(string policyName, string submissionBucket, string outputBucket, CancellationToken cancellationToken = default);
+        Task<bool> RemovePolicyAsync(string policyName, CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Returns true when an S3 access key (user) already exists on the object store.

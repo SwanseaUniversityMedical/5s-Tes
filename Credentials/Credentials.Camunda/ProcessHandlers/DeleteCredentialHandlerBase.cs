@@ -84,11 +84,9 @@ namespace Credentials.Camunda.ProcessHandlers
         }
 
         /// <summary>
-        /// Abstract method to be implemented by derived classes for specific user deletion logic.
-        /// <paramref name="vaultPath"/> is where the credential is stored, for handlers that need
-        /// to read back provisioning details; it is removed only after this returns true.
+        /// Abstract method to be implemented by derived classes for specific user deletion logic
         /// </summary>
-        protected abstract Task<bool> DeleteUserAsync(string? username, string vaultPath, CancellationToken cancellationToken);
+        protected abstract Task<bool> DeleteUserAsync(string? username, CancellationToken cancellationToken);
 
         /// <summary>
         /// Abstract method to be implemented by derived classes for specific user existence check logic
@@ -130,7 +128,7 @@ namespace Credentials.Camunda.ProcessHandlers
                 }
 
                 // Extract the identifier - common across all handlers. Most credential types
-                // key on "username"; S3/Ceph RGW access keys use "accessKey" instead.
+                // key on "username"; S3/RustFS access keys use "accessKey" instead.
                 string? username = extraction.EnvList
                         .Where(x => x.env.ToLower().Contains("username") || x.env.ToLower().Contains("accesskey"))
                         .FirstOrDefault()?.value?.ToString();
@@ -153,7 +151,7 @@ namespace Credentials.Camunda.ProcessHandlers
                     CredentialType, username);
 
                 // Call derived class to perform specific deletion
-                var deleteResult = await DeleteUserAsync(username, vaultPath, cancellationToken);
+                var deleteResult = await DeleteUserAsync(username, cancellationToken);
 
                 if (!deleteResult)
                 {

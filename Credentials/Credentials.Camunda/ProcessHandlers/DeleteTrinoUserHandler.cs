@@ -22,7 +22,7 @@ namespace Credentials.Camunda.ProcessHandlers
         /// <summary>
         /// Delete LDAP/Trino user using the LDAP user management service
         /// </summary>
-        protected override async Task<bool> DeleteUserAsync(string? username, string vaultPath, CancellationToken cancellationToken)
+        protected override async Task<bool> DeleteUserAsync(string? username, CancellationToken cancellationToken)
         {
             if (string.IsNullOrEmpty(username))
                 return false;
