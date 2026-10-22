@@ -1,0 +1,26 @@
+# Name must match global.argoProject in submission-devstack/submission-stack.
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: submission
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    argocd.argoproj.io/rootproject: "true"
+spec:
+  description: Submission local development environment
+
+  sourceRepos:
+    - '*'
+
+  sourceNamespaces:
+    - '*'
+
+  destinations:
+    - namespace: '*'
+      server: https://kubernetes.default.svc
+
+  clusterResourceWhitelist:
+    - group: '*'
+      kind: '*'
