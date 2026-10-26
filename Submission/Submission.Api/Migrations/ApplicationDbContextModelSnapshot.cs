@@ -173,6 +173,9 @@ namespace Submission.Api.Migrations
                     b.Property<string>("ProjectOwner")
                         .HasColumnType("text");
 
+                    b.Property<int>("ProjectType")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime>("StartDate")
                         .HasColumnType("timestamp with time zone");
 
