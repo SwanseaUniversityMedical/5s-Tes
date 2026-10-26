@@ -20,17 +20,21 @@ namespace Agent.Api.Controllers
         private readonly IServicedZeebeClient _zeebeClient;
         private readonly ILogger<DmnController> _logger;
         private readonly DmnPath _DmnPath;
+        private readonly IDmnEnvironmentVariableSyncService _dmnEnvironmentVariableSyncService;
         private readonly string path;
         public DmnController(
             IDmnService dmnService,
             IServicedZeebeClient zeebeClient,
             ILogger<DmnController> logger,
             IConfiguration configuration,
-            DmnPath DmnPath)
+            DmnPath DmnPath,
+            IDmnEnvironmentVariableSyncService dmnEnvironmentVariableSyncService)
         {
             _dmnService = dmnService;
             _zeebeClient = zeebeClient;
             _logger = logger;
+
+            _dmnEnvironmentVariableSyncService = dmnEnvironmentVariableSyncService;
 
             _DmnPath = DmnPath;
 
@@ -355,6 +359,9 @@ namespace Agent.Api.Controllers
             try
             {
                 await _dmnService.DeployDmnToZeebeAsync(path);
+
+                await _dmnEnvironmentVariableSyncService.SyncEnvironmentVariablesWithSubmission(path);
+
                 return Ok(new DmnOperationResult
                 {
                     Success = true,

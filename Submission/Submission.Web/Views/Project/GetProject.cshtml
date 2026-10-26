@@ -233,6 +233,12 @@
                                                 <i class="fa-solid fa-circle-notch fa-spin me-1"></i> Undecided
                                             </span>
                                         }
+
+                                        <a class="me-2" href="@Url.Action("DownloadEnvironmentVariables", "Project", new { projectId = Model.Id, treId = tre.Id })">
+                                            <span class="fa fa-download" data-bs-toggle="tooltip"
+                                                  data-bs-title="Download environment variables"></span>
+                                        </a>
+
                                         @if (User.IsInRole("dare-control-admin"))
                                         {
                                             <a href="@Url.Action("RemoveTreFromProject", "Project", new { ProjectId = Model.Id, TreId = tre.Id })">
