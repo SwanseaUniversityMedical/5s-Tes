@@ -1,0 +1,234 @@
+# Default values for submission.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+# This will set the replicaset count more information can be found here: https://kubernetes.io/docs/concepts/workloads/controllers/replicaset/
+replicaCount: 1
+
+imagePullSecrets: []
+# This is to override the chart name.
+nameOverride: ""
+fullnameOverride: ""
+
+config:
+  # TODO: what do these demo mode settings do/mean?
+  demoMode: false
+  keycloakDemoMode: true
+  sslCookies: false
+  httpsRedirect: false
+
+  helpdeskUrl: ""
+  uiName: "5S-Tes"
+
+  seq:
+    url: "http://seq:5341"
+    secretName: ""
+    secretKey: "seq_api_key"
+
+  postgres:
+    secretName: postgres-secret
+    passwordSecretKey: password
+    usernameSecretKey: username
+    host: postgres
+    port: 5432
+    database: 5S-Tes
+
+  rabbitmq:
+    host: "rabbitmq"
+    port: "5672"
+    secretName: "rabbitmq-secret"
+    usernameSecretKey: "username"
+    passwordSecretKey: "password"
+    vhost: "SubLayer"
+
+  minio:
+    url: "http://minio:9000"
+    consoleUrl: "http://minio:9001"
+    secretName: "minio-secret"
+    accessSecretKey: "accessKey"
+    secretSecretKey: "secretKey"
+    bucketName: "testbucket"
+
+  email:
+    enabled: false
+    host: "192.168.10.22"
+    port: 25
+    ssl: false
+    from: "email@email.com"
+    fromName: "SERP Gov"
+
+
+  keycloak:
+    proxy:
+      enabled: false
+      url: "http://proxy:8080"
+      bypassList: "minio,seq"
+
+    api:
+      protocol: "http"
+      host: "keycloak"
+      realm: "Dare-Control"
+      secretName: "api-keycloak-secret"
+      clientSecretKey: "secret"
+      clientIdKey: "id" 
+      # tokenExpiredAddress: ""
+      redirectUrl: ""
+      useRedirect: false
+      tokenRefreshSeconds: "3600"
+      trustKeycloakCert: false
+      validAudiences: "Dare-Control-UI,Dare-Control-API,Dare-Control-Minio"
+      validIssuer: ""
+      validAudience: ""
+
+    web:
+      protocol: "http"
+      host: "keycloak"
+      realm: "Dare-Control"
+      secretName: "ui-keycloak-secret"
+      clientSecretKey: "secret"
+      clientIdKey: "id" 
+      tokenExpiredAddress: "http://localhost:5001/Account/LoginAfterTokenExpired"
+      redirectUrl: ""
+      useRedirect: false
+      tokenRefreshSeconds: "3600"
+      trustKeycloakCert: false
+      validIssuer: ""
+      validAudience: ""
+
+  queryImage:
+    sql: "ukserp/runsql:1.0.0"
+    graphql: "harbor.federated-analytics.ac.uk/5s-tes-analysis-tools/5s-tes-analysis-tools-graphqlrunner:1.0.0"
+
+  formio:
+    projectForm: "https://rikojtsvfwnqslz.form.io/darecontrolproject"
+    treForm: "https://rikojtsvfwnqslz.form.io/darecontrolendpoint"
+    userForm: "https://rikojtsvfwnqslz.form.io/darecontroluser"
+
+
+api:
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-api
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  livenessProbe:
+    httpGet:
+      path: /
+      port: http
+  readinessProbe:
+    httpGet:
+      path: /
+      port: http
+
+  volumes: []
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+  volumeMounts: []
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+  env: []
+
+  podAnnotations: {}
+  podLabels: {}
+
+
+web:
+  image:
+    repository: harbor.federated-analytics.ac.uk/5s-tes/submission-ui
+    pullPolicy: IfNotPresent
+    tag: ""
+
+  service:
+    type: ClusterIP
+    port: 80
+
+  ingress:
+    enabled: false
+    className: nginx
+    annotations: {}
+    tls: []
+    host: ""
+    hosts: []
+    
+
+  resources: {}
+  # limits:
+  #   cpu: 100m
+  #   memory: 128Mi
+  # requests:
+  #   cpu: 100m
+  #   memory: 128Mi
+
+  # livenessProbe:
+  #   httpGet:
+  #     path: /
+  #     port: http
+  # readinessProbe:
+  #   httpGet:
+  #     path: /
+  #     port: http
+
+  volumes: []
+  # - name: foo
+  #   secret:
+  #     secretName: mysecret
+  #     optional: false
+
+  volumeMounts: []
+  # - name: foo
+  #   mountPath: "/etc/foo"
+  #   readOnly: true
+
+  env: []
+
+  podAnnotations: {}
+  podLabels: {}
+
+
+storage:
+  storageClassName: default
+  size: 1Gi
+
+
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  # The name of the service account to use.
+  # If not set and create is true, a name is generated using the fullname template
+  name: ""
+
+podSecurityContext: {}
+  # fsGroup: 2000
+
+securityContext: {}
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+  # runAsNonRoot: true
+  # runAsUser: 1000
+
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}

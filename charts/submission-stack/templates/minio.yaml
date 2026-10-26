@@ -1,0 +1,238 @@
+{{- if .Values.minio.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: minio
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"
+    # "helm.sh/hook": "post-install"
+spec:
+  project: {{ .Values.global.argoProject}}
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {{ .Values.global.namespace }}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+    - CreateNamespace=true
+  source:
+    repoURL: {{ .Values.minio.repoURL }}
+    chart: {{ .Values.minio.chart }}
+    targetRevision: {{ .Values.minio.chartVersion }}
+    helm:
+      valuesObject:
+        tenant:
+          name: {{ .Values.minio.tenantName }}
+          configuration:
+            name: minio-env-config
+          configSecret:
+            name: minio-env-config
+            accessKey: false
+            secretKey: false
+            existingSecret: true
+
+          pools:
+            - servers: {{ .Values.minio.firstPool.servers }}
+              name: pool-0
+              volumesPerServer: {{ .Values.minio.firstPool.volumesPerServer }}
+              size: {{ .Values.minio.firstPool.size }}
+              storageClassName: {{ .Values.minio.firstPool.storageClassName }}
+              {{- if not .Values.global.dev }}
+              nodeSelector: 
+                hiru.io/directpv-storage-tier: "{{ .Values.minio.firstPool.storageTierNodeLabel }}"
+              {{- end }}
+              {{- with .Values.minio.firstPool.resources }}
+              resources: 
+                {{- . | toYaml | nindent 16 }}
+              {{- end }}
+              containerSecurityContext:
+                runAsUser: 1000
+                runAsGroup: 1000
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: "RuntimeDefault"
+            {{- if .Values.minio.extraPools -}}
+            {{- range $i, $value := .Values.minio.extraPools }}
+            - servers: {{ $value.servers }}
+              name: pool-{{ add $i 1 }}
+              volumesPerServer: {{ $value.volumesPerServer }}
+              size: {{ $value.size }}
+              storageClassName: {{ $value.storageClassName }}
+              {{- if not .Values.global.dev }}
+              nodeSelector: 
+                hiru.io/directpv-storage-tier: "{{ $value.storageTierNodeLabel }}"
+              {{- end }}
+              resources:
+                {{- if $value.resources }}
+                {{- $value.resources | toYaml | nindent 16 }}
+                {{- end }}
+              containerSecurityContext:
+                runAsUser: 1000
+                runAsGroup: 1000
+                runAsNonRoot: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop: ["ALL"]
+                seccompProfile:
+                  type: "RuntimeDefault"
+            {{- end }}
+            {{- end }}
+
+          metrics:
+            enabled: true
+
+          buckets:
+            - name: {{ .Values.submission.minioBucketName }}
+
+          env:
+            {{- if not .Values.global.dev }}
+            - name: MINIO_PROMETHEUS_AUTH_TYPE
+              value: public
+            - name: MINIO_PROMETHEUS_URL
+              value: "{{ .Values.global.monitoring.prometheusEndpoint }}"
+            - name: CONSOLE_PROMETHEUS_URL
+              value: "{{ .Values.global.monitoring.prometheusEndpoint }}"
+            - name: MINIO_PROMETHEUS_JOB_ID
+              value: "scrapeConfig/{{ .Values.global.monitoring.prometheusNamespace }}/{{ .Values.global.namespace }}-minio-job"
+            - name: PROMETHEUS_NAMESPACE
+              value: "{{ .Values.global.monitoring.prometheusNamespace }}"
+            - name: PROMETHEUS_NAME
+              value: "prometheus-operator-kube-p-prometheus"
+            {{- end }}
+            {{- if and .Values.global.dev (not .Values.global.ingress.enabled) }}
+            - name: MINIO_IDENTITY_OPENID_CONFIG_URL_PRIMARY_IAM
+              value: "http://keycloak.localtest.me/realms/Dare-Control/.well-known/openid-configuration"
+            {{- else }}
+            - name: MINIO_IDENTITY_OPENID_CONFIG_URL_PRIMARY_IAM
+              value: "{{ .Values.global.oidc.authority }}/.well-known/openid-configuration"
+            {{- end }}
+            - name: MINIO_IDENTITY_OPENID_DISPLAY_NAME_PRIMARY_IAM
+              value: "Keycloak"
+            - name: MINIO_IDENTITY_OPENID_SCOPES_PRIMARY_IAM
+              value: "openid,email"
+            - name: MINIO_IDENTITY_OPENID_REDIRECT_URI_DYNAMIC_PRIMARY_IAM
+              value: "on"
+            - name: MINIO_IDENTITY_OPENID_VENDOR
+              value: "keycloak"
+            - name: GC
+              value: "10"
+            - name: MINIO_STORAGE_CLASS_STANDARD
+              value: "{{ .Values.minio.ecParity }}"
+            - name: MINIO_ERASURE_SET_DRIVE_COUNT
+              value: "{{ .Values.minio.ecStripeSize }}"
+            {{- with .Values.minio.env -}}
+            {{ toYaml . | nindent 12 }}
+            {{- end }}
+
+
+          certificate:
+            {{- if and .Values.global.dev (not .Values.global.ingress.enabled) }}
+            requestAutoCert: false
+            {{- else }}
+            requestAutoCert: true
+            externalCertSecret:
+              - name: minio-ingress-tls
+                type: kubernetes.io/tls
+            {{- end }}
+          
+
+          prometheusOperator: false
+
+          
+        {{- if and .Values.global.dev (not .Values.global.ingress.enabled) }}
+        ingress:
+          api:
+            enabled: true
+            ingressClassName: "nginx"
+            annotations: 
+              nginx.ingress.kubernetes.io/proxy-body-size: "0"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+              nginx.ingress.kubernetes.io/client-header-buffer-size: 100k
+              nginx.ingress.kubernetes.io/http2-max-header-size: 96k
+              nginx.ingress.kubernetes.io/large-client-header-buffers: 4 100k
+              nginx.ingress.kubernetes.io/proxy-buffer-size: 256k
+              nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+              nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+              nginx.ingress.kubernetes.io/proxy-max-temp-file-size: 1024m
+            host: minio-api.localtest.me
+            path: /
+            pathType: Prefix
+
+          console:
+            enabled: true
+            ingressClassName: "nginx"
+            annotations: 
+              nginx.ingress.kubernetes.io/proxy-body-size: "0"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+              nginx.ingress.kubernetes.io/client-header-buffer-size: 100k
+              nginx.ingress.kubernetes.io/http2-max-header-size: 96k
+              nginx.ingress.kubernetes.io/large-client-header-buffers: 4 100k
+              nginx.ingress.kubernetes.io/proxy-buffer-size: 256k
+              nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+              nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+              nginx.ingress.kubernetes.io/proxy-max-temp-file-size: 1024m
+            host: minio.localtest.me
+            path: /
+            pathType: Prefix
+
+        {{- end }}
+
+        {{- if .Values.global.ingress.enabled }}
+        ingress:
+          api:
+            enabled: true
+            ingressClassName: "{{ .Values.global.ingress.className }}"
+            annotations: 
+              cert-manager.io/cluster-issuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+              nginx.ingress.kubernetes.io/proxy-body-size: "0"
+              nginx.ingress.kubernetes.io/secure-backends: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+              nginx.ingress.kubernetes.io/client-header-buffer-size: 100k
+              nginx.ingress.kubernetes.io/http2-max-header-size: 96k
+              nginx.ingress.kubernetes.io/large-client-header-buffers: 4 100k
+              nginx.ingress.kubernetes.io/proxy-buffer-size: 256k
+              nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+              nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+              nginx.ingress.kubernetes.io/proxy-max-temp-file-size: 1024m
+            tls: 
+              - hosts:
+                - minio-api.{{ .Values.global.ingress.host }}
+                secretName: minioapi-ingress-tls
+            host: minio-api.{{ .Values.global.ingress.host }}
+            path: /
+            pathType: Prefix
+
+          console:
+            enabled: true
+            ingressClassName: "{{ .Values.global.ingress.className }}"
+            annotations: 
+              cert-manager.io/cluster-issuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+              nginx.ingress.kubernetes.io/proxy-body-size: "0"
+              nginx.ingress.kubernetes.io/secure-backends: "true"
+              nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+              nginx.ingress.kubernetes.io/client-header-buffer-size: 100k
+              nginx.ingress.kubernetes.io/http2-max-header-size: 96k
+              nginx.ingress.kubernetes.io/large-client-header-buffers: 4 100k
+              nginx.ingress.kubernetes.io/proxy-buffer-size: 256k
+              nginx.ingress.kubernetes.io/proxy-buffering: 'on'
+              nginx.ingress.kubernetes.io/proxy-buffers-number: '4'
+              nginx.ingress.kubernetes.io/proxy-max-temp-file-size: 1024m
+            tls: 
+              - hosts:
+                - minio.{{ .Values.global.ingress.host }}
+                secretName: minio-ingress-tls
+            host: minio.{{ .Values.global.ingress.host }}
+            path: /
+            pathType: Prefix
+
+        {{- end }}
+
+{{- end }}
