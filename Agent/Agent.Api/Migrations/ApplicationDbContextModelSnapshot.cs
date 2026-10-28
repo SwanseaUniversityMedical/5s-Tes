@@ -25,6 +25,70 @@ namespace Agent.Api.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Agent.Api.Models.AirlockEgressRequest", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("AirlockRequestId")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("AirlockRequestVersion")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime?>("ClosedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int?>("LastAirlockStatus")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("LastError")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("LastSentAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("OutputBucket")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("ProjectId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SendAttempts")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("State")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("SubId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TesId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("TesName")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AirlockRequestId");
+
+                    b.HasIndex("State");
+
+                    b.HasIndex("SubId")
+                        .IsUnique();
+
+                    b.ToTable("AirlockEgressRequests");
+                });
+
             modelBuilder.Entity("Agent.Api.Models.ProjectAcount", b =>
                 {
                     b.Property<int>("Id")
