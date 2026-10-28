@@ -24,6 +24,12 @@ public class GovernanceImportService : IGovernanceImportService
         _vaultCredentialsService = vaultCredentialsService;
     }
 
+    /// <summary>
+    /// Creates and sets up the TREs defined in a Director Governance JSON config file.
+    /// </summary>
+    /// <param name="config">The Deserialized Governance config.</param>
+    /// <param name="onTreSaved">The function that should be invoked when a TRE is saved.</param>
+    /// <returns>A list containing a result message that describes the outcome for each TRE processed.</returns>
     public async Task<List<string>> ApplyConfigAsync(DirectorGovernanceConfig config, Func<Tre, bool, Task>? onTreSaved = null)
     {
         List<string> results = new();
@@ -78,6 +84,12 @@ public class GovernanceImportService : IGovernanceImportService
         return results;
     }
 
+    /// <summary>
+    /// Saves a TRE to the database.
+    /// Provisions a Keycloak service account and Vault credential to TREs that do not already have one.
+    /// </summary>
+    /// <param name="tre">The TRE we are adding or updating.</param>
+    /// <param name="isNew">True if the TRE doesn't already exist in the database.</param>
     private async Task StoreTreWithServiceAccountAsync(Tre tre, bool isNew)
     {
         if (isNew)
