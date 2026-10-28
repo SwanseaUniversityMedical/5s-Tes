@@ -106,6 +106,9 @@ treKeyCloakSettings.KeycloakDemoMode =
 builder.Services.AddKeycloakSettings<DataEgressKeyCloakSettings>(
   configuration, "DataEgressKeyCloakSettings");
 
+builder.Services.AddKeycloakSettings<AirlockKeyCloakSettings>(
+  configuration, "AirlockKeyCloakSettings");
+
 builder.Services.AddKeycloakSettings<SubmissionKeyCloakSettings>(
   configuration, "SubmissionKeyCloakSettings");
 builder.Services.Configure<ApiEndpointSettings>(
@@ -156,6 +159,29 @@ builder.Services.AddHostedService<ConsumeInternalMessageService>();
 
 builder.Services.AddScoped<IDareClientWithoutTokenHelper, DareClientWithoutTokenHelper>();
 builder.Services.AddScoped<IDataEgressClientWithoutTokenHelper, DataEgressClientWithoutTokenHelper>();
+
+var egressSettings = new EgressSettings();
+configuration.Bind(nameof(EgressSettings), egressSettings);
+builder.Services.AddSingleton(egressSettings);
+
+var airlockSettings = new AirlockSettings();
+configuration.Bind(nameof(AirlockSettings), airlockSettings);
+builder.Services.AddSingleton(airlockSettings);
+
+builder.Services.AddScoped<IAirlockClientHelper, AirlockClientHelper>();
+builder.Services.AddScoped<IEgressOutcomeService, EgressOutcomeService>();
+builder.Services.AddScoped<AirlockEgressProvider>();
+builder.Services.AddScoped<IAirlockOutcomeService, AirlockOutcomeService>();
+builder.Services.AddScoped<IDoAirlockSendRetryWork, DoAirlockSendRetryWork>();
+if (egressSettings.Provider == EgressProvider.Airlock)
+{
+    builder.Services.AddScoped<IEgressProvider>(sp => sp.GetRequiredService<AirlockEgressProvider>());
+}
+else
+{
+    builder.Services.AddScoped<IEgressProvider, DataEgressProvider>();
+}
+Log.Information("Egress review provider: {Provider}", egressSettings.Provider);
 
 builder.Services.AddSingleton(new AutomaticRetryAttribute());
 
@@ -488,6 +514,16 @@ else
     RecurringJob.AddOrUpdate<IDoBucketCleanupWork>(bucketCleanupJobName,
         x => x.Execute(),
         Cron.Daily(Math.Clamp(jobSettings.bucketCleanupSchedule, 1, 23)));
+
+// Retries sends to Airlock that failed. Review outcomes arrive through Airlock's callback
+// (/api/Submission/AirlockResults). Only runs when Airlock is the provider.
+const string airlockSendRetryJobName = "AirlockSendRetryJob";
+if (egressSettings.Provider == EgressProvider.Airlock && airlockSettings.RetryIntervalMinutes > 0)
+    RecurringJob.AddOrUpdate<IDoAirlockSendRetryWork>(airlockSendRetryJobName,
+        x => x.Execute(),
+        Cron.MinuteInterval(airlockSettings.RetryIntervalMinutes));
+else
+    RecurringJob.RemoveIfExists(airlockSendRetryJobName);
 
 
 if (HasuraSettings.IsEnabled)

@@ -16,6 +16,7 @@ namespace Agent.Api.Repositories.DbContexts
     private readonly DataEgressKeyCloakSettings _egressKeycloakSettings;
     private readonly IConfigurationService _configurationService;
     private VaultConfigurationProvider _vaultConfigProvider;
+    private readonly EgressProvider _egressProvider;
     public IEncDecHelper _encDecHelper { get; set; }
 
     public DataInitaliser(ApplicationDbContext dbContext, IEncDecHelper encDec,
@@ -28,6 +29,7 @@ namespace Agent.Api.Repositories.DbContexts
       _submissionKeycloakSettings = submissionKeycloakSettings.Value;
       _egressKeycloakSettings = egressKeycloakSettings.Value;
       _configurationService = configService;
+      _egressProvider = configuration.GetValue<EgressProvider>("EgressSettings:Provider");
       _vaultConfigProvider = ((IConfigurationRoot)configuration).Providers.OfType<VaultConfigurationProvider>()
         .FirstOrDefault();
     }
@@ -65,7 +67,8 @@ namespace Agent.Api.Repositories.DbContexts
         string egressUsername = _egressKeycloakSettings.Username;
         string egressPassword = _egressKeycloakSettings.PasswordEnc;
 
-        if (string.IsNullOrEmpty(egressUsername) || string.IsNullOrEmpty(egressPassword))
+        if (_egressProvider == EgressProvider.DataEgress
+            && (string.IsNullOrEmpty(egressUsername) || string.IsNullOrEmpty(egressPassword)))
         {
           object credsToSave = new
           {
