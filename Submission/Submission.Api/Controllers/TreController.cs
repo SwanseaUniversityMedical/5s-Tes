@@ -70,69 +70,10 @@ namespace Submission.Api.Controllers
 
                 tre.FormData = data.FormIoString;
 
-                var logtype = LogType.AddTre;
-                if (tre.Id > 0)
-                {
-                    if (_DbContext.Tres.Select(x => x.Id == tre.Id).Any())
-                    {
-                        _DbContext.Tres.Update(tre);
-                        logtype = LogType.UpdateTre;
-                    }
-                    else
-                    {
-                        _DbContext.Tres.Add(tre);
-                    }
-                }
-                else
-                {
-                    _DbContext.Tres.Add(tre);
-                }
-                await _DbContext.SaveChangesAsync();
-                await ControllerHelpers.AddAuditLog(logtype, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
+                var logtype = tre.Id > 0 && _DbContext.Tres.Any(x => x.Id == tre.Id) ? LogType.UpdateTre : LogType.AddTre;
+                await StoreTreWithServiceAccountAsync(tre, logtype);
 
-                // Provision whenever the TRE has no service account yet, not just on first add. This lets a
-                // failed run (e.g. a Vault write that didn't complete) self-heal on the next save, and
-                // backfills legacy TREs. CreateServiceAccountAsync is idempotent: it reuses the existing
-                // Keycloak client for the TRE name, so re-running never creates a duplicate.
-                if (string.IsNullOrEmpty(tre.KeycloakClientId))
-                {
-                    try
-                    {
-                        var (clientUuid, clientId, clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
-
-                        // Write to Vault first, then persist KeycloakClientId only if the secret was stored.
-                        // This keeps the DB and Vault in sync: DownloadConfig needs both the client id and
-                        // the Vault-held secret, so we never record an id whose secret is missing from Vault.
-                        var vaultWritten = await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak",
-                            new Dictionary<string, object>
-                            {
-                                { "clientId", clientId },
-                                { "clientSecret", clientSecret },
-                                { "clientUuid", clientUuid }
-                            });
-
-                        if (!vaultWritten)
-                        {
-                            Log.Error("{Function} Keycloak client {ClientId} was provisioned but the Vault write failed for TRE {TreName}. KeycloakClientId was not saved and the service account needs manual setup.",
-                                "SaveTre", clientId, tre.Name);
-                        }
-                        else
-                        {
-                            tre.KeycloakClientId = clientId;
-                            await _DbContext.SaveChangesAsync();
-
-                            Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
-                                "SaveTre", clientId, tre.Name);
-                        }
-                    }
-                    catch (Exception serviceAccountEx)
-                    {
-                        Log.Error(serviceAccountEx, "{Function} Failed to create service account for TRE {TreName}. TRE was saved but service account needs manual setup.",
-                            "SaveTre", tre.Name);
-                    }
-                }
-
-                return Ok(tre); 
+                return Ok(tre);
             }
             catch (Exception ex)
             {
@@ -140,6 +81,114 @@ namespace Submission.Api.Controllers
                 return StatusCode(500, "An internal server error occurred");
             }
         }
+
+        [Authorize(Roles = "dare-control-admin")]
+        [HttpPost("ImportGovernanceConfig")]
+        public async Task<IActionResult> ImportGovernanceConfig([FromBody] DirectorGovernanceConfig config) 
+        {
+            try 
+            {
+                List<GovernanceProduct> fiveSafesTesProjects = (config.EnabledProducts ?? new())
+                .Where(x => x.ProductMetadata?.Name?.StartsWith("5SAFETES", StringComparison.OrdinalIgnoreCase) == true).ToList();
+
+                if (fiveSafesTesProjects.Count == 0) 
+                {
+                    return Ok(new { Message = "5s-Tes is not an enabled product in this configuration. No TREs created."});
+                }
+
+                List<int> treIdsToCreate = fiveSafesTesProjects.SelectMany(x => x.AssignedTres ?? new List<int>()).Distinct().ToList();
+                List<string> results = new();
+
+                foreach (int treId in treIdsToCreate)
+                {
+                    GovernanceTre? configTre = config.ConsortiumTres?.FirstOrDefault(x => x.Id == treId);
+                    if (configTre == null) 
+                    {
+                        results.Add($"TRE id {treId} is assigned to a 5S-TES product but not found in consortiumTres. Skipped.");
+                        continue;
+                    }
+
+                    GovernanceUser? adminUser = config.PresentUsers?.FirstOrDefault(x => x.RepresentedTreId == treId 
+                        && string.Equals(x.Role, "admin", StringComparison.OrdinalIgnoreCase));
+
+                    if (adminUser == null)
+                    {
+                        results.Add($"TRE '{configTre.Name}' has no user with role 'admin' for this TRE. Skipped.");
+                        continue;
+                    }
+
+                    Tre? existing = _DbContext.Tres.FirstOrDefault(x => x.Name.ToLower() == configTre.Name.ToLower().Trim());
+                    Tre tre = existing ?? new Tre { Name = configTre.Name.Trim(), FormData = string.Empty };
+                    tre.AdminUsername = adminUser.Email;
+                    tre.About = configTre.OtherInformation;
+
+                    await StoreTreWithServiceAccountAsync(tre, existing == null ? LogType.AddTre : LogType.UpdateTre);
+                    results.Add($"TRE '{tre.Name}' {(existing == null ? "created" : "updated")}, admin set to {tre.AdminUsername}.");
+                }
+
+                return Ok(new { Results = results });
+            }
+            catch (Exception ex) 
+            {
+                Log.Error(ex, "{Function} Crashed", "ImportGovernanceConfig");
+                return StatusCode(500, "An internal server error occurred");
+            }
+        }
+
+
+        private async Task StoreTreWithServiceAccountAsync(Tre tre, LogType logType) 
+        {
+            if (tre.Id > 0 && _DbContext.Tres.Any(x => x.Id == tre.Id))
+            {
+                _DbContext.Tres.Update(tre);
+            }
+            else
+            {
+                _DbContext.Tres.Add(tre);
+            }
+
+            await _DbContext.SaveChangesAsync();
+            await ControllerHelpers.AddAuditLog(logType, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
+
+            if (string.IsNullOrEmpty(tre.KeycloakClientId))
+            {
+                try
+                {
+                    var (clientUuid, clientId, clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
+
+                    // Write to Vault first, then persist KeycloakClientId only if the secret was stored.
+                    // This keeps the DB and Vault in sync: DownloadConfig needs both the client id and
+                    // the Vault-held secret, so we never record an id whose secret is missing from Vault.
+                    var vaultWritten = await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak",
+                        new Dictionary<string, object>
+                        {
+                                { "clientId", clientId },
+                                { "clientSecret", clientSecret },
+                                { "clientUuid", clientUuid }
+                        });
+
+                    if (!vaultWritten)
+                    {
+                        Log.Error("{Function} Keycloak client {ClientId} was provisioned but the Vault write failed for TRE {TreName}. KeycloakClientId was not saved and the service account needs manual setup.",
+                            "StoreTreWithServiceAccountAsync ", clientId, tre.Name);
+                    }
+                    else
+                    {
+                        tre.KeycloakClientId = clientId;
+                        await _DbContext.SaveChangesAsync();
+
+                        Log.Information("{Function} Service account {ClientId} created and stored in Vault for TRE {TreName}",
+                            "StoreTreWithServiceAccountAsync ", clientId, tre.Name);
+                    }
+                }
+                catch (Exception serviceAccountEx)
+                {
+                    Log.Error(serviceAccountEx, "{Function} Failed to create service account for TRE {TreName}. TRE was saved but service account needs manual setup.",
+                        "StoreTreWithServiceAccountAsync ", tre.Name);
+                }
+            }
+        }
+
         [HttpGet("GetTresInProject/{projectId}")]
         public List<Tre> GetTresInProject(int projectId)
         {
