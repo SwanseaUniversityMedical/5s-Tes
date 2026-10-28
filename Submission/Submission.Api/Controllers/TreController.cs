@@ -28,11 +28,11 @@ namespace Submission.Api.Controllers
         private readonly IVaultCredentialsService _vaultCredentialsService;
         private readonly SubmissionKeyCloakSettings _keycloakSettings;
         private readonly IConfiguration _configuration;
-
+        private readonly IGovernanceImportService _governanceImportService;
 
         public TreController(ApplicationDbContext applicationDbContext, IHttpContextAccessor httpContextAccessor,
             IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService,
-            SubmissionKeyCloakSettings keycloakSettings, IConfiguration configuration)
+            SubmissionKeyCloakSettings keycloakSettings, IConfiguration configuration, IGovernanceImportService governanceImportService)
         {
 
             _DbContext = applicationDbContext;
@@ -41,7 +41,7 @@ namespace Submission.Api.Controllers
             _vaultCredentialsService = vaultCredentialsService;
             _keycloakSettings = keycloakSettings;
             _configuration = configuration;
-
+            _governanceImportService = governanceImportService;
         }     
 
         [Authorize(Roles = "dare-control-admin")]
@@ -86,49 +86,16 @@ namespace Submission.Api.Controllers
         [HttpPost("ImportGovernanceConfig")]
         public async Task<IActionResult> ImportGovernanceConfig([FromBody] DirectorGovernanceConfig config) 
         {
-            try 
+            try
             {
-                List<GovernanceProduct> fiveSafesTesProjects = (config.EnabledProducts ?? new())
-                .Where(x => x.ProductMetadata?.Name?.StartsWith("5SAFETES", StringComparison.OrdinalIgnoreCase) == true).ToList();
-
-                if (fiveSafesTesProjects.Count == 0) 
+                List<string> results = await _governanceImportService.ApplyConfigAsync(config, async (tre, isNew) =>
                 {
-                    return Ok(new { Message = "5s-Tes is not an enabled product in this configuration. No TREs created."});
-                }
-
-                List<int> treIdsToCreate = fiveSafesTesProjects.SelectMany(x => x.AssignedTres ?? new List<int>()).Distinct().ToList();
-                List<string> results = new();
-
-                foreach (int treId in treIdsToCreate)
-                {
-                    GovernanceTre? configTre = config.ConsortiumTres?.FirstOrDefault(x => x.Id == treId);
-                    if (configTre == null) 
-                    {
-                        results.Add($"TRE id {treId} is assigned to a 5S-TES product but not found in consortiumTres. Skipped.");
-                        continue;
-                    }
-
-                    GovernanceUser? adminUser = config.PresentUsers?.FirstOrDefault(x => x.RepresentedTreId == treId 
-                        && string.Equals(x.Role, "admin", StringComparison.OrdinalIgnoreCase));
-
-                    if (adminUser == null)
-                    {
-                        results.Add($"TRE '{configTre.Name}' has no user with role 'admin' for this TRE. Skipped.");
-                        continue;
-                    }
-
-                    Tre? existing = _DbContext.Tres.FirstOrDefault(x => x.Name.ToLower() == configTre.Name.ToLower().Trim());
-                    Tre tre = existing ?? new Tre { Name = configTre.Name.Trim(), FormData = string.Empty };
-                    tre.AdminUsername = adminUser.Email;
-                    tre.About = configTre.OtherInformation;
-
-                    await StoreTreWithServiceAccountAsync(tre, existing == null ? LogType.AddTre : LogType.UpdateTre);
-                    results.Add($"TRE '{tre.Name}' {(existing == null ? "created" : "updated")}, admin set to {tre.AdminUsername}.");
-                }
+                    await ControllerHelpers.AddAuditLog(isNew ? LogType.AddTre : LogType.UpdateTre, null, null, tre, null, null, _httpContextAccessor, User, _DbContext);
+                });
 
                 return Ok(new { Results = results });
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crashed", "ImportGovernanceConfig");
                 return StatusCode(500, "An internal server error occurred");
