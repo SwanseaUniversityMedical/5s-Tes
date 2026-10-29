@@ -59,7 +59,7 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
                         column = command[++i];
                         break;
                     case FilterArg:
-                        if (i + 1 >= command.Count)
+                        if (i + 1 >= command.Count || string.IsNullOrWhiteSpace(command[i + 1]))
                             return Fail(FederatedTaskErrorCodes.InvalidFilter, $"{FilterArg} requires a value");
                         var filter = ParseFilter(command[++i], out var filterError);
                         if (filter == null)

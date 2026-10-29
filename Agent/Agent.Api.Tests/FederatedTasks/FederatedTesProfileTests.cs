@@ -100,6 +100,7 @@ public class FederatedTesProfileTests
         { "null command", t => t.Executors[0].Command = null, FederatedTaskErrorCodes.InvalidTask },
         { "tres blank", t => t.Tags!["tres"] = "  ", FederatedTaskErrorCodes.InvalidTask },
         { "tag keys collide by case", t => t.Tags = new Dictionary<string, string> { ["tres"] = "a", ["TRES"] = "b", ["study_id"] = "s1" }, FederatedTaskErrorCodes.InvalidTask },
+        { "null filter value", t => t.Executors[0].Command = ["count", "--filter", null!], FederatedTaskErrorCodes.InvalidFilter },
         { "unknown arg", t => t.Executors[0].Command = ["count", "--limit", "5"], FederatedTaskErrorCodes.InvalidTask },
     };
 
