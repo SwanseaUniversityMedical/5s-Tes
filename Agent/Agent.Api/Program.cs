@@ -383,6 +383,8 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
     builder.Services.AddHttpContextAccessor();
 
     builder.Services.AddScoped<IMinioTreHelper, MinioTreHelper>();
+    builder.Services.AddScoped<IDatasetStore, MinioDatasetStore>();
+    builder.Services.AddScoped<IDatasetReader, DatasetReader>();
     builder.Services.AddScoped<IMinioSubHelper, MinioSubHelper>();
     builder.Services.AddScoped<IProjectS3AccessKeySyncService, ProjectS3AccessKeySyncService>();
     builder.Services.AddScoped<IProjectS3SubHelperFactory, ProjectS3SubHelperFactory>();
