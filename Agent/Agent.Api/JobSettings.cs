@@ -7,9 +7,11 @@ namespace Agent.Api
         public int syncSchedule { get; set; }
         public int scanSchedule { get; set; }
         public int healthCheckSchedule { get; set; }
+        public int federatedTaskSchedule { get; set; }
         public string SyncJobName { get; set; }
         public string ScanJobName { get; set; }
         public string HealthCheckJobName { get; set; }
+        public string FederatedTaskJobName { get; set; }
         public int DaysBeforeHealthLogDeletion { get; set; } = 30;
 
         // Bucket cleanup for expired projects. 0 disables the job; a non-zero value is the

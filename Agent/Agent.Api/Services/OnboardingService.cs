@@ -159,6 +159,16 @@ public class OnboardingService(
         {
             RecurringJob.AddOrUpdate<IDoAgentWork>(scanJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.scanSchedule));
         }
+
+        string federatedTaskJobName = jobSettings.FederatedTaskJobName;
+        if (jobSettings.federatedTaskSchedule == 0)
+        {
+            RecurringJob.RemoveIfExists(federatedTaskJobName);
+        }
+        else
+        {
+            RecurringJob.AddOrUpdate<IDoFederatedTaskWork>(federatedTaskJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.federatedTaskSchedule));
+        }
     }
 
     /// <summary>

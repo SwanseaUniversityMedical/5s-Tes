@@ -211,6 +211,7 @@ public class DoHealthCheckWork(
   {
     RecurringJob.RemoveIfExists(jobSettings.SyncJobName);
     RecurringJob.RemoveIfExists(jobSettings.ScanJobName);
+    RecurringJob.RemoveIfExists(jobSettings.FederatedTaskJobName);
   }
 
   /// <summary>
