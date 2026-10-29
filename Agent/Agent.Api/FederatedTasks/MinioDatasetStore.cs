@@ -20,13 +20,24 @@ namespace Agent.Api.FederatedTasks
         public async Task<IReadOnlyList<string>> ListKeysAsync(string prefix, CancellationToken ct)
         {
             var response = await _helper.GetFilesInBucket(_settings.DatasetBucket, prefix);
-            return response?.S3Objects.Select(o => o.Key).ToList() ?? [];
+            if (response == null)
+            {
+                // A failed listing is not an empty dataset; let the caller report it as an internal error.
+                throw new InvalidOperationException(
+                    $"Listing bucket '{_settings.DatasetBucket}' with prefix '{prefix}' failed");
+            }
+
+            return response.S3Objects.Select(o => o.Key).ToList();
         }
 
         public async Task<Stream> OpenReadAsync(string key, CancellationToken ct)
         {
-            var response = await _helper.GetCopyObject(_settings.DatasetBucket, key);
-            return response.ResponseStream;
+            // Buffer so the S3 response can be disposed here instead of leaking with the returned stream.
+            using var response = await _helper.GetCopyObject(_settings.DatasetBucket, key);
+            var buffer = new MemoryStream();
+            await response.ResponseStream.CopyToAsync(buffer, ct);
+            buffer.Position = 0;
+            return buffer;
         }
     }
 }
