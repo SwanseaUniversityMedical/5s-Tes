@@ -29,6 +29,8 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Teleport", "Teleport", "{C4
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TeleportUserManagement", "Teleport\TeleportUserManagement\TeleportUserManagement\TeleportUserManagement.csproj", "{F8756B53-E2DB-93AC-FD71-40370A186901}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Agent.Api.Tests", "Agent\Agent.Api.Tests\Agent.Api.Tests.csproj", "{6486E4D7-08C0-4599-AF08-155068BC4C53}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -135,6 +137,18 @@ Global
 		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x64.Build.0 = Release|Any CPU
 		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x86.ActiveCfg = Release|Any CPU
 		{F8756B53-E2DB-93AC-FD71-40370A186901}.Release|x86.Build.0 = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|x64.Build.0 = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Debug|x86.Build.0 = Debug|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|Any CPU.Build.0 = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|x64.ActiveCfg = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|x64.Build.0 = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|x86.ActiveCfg = Release|Any CPU
+		{6486E4D7-08C0-4599-AF08-155068BC4C53}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
@@ -148,6 +162,7 @@ Global
 		{9E966E9C-6995-41B1-8353-4D5A7CD72C22} = {BBDCE393-E449-BBF0-AC9C-BB4BA76B59C8}
 		{0CF43E59-2B84-461D-B6F8-CA84322EDF1E} = {B6BC038F-1391-9A93-076E-BD02A467D421}
 		{F8756B53-E2DB-93AC-FD71-40370A186901} = {C4C3C373-C3CB-4E5B-8F4F-9D3966E98352}
+		{6486E4D7-08C0-4599-AF08-155068BC4C53} = {A0596E84-2522-6F31-0F43-77167BFA80D0}
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {18363902-D01D-4FE4-897A-14F5688E48B8}

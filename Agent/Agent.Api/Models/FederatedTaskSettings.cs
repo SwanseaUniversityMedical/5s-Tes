@@ -16,5 +16,15 @@ namespace Agent.Api.Models
         /// Key prefix under which each dataset lives, as {DatasetPrefix}{datasetName}/*.csv.
         /// </summary>
         public string DatasetPrefix { get; set; } = "dataset/";
+
+        /// <summary>
+        /// File extensions (without the dot) that the upload policy allows to be uploaded.
+        /// </summary>
+        public string[] AllowedExtensions { get; set; } = ["csv"];
+
+        /// <summary>
+        /// Name of the RustFS canned policy, created at startup, that grants dataset upload.
+        /// </summary>
+        public string UploadPolicyName { get; set; } = "dataset-upload";
     }
 }

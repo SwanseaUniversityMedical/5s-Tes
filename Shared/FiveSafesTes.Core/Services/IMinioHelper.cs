@@ -51,6 +51,11 @@ namespace FiveSafesTes.Core.Services
         Task<MinioCommandResult> GetMinioSecretAsync(string accessKey, CancellationToken cancellationToken = default);
 
         Task<bool> CreateProjectS3AccessPolicyAsync(string policyName, string submissionBucket, string outputBucket);
+
+        /// <summary>
+        /// Creates or replaces a canned policy on the object store from raw policy JSON.
+        /// </summary>
+        Task<bool> PutCannedPolicyAsync(string policyName, string policyJson);
         Task<bool> AttachPolicyToUserAsync(string policyName, string accessKey, CancellationToken cancellationToken = default);
 
         /// <summary>

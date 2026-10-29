@@ -2,6 +2,7 @@ using System.Net;
 using System.Reflection;
 using Agent.Api;
 using Agent.Api.Constants;
+using Agent.Api.FederatedTasks;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
 using Agent.Api.Services;
@@ -322,6 +323,14 @@ using (var scope = app.Services.CreateScope())
     if (!await minioTreHelper.CreateBucket(federatedTaskSettings.DatasetBucket))
     {
         Log.Error("Could not create federated task dataset bucket {DatasetBucket}", federatedTaskSettings.DatasetBucket);
+    }
+
+    // Lets a TRE admin upload datasets (csv only, under the dataset prefix) from the console.
+    var uploadPolicy = DatasetUploadPolicy.Build(
+        federatedTaskSettings.DatasetBucket, federatedTaskSettings.DatasetPrefix, federatedTaskSettings.AllowedExtensions);
+    if (!await minioTreHelper.PutCannedPolicyAsync(federatedTaskSettings.UploadPolicyName, uploadPolicy))
+    {
+        Log.Error("Could not create dataset upload policy {PolicyName}", federatedTaskSettings.UploadPolicyName);
     }
 }
 

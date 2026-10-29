@@ -964,8 +964,6 @@ namespace FiveSafesTes.Core.Services
             string submissionBucket,
             string outputBucket)
         {
-            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
-
             var policyJson = JsonConvert.SerializeObject(new
             {
                 Version = "2012-10-17",
@@ -996,6 +994,24 @@ namespace FiveSafesTes.Core.Services
                 }
             });
 
+            if (!await PutCannedPolicyAsync(policyName, policyJson))
+            {
+                return false;
+            }
+
+            Log.Information(
+                "Created project S3 access policy {PolicyName} for buckets {SubmissionBucket}/{OutputBucket}",
+                policyName, submissionBucket, outputBucket);
+            return true;
+        }
+
+        /// <summary>
+        /// Creates or replaces a canned IAM policy on the object store via the signed admin API.
+        /// </summary>
+        public async Task<bool> PutCannedPolicyAsync(string policyName, string policyJson)
+        {
+            var signer = new AWS4RequestSigner(_minioSettings.AccessKey, _minioSettings.SecretKey);
+
             var baseUrl = _minioSettings.Url.TrimEnd('/');
             var encodedPolicyName = Uri.EscapeDataString(policyName);
             var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
@@ -1014,15 +1030,12 @@ namespace FiveSafesTes.Core.Services
 
             if (response.StatusCode == HttpStatusCode.OK)
             {
-                Log.Information(
-                    "Created project S3 access policy {PolicyName} for buckets {SubmissionBucket}/{OutputBucket}",
-                    policyName, submissionBucket, outputBucket);
                 return true;
             }
 
             var responseBody = await response.Content.ReadAsStringAsync();
             Log.Warning(
-                "CreateProjectS3AccessPolicyAsync failed for {PolicyName}. Status: {StatusCode}. Response: {ResponseBody}",
+                "PutCannedPolicyAsync failed for {PolicyName}. Status: {StatusCode}. Response: {ResponseBody}",
                 policyName,
                 response.StatusCode,
                 responseBody);
