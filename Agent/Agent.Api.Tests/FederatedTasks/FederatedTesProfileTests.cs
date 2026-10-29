@@ -69,6 +69,15 @@ public class FederatedTesProfileTests
         Assert.Equal("tre-a", FederatedTesProfile.Parse(task).Spec!.TreName);
     }
 
+    [Fact]
+    public void Parse_TreNameWithSpaces_IsAccepted()
+    {
+        var task = ValidTask();
+        task.Tags!["tres"] = "Five Safes TRE";
+
+        Assert.Equal("five safes tre", FederatedTesProfile.Parse(task).Spec!.TreName);
+    }
+
     public static TheoryData<string, Action<TesTask>, string> Rejections => new()
     {
         { "0 executors", t => t.Executors = [], FederatedTaskErrorCodes.InvalidTask },
@@ -85,6 +94,12 @@ public class FederatedTesProfileTests
         { "mean without column", t => t.Executors[0].Command = ["mean"], FederatedTaskErrorCodes.InvalidTask },
         { "bad filter operator", t => t.Executors[0].Command = ["count", "--filter", "sex:like:F"], FederatedTaskErrorCodes.InvalidFilter },
         { "filter without parts", t => t.Executors[0].Command = ["count", "--filter", "sex"], FederatedTaskErrorCodes.InvalidFilter },
+        { "trailing newline dataset", t => t.Inputs![0].Url = "dataset://cohort\n", FederatedTaskErrorCodes.InvalidDatasetName },
+        { "null executor", t => t.Executors = [null!], FederatedTaskErrorCodes.InvalidTask },
+        { "null input", t => t.Inputs = [null!], FederatedTaskErrorCodes.InvalidTask },
+        { "null command", t => t.Executors[0].Command = null, FederatedTaskErrorCodes.InvalidTask },
+        { "tres blank", t => t.Tags!["tres"] = "  ", FederatedTaskErrorCodes.InvalidTask },
+        { "tag keys collide by case", t => t.Tags = new Dictionary<string, string> { ["tres"] = "a", ["TRES"] = "b", ["study_id"] = "s1" }, FederatedTaskErrorCodes.InvalidTask },
         { "unknown arg", t => t.Executors[0].Command = ["count", "--limit", "5"], FederatedTaskErrorCodes.InvalidTask },
     };
 

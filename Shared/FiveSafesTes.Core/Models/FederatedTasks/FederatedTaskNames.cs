@@ -8,7 +8,7 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
     public static class FederatedTaskNames
     {
         private static readonly Regex DatasetNamePattern =
-            new("^[a-z0-9][a-z0-9_-]{0,62}$", RegexOptions.CultureInvariant);
+            new("^[a-z0-9][a-z0-9_-]{0,62}\\z", RegexOptions.CultureInvariant);
 
         /// <summary>
         /// True when the name is a safe dataset folder name: lowercase letters, digits, '_' and '-',

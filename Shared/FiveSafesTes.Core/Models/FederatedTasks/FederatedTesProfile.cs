@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using FiveSafesTes.Core.Models.Tes;
 
 namespace FiveSafesTes.Core.Models.FederatedTasks
@@ -23,9 +22,6 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
         public static readonly IReadOnlySet<string> FilterOperators =
             new HashSet<string>(StringComparer.Ordinal) { "eq", "gt", "lt", "gte", "lte" };
 
-        private static readonly Regex TreNamePattern =
-            new("^[A-Za-z0-9][A-Za-z0-9_-]*$", RegexOptions.CultureInvariant);
-
         /// <summary>
         /// Applies the profile rules in order (executors, command, inputs, outputs, tags); the first failure wins.
         /// </summary>
@@ -35,6 +31,8 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
             if (task.Executors == null || task.Executors.Count != 1)
                 return Fail(FederatedTaskErrorCodes.InvalidTask, "task must have exactly one executor");
             var executor = task.Executors[0];
+            if (executor == null)
+                return Fail(FederatedTaskErrorCodes.InvalidTask, "executor must not be null");
             if (executor.Image != ExecutorImage)
                 return Fail(FederatedTaskErrorCodes.InvalidTask, $"executor image must be {ExecutorImage}");
 
@@ -79,6 +77,8 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
             // Inputs
             if (task.Inputs == null || task.Inputs.Count != 1)
                 return Fail(FederatedTaskErrorCodes.InvalidTask, "task must have exactly one input");
+            if (task.Inputs[0] == null)
+                return Fail(FederatedTaskErrorCodes.InvalidTask, "input must not be null");
             var url = task.Inputs[0].Url;
             if (url == null || !url.StartsWith(DatasetUrlScheme, StringComparison.Ordinal))
                 return Fail(FederatedTaskErrorCodes.InvalidTask, $"input url must start with {DatasetUrlScheme}");
@@ -91,15 +91,20 @@ namespace FiveSafesTes.Core.Models.FederatedTasks
                 return Fail(FederatedTaskErrorCodes.InvalidTask, "task must not declare outputs");
 
             // Tags
-            var tags = task.Tags == null
-                ? new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
-                : new Dictionary<string, string>(task.Tags, StringComparer.OrdinalIgnoreCase);
-            if (!tags.TryGetValue(TresTag, out var tre) || !TreNamePattern.IsMatch(tre))
+            var tags = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var tag in task.Tags ?? [])
+            {
+                if (!tags.TryAdd(tag.Key, tag.Value))
+                    return Fail(FederatedTaskErrorCodes.InvalidTask, "duplicate tag key");
+            }
+
+            // Exactly one TRE: non-empty after trimming, no '|' separator. Existence is checked later.
+            if (!tags.TryGetValue(TresTag, out var tre) || string.IsNullOrWhiteSpace(tre) || tre.Contains('|'))
                 return Fail(FederatedTaskErrorCodes.InvalidTask, $"tag '{TresTag}' must name exactly one TRE");
             if (!tags.TryGetValue(StudyIdTag, out var studyId) || string.IsNullOrWhiteSpace(studyId))
                 return Fail(FederatedTaskErrorCodes.InvalidTask, $"tag '{StudyIdTag}' is required");
 
-            var spec = new FederatedTaskSpec(operation, dataset, column, filters, studyId, tre.ToLowerInvariant());
+            var spec = new FederatedTaskSpec(operation, dataset, column, filters, studyId, tre.Trim().ToLowerInvariant());
             return new FederatedTaskParseResult(spec, null, null);
         }
 
