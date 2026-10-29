@@ -1,4 +1,5 @@
 using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Models.FederatedTasks;
 using Microsoft.EntityFrameworkCore;
 
 namespace Submission.Api.Repositories.DbContexts
@@ -28,12 +29,19 @@ namespace Submission.Api.Repositories.DbContexts
 
         public DbSet<UsedOnboardingJti> UsedOnboardingJtis { get; set; }
 
+        public DbSet<FederatedTask> FederatedTasks { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
             modelBuilder.Entity<UsedOnboardingJti>(b =>
             {
                 b.HasIndex(x => x.Jti).IsUnique();
+            });
+            modelBuilder.Entity<FederatedTask>(b =>
+            {
+                b.HasIndex(x => x.TaskId).IsUnique();
+                b.HasIndex(x => new { x.TreId, x.State });
             });
         }
     }
