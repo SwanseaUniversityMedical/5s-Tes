@@ -29,11 +29,11 @@ public class ConsumeGovernanceConfigService : BackgroundService
     {
         try 
         {
-            Exchange exchange = await _bus.Advanced.ExchangeDeclareAsync(ExchangeName, x => { }, stoppingToken);
+            Exchange exchange = await _bus.Advanced.ExchangeDeclareAsync(ExchangeName, x => x.WithType(ExchangeType.Direct), stoppingToken);
             Queue queue = await _bus.Advanced.QueueDeclareAsync(QueueName, x => x.WithArgument("x-queue-type", "classic"), stoppingToken);
 
             await _bus.Advanced.BindAsync(exchange, queue, RoutingKey, stoppingToken);
-            _bus.Advanced.Consume<byte[]>(queue, Process);
+            _bus.Advanced.Consume(queue, (body, properties, info) => Process(body, info));
         }
         catch (Exception ex) 
         {
@@ -41,16 +41,16 @@ public class ConsumeGovernanceConfigService : BackgroundService
         }
     }
 
-    private void Process(IMessage<byte[]> message, MessageReceivedInfo info)
+    private void Process(ReadOnlyMemory<byte> body, MessageReceivedInfo info)
     {
-        string body = Encoding.UTF8.GetString(message.Body);
+        string bodyStr = Encoding.UTF8.GetString(body.Span);
 
         try
         {
-            DirectorGovernanceConfig? config = JsonConvert.DeserializeObject<DirectorGovernanceConfig>(body);
+            DirectorGovernanceConfig? config = JsonConvert.DeserializeObject<DirectorGovernanceConfig>(bodyStr);
             if (config == null)
             {
-                Log.Error("{Function} Could not parse Director Governance message. Body: {Body}", "ConsumeGovernanceConfigService", body);
+                Log.Error("{Function} Could not parse Director Governance message. Body: {Body}", "ConsumeGovernanceConfigService", bodyStr);
                 return;
             }
 
@@ -61,7 +61,7 @@ public class ConsumeGovernanceConfigService : BackgroundService
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "{Function} Failed to process Director Governance message. Body: {Body}", "ConsumeGovernanceConfigService", body);
+            Log.Error(ex, "{Function} Failed to process Director Governance message. Body: {Body}", "ConsumeGovernanceConfigService", bodyStr);
         }
     }
 }
