@@ -612,7 +612,8 @@ namespace Agent.Api
                                             aSubmission.SubmittedBy.Id,
                                             treProjectForCreds?.SubmissionBucketTre,
                                             treProjectForCreds?.OutputBucketTre,
-                                            _config["MinioTRESettings:Url"]);
+                                            _config["MinioTRESettings:Url"],
+                                            FindSubmissionImageCodes(aSubmission));
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);
                                     }
                                     catch (Exception ex)
@@ -1171,11 +1172,45 @@ namespace Agent.Api
             }
         }
 
+        /// <summary>
+        /// The image codes across all of a submission's executors, read from the TES message
+        /// before any of them are resolved. Null when the message cannot be read, which leaves
+        /// the tre credential handler checking every image code's rows as it did before.
+        /// </summary>
+        private IReadOnlyList<string>? FindSubmissionImageCodes(Submission submission)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(submission.TesJson))
+                {
+                    return null;
+                }
+
+                var tesTask = JsonConvert.DeserializeObject<TesTask>(submission.TesJson);
+
+                if (tesTask is null)
+                {
+                    return null;
+                }
+
+                return (tesTask.Executors ?? new List<TesExecutor>())
+                    .SelectMany(executor => _imageCodeResolver.FindImageCodes(executor.Image))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not read the image codes for submission {SubId}", submission.Id);
+                return null;
+            }
+        }
+
         // Starts the Start_Credentials Camunda process for the given submission.
         // InputCollections mirrors the top-level variables as a list because the BPMN multi-instance
         // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId,
-            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null)
+            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null,
+            IReadOnlyList<string>? imageCodes = null)
         {
             var variables = new Dictionary<string, object>
             {
@@ -1195,6 +1230,14 @@ namespace Agent.Api
                     }
                 }
             };
+
+            // The credentials DMN has no image code input, so it returns the rows for every
+            // image the TRE has set up. This lets the tre handler drop the ones this submission
+            // does not run, so a broken row for one image cannot fail every submission.
+            if (imageCodes != null)
+            {
+                variables["imageCodes"] = imageCodes;
+            }
 
             await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
             Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);

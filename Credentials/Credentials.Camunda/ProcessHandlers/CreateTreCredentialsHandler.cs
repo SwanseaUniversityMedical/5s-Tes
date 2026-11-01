@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Text.Json;
 using Credentials.Camunda.Services;
 using Credentials.Models.DbContexts;
 using Credentials.Models.Models.Zeebe;
@@ -60,6 +61,25 @@ namespace Credentials.Camunda.ProcessHandlers
             }
 
             return groups;
+        }
+
+        /// <summary>
+        /// The image codes the submission's executors use, as the Agent sends them when it
+        /// starts the process. Null from an Agent that does not send them, in which case
+        /// every image code's rows are kept.
+        /// </summary>
+        private static HashSet<string>? ReadSubmissionImageCodes(Dictionary<string, object> variables)
+        {
+            if (!variables.TryGetValue("imageCodes", out var raw)
+                || raw is not JsonElement { ValueKind: JsonValueKind.Array } codes)
+            {
+                return null;
+            }
+
+            return codes.EnumerateArray()
+                .Where(code => code.ValueKind == JsonValueKind.String)
+                .Select(code => code.GetString()!.Trim().ToLowerInvariant())
+                .ToHashSet(StringComparer.Ordinal);
         }
 
         /// <summary>
@@ -210,6 +230,31 @@ namespace Credentials.Camunda.ProcessHandlers
                 // executor. Ones that name an image code go a level deeper, so the Agent can
                 // pick up only the group belonging to the image it is about to run.
                 var groups = GroupByImageCode(extraction.EnvList);
+
+                // The DMN returns the rows for every image the TRE has set up, not just the
+                // ones this submission runs. Drop the rest before anything is read: they would
+                // never be injected, and a secret in one that cannot be read would otherwise
+                // fail every submission, whatever image it uses.
+                var submissionImageCodes = ReadSubmissionImageCodes(extraction.Variables);
+
+                if (submissionImageCodes != null)
+                {
+                    var unused = groups.Keys
+                        .Where(code => code.Length > 0 && !submissionImageCodes.Contains(code))
+                        .ToList();
+
+                    foreach (var code in unused)
+                    {
+                        groups.Remove(code);
+                    }
+
+                    if (unused.Count > 0)
+                    {
+                        _logger.LogInformation(
+                            "Skipping tre variables for image code(s) submission {SubmissionId} does not use: {ImageCodes}",
+                            submissionId, string.Join(", ", unused));
+                    }
+                }
 
                 // Resolve every group before storing any of them. A secret that cannot be
                 // read fails the whole job, and failing before the first write keeps Vault
