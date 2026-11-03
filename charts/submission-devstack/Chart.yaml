@@ -1,0 +1,6 @@
+apiVersion: v2
+name: submission-devstack
+description: Dev-only extras for running the Submission stack on a local cluster; never deployed to shared clusters
+type: application
+version: 1.0.0
+appVersion: "1.0.0"
