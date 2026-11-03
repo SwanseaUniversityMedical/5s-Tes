@@ -61,8 +61,7 @@ namespace Submission.Api.Controllers
                 project.StartDate = project.StartDate.ToUniversalTime();
                 project.EndDate = project.EndDate.ToUniversalTime();
                 project.ProjectDescription = project.ProjectDescription.Trim();
-                
-               project.FormData = data.FormIoString;
+                project.FormData = data.FormIoString;
                 
 
                 if (_DbContext.Projects.Any(x => x.Name.ToLower() == project.Name.ToLower().Trim() && x.Id != project.Id))
@@ -78,8 +77,11 @@ namespace Submission.Api.Controllers
                         _DbContext.Projects.Add(project);
                         await _DbContext.SaveChangesAsync();
 
-                        project.SubmissionBucket = GenerateRandomName(project.Id.ToString()) + "submission".Replace("_", "");
-                        project.OutputBucket = GenerateRandomName(project.Id.ToString()) + "output".Replace("_", ""); ;
+                        // Generate bucket names after the database has assigned the project ID.
+                        project.SubmissionBucket = GenerateRandomName(project.Id.ToString()) + "submission";
+                        project.OutputBucket = GenerateRandomName(project.Id.ToString()) + "output";
+                        await _DbContext.SaveChangesAsync();
+
                         var submissionBucket = await _minioHelper.CreateBucket(project.SubmissionBucket);
                         if (!submissionBucket)
                         {
@@ -147,8 +149,22 @@ namespace Submission.Api.Controllers
 
                 if (project.Id > 0)
                 {
-                    if (_DbContext.Projects.Select(x => x.Id == project.Id).Any())
+                    var existingProject = await _DbContext.Projects
+                        .AsNoTracking()
+                        .Where(x => x.Id == project.Id)
+                        .Select(x => new
+                        {
+                            x.SubmissionBucket,
+                            x.OutputBucket
+                        })
+                        .FirstOrDefaultAsync();
+
+                    if (existingProject != null)
                     {
+                        // Bucket names are assigned by the API and must not be replaced
+                        // by stale or client-supplied values from the Form.IO payload.
+                        project.SubmissionBucket = existingProject.SubmissionBucket;
+                        project.OutputBucket = existingProject.OutputBucket;
                         _DbContext.Projects.Update(project);
                         logtype = LogType.UpdateProject;
                     }

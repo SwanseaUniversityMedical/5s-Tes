@@ -414,8 +414,8 @@ namespace Submission.Web.Controllers
             }
 
             TempData["success"] = "Tre Added Successfully";
-            return RedirectToAction("GetProject", new { id = ProjectId });
-        }
+            return Ok();
+    }
 
         [HttpGet]
         [Authorize(Roles = "dare-control-admin")]
