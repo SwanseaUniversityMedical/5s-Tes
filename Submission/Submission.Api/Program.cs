@@ -103,6 +103,7 @@ builder.Services.AddSingleton(emailSettings);
 
 
 builder.Services.AddHostedService<ConsumeInternalMessageService>();
+builder.Services.AddHostedService<ConsumeGovernanceConfigService>();
 var TVP = new TokenValidationParameters
 {
     ValidateAudience = true,
@@ -311,7 +312,7 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
     builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
     builder.Services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
     builder.Services.AddScoped<IDareEmailService, DareEmailService>();
-    
+    builder.Services.AddScoped<IGovernanceImportService, GovernanceImportService>();
 
 
 }
