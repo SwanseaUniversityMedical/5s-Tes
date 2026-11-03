@@ -33,6 +33,9 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
+        # The rc CLI (installed as mc) writes $HOME/.config/rc.
+        - name: home-app
+          emptyDir: {}
         - name: process-models
           persistentVolumeClaim:
             claimName: agent-processmodels
@@ -68,6 +71,8 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
+            - name: home-app
+              mountPath: /home/app
             - name: process-models
               mountPath: /app/ProcessModels
             {{- if .Values.global.trustClusterCa.enabled }}
@@ -92,6 +97,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
+            # Writable home for the rc CLI; see the home-app volume.
+            - name: HOME
+              value: /home/app
             - name: Serilog__SeqServerUrl
               value: "{{ .Values.global.config.seqUrl }}"
             - name: Serilog__MinimumLevel__Default

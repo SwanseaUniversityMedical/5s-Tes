@@ -34,7 +34,7 @@ spec:
       volumes:
         - name: tmp
           emptyDir: {}
-        # The mc CLI writes $HOME/.mc.
+        # The rc CLI (installed as mc) writes $HOME/.config/rc.
         - name: home-app
           emptyDir: {}
         - name: dataprotection
@@ -81,6 +81,9 @@ spec:
             initialDelaySeconds: 5
             periodSeconds: 10
           env:
+            # Writable home for the rc CLI; see the home-app volume.
+            - name: HOME
+              value: /home/app
             - name: ASPNETCORE_ENVIRONMENT
               value: "{{ .Values.global.config.aspnetEnvironment }}"
             - name: ConnectionStrings__DefaultConnection
