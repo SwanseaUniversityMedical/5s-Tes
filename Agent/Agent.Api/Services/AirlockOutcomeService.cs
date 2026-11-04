@@ -174,9 +174,9 @@ namespace Agent.Api.Services
             {
                 return JObject.Parse(metadataJson)[key]?.Value<string>();
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                return null;
+                throw new InvalidOperationException($"Airlock callback metadata is not valid JSON, so '{key}' can't be read from it.", ex);
             }
         }
 
