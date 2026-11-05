@@ -1,4 +1,4 @@
-﻿
+
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Helpers;
 
@@ -25,6 +25,7 @@ namespace FiveSafesTes.Core.Models
         public string? SubmissionBucket { get; set; }
         public string? OutputBucket { get; set; }
 
+        public ProjectType ProjectType { get; set; } = ProjectType.Tes;
         
         public virtual List<Submission> Submissions { get; set; }
         public virtual List<AuditLog>? AuditLogs { get; set; }
@@ -42,6 +43,7 @@ namespace FiveSafesTes.Core.Models
             public int SubmissionCount { get; set; }
             public int UserCount { get; set; }
             public int TreCount { get; set; }
+            public ProjectType ProjectType { get; set; }
         }
 
         
@@ -56,7 +58,7 @@ namespace FiveSafesTes.Core.Models
           public string? ProjectContact { get; set; }
           public string? SubmissionBucket { get; set; }
           public string? OutputBucket { get; set; }
-
+          public ProjectType ProjectType { get; set; }
           public List<ProjectUserDto> Users { get; set; } = [];
           public List<ProjectUserDto> UsersNotInProject { get; set; } = [];
           public List<ProjectTreDto> Tres { get; set; } = [];
@@ -109,5 +111,11 @@ namespace FiveSafesTes.Core.Models
           }
         }
     }
-  
+
+    public enum ProjectType
+    {
+        None = 0,
+        Tes = 1,
+        Teleport = 2
+    }
 }
