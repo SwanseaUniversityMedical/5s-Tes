@@ -60,6 +60,7 @@ namespace Agent.Api
         // Used to start Camunda process instances directly via Zeebe gRPC, replacing the previous HTTP calls to CredentialsController
         private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
         private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
+        private readonly IEgressProvider _egressProvider;
 
 
         public DoAgentWork(IServiceProvider serviceProvider,
@@ -81,7 +82,8 @@ namespace Agent.Api
             IVaultCredentialsService vaultService,
             IConfiguration config,
             Credentials.Models.Services.IServicedZeebeClient zeebeClient,
-            IOptionsMonitor<TreOnboardingConfig> configSettings
+            IOptionsMonitor<TreOnboardingConfig> configSettings,
+            IEgressProvider egressProvider
         )
         {
             _serviceProvider = serviceProvider;
@@ -114,6 +116,7 @@ namespace Agent.Api
             _config = config;
             _zeebeClient = zeebeClient;
             _onboardingConfig = configSettings;
+            _egressProvider = egressProvider;
         }
 
         public string CreateTesk(string jsonContent, int subId, int projectId, int userId, string tesId,
@@ -414,13 +417,13 @@ namespace Agent.Api
 
                                 if (data != null)
                                 {
-                                    var files = new List<string>();
+                                    var files = new List<EgressOutputFile>();
 
                                     foreach (var s3Object in data.S3Objects) //TODO is this right?
                                     {
                                         Log.Information("{Function} *** added file from outputBucket *** {file} ",
                                             "CheckTES", s3Object.Key);
-                                        files.Add(s3Object.Key);
+                                        files.Add(new EgressOutputFile { Key = s3Object.Key, Size = s3Object.Size });
                                     }
 
                                     _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.DataOutRequested, "");
@@ -432,13 +435,22 @@ namespace Agent.Api
                                         return;
                                     }
 
-                                    _subHelper.FilesReadyForReview(new ReviewFiles()
+                                    // Data Egress or Airlock, depending on EgressSettings:Provider.
+                                    var sendResult = await _egressProvider.SendForReviewAsync(new EgressReviewRequest()
                                     {
-                                        SubId = subId.ToString(),
-                                        Files = files,
-                                        tesId = tesId.ToString(),
-                                        Name = NameTes
-                                    }, outputBucketGood);
+                                        SubId = subId,
+                                        TesId = tesId.ToString(),
+                                        TesName = NameTes,
+                                        ProjectId = projectId,
+                                        OutputBucket = outputBucketGood,
+                                        Files = files
+                                    });
+
+                                    if (!sendResult.Success)
+                                    {
+                                        Log.Error("{Function} Sending sub {SubId} for egress review failed: {Error}",
+                                            "CheckTES", subId, sendResult.Error);
+                                    }
                                 }
                                 else
                                 {
