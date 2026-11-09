@@ -4,7 +4,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { Toaster } from "sonner";
 import { ThemeProvider } from "@/components/theme-provider";
-import { PublicEnvScript } from "next-runtime-env";
+import { PublicEnvProvider } from "next-runtime-env";
 
 export const metadata: Metadata = {
   title: "Agent Web UI",
@@ -51,6 +51,8 @@ export const metadata: Metadata = {
   description: "Agent Web UI Application",
 };
 
+export const dynamic = "force-dynamic";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -58,25 +60,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <head>
-        <PublicEnvScript />
-      </head>
       <body className="antialiased">
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="system"
-          enableSystem
-          disableTransitionOnChange
-        >
-          <div className="flex min-h-screen flex-col">
-            <Header />
-            <main className="container mx-auto max-w-7xl space-y-2 my-5 flex-1">
-              {children}
-            </main>
-            <Footer />
-          </div>
-        </ThemeProvider>
-        <Toaster position="top-center" />
+        <PublicEnvProvider>
+          <ThemeProvider
+            attribute="class"
+            defaultTheme="system"
+            enableSystem
+            disableTransitionOnChange
+          >
+            <div className="flex min-h-screen flex-col">
+              <Header />
+              <main className="container mx-auto max-w-7xl space-y-2 my-5 flex-1">
+                {children}
+              </main>
+              <Footer />
+            </div>
+          </ThemeProvider>
+          <Toaster position="top-center" />
+        </PublicEnvProvider>
       </body>
     </html>
   );

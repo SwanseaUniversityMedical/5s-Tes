@@ -1,16 +1,13 @@
-import { genericOAuthClient } from "better-auth/client/plugins";
+import { createAuthClient } from "better-auth/react";
 import { toast } from "sonner";
 import { extractErrorMessage } from "./helpers";
-import { createAuthClient } from "better-auth/react";
 
-export const { signIn, signOut, useSession } = createAuthClient({
-  plugins: [genericOAuthClient()],
-});
+export const { signIn, signOut, useSession } = createAuthClient();
 
 export const handleLogin = async () => {
   try {
-    const result = await signIn.oauth2({
-      providerId: "keycloak",
+    const result = await signIn.social({
+      provider: "keycloak",
       callbackURL: window.location.origin + "/",
     });
 

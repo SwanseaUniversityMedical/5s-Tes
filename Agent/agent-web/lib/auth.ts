@@ -1,4 +1,4 @@
-import { betterAuth, type User } from "better-auth";
+import { betterAuth } from "better-auth";
 import { genericOAuth } from "better-auth/plugins";
 import { getKeycloakIssuer } from "./helpers";
 import {
@@ -37,9 +37,12 @@ export const auth = betterAuth({
           discoveryUrl: `${getKeycloakIssuer()}/.well-known/openid-configuration`,
           scopes: ["openid"],
           mapProfileToUser: async (profile) => {
+            const realmAccess = profile?.realm_access as
+              | { roles?: string[] }
+              | undefined;
             return {
-              roles: profile?.realm_access?.roles || [],
-            } as Partial<User>;
+              roles: realmAccess?.roles || [],
+            };
           },
         },
       ],
