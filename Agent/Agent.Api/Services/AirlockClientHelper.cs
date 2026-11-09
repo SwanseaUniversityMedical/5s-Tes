@@ -31,11 +31,11 @@ namespace Agent.Api.Services
         private readonly AirlockSettings _airlockSettings;
 
         public AirlockClientHelper(IHttpClientFactory httpClientFactory, IHttpContextAccessor httpContextAccessor,
-            IConfiguration config, IOptionsMonitor<AirlockKeyCloakSettings> keycloakSettings, AirlockSettings airlockSettings)
-            : base(httpClientFactory, httpContextAccessor, airlockSettings.ApiUrl.TrimEnd('/'), false)
+            IConfiguration config, IOptionsMonitor<AirlockKeyCloakSettings> keycloakSettings, IOptionsMonitor<AirlockSettings> airlockSettings)
+            : base(httpClientFactory, httpContextAccessor, airlockSettings.CurrentValue.ApiUrl.TrimEnd('/'), false)
         {
             _keycloakSettings = keycloakSettings.CurrentValue;
-            _airlockSettings = airlockSettings;
+            _airlockSettings = airlockSettings.CurrentValue;
 
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
             _keycloakTokenHelper = new KeycloakTokenHelper(_keycloakSettings.BaseUrl, _keycloakSettings.ClientId,

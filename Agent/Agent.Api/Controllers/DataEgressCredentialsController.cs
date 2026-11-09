@@ -35,10 +35,10 @@ namespace Agent.Api.Controllers
 
         [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("AreCredentialsConfigured")]
-        public BoolReturn AreCredentialsConfigured()
+        public BoolReturn AreCredentialsConfigured([FromServices] IOnboardingService onboardingService)
         {
             if (_egressSettings.Provider == EgressProvider.Airlock)
-                return new BoolReturn { Result = true };
+                return new BoolReturn { Result = onboardingService.IsAirlockConfigured() };
 
             return new BoolReturn
             {
@@ -49,13 +49,12 @@ namespace Agent.Api.Controllers
 
         [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("CheckCredentialsAreValid")]
-        public async Task<BoolReturn> CheckCredentialsAreValidAsync()
+        public async Task<BoolReturn> CheckCredentialsAreValidAsync([FromServices] IAirlockClientHelper airlockClient)
         {
             try
             {
-                // Agent.Web's home page sends admins to the Data Egress credentials screen when this is false; with Airlock those credentials aren't used, so report them as not needed.
                 if (_egressSettings.Provider == EgressProvider.Airlock)
-                    return new BoolReturn { Result = true };
+                    return new BoolReturn { Result = await airlockClient.CheckConnectionAsync() == "" };
 
                 var result = new BoolReturn() { Result = false };
 

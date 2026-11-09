@@ -51,6 +51,29 @@ public class OnboardingController : Controller
         };
     }
 
+    [HttpPost("UploadAirlockConfig")]
+    public async Task<JsonConfigUploadResponse> UploadAirlockConfig(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            return new() { Success = false, Message = "No file uploaded!" };
+        }
+
+        if (file.Length > 64 * 1024)
+        {
+            return new() { Success = false, Message = "That file is too large to be an Airlock onboarding config." };
+        }
+
+        var (success, message) = await _onboardingService.UploadAirlockConfig(file);
+        return new() { Success = success, Message = message };
+    }
+
+    [HttpGet("IsAirlockConfigured")]
+    public BoolReturn IsAirlockConfigured()
+    {
+        return new() { Result = _onboardingService.IsAirlockConfigured() };
+    }
+
     [HttpPost("ReviveHangfireJobs")]
     public async Task<BoolReturn> ReviveHangfireJobs()
     {
