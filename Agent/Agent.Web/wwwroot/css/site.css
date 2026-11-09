@@ -570,3 +570,7 @@ table tr {
         height: 150px;
     }
 }
+
+.field-validation-error {
+    color: red;
+}
