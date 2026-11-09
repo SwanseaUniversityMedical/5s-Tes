@@ -2,6 +2,7 @@ using System.Text.Json;
 using Agent.Api.Repositories.DbContexts;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Models.APISimpleTypeReturns;
+using Serilog;
 
 namespace Agent.Api.Services;
 
@@ -60,21 +61,38 @@ public class DmnEnvironmentVariableSyncService : IDmnEnvironmentVariableSyncServ
             }
         }
 
+        List<string> failedProjects = new();
+
         foreach (TreProject project in _dbContext.Projects)
         {
-            List<ProjectTreEnvironmentVariable> combinedVariables = new(globalVariables);
-            if (projectVariables.TryGetValue(project.SubmissionProjectName, out List<ProjectTreEnvironmentVariable>? scopedVariables))
+            try
             {
-                combinedVariables.AddRange(scopedVariables);
+                List<ProjectTreEnvironmentVariable> combinedVariables = new(globalVariables);
+                if (projectVariables.TryGetValue(project.SubmissionProjectName, out List<ProjectTreEnvironmentVariable>? scopedVariables))
+                {
+                    combinedVariables.AddRange(scopedVariables);
+                }
+
+                ProjectTreEnvironmentVariables payload = new()
+                {
+                    ProjectId = project.SubmissionProjectId,
+                    EnvJson = JsonSerializer.Serialize(combinedVariables, new JsonSerializerOptions { WriteIndented = true })
+                };
+
+                await _clientHelper.CallAPI<ProjectTreEnvironmentVariables, BoolReturn>("/api/Project/SyncEnvironmentVariables", payload);
             }
-
-            ProjectTreEnvironmentVariables payload = new()
+            catch (Exception ex)
             {
-                ProjectId = project.SubmissionProjectId,
-                EnvJson = JsonSerializer.Serialize(combinedVariables, new JsonSerializerOptions { WriteIndented = true })
-            };
+                Log.Error(ex, "{Function} Failed to sync environment variables for project {ProjectName} ({ProjectId})",
+                    "SyncEnvironmentVariablesWithSubmission", project.SubmissionProjectName, project.SubmissionProjectId);
+                failedProjects.Add(project.SubmissionProjectName);
+            }
+        }
 
-            await _clientHelper.CallAPI<ProjectTreEnvironmentVariables, BoolReturn>("/api/Project/SyncEnvironmentVariables", payload);
+        if (failedProjects.Count > 0)
+        {
+            throw new InvalidOperationException(
+                $"Failed to sync environment variables for {failedProjects.Count} project(s): {string.Join(", ", failedProjects)}. See logs for details.");
         }
     }
 }

@@ -1143,6 +1143,14 @@ namespace Submission.Api.Controllers
         {
             try
             {
+                string preferredUsername = (from x in User.Claims where x.Type == "preferred_username" select x.Value).First().ToLower();
+                bool isUserOnProject = await _DbContext.Projects.AnyAsync(p => p.Id == projectId && p.Users.Any(u => u.Name.ToLower() == preferredUsername));
+
+                if (!isUserOnProject)
+                {
+                    return Forbid();
+                }
+
                 ProjectTreEnvironmentVariables? row = await _DbContext.ProjectTreEnvironmentVariables.AsNoTracking()
                     .Where(x => x.ProjectId == projectId && x.TreId == treId).OrderByDescending(x => x.CreatedAt).FirstOrDefaultAsync();
 
