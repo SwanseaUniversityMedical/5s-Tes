@@ -1319,10 +1319,7 @@ namespace Agent.Api
                     // a missing image-scoped path means one executor silently runs without its
                     // variables. By this point the credentials process has completed, so every
                     // row already exists and a short wait is better than a quiet gap.
-                    //
-                    // This supersedes the expected-credential-type count #172 added here. That
-                    // counted distinct credential types, and the tre type now owns one vault
-                    // path per image code, so it would stop after the first of them.
+                   
                     var unread = credentialRecord.Count(r => !string.IsNullOrEmpty(r.VaultPath) && !r.IsProcessed);
 
                     if (fetchedCredentials.Any && unread == 0)
