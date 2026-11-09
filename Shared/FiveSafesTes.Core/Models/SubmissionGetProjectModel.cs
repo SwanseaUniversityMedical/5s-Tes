@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -24,6 +24,7 @@ namespace FiveSafesTes.Core.Models
         public string? ProjectContact { get; set; }
         public string? SubmissionBucket { get; set; }
         public string? OutputBucket { get; set; }
+        public ProjectType ProjectType { get; set; } = ProjectType.Tes;
         public virtual List<UserGetProjectModel> Users { get; set; }
 
         public virtual List<TreGetProjectModel> Tres { get; set; }
@@ -52,7 +53,8 @@ namespace FiveSafesTes.Core.Models
             OutputBucket = Project.OutputBucket;
             Users = new List<UserGetProjectModel>();
             UsersNotInProject = new List<UserGetProjectModel>();
-           
+            ProjectType = Project.ProjectType;
+
 
             foreach (var user in UsersAll.ToArray())
             {

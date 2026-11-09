@@ -368,11 +368,11 @@ namespace Agent.Api
                                 if (status.state == "COMPLETE")
                                 {
                                     Log.Information(
-                                        $"  CloseSubmissionForTre with status.state subId {subId.ToString()} == COMPLETE ");
+                                        $"  UpdateStatusForTre with status.state subId {subId.ToString()} == COMPLETE ");
                                     try
                                     {
-                                        result = _subHelper.CloseSubmissionForTre(subId.ToString(),
-                                            StatusType.DataOutRequested, "", "");
+                                        result = _subHelper.UpdateStatusForTre(subId.ToString(),
+                                            StatusType.DataOutRequested, "");
                                     }
                                     catch (Exception ex)
                                     {
@@ -430,7 +430,7 @@ namespace Agent.Api
                                     Log.Information($"  FilesReadyForReview files {files.Count} ");
                                     if (files.Count == 0)
                                     {
-                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Complete,
+                                        _subHelper.UpdateStatusForTre(subId.ToString(), StatusType.Completed,
                                             " Complete - No files to review ");
                                         return;
                                     }
@@ -700,8 +700,9 @@ namespace Agent.Api
                                     Log.Information(
                                         "All credential handlers succeeded for submission {SubId}. Fetching credentials.",
                                         aSubmission.Id);
-                                    credentials =
-                                        await WaitForAndFetchCredentialsAsync(aSubmission.Id, TimeSpan.FromMinutes(10));
+
+                                    int expectedCredentialCount = credsRowforParentKey.Select(c => c.CredentialType).Distinct().Count();
+                                    credentials = await WaitForAndFetchCredentialsAsync(aSubmission.Id, expectedCredentialCount, TimeSpan.FromMinutes(10));
 
                                     if (credentials == null || credentials.Count == 0)
                                     {
@@ -1142,7 +1143,7 @@ namespace Agent.Api
 
 
         private async Task<Dictionary<string, Dictionary<string, object>>> WaitForAndFetchCredentialsAsync(
-            int submissionId, TimeSpan? timeout = null)
+            int submissionId, int expectedCredentialCount, TimeSpan? timeout = null)
         {
             var maxWaitTime = timeout ?? TimeSpan.FromMinutes(5);
             var pollInterval = TimeSpan.FromSeconds(5); //Reduced polling interval for faster fetch
@@ -1185,7 +1186,7 @@ namespace Agent.Api
                         await _credsDbContext.SaveChangesAsync();
                     }
 
-                    if (fetchedCredentials.Count > 0)
+                    if (fetchedCredentials.Count >= expectedCredentialCount)
                     {
                         Log.Information($"Successfully fetched all credentials for submission {submissionId}");
                         return fetchedCredentials;
