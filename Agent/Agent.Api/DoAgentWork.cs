@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.Net;
 using System.Net.Http.Headers;
 using System.Text;
@@ -59,6 +59,7 @@ namespace Agent.Api
         private readonly IConfiguration _config;
         // Used to start Camunda process instances directly via Zeebe gRPC, replacing the previous HTTP calls to CredentialsController
         private readonly Credentials.Models.Services.IServicedZeebeClient _zeebeClient;
+        private readonly IImageCodeResolver _imageCodeResolver;
         private readonly IOptionsMonitor<TreOnboardingConfig> _onboardingConfig;
         private readonly IEgressProvider _egressProvider;
 
@@ -82,6 +83,7 @@ namespace Agent.Api
             IVaultCredentialsService vaultService,
             IConfiguration config,
             Credentials.Models.Services.IServicedZeebeClient zeebeClient,
+            IImageCodeResolver imageCodeResolver,
             IOptionsMonitor<TreOnboardingConfig> configSettings,
             IEgressProvider egressProvider
         )
@@ -115,6 +117,7 @@ namespace Agent.Api
             _vaultService = vaultService;
             _config = config;
             _zeebeClient = zeebeClient;
+            _imageCodeResolver = imageCodeResolver;
             _onboardingConfig = configSettings;
             _egressProvider = egressProvider;
         }
@@ -500,10 +503,17 @@ namespace Agent.Api
                 {
                     foreach (var cancelsubproj in cancelsubprojs)
                     {
+                        // Carry whatever reason put the submission into RequestCancellation
+                        // through to the terminal status. Passing an empty description here
+                        // overwrote it, so a credential failure ended up as a bare "Cancelled"
+                        // with nothing to explain it.
+                        var cancelReason = cancelsubproj.StatusDescription ?? string.Empty;
+
                         _subHelper.UpdateStatusForTre(cancelsubproj.Id.ToString(), StatusType.CancellationRequestSent,
-                            "");
+                            cancelReason);
                         //TODO Do we need to call Hutch or other stuff to cancel and do other cancel stuff
-                        _subHelper.CloseSubmissionForTre(cancelsubproj.Id.ToString(), StatusType.Cancelled, "", "");
+                        _subHelper.CloseSubmissionForTre(cancelsubproj.Id.ToString(), StatusType.Cancelled,
+                            cancelReason, "");
                     }
                 }
 
@@ -559,8 +569,7 @@ namespace Agent.Api
                                     StatusType.AgentTransferringToPod, "");
                             }
 
-                            Dictionary<string, Dictionary<string, object>> credentials =
-                                new Dictionary<string, Dictionary<string, object>>();
+                            SubmissionCredentials credentials = new SubmissionCredentials();
 
                             if (await _features.IsEnabledAsync(FeatureFlags.EphemeralCredentials))
                             {
@@ -615,7 +624,8 @@ namespace Agent.Api
                                             aSubmission.SubmittedBy.Id,
                                             treProjectForCreds?.SubmissionBucketTre,
                                             treProjectForCreds?.OutputBucketTre,
-                                            _config["MinioTRESettings:Url"]);
+                                            _config["MinioTRESettings:Url"],
+                                            FindSubmissionImageCodes(aSubmission));
                                         Log.Information("Triggered credentials for submission {SubId}", aSubmission.Id);
                                     }
                                     catch (Exception ex)
@@ -679,14 +689,45 @@ namespace Agent.Api
 
                                     if (anyErrored)
                                     {
-                                        Log.Error("Credential process errored for submission {SubId}.", aSubmission.Id);
+                                        // Name the handler that failed and why. "Credential process
+                                        // failed" on its own leaves a researcher, and whoever they
+                                        // ask, with nothing to go on.
+                                        var failures = credsRowforParentKey
+                                            .Where(c => c.SuccessStatus == SuccessStatus.Error
+                                                        && !string.IsNullOrWhiteSpace(c.ErrorMessage))
+                                            .Select(c => $"{c.CredentialType}: {c.ErrorMessage}")
+                                            .Distinct()
+                                            .ToList();
+
+                                        var reason = failures.Count > 0
+                                            ? "Credential process failed - " + string.Join("; ", failures)
+                                            : "Credential process failed";
+
+                                        Log.Error("{Reason} for submission {SubId}.", reason, aSubmission.Id);
 
                                         var latestRow = creds.First();
-                                        latestRow.ErrorMessage = "Credential process failed";
+                                        latestRow.ErrorMessage = reason;
                                         await _credsDbContext.SaveChangesAsync();
 
+                                        // Handlers run in sequence, so an failure part-way leaves the
+                                        // earlier ones' accounts and vault paths behind. Nothing else
+                                        // collects them: there is no credential sweeper, nothing scans
+                                        // for unexpired rows, and Vault has no expiry on the KV mount.
+                                        // Revoke immediately rather than after the usual delay.
+                                        try
+                                        {
+                                            await TriggerRevokeCredentialsAsync(aSubmission.Id,
+                                                aSubmission.Project.Name, aSubmission.SubmittedBy.Id, 0);
+                                        }
+                                        catch (Exception ex)
+                                        {
+                                            Log.Error(ex,
+                                                "Failed to revoke credentials after a failed credential process for submission {SubId}",
+                                                aSubmission.Id);
+                                        }
+
                                         _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(),
-                                            StatusType.RequestCancellation, "Credential process failed");
+                                            StatusType.RequestCancellation, reason);
                                         continue;
                                     }
 
@@ -701,8 +742,7 @@ namespace Agent.Api
                                         "All credential handlers succeeded for submission {SubId}. Fetching credentials.",
                                         aSubmission.Id);
 
-                                    int expectedCredentialCount = credsRowforParentKey.Select(c => c.CredentialType).Distinct().Count();
-                                    credentials = await WaitForAndFetchCredentialsAsync(aSubmission.Id, expectedCredentialCount, TimeSpan.FromMinutes(10));
+                                    credentials = await WaitForAndFetchCredentialsAsync(aSubmission.Id, TimeSpan.FromMinutes(10));
 
                                     if (credentials == null || credentials.Count == 0)
                                     {
@@ -926,11 +966,30 @@ namespace Agent.Api
 
                                 Log.Information("looking for _AgentSettings.ImageNameToAddToToken > " +
                                                 _AgentSettings.ImageNameToAddToToken);
+                                var unresolvedImageCodes = new List<string>();
+
                                 foreach (var Executor in tesMessage.Executors)
                                 {
                                     if (Executor.Env == null)
                                     {
                                         Executor.Env = new Dictionary<string, string>();
+                                    }
+
+                                    // Resolve {{@imageCode}} first: everything below reads the image
+                                    // field, and it needs to see the real container image.
+                                    var imageResolution = await _imageCodeResolver.ResolveExecutorImageAsync(
+                                        Executor.Image, aSubmission.Project.Name,
+                                        aSubmission.SubmittedBy.Id.ToString());
+
+                                    Executor.Image = imageResolution.Image;
+                                    var executorImageCodes = imageResolution.ImageCodes;
+
+                                    foreach (var unresolved in imageResolution.Unresolved)
+                                    {
+                                        if (!unresolvedImageCodes.Contains(unresolved, StringComparer.Ordinal))
+                                        {
+                                            unresolvedImageCodes.Add(unresolved);
+                                        }
                                     }
 
                                     Executor.Env["SCHEMA"] = aSubmission.Project.Name;
@@ -957,22 +1016,15 @@ namespace Agent.Api
                                             Log.Information(
                                                 $"Injecteing credentials into environment variables for {aSubmission.Id} nub > {credentials.Count}");
 
-                                            if (credentials != null && credentials.Count > 0)
+                                            if (credentials != null && credentials.Any)
                                             {
-                                                foreach (var outerKey in credentials)
+                                                // Shared variables go to every executor; ones scoped to an
+                                                // image code only to the executors running that image.
+                                                foreach (var credential in credentials.ForImageCodes(executorImageCodes))
                                                 {
-                                                    if (outerKey.Value is IDictionary<string, object>
-                                                        innerDict) //The format is dictionary within a dictionary
-                                                    {
-                                                        foreach (var inner in innerDict)
-                                                        {
-                                                            var key = inner.Key;
-                                                            var value = inner.Value?.ToString() ?? string.Empty;
-                                                            Log.Information("Injected credentials with Key " + key);
+                                                    Log.Information("Injected credentials with Key " + credential.Key);
 
-                                                            Executor.Env[key] = value;
-                                                        }
-                                                    }
+                                                    Executor.Env[credential.Key] = credential.Value;
                                                 }
 
                                                 Log.Information(
@@ -984,11 +1036,11 @@ namespace Agent.Api
                                             // the workload container picks them up without bespoke wiring. The
                                             // generic loop above still injects the raw accessKey/secretKey/
                                             // endPoint/bucket keys for tools that read those directly.
-                                            if (credentials != null &&
-                                                credentials.TryGetValue("s3", out var s3Creds) && s3Creds != null)
+                                            var s3Creds = credentials?.OfType("s3");
+                                            if (s3Creds != null && s3Creds.Count > 0)
                                             {
                                                 string S3Val(string k) =>
-                                                    s3Creds.TryGetValue(k, out var v) ? v?.ToString() ?? string.Empty
+                                                    s3Creds.TryGetValue(k, out var v) ? v ?? string.Empty
                                                                                       : string.Empty;
 
                                                 var s3AccessKey = S3Val("accessKey");
@@ -1058,11 +1110,31 @@ namespace Agent.Api
                                 _dbContext.SaveChanges();
 
 
-                                if (tesMessage is not null)
+                                if (unresolvedImageCodes.Count > 0)
+                                {
+                                    // One unresolvable image code fails the whole job rather than
+                                    // dispatching a message that still carries a literal placeholder
+                                    // in an image field, which would fail obscurely at pull time.
+                                    var reason =
+                                        $"Could not resolve image code(s): {string.Join(", ", unresolvedImageCodes)}";
+
+                                    Log.Error("{Function} {Reason} for sub {SubId}", "Execute", reason,
+                                        aSubmission.Id);
+
+                                    _subHelper.UpdateStatusForTre(aSubmission.Id.ToString(), StatusType.Failed,
+                                        reason);
+
+                                    processedOK = false;
+                                }
+                                else if (tesMessage is not null)
                                 {
                                     var stringdata = JsonConvert.SerializeObject(tesMessage);
-                                    Log.Information("{Function} tesMessage is not null runhing CreateTESK {tesMessage}",
-                                        "Execute", stringdata);
+
+                                    // Only the shape of the message, never its contents: by this point
+                                    // the executor env holds ephemeral credentials and any secrets
+                                    // resolved from vault, and these logs ship to Seq.
+                                    Log.Information("{Function} sending to CreateTESK {TesMessage}",
+                                        "Execute", DescribeTesMessageForLog(tesMessage));
 
                                     CreateTesk(stringdata, aSubmission.Id, aSubmission.Project.Id,
                                         aSubmission.SubmittedBy.Id, aSubmission.TesId, OutputBucket,
@@ -1112,11 +1184,45 @@ namespace Agent.Api
             }
         }
 
+        /// <summary>
+        /// The image codes across all of a submission's executors, read from the TES message
+        /// before any of them are resolved. Null when the message cannot be read, which leaves
+        /// the tre credential handler checking every image code's rows as it did before.
+        /// </summary>
+        private IReadOnlyList<string>? FindSubmissionImageCodes(Submission submission)
+        {
+            try
+            {
+                if (string.IsNullOrWhiteSpace(submission.TesJson))
+                {
+                    return null;
+                }
+
+                var tesTask = JsonConvert.DeserializeObject<TesTask>(submission.TesJson);
+
+                if (tesTask is null)
+                {
+                    return null;
+                }
+
+                return (tesTask.Executors ?? new List<TesExecutor>())
+                    .SelectMany(executor => _imageCodeResolver.FindImageCodes(executor.Image))
+                    .Distinct(StringComparer.Ordinal)
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                Log.Warning(ex, "Could not read the image codes for submission {SubId}", submission.Id);
+                return null;
+            }
+        }
+
         // Starts the Start_Credentials Camunda process for the given submission.
         // InputCollections mirrors the top-level variables as a list because the BPMN multi-instance
         // subprocess iterates over InputCollections to fan out credential creation per item.
         private async Task TriggerStartCredentialsAsync(int submissionId, string projectName, int userId,
-            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null)
+            string? submissionBucket = null, string? outputBucket = null, string? endPoint = null,
+            IReadOnlyList<string>? imageCodes = null)
         {
             var variables = new Dictionary<string, object>
             {
@@ -1137,17 +1243,26 @@ namespace Agent.Api
                 }
             };
 
+            // The credentials DMN has no image code input, so it returns the rows for every
+            // image the TRE has set up. This lets the tre handler drop the ones this submission
+            // does not run, so a broken row for one image cannot fail every submission.
+            if (imageCodes != null)
+            {
+                variables["imageCodes"] = imageCodes;
+            }
+
             await _zeebeClient.CreateProcessInstanceAsync("Start_Credentials", variables);
             Log.Information("Camunda StartCredentials triggered successfully for submission {SubmissionId}", submissionId);
         }
 
 
-        private async Task<Dictionary<string, Dictionary<string, object>>> WaitForAndFetchCredentialsAsync(
-            int submissionId, int expectedCredentialCount, TimeSpan? timeout = null)
+        private async Task<SubmissionCredentials> WaitForAndFetchCredentialsAsync(
+            int submissionId, TimeSpan? timeout = null)
         {
             var maxWaitTime = timeout ?? TimeSpan.FromMinutes(5);
             var pollInterval = TimeSpan.FromSeconds(5); //Reduced polling interval for faster fetch
-            var fetchedCredentials = new Dictionary<string, Dictionary<string, object>>();
+            var fetchedCredentials = new SubmissionCredentials();
+            var fetchedPaths = new HashSet<string>(StringComparer.Ordinal);
             var stopwatch = System.Diagnostics.Stopwatch.StartNew();
 
             Log.Information($"Starting to wait for credentials for submission {submissionId}.");
@@ -1163,21 +1278,46 @@ namespace Agent.Api
 
                     foreach (var record in credentialRecord)
                     {
-                        if (!fetchedCredentials.ContainsKey(record.CredentialType) &&
-                            !string.IsNullOrEmpty(record.VaultPath))
+                        // Keyed on the vault path, not the credential type. A credential type
+                        // can own several paths - the tre handler writes one per image code -
+                        // and keying on the type would read the first and silently drop the rest.
+                        if (string.IsNullOrEmpty(record.VaultPath) || !fetchedPaths.Add(record.VaultPath))
                         {
-                            Log.Information(
-                                $"Found {record.CredentialType} credentials for submission {submissionId} at vault path: {record.VaultPath}");
+                            continue;
+                        }
 
+                        Log.Information(
+                            $"Found {record.CredentialType} credentials for submission {submissionId} at vault path: {record.VaultPath}");
+
+                        // Scoped to the one path. A read that throws has to put the path back
+                        // the same way an empty read does, or it stays in fetchedPaths, every
+                        // later poll skips it, and the wait spins to its timeout. Catching here
+                        // also keeps one bad path from abandoning the rest of this pass.
+                        try
+                        {
                             var credentials = await _vaultService.GetCredentialAsync(record.VaultPath);
                             if (credentials != null && credentials.Count > 0)
                             {
-                                fetchedCredentials[record.CredentialType] = credentials;
+                                AddToSubmissionCredentials(fetchedCredentials, record.CredentialType,
+                                    record.VaultPath, credentials);
                                 record.IsProcessed = true;
 
                                 Log.Information(
                                     $"Successfully fetched {record.CredentialType} credentials for submission {submissionId}");
                             }
+                            else
+                            {
+                                // Nothing read, so allow a later poll to try this path again.
+                                fetchedPaths.Remove(record.VaultPath);
+                            }
+                        }
+                        catch (Exception ex)
+                        {
+                            fetchedPaths.Remove(record.VaultPath);
+
+                            Log.Error(ex,
+                                "Error reading vault path {VaultPath} for submission {SubmissionId}; will retry",
+                                record.VaultPath, submissionId);
                         }
                     }
 
@@ -1186,10 +1326,25 @@ namespace Agent.Api
                         await _credsDbContext.SaveChangesAsync();
                     }
 
-                    if (fetchedCredentials.Count >= expectedCredentialCount)
+                    // Only done once every path this pass saw has actually been read. Returning
+                    // on the first success would leave a path that failed to read unretried, and
+                    // a missing image-scoped path means one executor silently runs without its
+                    // variables. By this point the credentials process has completed, so every
+                    // row already exists and a short wait is better than a quiet gap.
+                   
+                    var unread = credentialRecord.Count(r => !string.IsNullOrEmpty(r.VaultPath) && !r.IsProcessed);
+
+                    if (fetchedCredentials.Any && unread == 0)
                     {
                         Log.Information($"Successfully fetched all credentials for submission {submissionId}");
                         return fetchedCredentials;
+                    }
+
+                    if (unread > 0)
+                    {
+                        Log.Warning(
+                            "{Unread} vault path(s) for submission {SubmissionId} could not be read yet; retrying",
+                            unread, submissionId);
                     }
 
                     await Task.Delay(pollInterval);
@@ -1204,6 +1359,76 @@ namespace Agent.Api
             var errorMsg = $"Timeout waiting for credentials for submission {submissionId}";
             Log.Error(errorMsg);
             throw new TimeoutException(errorMsg);
+        }
+
+        /// <summary>
+        /// A description of a TES message safe to log: its shape, its images, and the names
+        /// of the environment variables, but none of their values.
+        ///
+        /// The executor env holds ephemeral credentials and secrets resolved from vault by
+        /// the time the message is dispatched, and these logs are shipped to Seq, so the
+        /// message itself must never be serialised into them.
+        /// </summary>
+        private static string DescribeTesMessageForLog(TesTask tesMessage)
+        {
+            var executors = tesMessage.Executors ?? new List<TesExecutor>();
+
+            var described = executors.Select((executor, index) =>
+            {
+                var names = executor.Env is null || executor.Env.Count == 0
+                    ? "none"
+                    : string.Join(", ", executor.Env.Keys.OrderBy(name => name, StringComparer.Ordinal));
+
+                return $"[{index}] image={executor.Image} env={{{names}}}";
+            });
+
+            return $"id={tesMessage.Id} name={tesMessage.Name} executors={executors.Count} "
+                   + string.Join(" ", described);
+        }
+
+        /// <summary>
+        /// Files one vault path's variables as shared or as belonging to an image code.
+        ///
+        /// Every handler builds its path as {tag}/{user}/{submissionId}/{project}, and the
+        /// tre handler appends the image code when a variable is scoped to one. So a fifth
+        /// segment means image-scoped, and is the code itself.
+        /// </summary>
+        private static void AddToSubmissionCredentials(SubmissionCredentials destination,
+            string? credentialType, string vaultPath, Dictionary<string, object> values)
+        {
+            var segments = vaultPath.Split('/', StringSplitOptions.RemoveEmptyEntries);
+            var imageCode = segments.Length > 4 ? segments[^1] : null;
+
+            // Fall back to the first path segment, which is where the credential type comes
+            // from when the handler builds the path.
+            var type = string.IsNullOrWhiteSpace(credentialType)
+                ? (segments.Length > 0 ? segments[0] : "unknown")
+                : credentialType;
+
+            var target = SelectGroup(destination, type, imageCode);
+
+            foreach (var value in values)
+            {
+                target[value.Key] = value.Value?.ToString() ?? string.Empty;
+            }
+        }
+
+        private static Dictionary<string, string> SelectGroup(SubmissionCredentials destination,
+            string credentialType, string? imageCode)
+        {
+            var groups = string.IsNullOrEmpty(imageCode)
+                ? destination.SharedByType
+                : destination.ByImageCode;
+
+            var key = string.IsNullOrEmpty(imageCode) ? credentialType : imageCode;
+
+            if (!groups.TryGetValue(key, out var group))
+            {
+                group = new Dictionary<string, string>(StringComparer.Ordinal);
+                groups[key] = group;
+            }
+
+            return group;
         }
 
         // Starts the Credentials_Revoke Camunda process to revoke credentials for the given submission.
