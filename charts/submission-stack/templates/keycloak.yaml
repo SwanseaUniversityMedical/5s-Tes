@@ -1,0 +1,106 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: keycloak
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: {{ .Values.global.argoProject}}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      - ServerSideApply=false
+  source:
+    repoURL: 'registry-1.docker.io/bitnamicharts'
+    chart: keycloak
+    targetRevision: 24.9.0
+    helm:
+      valuesObject:
+        # https://github.com/bitnami/charts/blob/main/bitnami/keycloak/values.yaml
+        global:
+          security:
+            allowInsecureImages: true 
+            
+        service:
+          type: ClusterIP
+          ports:
+            http: 8085
+
+        image:
+          repository: bitnamilegacy/keycloak
+
+        extraEnvVars:
+          - name: KEYCLOAK_EXTRA_ARGS
+            value: "--import-realm"
+
+        {{- if .Values.global.dev }}
+        extraVolumes: 
+          - name: realm-import
+            configMap:
+              name: keycloak-realm-autocreate
+
+        extraVolumeMounts: 
+          - name: realm-import
+            mountPath: /opt/bitnami/keycloak/data/import
+        {{- end }}
+
+        keycloakConfigCli:
+          image:
+            repository: bitnamilegacy/keycloak-config-cli
+
+
+        {{- if and .Values.global.dev (not .Values.global.ingress.enabled) }}
+        ingress:
+          enabled: true
+          ingressClassName: "nginx"
+          annotations:
+            nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+            nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "256k"
+          hostname: "keycloak.localtest.me"
+        {{- end }}
+
+        {{- if .Values.global.ingress.enabled }}
+        ingress:
+          enabled: true
+          ingressClassName: {{ .Values.global.ingress.adminClassName }}
+          annotations:
+            cert-manager.io/cluster-issuer: {{ .Values.global.ingress.certClusterIssuer }}
+            nginx.ingress.kubernetes.io/proxy-buffer-size: 128k
+            nginx.ingress.kubernetes.io/proxy-busy-buffers-size: "256k"
+          hostname: "keycloak.{{ .Values.global.ingress.host }}"
+          tls: true
+        {{- end }}
+
+        auth:
+          adminUser: admin
+          existingSecret: keycloak-admin-secret
+          passwordSecretKey: password
+          createAdminUser: true
+
+        postgresql:
+          enabled: false
+
+        externalDatabase:
+          host: keycloak-postgres-rw
+          port: 5432
+          database: {{ .Values.keycloak.postgres.database }}
+          existingSecret: {{ include "submission-stack.fullname" . }}-kc-pg-secret
+          existingSecretUserKey: username
+          existingSecretPasswordKey: password
+
+        metrics:
+          enabled: false
+
+{{- end }}
