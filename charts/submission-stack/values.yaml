@@ -149,6 +149,7 @@ vault:
 rabbitmq:
   replicas: 1
   storageSize: "10Gi"
+  resources: {}
   # Extra rabbitmq.conf lines, passed to the operator verbatim.
   additionalConfig: ""
   # Set false only on a cluster without Vault (local dev); the operator

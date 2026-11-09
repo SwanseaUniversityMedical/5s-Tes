@@ -12,6 +12,10 @@ spec:
     additionalConfig: |
 {{ . | indent 6 }}
   {{- end }}
+  {{- with .Values.rabbitmq.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   persistence:
     storageClassName: {{ .Values.global.storageClass }}
     storage: {{ .Values.rabbitmq.storageSize }}

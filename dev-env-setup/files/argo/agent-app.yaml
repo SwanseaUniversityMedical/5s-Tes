@@ -53,6 +53,12 @@ spec:
 
         rabbitmq:
           vaultDefaultUser: false
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
           additionalConfig: |
             default_user = agent
             default_pass = password123
