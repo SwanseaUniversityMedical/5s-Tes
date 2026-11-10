@@ -121,7 +121,7 @@ spec:
   type: NodePort
   selector:
     app: camunda-platform
-    app.kubernetes.io/component: zeebe-broker
+    app.kubernetes.io/component: zeebe-gateway
     app.kubernetes.io/instance: camunda
     app.kubernetes.io/managed-by: Helm
     app.kubernetes.io/name: camunda-platform
