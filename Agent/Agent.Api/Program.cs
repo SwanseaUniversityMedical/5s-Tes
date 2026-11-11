@@ -213,6 +213,7 @@ builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
 builder.Services.AddScoped<IConfigurationService, ConfigurationService>();
 builder.Services.AddScoped<IOnboardingService, OnboardingService>();
 builder.Services.AddScoped<IHealthCheckService, HealthCheckService>();
+builder.Services.AddScoped<IImageCodeResolver, ImageCodeResolver>();
 
 var TVP = new TokenValidationParameters
 {
