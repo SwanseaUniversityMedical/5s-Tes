@@ -20,11 +20,15 @@ namespace Agent.Api.Controllers
         private readonly DataEgressKeyCloakSettings _keycloakSettings;
         public KeycloakTokenHelper _keycloakTokenHelper { get; set; }
         private readonly EgressSettings _egressSettings;
+        private readonly IOnboardingService _onboardingService;
+        private readonly IAirlockClientHelper _airlockClient;
 
         public DataEgressCredentialsController(IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config,
-            EgressSettings egressSettings)
+            EgressSettings egressSettings, IOnboardingService onboardingService, IAirlockClientHelper airlockClient)
         {
             _egressSettings = egressSettings;
+            _onboardingService = onboardingService;
+            _airlockClient = airlockClient;
             _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
@@ -35,10 +39,10 @@ namespace Agent.Api.Controllers
 
         [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("AreCredentialsConfigured")]
-        public BoolReturn AreCredentialsConfigured([FromServices] IOnboardingService onboardingService)
+        public BoolReturn AreCredentialsConfigured()
         {
             if (_egressSettings.Provider == EgressProvider.Airlock)
-                return new BoolReturn { Result = onboardingService.IsAirlockConfigured() };
+                return new BoolReturn { Result = _onboardingService.IsAirlockConfigured() };
 
             return new BoolReturn
             {
@@ -49,12 +53,12 @@ namespace Agent.Api.Controllers
 
         [Authorize(Roles = "dare-tre-admin")]
         [HttpGet("CheckCredentialsAreValid")]
-        public async Task<BoolReturn> CheckCredentialsAreValidAsync([FromServices] IAirlockClientHelper airlockClient)
+        public async Task<BoolReturn> CheckCredentialsAreValidAsync()
         {
             try
             {
                 if (_egressSettings.Provider == EgressProvider.Airlock)
-                    return new BoolReturn { Result = await airlockClient.CheckConnectionAsync() == "" };
+                    return new BoolReturn { Result = await _airlockClient.CheckConnectionAsync() == "" };
 
                 var result = new BoolReturn() { Result = false };
 
