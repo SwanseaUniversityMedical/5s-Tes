@@ -46,7 +46,8 @@ spec:
           veleroBackup:
             enabled: false
           monitoring:
-            enabled: false
+            enabled: true
+            pushgatewayUrl: "http://prometheus-pushgateway.monitoring.svc.cluster.local:9091/metrics"
 
         vault:
           secretsEnabled: false
