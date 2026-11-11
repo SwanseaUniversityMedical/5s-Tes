@@ -385,13 +385,17 @@ namespace Agent.Api.Controllers
         [ProducesResponseType(400)]
         public async Task<IActionResult> DeployDmn([FromQuery(Name = "table")] string? dmnTable = null)
         {
+            var table = TableFor(dmnTable);
             var path = PathFor(dmnTable);
 
             try
             {
                 await _dmnService.DeployDmnToZeebeAsync(path);
 
-                await _dmnEnvironmentVariableSyncService.SyncEnvironmentVariablesWithSubmission(path);
+                if (table == DmnFiles.EnvironmentVariablesTable)
+                {
+                    await _dmnEnvironmentVariableSyncService.SyncEnvironmentVariablesWithSubmission(path);
+                }
 
                 return Ok(new DmnOperationResult
                 {
