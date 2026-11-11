@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: seq
-  namespace: {{ .Values.global.namespace }}
+  name: {{ .Values.global.argoAppPrefix }}seq
+  namespace: {{ include "submission-stack.argoNamespace" . }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -32,6 +32,10 @@ spec:
     # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
     targetRevision: "{{ .Values.seq.chartVersion }}"
     helm:
+      {{- if .Values.global.argoAppPrefix }}
+      # Unprefixed, so nothing inside the release is renamed.
+      releaseName: seq
+      {{- end }}
       valuesObject:
         # All interfaces, not "*" - Seq parses this with System.Uri, which rejects "*" as a host.
         listenURI: "http://0.0.0.0:80,http://0.0.0.0:5341"
@@ -44,9 +48,9 @@ spec:
 
         {{- if .Values.global.ingress.enabled }}
         {{- if .Values.global.ingress.tls }}
-        baseURI: "https://seq.{{ .Values.global.ingress.host }}/"
+        baseURI: "https://{{ include "submission-stack.seqHost" . }}/"
         {{- else }}
-        baseURI: "http://seq.{{ .Values.global.ingress.host }}/"
+        baseURI: "http://{{ include "submission-stack.seqHost" . }}/"
         {{- end }}
 
         ui:
@@ -54,7 +58,7 @@ spec:
             enabled: true
             path: /
             hosts:
-              - seq.{{ .Values.global.ingress.host }}
+              - {{ include "submission-stack.seqHost" . }}
 
         ingress:
           className: "{{ .Values.global.ingress.className }}"
@@ -65,7 +69,7 @@ spec:
           {{- if .Values.global.ingress.tls }}
           tls:
             - hosts:
-              - seq.{{ .Values.global.ingress.host }}
+              - {{ include "submission-stack.seqHost" . }}
               secretName: seq-tls
           {{- end }}
         {{- end }}

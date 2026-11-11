@@ -24,4 +24,9 @@ spec:
     vault:
       role: {{ .Values.vault.role }}
       defaultUserPath: {{ .Values.vault.secretPath }}/rabbitmq
+  {{- else if .Values.rabbitmq.vaultSecretDefaultUser }}
+  # Same Vault credentials, copied by templates/secrets/rabbitmq.yaml.
+  secretBackend:
+    externalSecret:
+      name: rabbitmq-default-user-vault
   {{- end }}

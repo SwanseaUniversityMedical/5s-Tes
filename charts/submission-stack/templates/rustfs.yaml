@@ -1,11 +1,11 @@
 {{- if .Values.rustfs.enabled }}
 {{- $kc := urlParse .Values.global.oidc.authority }}
-{{- $console := .Values.submission.s3ConsoleUrl | default (printf "%s://rustfs.%s" (ternary "https" "http" .Values.global.ingress.tls) .Values.global.ingress.host) }}
+{{- $console := .Values.submission.s3ConsoleUrl | default (printf "%s://%s" (ternary "https" "http" .Values.global.ingress.tls) (include "submission-stack.rustfsHost" .)) }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: rustfs
-  namespace: {{ .Values.global.namespace }}
+  name: {{ .Values.global.argoAppPrefix }}rustfs
+  namespace: {{ include "submission-stack.argoNamespace" . }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -34,6 +34,10 @@ spec:
     # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
     targetRevision: "{{ .Values.rustfs.chartVersion }}"
     helm:
+      {{- if .Values.global.argoAppPrefix }}
+      # Unprefixed, so nothing inside the release is renamed.
+      releaseName: rustfs
+      {{- end }}
       valuesObject:
         # Default distributed mode needs 4 replicas; we run a single node.
         replicaCount: 1
@@ -97,7 +101,7 @@ spec:
           enabled: true
           className: {{ .Values.global.ingress.className }}
           hosts:
-            - host: rustfs.{{ .Values.global.ingress.host }}
+            - host: {{ include "submission-stack.rustfsHost" . }}
               paths:
                 - path: /
                   pathType: Prefix
