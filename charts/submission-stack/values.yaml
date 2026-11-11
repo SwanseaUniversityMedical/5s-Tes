@@ -1,6 +1,13 @@
 global:
   argoProject: submission
   namespace: 5s-tes-submission
+  # Where the child ArgoCD Applications are created. Empty means
+  # global.namespace, which ArgoCD's application.namespaces must include; set
+  # "argocd" on a cluster where it does not (the shared devs cluster).
+  argoNamespace: ""
+  # Prefix for the child Applications' names, for when argoNamespace is shared
+  # with other apps. Their Helm release names stay unprefixed.
+  argoAppPrefix: ""
 
   oidc:
     authority: "https://keycloak.example.ac.uk/realms/Dare-Control"
@@ -72,6 +79,9 @@ submission:
 
 rustfs:
   enabled: true
+  # Ingress host. Empty means rustfs.<global.ingress.host>; set it when both
+  # stacks share one global.ingress.host.
+  ingressHost: ""
   repoURL: "https://rustfs.github.io/helm/"
   chart: rustfs
   # renovate: datasource=helm depName=rustfs registryUrl=https://rustfs.github.io/helm/
@@ -91,6 +101,9 @@ rustfs:
 
 seq:
   enabled: true
+  # Ingress host. Empty means seq.<global.ingress.host>; set it when both
+  # stacks share one global.ingress.host.
+  ingressHost: ""
   repoURL: "https://helm.datalust.co"
   chart: seq
   # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
@@ -154,6 +167,11 @@ rabbitmq:
   # Set false only on a cluster without Vault (local dev); the operator
   # then generates "rabbitmq-default-user" instead.
   vaultDefaultUser: true
+  # Only with vaultDefaultUser false: the same Vault credentials, copied by a
+  # VaultSecret into "rabbitmq-default-user-vault" rather than by the
+  # operator's Vault Agent sidecar. For clusters without the Vault Agent
+  # injector, or that deny its annotations.
+  vaultSecretDefaultUser: false
 
 postgres:
   # Owned by the "app" role CNPG's default bootstrap creates.

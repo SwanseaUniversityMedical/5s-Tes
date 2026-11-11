@@ -126,6 +126,14 @@ The standalone chart's README lists the Secret keys each component reads; the tw
 on a cluster with no Vault to read from; the RabbitMQ Cluster Operator then generates its own
 `rabbitmq-default-user` Secret with a random password instead.
 
+`secretBackend.vault` needs the Vault Agent sidecar injector: the operator adds
+`vault.hashicorp.com/*` annotations to the RabbitMQ pod. On a cluster with Vault but without the
+injector, or one that denies those annotations (the shared `devs` dev cluster), set
+`rabbitmq.vaultDefaultUser: false` and `rabbitmq.vaultSecretDefaultUser: true` instead, as in
+`submission-stack`: `templates/secrets/rabbitmq.yaml` copies the same `vault.secretPath/rabbitmq`
+credentials into the Secret `rabbitmq-default-user-vault`, which the `RabbitmqCluster` uses through
+`secretBackend.externalSecret`.
+
 As with `submission-stack`, the Vault-supplied default user at `vault.secretPath/rabbitmq`
 (read by both the `RabbitmqCluster` and `agent-api-secret`) must carry the `management` tag / administrator
 permissions, not just messaging permissions, or the Agent api's own startup vhost/exchange/queue
@@ -448,6 +456,8 @@ only in-flight workflow instance state, not the system of record.
 |---|---|---|
 | `global.argoProject` | ArgoCD project every `Application` uses. | `agent` |
 | `global.namespace` | Namespace every object in this stack lives in. | `5s-tes-agent` |
+| `global.argoNamespace` | Namespace the child ArgoCD `Application`s are created in. Empty means `global.namespace`, which ArgoCD's `application.namespaces` must include; set `argocd` on a cluster where it does not. | `""` |
+| `global.argoAppPrefix` | Prefix for the child `Application`s' names, for when `global.argoNamespace` is shared with other apps. Their Helm release names stay unprefixed, so nothing inside them is renamed. | `""` |
 | `global.oidc.authority` | Full `Dare-TRE` realm URL, passed to the standalone chart. | `https://keycloak.example.ac.uk/realms/Dare-TRE` |
 | `global.ingress.enabled` | Create Ingresses at all. | `true` |
 | `global.ingress.host` | Base domain. `agent`/`agent-api`/`seq`/`rustfs`/`camunda`/`tesk` become subdomains of it. | `example.ac.uk` |
@@ -518,6 +528,7 @@ only in-flight workflow instance state, not the system of record.
 | Name | Description | Default |
 |---|---|---|
 | `rustfs.enabled` | Deploy the `rustfs` `Application`. | `true` |
+| `rustfs.ingressHost` | Ingress host. Empty means `rustfs.<global.ingress.host>`; set it when both stacks share one `global.ingress.host`. | `""` |
 | `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
 | `rustfs.chart` | Chart name within that repo. | `rustfs` |
 | `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |
@@ -532,6 +543,7 @@ only in-flight workflow instance state, not the system of record.
 | Name | Description | Default |
 |---|---|---|
 | `seq.enabled` | Deploy the `seq` `Application`. | `true` |
+| `seq.ingressHost` | Ingress host. Empty means `seq.<global.ingress.host>`; set it when both stacks share one `global.ingress.host`. | `""` |
 | `seq.repoURL` | Helm repo the Seq chart is pulled from. | `https://helm.datalust.co` |
 | `seq.chart` | Chart name within that repo. | `seq` |
 | `seq.chartVersion` | Seq chart version. | `2025.2.1` |
@@ -580,7 +592,8 @@ only in-flight workflow instance state, not the system of record.
 | `rabbitmq.replicas` | `RabbitmqCluster` replica count. | `1` |
 | `rabbitmq.storageSize` | Size of the broker's data PVC. | `10Gi` |
 | `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
-| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead; only valid with `vault.secretsEnabled: false`, since `agent-api-secret` reads the same Vault path. See **RabbitMQ** above. | `true` |
+| `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead; only valid with `vault.secretsEnabled: false`, since `agent-api-secret` reads the same Vault path, unless `vaultSecretDefaultUser` is set. See **RabbitMQ** above. | `true` |
+| `rabbitmq.vaultSecretDefaultUser` | With `vaultDefaultUser: false` and `vault.secretsEnabled: true`: a `VaultSecret` copies the `vault.secretPath/rabbitmq` credentials into `rabbitmq-default-user-vault`, which the `RabbitmqCluster` uses through `secretBackend.externalSecret`. For clusters without the Vault Agent injector. See **RabbitMQ** above. | `false` |
 
 ### postgres
 

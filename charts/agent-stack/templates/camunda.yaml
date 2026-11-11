@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: camunda
-  namespace: {{ .Values.global.namespace }}
+  name: {{ .Values.global.argoAppPrefix }}camunda
+  namespace: {{ include "agent-stack.argoNamespace" . }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -32,6 +32,10 @@ spec:
     # renovate: datasource=helm depName=camunda-platform registryUrl=https://helm.camunda.io
     targetRevision: "{{ .Values.camunda.chartVersion }}"
     helm:
+      {{- if .Values.global.argoAppPrefix }}
+      # Unprefixed, so nothing inside the release is renamed.
+      releaseName: camunda
+      {{- end }}
       valuesObject:
         # Zeebe only. Operate, Tasklist, Optimize, Identity and Connectors are
         # non-production-only without an Enterprise licence; without them

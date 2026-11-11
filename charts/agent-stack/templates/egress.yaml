@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: egress
-  namespace: {{ .Values.global.namespace }}
+  name: {{ .Values.global.argoAppPrefix }}egress
+  namespace: {{ include "agent-stack.argoNamespace" . }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -33,6 +33,10 @@ spec:
     # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
     targetRevision: "{{ .Values.egress.chartVersion }}"
     helm:
+      {{- if .Values.global.argoAppPrefix }}
+      # Unprefixed, so nothing inside the release is renamed.
+      releaseName: egress
+      {{- end }}
       valuesObject:
         global:
           tag: "{{ .Values.egress.imageVersion }}"
@@ -75,5 +79,5 @@ spec:
         ui:
           # Secure cookies require HTTPS end-to-end; follows ingress TLS.
           sslCookies: "{{ .Values.global.ingress.tls }}"
-          s3ConsoleUrl: "{{ ternary "https" "http" .Values.global.ingress.tls }}://rustfs.{{ .Values.global.ingress.host }}"
+          s3ConsoleUrl: "{{ ternary "https" "http" .Values.global.ingress.tls }}://{{ include "agent-stack.rustfsHost" . }}"
 {{- end }}

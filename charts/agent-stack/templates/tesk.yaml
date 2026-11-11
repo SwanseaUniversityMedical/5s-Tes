@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: tesk
-  namespace: {{ .Values.global.namespace }}
+  name: {{ .Values.global.argoAppPrefix }}tesk
+  namespace: {{ include "agent-stack.argoNamespace" . }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -32,6 +32,10 @@ spec:
     # renovate: datasource=helm-oci depName=tesk/chart/tesk registryUrl=https://harbor.ukserp.ac.uk
     targetRevision: "{{ .Values.tesk.chartVersion }}"
     helm:
+      {{- if .Values.global.argoAppPrefix }}
+      # Unprefixed, so nothing inside the release is renamed.
+      releaseName: tesk
+      {{- end }}
       valuesObject:
         storage:
           type: s3
