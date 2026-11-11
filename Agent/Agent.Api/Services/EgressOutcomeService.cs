@@ -87,7 +87,10 @@ namespace Agent.Api.Services
                 }
             }
 
-            _subHelper.UpdateStatusForTre(review.SubId, StatusType.Completed, "");
+            if (approvalStatus == ApprovalType.FullyApproved)
+            {
+                _subHelper.UpdateStatusForTre(review.SubId, StatusType.Completed, "");
+            }
 
             return new BoolReturn() { Result = true };
         }
