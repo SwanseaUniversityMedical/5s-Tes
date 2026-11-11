@@ -36,8 +36,9 @@ secret in the realm import string-matches the value in `templates/secrets/static
 | `Dare-Control-API` client secret | `devsecret-control-api` | realm import + `submission-api-secret.keycloakClientSecret` | `SubmissionKeyCloakSettings__ClientSecret` |
 | `Dare-Control-UI` client secret | `devsecret-control-ui` | realm import + `submission-ui-secret.keycloakClientSecret` | `SubmissionKeyCloakSettings__ClientSecret` (UI) |
 | `Dare-Control-S3` client secret | `devsecret-control-s3` | realm import + `submission-rustfs-secret.RUSTFS_IDENTITY_OPENID_CLIENT_SECRET` | The RustFS console's OpenID login (`submission-stack`'s `templates/rustfs.yaml`) |
-| Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client) |
+| Realm admin user (Keycloak admin REST API) | `dare-control-realm-user` / `admin` | realm import + `submission-api-secret.keycloakAdminUsername`/`keycloakAdminPassword` | `KeycloakAdminService.GetAdminTokenAsync` (password grant against the realm's built-in `admin-cli` client). Holds `realm-management` `manage-clients`, `manage-users`, `view-users` and `view-realm` — what creating a TRE's `tre-agent-<name>` client needs |
 | Dev login user | `dev` / `password123` | realm import only | Manual browser login; holds the `dare-control-admin` realm role so admin-gated pages/endpoints work |
+| TRE admin user | `sailegressapi` / `password123` | `keycloak.treAdmin` (created by `templates/keycloak-realm-setup.yaml`; empty username skips it) | Enter as a TRE's admin username when `dev` creates the TRE; signing in as it shows that TRE's *Download config* (needs `dare-tre-admin`). Dev only: production TRE admins are set up manually |
 | S3 (RustFS) access/secret key | `s3-submission` / `s3-submission-pass` | `submission-api-secret.s3AccessKey`/`s3SecretKey` + `submission-rustfs-secret.RUSTFS_ACCESS_KEY`/`RUSTFS_SECRET_KEY` | `MinioSettings__AccessKey`/`SecretKey`; RustFS chart's own root credentials |
 | Vault token | `dev-only-token` | none (IDE launch profiles only) | `VaultSettings__Token` for IDE-run apps; `dev-env-setup/vault-init.sh` creates it. In-cluster, the api reads the stack CronJob's `submission-vault-token` Secret instead |
 | RabbitMQ default user | `submission` / `password123` | `submission-api-secret.rabbitUsername`/`rabbitPassword` | `RabbitMQ__Username`/`Password` — must match the stack's `rabbitmq.additionalConfig` (see **Local install**) |
@@ -139,6 +140,13 @@ With the override set above, Velero and a Prometheus Operator `PodMonitor` CRD a
   console maps to policies — mirroring production's `Dare-Control-API-cs` and
   `minio-authorization` client scopes
   (`DeploymentStack/Submission/config/realm-config/sub-layer.json`).
+- `templates/keycloak-realm-setup.yaml` (a Job, re-run on every `helm upgrade`) adds a
+  `dare-control-api-audience` client scope with a `Dare-Control-API` audience mapper and makes
+  it a realm default scope, so the `tre-agent-<name>` clients the api creates during TRE
+  onboarding get an `aud` the api accepts. It runs after start-up rather than in the realm
+  import because an import that lists any `clientScopes` stops Keycloak creating its built-in
+  ones. It also grants `view-realm` to `dare-control-realm-user` on realms imported before
+  the import carried it, and creates the `keycloak.treAdmin` user. Every step is safe to re-run.
 - **Known local constraint, now closed by the bootstrap**: server-side OIDC calls made from
   inside pods (the API and UI reaching `global.oidc.authority`) would otherwise resolve
   `keycloak.<global.ingress.host>` to `127.0.0.1`, not the ingress controller —

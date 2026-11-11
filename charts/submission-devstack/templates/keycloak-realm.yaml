@@ -147,7 +147,7 @@ data:
             "dare-tre-admin"
           ],
           "clientRoles": {
-            "realm-management": ["manage-clients", "manage-users", "view-users"]
+            "realm-management": ["manage-clients", "manage-users", "view-users", "view-realm"]
           },
           "credentials": [
             {
