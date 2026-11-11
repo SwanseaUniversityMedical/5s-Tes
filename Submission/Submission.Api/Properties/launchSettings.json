@@ -16,7 +16,12 @@
       "launchBrowser": true,
       "launchUrl": "swagger",
       "environmentVariables": {
-        "ASPNETCORE_ENVIRONMENT": "Development"
+        "ASPNETCORE_ENVIRONMENT": "Development",
+        "Features__SeedDemoData": "true",
+        "SubmissionKeyCloakSettings__Server": "keycloak.localtest.me:8085",
+        "MinioSettings__AccessKey": "minio",
+        "MinioSettings__SecretKey": "minio123",
+        "MINIO_MC_DOCKER_CONTAINER": "minioSubmission"
       },
       "dotnetRunMessages": true,
       "applicationUrl": "https://localhost:7163;http://localhost:5034"

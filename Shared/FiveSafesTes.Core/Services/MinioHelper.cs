@@ -1,4 +1,4 @@
-﻿using Amazon;
+using Amazon;
 using Amazon.S3;
 using Amazon.S3.Model;
 using Amazon.S3.Transfer;
@@ -485,11 +485,11 @@ namespace FiveSafesTes.Core.Services
 
             var baseUrl = _minioSettings.Url.TrimEnd('/');
             var policyName = Uri.EscapeDataString($"{bucketName}_policy");
-            // NOTE: RustFS accepts admin API paths as "/minio/admin/v3/add-canned-policy" or "/rustfs/admin/v3/add-canned-policy" 
-            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
+      // NOTE: RustFS accepts admin API paths as "/minio/admin/v3/add-canned-policy" or "/rustfs/admin/v3/add-canned-policy" 
+          var adminApiPath = "/minio/admin/v3/add-canned-policy";
 
 
-            using var client = new HttpClient();
+      using var client = new HttpClient();
             using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
             using var request = new HttpRequestMessage
             {
@@ -998,9 +998,9 @@ namespace FiveSafesTes.Core.Services
 
             var baseUrl = _minioSettings.Url.TrimEnd('/');
             var encodedPolicyName = Uri.EscapeDataString(policyName);
-            var adminApiPath = "/rustfs/admin/v3/add-canned-policy";
+            var adminApiPath = "/minio/admin/v3/add-canned-policy";
 
-            using var client = new HttpClient();
+      using var client = new HttpClient();
             using var content = new StringContent(policyJson, Encoding.UTF8, "application/json");
             using var request = new HttpRequestMessage
             {
@@ -1160,10 +1160,14 @@ namespace FiveSafesTes.Core.Services
             {
                 Log.Debug("Executing MinIO command: {Command}", command);
 
+                // LOCAL WINDOWS DEV ONLY - do not commit. No /bin/sh or mc on Windows, so run mc inside the MinIO container.
+                var mcContainer = Environment.GetEnvironmentVariable("MINIO_MC_DOCKER_CONTAINER");
                 var processStartInfo = new ProcessStartInfo
                 {
-                    FileName = "/bin/sh",
-                    Arguments = $"-c \"{command}\"",
+                    FileName = string.IsNullOrEmpty(mcContainer) ? "/bin/sh" : "docker",
+                    Arguments = string.IsNullOrEmpty(mcContainer)
+                        ? $"-c \"{command}\""
+                        : $"exec {mcContainer} sh -c \"{command.Replace("localhost", "host.docker.internal")}\"",
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     UseShellExecute = false,
