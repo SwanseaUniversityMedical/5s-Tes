@@ -27,6 +27,7 @@ namespace Submission.Api.Repositories.DbContexts
         public DbSet<MembershipTreDecision> MembershipTreDecisions { get; set; }
 
         public DbSet<UsedOnboardingJti> UsedOnboardingJtis { get; set; }
+        public DbSet<ProjectTreEnvironmentVariables> ProjectTreEnvironmentVariables { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
