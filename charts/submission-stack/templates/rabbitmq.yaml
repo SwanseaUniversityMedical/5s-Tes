@@ -7,6 +7,10 @@ metadata:
     argocd.argoproj.io/sync-wave: "2"
 spec:
   replicas: {{ .Values.rabbitmq.replicas }}
+  {{- with .Values.rabbitmq.resources }}
+  resources:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
   {{- with .Values.rabbitmq.additionalConfig }}
   rabbitmq:
     additionalConfig: |

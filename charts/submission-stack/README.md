@@ -320,6 +320,7 @@ With today's defaults, real data sits in four places with different protection:
 |---|---|---|
 | `seq.enabled` | Deploy the `seq` `Application`. | `true` |
 | `seq.ingressHost` | Ingress host. Empty means `seq.<global.ingress.host>`; set it when both stacks share one `global.ingress.host`. | `""` |
+| `seq.unprivilegedPort` | Seq listens on 8080 inside the container instead of 80, without the chart's added `NET_BIND_SERVICE` capability, for clusters that deny added capabilities. The Service still serves port 80. | `false` |
 | `seq.repoURL` | Helm repo the Seq chart is pulled from. | `https://helm.datalust.co` |
 | `seq.chart` | Chart name within that repo. | `seq` |
 | `seq.chartVersion` | Seq chart version. | `2025.2.1` |
@@ -338,6 +339,7 @@ With today's defaults, real data sits in four places with different protection:
 | `rabbitmq.additionalConfig` | Extra `rabbitmq.conf` lines, passed to the operator verbatim. | `""` |
 | `rabbitmq.vaultDefaultUser` | Default user credentials come from Vault, via the operator's own `secretBackend.vault`. `false` makes the operator generate its own `rabbitmq-default-user` Secret instead; only valid with `vault.secretsEnabled: false`, since `submission-api-secret` reads the same Vault path, unless `vaultSecretDefaultUser` is set. See **RabbitMQ** above. | `true` |
 | `rabbitmq.vaultSecretDefaultUser` | With `vaultDefaultUser: false` and `vault.secretsEnabled: true`: a `VaultSecret` copies the `vault.secretPath/rabbitmq` credentials into `rabbitmq-default-user-vault`, which the `RabbitmqCluster` uses through `secretBackend.externalSecret`. For clusters without the Vault Agent injector. See **RabbitMQ** above. | `false` |
+| `rabbitmq.resources` | The broker's requests and limits. Empty means the operator's default of 1 CPU and 2Gi. | `{}` |
 
 ### postgres
 

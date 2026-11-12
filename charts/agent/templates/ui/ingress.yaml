@@ -9,7 +9,9 @@ metadata:
     app.kubernetes.io/component: ui
   annotations:
     cert-manager.io/cluster-issuer: {{ .Values.global.ingress.certClusterIssuer }}
+    {{- if eq .Values.global.ingress.className "nginx" }}
     nginx.ingress.kubernetes.io/backend-protocol: HTTP
+    {{- end }}
 spec:
   ingressClassName: {{ .Values.global.ingress.className }}
   {{- if .Values.global.ingress.tls }}

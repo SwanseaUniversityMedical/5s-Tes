@@ -38,7 +38,14 @@ spec:
       {{- end }}
       valuesObject:
         # All interfaces, not "*" - Seq parses this with System.Uri, which rejects "*" as a host.
+        {{- if .Values.seq.unprivilegedPort }}
+        listenURI: "http://0.0.0.0:8080,http://0.0.0.0:5341"
+        # Port 8080 needs no NET_BIND_SERVICE, which the chart otherwise adds.
+        securityContext:
+          capabilities: null
+        {{- else }}
         listenURI: "http://0.0.0.0:80,http://0.0.0.0:5341"
+        {{- end }}
 
         firstRunAdminUsername: "admin"
         firstRunAdminPasswordSecret:
@@ -54,6 +61,9 @@ spec:
         {{- end }}
 
         ui:
+          {{- if .Values.seq.unprivilegedPort }}
+          containerPort: 8080
+          {{- end }}
           ingress:
             enabled: true
             path: /
@@ -72,6 +82,10 @@ spec:
               - {{ include "agent-stack.seqHost" . }}
               secretName: seq-tls
           {{- end }}
+        {{- else if .Values.seq.unprivilegedPort }}
+
+        ui:
+          containerPort: 8080
         {{- end }}
 
         persistence:

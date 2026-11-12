@@ -112,6 +112,10 @@ seq:
   # Leave false: no seqApiKey is wired into either component, so true
   # rejects every app log.
   requireAuthForIngestion: false
+  # Listen on 8080 inside the container instead of 80, without the chart's
+  # added NET_BIND_SERVICE capability; for clusters that deny added
+  # capabilities. The Service still serves port 80.
+  unprivilegedPort: false
   resources:
     requests:
       cpu: "250m"
@@ -172,6 +176,9 @@ rabbitmq:
   # operator's Vault Agent sidecar. For clusters without the Vault Agent
   # injector, or that deny its annotations.
   vaultSecretDefaultUser: false
+  # The broker's requests/limits. Empty means the operator's default of
+  # 1 CPU and 2Gi.
+  resources: {}
 
 postgres:
   # Owned by the "app" role CNPG's default bootstrap creates.
