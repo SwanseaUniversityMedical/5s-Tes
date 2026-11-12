@@ -253,8 +253,6 @@ With today's defaults, real data sits in four places with different protection:
 |---|---|---|
 | `global.argoProject` | ArgoCD project every `Application` uses. | `submission` |
 | `global.namespace` | Namespace every object in this stack lives in. | `5s-tes-submission` |
-| `global.argoNamespace` | Namespace the child ArgoCD `Application`s are created in. Empty means `global.namespace`, which ArgoCD's `application.namespaces` must include; set `argocd` on a cluster where it does not. | `""` |
-| `global.argoAppPrefix` | Prefix for the child `Application`s' names, for when `global.argoNamespace` is shared with other apps. Their Helm release names stay unprefixed, so nothing inside them is renamed. | `""` |
 | `global.oidc.authority` | Full Keycloak realm URL, passed to the standalone chart. | `https://keycloak.example.ac.uk/realms/Dare-Control` |
 | `global.ingress.enabled` | Create Ingresses at all. | `true` |
 | `global.ingress.host` | Base domain. `submission`/`submission-api` become subdomains of it. | `example.ac.uk` |

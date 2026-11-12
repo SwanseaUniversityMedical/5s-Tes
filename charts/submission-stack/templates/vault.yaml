@@ -5,8 +5,8 @@ metadata:
   # Family-distinct: the hashicorp/vault chart derives cluster-scoped
   # resource names from the release name alone, so "vault" in both stacks
   # would collide.
-  name: {{ .Values.global.argoAppPrefix }}submission-vault
-  namespace: {{ include "submission-stack.argoNamespace" . }}
+  name: submission-vault
+  namespace: {{ .Values.global.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -47,10 +47,6 @@ spec:
     # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
     targetRevision: "{{ .Values.vault.chartVersion }}"
     helm:
-      {{- if .Values.global.argoAppPrefix }}
-      # Unprefixed, so nothing inside the release is renamed.
-      releaseName: submission-vault
-      {{- end }}
       valuesObject:
         server:
           dev:

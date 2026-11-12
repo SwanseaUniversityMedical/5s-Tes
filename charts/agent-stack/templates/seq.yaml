@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ .Values.global.argoAppPrefix }}seq
-  namespace: {{ include "agent-stack.argoNamespace" . }}
+  name: seq
+  namespace: {{ .Values.global.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -32,10 +32,6 @@ spec:
     # renovate: datasource=helm depName=seq registryUrl=https://helm.datalust.co
     targetRevision: "{{ .Values.seq.chartVersion }}"
     helm:
-      {{- if .Values.global.argoAppPrefix }}
-      # Unprefixed, so nothing inside the release is renamed.
-      releaseName: seq
-      {{- end }}
       valuesObject:
         # All interfaces, not "*" - Seq parses this with System.Uri, which rejects "*" as a host.
         {{- if .Values.seq.unprivilegedPort }}

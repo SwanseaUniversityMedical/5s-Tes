@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ .Values.global.argoAppPrefix }}openldap
-  namespace: {{ include "agent-stack.argoNamespace" . }}
+  name: openldap
+  namespace: {{ .Values.global.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -32,10 +32,6 @@ spec:
     # renovate: datasource=helm depName=openldap-stack-ha registryUrl=https://jp-gouin.github.io/helm-openldap/
     targetRevision: "{{ .Values.openldap.chartVersion }}"
     helm:
-      {{- if .Values.global.argoAppPrefix }}
-      # Unprefixed, so nothing inside the release is renamed.
-      releaseName: openldap
-      {{- end }}
       valuesObject:
         # Testing-only single instance; replication is off.
         replicaCount: 1

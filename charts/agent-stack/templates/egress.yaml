@@ -2,8 +2,8 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: {{ .Values.global.argoAppPrefix }}egress
-  namespace: {{ include "agent-stack.argoNamespace" . }}
+  name: egress
+  namespace: {{ .Values.global.namespace }}
   finalizers:
     - resources-finalizer.argocd.argoproj.io
   annotations:
@@ -33,10 +33,6 @@ spec:
     # renovate: datasource=helm-oci depName=dare-trefx/chart/egress registryUrl=https://harbor.ukserp.ac.uk
     targetRevision: "{{ .Values.egress.chartVersion }}"
     helm:
-      {{- if .Values.global.argoAppPrefix }}
-      # Unprefixed, so nothing inside the release is renamed.
-      releaseName: egress
-      {{- end }}
       valuesObject:
         global:
           tag: "{{ .Values.egress.imageVersion }}"

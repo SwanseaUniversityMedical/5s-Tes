@@ -47,13 +47,6 @@ app.kubernetes.io/instance: {{ .Release.Name }}
 {{- end }}
 
 {{/*
-Namespace the child ArgoCD Applications are created in.
-*/}}
-{{- define "submission-stack.argoNamespace" -}}
-{{- .Values.global.argoNamespace | default .Values.global.namespace }}
-{{- end }}
-
-{{/*
 Ingress hosts of RustFS and Seq. Both stacks use these prefixes, so on a
 cluster running both under one global.ingress.host they need overriding.
 */}}

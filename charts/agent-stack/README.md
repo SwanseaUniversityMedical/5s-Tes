@@ -456,8 +456,6 @@ only in-flight workflow instance state, not the system of record.
 |---|---|---|
 | `global.argoProject` | ArgoCD project every `Application` uses. | `agent` |
 | `global.namespace` | Namespace every object in this stack lives in. | `5s-tes-agent` |
-| `global.argoNamespace` | Namespace the child ArgoCD `Application`s are created in. Empty means `global.namespace`, which ArgoCD's `application.namespaces` must include; set `argocd` on a cluster where it does not. | `""` |
-| `global.argoAppPrefix` | Prefix for the child `Application`s' names, for when `global.argoNamespace` is shared with other apps. Their Helm release names stay unprefixed, so nothing inside them is renamed. | `""` |
 | `global.oidc.authority` | Full `Dare-TRE` realm URL, passed to the standalone chart. | `https://keycloak.example.ac.uk/realms/Dare-TRE` |
 | `global.ingress.enabled` | Create Ingresses at all. | `true` |
 | `global.ingress.host` | Base domain. `agent`/`agent-api`/`seq`/`rustfs`/`camunda`/`tesk` become subdomains of it. | `example.ac.uk` |
