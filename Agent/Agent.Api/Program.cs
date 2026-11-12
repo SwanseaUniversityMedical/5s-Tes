@@ -44,12 +44,18 @@ if (configuration["SuppressAntiforgery"] != null && configuration["SuppressAntif
 {
     Log.Warning("{Function} Disabling Anti Forgery token. Only do if testing", "Main");
     builder.Services.AddAntiforgery(options => options.SuppressXFrameOptionsHeader = true);
+}
+
+var dpSection = builder.Configuration.GetSection("DataProtectionSettings");
+if (bool.TryParse(dpSection["PersistKeys"], out var persistKeys) && persistKeys)
+{
     builder.Services.AddDataProtection()
-        .PersistKeysToFileSystem(new DirectoryInfo("/root/.aspnet/DataProtection-Keys"))
-        .DisableAutomaticKeyGeneration();
+        .PersistKeysToFileSystem(new DirectoryInfo(dpSection["KeysPath"] ?? "/keys"))
+        .SetApplicationName("agent");
 }
 
 // Add services to the container.
+builder.Services.AddHealthChecks();
 builder.Services.AddControllersWithViews().AddNewtonsoftJson(options =>
 {
     options.SerializerSettings.ReferenceLoopHandling = Newtonsoft.Json.ReferenceLoopHandling.Ignore;
@@ -93,7 +99,8 @@ var bus =
     builder.Services.AddSingleton(RabbitHutch.CreateBus(
         $"host={configuration["RabbitMQ:HostAddress"]}:{int.Parse(configuration["RabbitMQ:PortNumber"])};virtualHost={configuration["RabbitMQ:VirtualHost"]};username={configuration["RabbitMQ:Username"]};password={configuration["RabbitMQ:Password"]}{sslPart}"));
 await SetUpRabbitMQ.DoItTreAsync(configuration["RabbitMQ:HostAddress"], configuration["RabbitMQ:PortNumber"],
-    configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"]);
+    configuration["RabbitMQ:VirtualHost"], configuration["RabbitMQ:Username"], configuration["RabbitMQ:Password"],
+    configuration.GetValue("RabbitMQ:ManagementPort", 15672));
 
 builder.Services.AddKeycloakSettings<TreKeyCloakSettings>(
   configuration, "TreKeyCloakSettings");
@@ -279,6 +286,15 @@ Log.Information(
 
 
 var app = builder.Build();
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
 app.UseForwardedHeaders(new ForwardedHeadersOptions
 {
     ForwardedHeaders = ForwardedHeaders.XForwardedProto
@@ -296,13 +312,13 @@ app.UseSwaggerUI(c =>
     c.OAuthClientId(treKeyCloakSettings.ClientId);
     c.OAuthAppName(treKeyCloakSettings.ClientId);
 });
-if (app.Environment.IsDevelopment())
+if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Development_Kind"))
 {
     app.UseDeveloperExceptionPage();
 }
 
 // Configure the HTTP request pipeline.
-if (!app.Environment.IsDevelopment())
+if (!(app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Development_Kind")))
 {
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
@@ -360,6 +376,8 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
 app.MapControllerRoute(
     name: "default",
     pattern: "{controller=Home}/{action=Index}/{id?}");

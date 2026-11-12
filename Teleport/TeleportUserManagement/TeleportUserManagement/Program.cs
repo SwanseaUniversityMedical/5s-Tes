@@ -30,6 +30,7 @@ builder.Services.AddOpenApi();
 
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddHttpClient();
+builder.Services.AddHealthChecks();
 
 builder.Services.AddScoped<ILdapService, LdapService>();
 builder.Services.AddScoped<IUserService, UserService>();
@@ -59,17 +60,41 @@ builder.Services.AddHangfireServer();
 
 var app = builder.Build();
 
+if (Environment.GetEnvironmentVariable("PUSHGATEWAY_URL") != null)
+{
+    var pusher = new Prometheus.MetricPusher(new Prometheus.MetricPusherOptions
+    {
+        Endpoint = Environment.GetEnvironmentVariable("PUSHGATEWAY_URL"),
+        Job = Environment.GetEnvironmentVariable("PUSHGATEWAY_JOB")
+    });
+    pusher.Start();
+}
+
 // Configure the HTTP request pipeline.
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
 }
 
-app.UseHttpsRedirection();
+// Disable redirect if using http only site to prevent silent redirect to non existent https site
+var httpsRedirect = configuration["httpsRedirect"];
+if (httpsRedirect != null && httpsRedirect.ToLower() == "true")
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthorization();
 
 app.MapControllers();
+
+// Anonymous: probed by Kubernetes, which cannot authenticate.
+app.MapHealthChecks("/health").AllowAnonymous();
+
+using (var scope = app.Services.CreateScope())
+{
+    var vaultCredentialsService = scope.ServiceProvider.GetRequiredService<IVaultCredentialsService>();
+}
+
 
 app.UseHangfireDashboard("/hangfire", new DashboardOptions
 {
@@ -77,7 +102,9 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
     {
         new BasicAuthAuthorizationFilter(new BasicAuthAuthorizationFilterOptions
         {
-            RequireSsl = true,
+            // TLS terminates before the pod; requiring SSL here would lock
+            // out the dashboard in-cluster.
+            RequireSsl = false,
             SslRedirect = false,
             LoginCaseSensitive = false,
             Users = new[]

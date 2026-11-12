@@ -1,0 +1,228 @@
+{{- if .Values.vault.enabled }}
+# Converges the runtime Vault so no step from the old manual README flow
+# remains: init (keys stored in the submission-vault-keys Secret), unseal
+# after any pod restart, the "secret" kv-v2 mount, and the app token the
+# api reads from the submission-vault-token Secret.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: submission-vault-init
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: submission-vault-init
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "create", "patch", "update"]
+
+---
+
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: submission-vault-init
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: submission-vault-init
+subjects:
+  - kind: ServiceAccount
+    name: submission-vault-init
+    namespace: {{ .Values.global.namespace }}
+
+---
+
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: submission-vault-init
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+data:
+  setup.sh: |
+    #!/bin/sh
+    # Runs in the vault image. Leaves anything new in /shared for
+    # publish.sh to store as Kubernetes Secrets.
+    set -u
+
+    tries=0
+    while true; do
+      vault status >/dev/null 2>&1
+      rc=$?
+      [ "$rc" -ne 1 ] && break
+      tries=$((tries+1))
+      if [ "$tries" -ge 60 ]; then echo "vault is unreachable"; exit 1; fi
+      sleep 5
+    done
+
+    vault operator init -status >/dev/null 2>&1
+    rc=$?
+    if [ "$rc" -eq 2 ]; then
+      echo "initialising"
+      vault operator init -key-shares=1 -key-threshold=1 -format=yaml > /shared/init.yaml
+      grep -A1 '^unseal_keys_b64:' /shared/init.yaml | tail -n1 | sed 's/^- //' > /shared/unseal_key
+      awk '/^root_token:/ {print $2}' /shared/init.yaml > /shared/root_token
+      rm /shared/init.yaml
+    elif [ "$rc" -ne 0 ]; then
+      echo "vault operator init -status failed ($rc)"; exit 1
+    fi
+
+    if [ -s /shared/unseal_key ]; then
+      UNSEAL_KEY=$(cat /shared/unseal_key)
+      ROOT_TOKEN=$(cat /shared/root_token)
+    elif [ -s /existing-keys/unseal_key ]; then
+      UNSEAL_KEY=$(cat /existing-keys/unseal_key)
+      ROOT_TOKEN=$(cat /existing-keys/root_token)
+    else
+      echo "vault is initialised but the submission-vault-keys Secret is missing;"
+      echo "restore it or re-init (delete the vault PVC) before this job can manage vault"
+      exit 1
+    fi
+
+    vault status >/dev/null 2>&1
+    if [ $? -eq 2 ]; then
+      echo "unsealing"
+      vault operator unseal "$UNSEAL_KEY" >/dev/null
+    fi
+
+    export VAULT_TOKEN="$ROOT_TOKEN"
+
+    if ! vault secrets list | awk '{print $1}' | grep -qx 'secret/'; then
+      echo "enabling the secret kv-v2 mount"
+      vault secrets enable -path=secret -version=2 kv
+    fi
+
+    vault policy write submission-app - <<'EOF'
+    path "secret/*" {
+      capabilities = ["create", "read", "update", "delete", "list"]
+    }
+    EOF
+
+    if [ -s /existing-token/vaultToken ]; then
+      APP_TOKEN=$(cat /existing-token/vaultToken)
+      if VAULT_TOKEN="$APP_TOKEN" vault token lookup >/dev/null 2>&1; then
+        echo "renewing the app token"
+        vault token renew "$APP_TOKEN" >/dev/null
+        exit 0
+      fi
+    fi
+    echo "creating the app token"
+    vault token create -orphan -policy=submission-app -period=768h -field=token > /shared/app_token
+  unseal-watch.sh: |
+    #!/bin/sh
+    # Runs as a sidecar in the vault pod: unseals within seconds of a
+    # restart. Init and everything else stays with the CronJob.
+    set -u
+    while true; do
+      vault status >/dev/null 2>&1
+      if [ $? -eq 2 ]; then
+        if [ -s /existing-keys/unseal_key ]; then
+          vault operator unseal "$(cat /existing-keys/unseal_key)" >/dev/null && echo "unsealed"
+        else
+          # Exit so the restarted container re-mounts the keys Secret once
+          # the CronJob has created it.
+          echo "sealed and no keys Secret yet"
+          exit 0
+        fi
+      fi
+      sleep 10
+    done
+  publish.sh: |
+    #!/bin/sh
+    # Runs in the kubectl image.
+    set -eu
+    cd /shared
+    if [ -s unseal_key ]; then
+      kubectl create secret generic submission-vault-keys \
+        --from-file=unseal_key --from-file=root_token \
+        --dry-run=client -o yaml | kubectl apply -f -
+    fi
+    if [ -s app_token ]; then
+      kubectl create secret generic submission-vault-token \
+        --from-file=vaultToken=app_token \
+        --dry-run=client -o yaml | kubectl apply -f -
+    fi
+    echo "done"
+
+---
+
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: submission-vault-init
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  schedule: "*/5 * * * *"
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      activeDeadlineSeconds: 600
+      template:
+        spec:
+          serviceAccountName: submission-vault-init
+          restartPolicy: Never
+          initContainers:
+            - name: setup
+              image: "{{ .Values.vault.init.vaultImage }}"
+              command: ["/bin/sh", "/scripts/setup.sh"]
+              env:
+                - name: VAULT_ADDR
+                  value: "{{ .Values.vault.address }}"
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: shared
+                  mountPath: /shared
+                - name: existing-keys
+                  mountPath: /existing-keys
+                  readOnly: true
+                - name: existing-token
+                  mountPath: /existing-token
+                  readOnly: true
+          containers:
+            - name: publish
+              image: "{{ .Values.vault.init.kubectlImage }}"
+              command: ["/bin/sh", "/scripts/publish.sh"]
+              volumeMounts:
+                - name: scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: shared
+                  mountPath: /shared
+          volumes:
+            - name: scripts
+              configMap:
+                name: submission-vault-init
+                defaultMode: 0555
+            - name: shared
+              emptyDir:
+                medium: Memory
+            - name: existing-keys
+              secret:
+                secretName: submission-vault-keys
+                optional: true
+            - name: existing-token
+              secret:
+                secretName: submission-vault-token
+                optional: true
+{{- end }}

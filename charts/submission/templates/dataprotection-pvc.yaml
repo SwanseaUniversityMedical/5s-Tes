@@ -1,0 +1,18 @@
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: submission-dataprotection
+  labels:
+    {{- include "submission.labels" . | nindent 4 }}
+    {{- with .Values.persistentVolumeLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  accessModes:
+    {{- toYaml .Values.dataProtection.accessModes | nindent 4 }}
+  resources:
+    requests:
+      storage: {{ .Values.dataProtection.size | quote }}
+  {{- if typeIs "string" .Values.dataProtection.storageClassName }}
+  storageClassName: {{ .Values.dataProtection.storageClassName | quote }}
+  {{- end }}
