@@ -1,0 +1,64 @@
+{{- if .Values.tesk.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: tesk
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "3"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  source:
+    repoURL: "{{ .Values.tesk.repoURL }}"
+    chart: "{{ .Values.tesk.chart }}"
+    # renovate: datasource=helm-oci depName=tesk/chart/tesk registryUrl=https://harbor.ukserp.ac.uk
+    targetRevision: "{{ .Values.tesk.chartVersion }}"
+    helm:
+      valuesObject:
+        storage:
+          type: s3
+          authType: extraManifests
+
+        service:
+          type: ClusterIP
+
+        {{- if .Values.global.ingress.enabled }}
+        ingress:
+          enabled: true
+          className: {{ .Values.global.ingress.className }}
+          host: "tesk.{{ .Values.global.ingress.host }}"
+          {{- if .Values.global.ingress.tls }}
+          annotations:
+            cert-manager.io/cluster-issuer: "{{ .Values.global.ingress.certClusterIssuer }}"
+          tls:
+            - hosts:
+                - tesk.{{ .Values.global.ingress.host }}
+              secretName: tesk-tls
+          {{- end }}
+        {{- end }}
+
+        tesk:
+          image: "{{ .Values.tesk.image }}"
+          taskmaster_image_name: "{{ .Values.tesk.taskmasterImage.name }}"
+          taskmaster_image_version: "{{ .Values.tesk.taskmasterImage.version }}"
+          taskmaster_filer_image_name: "{{ .Values.tesk.filerImage.name }}"
+          taskmaster_filer_image_version: "{{ .Values.tesk.filerImage.version }}"
+{{- end }}
