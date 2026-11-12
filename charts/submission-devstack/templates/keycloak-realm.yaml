@@ -127,6 +127,9 @@ data:
             "default-roles-dare-control",
             "dare-control-admin"
           ],
+          "clientRoles": {
+            "realm-management": ["view-users", "manage-users"]
+          },
           "credentials": [
             {
               "type": "password",

@@ -60,6 +60,7 @@ spec:
                 kc update default-default-client-scopes/"$scope_id" -r Dare-Control
               fi
               kc add-roles -r Dare-Control --uusername dare-control-realm-user --cclientid realm-management --rolename view-realm
+              kc add-roles -r Dare-Control --uusername dev --cclientid realm-management --rolename view-users --rolename manage-users
 
               if [ -n "$TRE_ADMIN_USERNAME" ]; then
                 if [ -z "$(kc get users -r Dare-Control -q username="$TRE_ADMIN_USERNAME" -q exact=true --fields id --format csv --noquotes)" ]; then

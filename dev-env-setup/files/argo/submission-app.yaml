@@ -30,8 +30,8 @@ spec:
   source:
     repoURL: "harbor.federated-analytics.ac.uk/5s-tes/chart"
     chart: submission-stack
-    # Pre-release PR build; switch to the released version once PR #169 merges.
-    targetRevision: "0.0.0-pr.169"
+    # Pre-release PR build; switch to the released version once PR #198 merges.
+    targetRevision: "0.0.0-pr.198+82393e0"
     helm:
       valuesObject:
         global:
