@@ -127,7 +127,8 @@ namespace Submission.Web.Controllers
             {
                 Id = project.Id,
                 Name = project.Name,
-                Submissions = project.Submissions.Where(x => x.HasParent == false).ToList()
+                Submissions = project.Submissions.Where(x => x.HasParent == false).ToList(),
+                ProjectType = project.ProjectType
             };
 
             return View(projectView);
@@ -414,8 +415,8 @@ namespace Submission.Web.Controllers
             }
 
             TempData["success"] = "Tre Added Successfully";
-            return RedirectToAction("GetProject", new { id = ProjectId });
-        }
+            return Ok();
+    }
 
         [HttpGet]
         [Authorize(Roles = "dare-control-admin")]

@@ -19,10 +19,12 @@ namespace Agent.Api.Controllers
         private readonly VaultConfigurationProvider _vaultConfigProvider;
         private readonly DataEgressKeyCloakSettings _keycloakSettings;
         public KeycloakTokenHelper _keycloakTokenHelper { get; set; }
-        
+        private readonly EgressSettings _egressSettings;
 
-        public DataEgressCredentialsController(IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config)
+        public DataEgressCredentialsController(IConfigurationService configService, IOptionsMonitor<DataEgressKeyCloakSettings> keycloakSettings, IConfiguration config,
+            EgressSettings egressSettings)
         {
+            _egressSettings = egressSettings;
             _configurationService = configService;
             _keycloakSettings = keycloakSettings.CurrentValue;
             var keycloakDemoMode = KeycloakCommon.ResolveKeycloakDemoMode(_keycloakSettings.KeycloakDemoMode, config["KeycloakDemoMode"]);
@@ -35,6 +37,9 @@ namespace Agent.Api.Controllers
         [HttpGet("AreCredentialsConfigured")]
         public BoolReturn AreCredentialsConfigured()
         {
+            if (_egressSettings.Provider == EgressProvider.Airlock)
+                return new BoolReturn { Result = true };
+
             return new BoolReturn
             {
                 Result = !string.IsNullOrEmpty(_keycloakSettings.Username)
@@ -48,6 +53,10 @@ namespace Agent.Api.Controllers
         {
             try
             {
+                // Agent.Web's home page sends admins to the Data Egress credentials screen when this is false; with Airlock those credentials aren't used, so report them as not needed.
+                if (_egressSettings.Provider == EgressProvider.Airlock)
+                    return new BoolReturn { Result = true };
+
                 var result = new BoolReturn() { Result = false };
 
                 if (!string.IsNullOrEmpty(_keycloakSettings.Username) && !string.IsNullOrEmpty(_keycloakSettings.PasswordEnc))

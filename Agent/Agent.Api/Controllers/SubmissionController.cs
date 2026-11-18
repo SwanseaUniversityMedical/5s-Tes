@@ -1,4 +1,4 @@
-﻿using Agent.Api.Attributes;
+using Agent.Api.Attributes;
 using Agent.Api.Constants;
 using Agent.Api.Models;
 using Agent.Api.Services;
@@ -29,16 +29,22 @@ namespace Agent.Api.Controllers
         private readonly MinioTRESettings _minioTreSettings;
         private readonly AgentSettings _agentSettings;
         private readonly IFeatureManager _features;
+        private readonly IEgressOutcomeService _egressOutcomeService;
+        private readonly IAirlockOutcomeService _airlockOutcomeService;
 
-        public SubmissionController(           
+        public SubmissionController(
             IBus rabbit,
             ISubmissionHelper subHelper,
             IMinioTreHelper minioTreHelper,
             IProjectS3SubHelperFactory projectS3SubHelperFactory,
             IDareClientWithoutTokenHelper dareHelper,
             MinioTRESettings minioTreSettings,
-            AgentSettings agentSettings, IFeatureManager features)
-        {            
+            AgentSettings agentSettings, IFeatureManager features,
+            IEgressOutcomeService egressOutcomeService,
+            IAirlockOutcomeService airlockOutcomeService)
+        {
+            _egressOutcomeService = egressOutcomeService;
+            _airlockOutcomeService = airlockOutcomeService;
             _rabbit = rabbit;
             _subHelper = subHelper;
             _minioTreHelper = minioTreHelper;
@@ -180,65 +186,38 @@ namespace Agent.Api.Controllers
         {
             try
             {               
-                ApprovalType approvalStatus;
-                var approvedCount = review.FileResults.Count(x => x.Approved);
-                var rejectedCount = review.FileResults.Count(x => !x.Approved);
-
-                if (approvedCount == review.FileResults.Count)
-                {
-                    approvalStatus = ApprovalType.FullyApproved;
-                }
-                else if (rejectedCount == review.FileResults.Count)
-                {
-                    approvalStatus = ApprovalType.NotApproved;
-                }
-                else
-                {
-                    approvalStatus = ApprovalType.PartiallyApproved;
-                }               
-
-                if (approvalStatus != ApprovalType.FullyApproved)
-                {
-                    _subHelper.UpdateStatusForTre(review.SubId.ToString(), StatusType.DataOutApprovalRejected, "");
-
-
-                    var statusResult = _subHelper.CloseSubmissionForTre(review.SubId, StatusType.Failed, "", "");
-                }
-                else
-                {
-                    _subHelper.UpdateStatusForTre(review.SubId.ToString(), StatusType.DataOutApproved, "");
-                }
-              
-                var bucket = _subHelper.GetOutputBucketGutsSub(review.SubId, true);
                 
-                Log.Information(
-                  $"EgressResults with review.OutputBucket > {review.OutputBucket} bucket.Bucket > {bucket.Bucket} ");
-
-                var queryParams = new Dictionary<string, string> { ["responseType"] = "summary" };
-                var submission = await _dareHelper.CallAPIWithoutModel<Submission.SubmissionDetailsDto>(
-                    $"/api/Submission/GetASubmission/{review.SubId}",
-                    queryParams);
-                var minioSubHelper = await _projectS3SubHelperFactory.GetProjectS3HelperAsync(submission.Project.Id);
-
-                foreach (var file in review.FileResults)
-                {
-                  Log.Information(
-                    $"EgressResults with File.Approved > {file.Approved} File.FileName > {file.FileName} ");
-                  if (file.Approved)
-                  {
-                    var source = await _minioTreHelper.GetCopyObject(review.OutputBucket, file.FileName);
-                    var resultcopy =
-                      await minioSubHelper.CopyObjectToDestination(bucket.Bucket, file.FileName, source);
-                  }
-                }
-
-                _subHelper.UpdateStatusForTre(review.SubId, StatusType.Completed, "");
-
-                return StatusCode(200, new BoolReturn() { Result = true });
+                var result = await _egressOutcomeService.ApplyOutcomeAsync(review);
+                return StatusCode(200, result);
             }
             catch (Exception ex)
             {
                 Log.Error(ex, "{Function} Crash", "EgressResults");
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Review-completion callback from Director-Airlock, the counterpart of EgressResults for Data Egress.
+        /// Airlock's review DMN lists this URL in APIsCallOnCompletion for 5S-TES requests
+        /// </summary>
+        [Authorize(Roles = "dare-tre-admin,airlock-callback")]
+        [HttpPost]
+        [Route("AirlockResults")]
+        [SwaggerOperation("AirlockResults")]
+        [SwaggerResponse(statusCode: 200, type: typeof(BoolReturn), description: "")]
+        public async Task<IActionResult> AirlockResults([FromBody] AirlockReviewOutcome outcome)
+        {
+            try
+            {
+                AirlockOutcomeResult result = await _airlockOutcomeService.ApplyAsync(outcome);
+                return result == AirlockOutcomeResult.UnknownRequest
+                    ? NotFound(new BoolReturn { Result = false })
+                    : Ok(new BoolReturn { Result = true });
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Crash for Airlock request {RequestId}", "AirlockResults", outcome?.RequestId);
                 throw;
             }
         }

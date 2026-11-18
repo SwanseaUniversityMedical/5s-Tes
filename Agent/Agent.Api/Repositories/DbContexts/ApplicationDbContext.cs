@@ -38,5 +38,7 @@ namespace Agent.Api.Repositories.DbContexts
         public DbSet<ProjectAcount> ProjectAcount { get; set; }
 
         public DbSet<HealthCheckStatus> HealthCheckStatus { get; set; }
+
+        public DbSet<AirlockEgressRequest> AirlockEgressRequests { get; set; }
     }
 }

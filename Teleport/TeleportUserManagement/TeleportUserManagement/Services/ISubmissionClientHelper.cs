@@ -17,7 +17,6 @@ public class SubmissionClientHelper : BaseClientHelper, ISubmissionClientHelper
     public SubmissionClientHelper(
         IHttpClientFactory httpClientFactory,
         IHttpContextAccessor httpContextAccessor,
-        IEncDecHelper encDec,
         IOptionsMonitor<SubmissionKeyCloakSettings> keycloakSettings,
         IOptions<ApiEndpointSettings> apiEndpointSettings)
         : base(httpClientFactory, httpContextAccessor, apiEndpointSettings.Value.SubmissionApiUrl, false)
@@ -33,8 +32,8 @@ public class SubmissionClientHelper : BaseClientHelper, ISubmissionClientHelper
         if (CheckCredsAreAvailable())
         {
             _username = _keycloakSettings.Username;
-            _password = encDec.Decrypt(_keycloakSettings.PasswordEnc);
-            _requiredRole = "dare-tre-admin";
+            _password = _keycloakSettings.PasswordEnc;
+            _requiredRole = "dare-control-admin";
         }
     }
 

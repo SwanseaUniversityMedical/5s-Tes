@@ -119,9 +119,11 @@ namespace Credentials.Camunda.ProcessHandlers
                     return CreateStatusResponse("ERROR: Invalid or missing submissionId.");
                 }
 
-                // Ensure a real and successfully issued credential exists for this submission
-                string? vaultPath = await _ephemeralCredentialsService.GetVaultPathBySubmissionIdAsync(submissionId, CredentialType, cancellationToken);
-                if (string.IsNullOrEmpty(vaultPath))
+                // Ensure a real and successfully issued credential exists for this submission.
+                // A credential type can own more than one path: the tre handler writes one per
+                // image code, and every one of them has to be cleaned up.
+                var vaultPaths = await _ephemeralCredentialsService.GetVaultPathsBySubmissionIdAsync(submissionId, CredentialType, cancellationToken);
+                if (vaultPaths.Count == 0)
                 {
                     _logger.LogWarning("No vaultPath found for submissionId: {SubmissionId}", submissionId);
                     return CreateStatusResponse($"ERROR: No matching {CredentialType} credential record found for this submission.");
@@ -165,8 +167,11 @@ namespace Credentials.Camunda.ProcessHandlers
                     (string.IsNullOrEmpty(username) ? "" : " for user: {Username}"),
                     CredentialType, username);
 
-                // Handle vault cleanup
-                await HandleVaultOperationsAsync(vaultPath, cancellationToken);
+                // Handle vault cleanup for every path this credential type owns
+                foreach (var vaultPath in vaultPaths)
+                {
+                    await HandleVaultOperationsAsync(vaultPath, cancellationToken);
+                }
 
                 sw.Stop();
                 _logger.LogInformation("{HandlerName} took {Seconds} seconds",

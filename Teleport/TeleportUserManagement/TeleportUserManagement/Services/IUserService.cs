@@ -2,6 +2,7 @@ using System.Text.Json;
 using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Hangfire;
+using Hangfire.Storage;
 using TeleportUserManagement.Models;
 using TeleportUserManagement.Models.Settings;
 using TeleportUserManagement.Utilities;
@@ -24,7 +25,7 @@ namespace TeleportUserManagement.Services
 
         private readonly List<string> _ouPath;
 
-        public UserService(ILdapService ldapService, ISubmissionClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings) 
+        public UserService(ILdapService ldapService, ISubmissionClientHelper clientHelper, JobSettings jobSettings, ActiveDirectorySettings adSettings)
         {
             _ldapService = ldapService;
             _clientHelper = clientHelper;
@@ -48,12 +49,43 @@ namespace TeleportUserManagement.Services
         /// </summary>
         public async Task DiscoverProjects()
         {
-            List<Project>? projects = await _clientHelper.CallAPIWithoutModel<List<Project>>("/api/Project/GetAllProjects");
+            List<Project.ProjectSummary>? projects = await _clientHelper.CallAPIWithoutModel<List<Project.ProjectSummary>>("/api/Project/GetAllProjects?responseType=summary");
             if (projects == null) return;
 
-            foreach (Project project in projects)
+            List<Project.ProjectSummary> teleportProjects = projects.Where(x => x.ProjectType == ProjectType.Teleport).ToList();
+
+            foreach (Project.ProjectSummary project in teleportProjects)
             {
                 SetupRecurringProjectCheck(project.Name);
+            }
+
+            PruneNonTeleportProjects(teleportProjects);
+        }
+
+        /// <summary>
+        /// Checks that all of our active hangfire jobs are still for Teleport projects and removes any that have since changed their type.
+        /// </summary>
+        /// <param name="teleportProjects">The list of approved projects that are of ProjectType Teleport.</param>
+        private void PruneNonTeleportProjects(List<Project.ProjectSummary> teleportProjects) 
+        {
+            HashSet<string> expectedJobIds = teleportProjects.Select(x => $"{_jobSettings.ProjectJobNamePrefix}_{x.Name}").ToHashSet();
+
+            IEnumerable<string> registeredJobIds = JobStorage.Current.GetConnection().GetRecurringJobs().Select(x => x.Id)
+                .Where(id => id.StartsWith($"{_jobSettings.ProjectJobNamePrefix}_"));
+
+            foreach (string jobId in registeredJobIds)
+            {
+                if (!expectedJobIds.Contains(jobId))
+                {
+                    RecurringJob.RemoveIfExists(jobId);
+
+                    // Remove all users from this group as the project is no longer of type Teleport
+                    string projectName = jobId.Substring($"{_jobSettings.ProjectJobNamePrefix}_".Length);
+                    foreach (string username in _ldapService.GetGroupMemberUsernames(projectName))
+                    {
+                        _ldapService.RemoveUserFromGroup(username, projectName);
+                    }
+                }
             }
         }
 
@@ -76,13 +108,12 @@ namespace TeleportUserManagement.Services
                 if (groupCreationResult == ResultType.Failure) return;
             }
 
-            // Add every user currently approved by every TRE to active directory
+            // Users must already exist in Active Directory - skip those who do not.
             foreach (ProjectUser user in approvedUsers)
             {
                 if (!_ldapService.CheckUserExists(user.Username))
                 {
-                    ResultType userCreationResult = await AddUserToAD(user);
-                    if (userCreationResult == ResultType.Failure) continue;
+                    continue;
                 }
 
                 _ldapService.AddUserToGroup(user.Username, projectName);
@@ -118,15 +149,6 @@ namespace TeleportUserManagement.Services
             }
 
             return users;
-        }
-
-        /// <summary>
-        /// Adds a new user to Active Directory.
-        /// </summary>
-        /// <param name="user">The details of the user we wish to add.</param>
-        private async Task<ResultType> AddUserToAD(ProjectUser user)
-        {
-            return await _ldapService.CreateUserAccount(user.Username, user.FullName, "", user.Email, "", true, false, true, _ouPath);
         }
 
         /// <summary>

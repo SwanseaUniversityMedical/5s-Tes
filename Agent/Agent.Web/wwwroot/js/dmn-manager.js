@@ -1,11 +1,23 @@
-let dmnTable = null;
+﻿let dmnTable = null;
 let dataTable = null;
+let currentTable = null;
+
+/**
+ * Adds the chosen decision table to a URL. Leaving it off makes the API fall back
+ * to the environment variables table, which is what this page used to edit.
+ */
+function withTable(url) {
+    if (!currentTable) {
+        return url;
+    }
+    return url + (url.includes('?') ? '&' : '?') + 'table=' + encodeURIComponent(currentTable);
+}
 
 // Initialize on page load
 $(document).ready(function () {
     console.log('DMN Manager initialized');
 
-    loadDmnTable();
+    loadTables();
 
     // Event Listeners
     $('#addRuleBtn').on('click', showAddRuleModal);
@@ -14,7 +26,107 @@ $(document).ready(function () {
     $('#deployBtn').on('click', deployDmn);
     $('#saveRuleBtn').on('click', saveRule);
     $('#confirmDeleteBtn').on('click', deleteRule);
+
+    $('#tableSelect').on('change', function () {
+        currentTable = $(this).val();
+        updateTableHelp();
+        loadDmnTable();
+    });
 });
+
+/**
+ * Turns a failed request into something an admin can act on.
+ *
+ * Always returns text: a bare "Error saving rule:" with nothing after it hides the
+ * reason completely, and has already concealed both an expired session and a FEEL
+ * syntax error.
+ */
+function describeAjaxError(xhr, error) {
+    if (xhr.status === 401 || xhr.status === 403) {
+        return 'your session may have expired. Please refresh the page and sign in again.';
+    }
+
+    if (xhr.status === 0) {
+        return 'no response from the server. It may still be starting up.';
+    }
+
+    return xhr.responseJSON?.message
+        || error
+        || (xhr.status ? xhr.status + ' ' + xhr.statusText : 'unknown error');
+}
+
+/**
+ * Removes the DataTable instance and the rows it was managing, leaving a plain table
+ * for the next render to rebuild. Safe to call when there is nothing to destroy.
+ */
+function destroyDataTable() {
+    if (!dataTable) {
+        return;
+    }
+
+    console.log('[INFO] Destroying existing DataTable');
+    dataTable.destroy();
+    dataTable = null;
+
+    // destroy() puts back the rows it was given, which belong to the table being
+    // replaced. Clearing them stops a stale row count surviving the switch.
+    $('#rulesTable tbody').empty();
+}
+
+/**
+ * Load the decision tables this admin can edit, then show the first one.
+ * The list comes from the API so adding a table does not mean editing this page.
+ */
+function loadTables() {
+    $.ajax({
+        url: '/Dmn/GetTables',
+        method: 'GET',
+        success: function (tables) {
+            const select = $('#tableSelect');
+            select.empty();
+
+            if (!tables || !tables.length) {
+                console.warn('[WARN] No decision tables returned; falling back to the default');
+                loadDmnTable();
+                return;
+            }
+
+            tables.forEach(function (table) {
+                select.append(
+                    $('<option>')
+                        .val(table.slug)
+                        .text(table.displayName)
+                        .attr('data-decision-id', table.decisionId)
+                        .attr('data-file-name', table.fileName));
+            });
+
+            currentTable = tables[0].slug;
+            select.val(currentTable);
+            updateTableHelp();
+            loadDmnTable();
+        },
+        error: function (xhr, status, error) {
+            // Not fatal: without a selector the page still edits the default table,
+            // which is how it behaved before there was more than one.
+            console.error('[ERROR] Could not load the decision tables:', error);
+            $('#tableSelect').closest('.row').hide();
+            loadDmnTable();
+        }
+    });
+}
+
+/**
+ * Shows which file and decision id the selected table maps to, since those names
+ * differ from each other and that has caused confusion before.
+ */
+function updateTableHelp() {
+    const option = $('#tableSelect option:selected');
+    const fileName = option.attr('data-file-name');
+    const decisionId = option.attr('data-decision-id');
+
+    $('#tableSelectHelp').text(
+        fileName && decisionId ? fileName + '  •  decision id ' + decisionId : '');
+}
 
 /**
  * Load the complete DMN table from TRE-UI Controller
@@ -23,10 +135,17 @@ function loadDmnTable() {
     showLoading(true);
 
     $.ajax({
-        url: '/Dmn/GetTable',
+        url: withTable('/Dmn/GetTable'),
         method: 'GET',
         success: function (data) {
             dmnTable = data;
+
+            // Tear the DataTable down before the headers change. It caches the column
+            // count at init, so rebuilding the headers underneath a live instance leaves
+            // destroy() restoring a DOM that no longer matches - which shows up as
+            // "Incorrect column count" when switching between tables of different shapes.
+            destroyDataTable();
+
             displayDmnInfo(data);
             buildTableHeaders(data);
             displayRules(data);
@@ -105,11 +224,8 @@ function buildTableHeaders(table) {
 function displayRules(table) {
     console.log('[INFO] displayRules called with', table.rules.length, 'rules');
 
-    if (dataTable) {
-        console.log('[INFO] Destroying existing DataTable');
-        dataTable.destroy();
-        dataTable = null;
-    }
+    // Normally already gone, since the caller tears it down before changing the headers.
+    destroyDataTable();
 
     const tbody = $('#rulesTable tbody');
     tbody.empty();
@@ -392,7 +508,7 @@ function saveRule() {
         outputValues: outputValues
     };
 
-    const url = isEdit ? '/Dmn/UpdateRule' : '/Dmn/AddRule';
+    const url = withTable(isEdit ? '/Dmn/UpdateRule' : '/Dmn/AddRule');
     const method = isEdit ? 'PUT' : 'POST';
 
     $.ajax({
@@ -413,7 +529,7 @@ function saveRule() {
             }
         },
         error: function (xhr, status, error) {
-            showAlert('Error saving rule: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Error saving rule: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Error saving rule:', xhr);
         }
     });
@@ -434,7 +550,7 @@ function deleteRule() {
     const ruleId = $('#deleteRuleId').val();
 
     $.ajax({
-        url: '/Dmn/DeleteRule/' + encodeURIComponent(ruleId),
+        url: withTable('/Dmn/DeleteRule/' + encodeURIComponent(ruleId)),
         method: 'DELETE',
         success: function (response) {
             console.log('[OK] Delete rule response:', response);
@@ -451,7 +567,7 @@ function deleteRule() {
         error: function (xhr, status, error) {
             console.error('[ERROR] Delete rule failed:', xhr);
             $('#deleteModal').modal('hide');
-            showAlert('Error deleting rule: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Error deleting rule: ' + describeAjaxError(xhr, error), 'danger');
         }
     });
 }
@@ -461,13 +577,13 @@ function deleteRule() {
  */
 function validateDmn() {
     $.ajax({
-        url: '/Dmn/ValidateDmn',
+        url: withTable('/Dmn/ValidateDmn'),
         method: 'GET',
         success: function (response) {
             showAlert(response.message, response.success ? 'success' : 'warning');
         },
         error: function (xhr, status, error) {
-            showAlert('Validation failed: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Validation failed: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Validation error:', xhr);
         }
     });
@@ -482,13 +598,13 @@ function deployDmn() {
     }
 
     $.ajax({
-        url: '/Dmn/DeployDmn',
+        url: withTable('/Dmn/DeployDmn'),
         method: 'POST',
         success: function (response) {
             showAlert(response.message, response.success ? 'success' : 'danger');
         },
         error: function (xhr, status, error) {
-            showAlert('Deployment failed: ' + (xhr.responseJSON?.message || error), 'danger');
+            showAlert('Deployment failed: ' + describeAjaxError(xhr, error), 'danger');
             console.error('Deployment error:', xhr);
         }
     });

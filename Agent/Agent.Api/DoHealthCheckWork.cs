@@ -2,6 +2,7 @@ using System.Net;
 using Agent.Api.Helpers;
 using Agent.Api.Models;
 using Agent.Api.Repositories.DbContexts;
+using Agent.Api.Services;
 using FiveSafesTes.Core.Models.Enums;
 using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Rabbit;
@@ -27,7 +28,9 @@ public class DoHealthCheckWork(
   IOptionsMonitor<DataEgressKeyCloakSettings> egressKeycloakSettings,
   IOptions<ApiEndpointSettings> apiEndpointSettings,
   IConfiguration configuration,
-  RabbitMQSetting rabbitSettings)
+  RabbitMQSetting rabbitSettings,
+  EgressSettings egressSettings,
+  IAirlockClientHelper airlockClient)
   : IDoHealthCheckWork
 {
   private readonly ApiEndpointSettings _apiEndpoints = apiEndpointSettings.Value;
@@ -218,6 +221,12 @@ public class DoHealthCheckWork(
   /// </summary>
   private async Task DoEgressHealthCheck()
   {
+    if (egressSettings.Provider == EgressProvider.Airlock)
+    {
+      await DoAirlockHealthCheck();
+      return;
+    }
+
     DataEgressKeyCloakSettings keycloakSettings = egressKeycloakSettings.CurrentValue;
 
     bool isHealthy = false;
@@ -254,6 +263,30 @@ public class DoHealthCheckWork(
     };
 
     dbContext.HealthCheckStatus.Add(healthStatus);
+  }
+
+  /// <summary>
+  /// Checks that the Airlock service-account credentials are set and Keycloak accepts them.
+  /// </summary>
+  private async Task DoAirlockHealthCheck()
+  {
+    string message;
+    try
+    {
+      message = await airlockClient.CheckConnectionAsync();
+    }
+    catch (Exception ex)
+    {
+      message = $"Airlock credential check failed: {ex.Message}";
+    }
+
+    dbContext.HealthCheckStatus.Add(new HealthCheckStatus
+    {
+      Product = "Egress",
+      HealthStatus = message == "" ? HealthStatus.Connected : HealthStatus.Failed,
+      Reason = message,
+      DateTime = DateTime.UtcNow
+    });
   }
 
     /// <summary>
