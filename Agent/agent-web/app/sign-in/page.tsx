@@ -16,8 +16,8 @@ export default function Signin() {
   const initiateLogin = async () => {
     setError(null);
     try {
-      const result = await signIn.oauth2({
-        providerId: "keycloak",
+      const result = await signIn.social({
+        provider: "keycloak",
         callbackURL: window.location.origin + "/projects",
       });
 

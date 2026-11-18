@@ -1,4 +1,4 @@
-import { redirect } from "next/navigation";
+import { redirect, unstable_rethrow } from "next/navigation";
 import { auth } from "../auth";
 import { headers } from "next/headers";
 import { resolveJsonReferences } from "./helpers";
@@ -19,9 +19,10 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
 
   let requestHeaders: Record<string, string> = { ...(options.headers || {}) };
   try {
+    // Stateless mode (no database): the Keycloak tokens live in the signed account cookie.
     const accessToken = await auth.api.getAccessToken({
       body: {
-        providerId: "keycloak",
+        useAccountCookie: true,
       },
       headers: await headers(),
     });
@@ -30,6 +31,7 @@ const request = async <T>(url: string, options: RequestOptions = {}) => {
       requestHeaders.Authorization = `Bearer ${accessToken.accessToken}`;
     }
   } catch (error) {
+    unstable_rethrow(error);
     // redirect to the token-expired page, cause the access token maybe not valid anymore.
     redirect("/token-expired");
   }
