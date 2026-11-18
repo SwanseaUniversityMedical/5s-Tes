@@ -5,6 +5,7 @@ using FiveSafesTes.Core.Models.Settings;
 using FiveSafesTes.Core.Models.ViewModels;
 using FiveSafesTes.Core.Services;
 using Agent.Api.Helpers;
+using Agent.Api.Models;
 using Hangfire;
 using Hangfire.Storage;
 using Microsoft.Extensions.Options;
@@ -20,7 +21,9 @@ public class OnboardingService(
   IOptionsMonitor<TreOnboardingConfig> configSettings,
   JobSettings jobSettings,
   IServiceProvider serviceProvider,
-  IOptions<ApiEndpointSettings> apiEndpoints)
+  IOptions<ApiEndpointSettings> apiEndpoints,
+  IOptionsMonitor<AirlockSettings> airlockSettings,
+  IOptionsMonitor<AirlockKeyCloakSettings> airlockKeycloakSettings)
   : IOnboardingService
 {
   private readonly VaultConfigurationProvider _vaultConfigProvider = ((IConfigurationRoot)configuration).Providers.OfType<VaultConfigurationProvider>().FirstOrDefault();
@@ -53,6 +56,95 @@ public class OnboardingService(
 
         SyncWithSubmission();
         RestartHangfireJobs();
+    }
+
+    public async Task<(bool Success, string Message)> UploadAirlockConfig(IFormFile file)
+    {
+        AirlockOnboardingConfig? config;
+
+        try
+        {
+            await using Stream stream = file.OpenReadStream();
+            config = await JsonSerializer.DeserializeAsync<AirlockOnboardingConfig>(stream, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch (JsonException)
+        {
+            config = null;
+        }
+
+        if (config == null || string.IsNullOrWhiteSpace(config.ClientId) || string.IsNullOrWhiteSpace(config.JWT) || string.IsNullOrWhiteSpace(config.Authority))
+        {
+            return (false, "That file is not an Airlock onboarding config.");
+        }
+
+        if (config.ExpiresAt != null && config.ExpiresAt < DateTime.UtcNow)
+        {
+            return (false, $"This config expired at {config.ExpiresAt:u}. Issue a new one in Airlock.");
+        }
+
+        string apiUrl = (string.IsNullOrWhiteSpace(config.ApiUrl) ? airlockSettings.CurrentValue.ApiUrl : config.ApiUrl).TrimEnd('/');
+
+        if (string.IsNullOrWhiteSpace(apiUrl))
+        {
+            return (false, "The config has no Airlock API URL and AirlockSettings:ApiUrl is not set.");
+        }
+
+        using HttpClient httpClient = new();
+        httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", config.JWT);
+
+        HttpResponseMessage response;
+
+        try
+        {
+            response = await httpClient.PostAsync(UrlHelper.Combine(apiUrl, "api/ExternalClients/RetrieveCredentials"), null);
+        }
+        catch (HttpRequestException ex)
+        {
+            Log.Error(ex, "OnboardingService:UploadAirlockConfig - could not reach Airlock at {ApiUrl}", apiUrl);
+            return (false, $"Could not reach Airlock at {apiUrl}.");
+        }
+
+        if (!response.IsSuccessStatusCode)
+        {
+            Log.Error("OnboardingService:UploadAirlockConfig - Airlock returned {StatusCode}", response.StatusCode);
+            return (false, response.StatusCode == System.Net.HttpStatusCode.Unauthorized
+                ? "Airlock refused the config: it has expired, been used already, or been replaced by a newer one."
+                : $"Airlock returned {(int)response.StatusCode} {response.StatusCode}.");
+        }
+
+        AirlockOnboardingCredentials? credentials = await response.Content.ReadFromJsonAsync<AirlockOnboardingCredentials>();
+
+        if (string.IsNullOrWhiteSpace(credentials?.ClientSecret))
+        {
+            return (false, "Airlock returned no credentials.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(config.ApiUrl))
+        {
+            await configService.AddConfigurationToVault(JsonSerializer.Serialize(new { ApiUrl = apiUrl }), nameof(AirlockSettings));
+        }
+
+        await configService.AddConfigurationToVault(JsonSerializer.Serialize(new
+        {
+            config.Authority,
+            BaseUrl = config.Authority,
+            ClientId = credentials.ClientId ?? config.ClientId,
+            credentials.ClientSecret
+        }), nameof(AirlockKeyCloakSettings));
+
+        await _vaultConfigProvider.LoadAsync();
+
+        Log.Information("OnboardingService:UploadAirlockConfig - Airlock client {ClientId} configured", config.ClientId);
+        return (true, $"Connected to Airlock as {config.ClientId}.");
+    }
+
+    public bool IsAirlockConfigured()
+    {
+        AirlockKeyCloakSettings settings = airlockKeycloakSettings.CurrentValue;
+        return !string.IsNullOrEmpty(airlockSettings.CurrentValue.ApiUrl)
+            && !string.IsNullOrEmpty(settings.BaseUrl)
+            && !string.IsNullOrEmpty(settings.ClientId)
+            && !string.IsNullOrEmpty(settings.ClientSecret);
     }
 
     /// <summary>

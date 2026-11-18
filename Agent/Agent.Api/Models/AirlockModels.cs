@@ -105,4 +105,19 @@ namespace Agent.Api.Models
 
         public AirlockRequestObject? RequestObject { get; set; }
     }
+
+    public class AirlockOnboardingConfig
+    {
+        public string? ApiUrl { get; set; }
+        public string? Authority { get; set; }
+        public string? ClientId { get; set; }
+        public string? JWT { get; set; }
+        public DateTime? ExpiresAt { get; set; }
+    }
+
+    public class AirlockOnboardingCredentials
+    {
+        public string? ClientId { get; set; }
+        public string? ClientSecret { get; set; }
+    }
 }

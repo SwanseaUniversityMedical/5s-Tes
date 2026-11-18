@@ -29,7 +29,31 @@ public class DeploymentAdminController : Controller
         response.SyncJobExists = await ControllerHelpers.IsSyncJobCreated(_clientHelper);
         response.IsUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
         response.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
+        ViewData["IsAirlockConfigured"] = (await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/IsAirlockConfigured")).Result;
         return View(response);
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> UploadAirlockConfig(IFormFile file)
+    {
+        if (file == null || file.Length == 0)
+        {
+            TempData["AirlockError"] = "No file uploaded!";
+            return RedirectToAction("Index");
+        }
+
+        JsonConfigUploadResponse? response = await _clientHelper.CallAPIToSendFile<JsonConfigUploadResponse>("/api/Onboarding/UploadAirlockConfig", "file", file);
+
+        if (response?.Success == true)
+        {
+            TempData["AirlockSuccess"] = response.Message;
+        }
+        else
+        {
+            TempData["AirlockError"] = response?.Message ?? "Uploading the Airlock config failed.";
+        }
+
+        return RedirectToAction("Index");
     }
 
     public async Task<IActionResult> UploadJsonConfig(IFormFile file)

@@ -1,0 +1,62 @@
+@{
+    var isAirlockConfigured = ViewData["IsAirlockConfigured"] as bool? ?? false;
+}
+
+<h3>Upload Airlock Configuration File</h3>
+<div class="alert alert-info">
+    <i class="fas fa-info-circle"></i>
+    <b>How to get the Airlock configuration for this Agent.</b>
+    <br />
+    <ul>
+        <li>An Airlock admin opens <b>5S-TES Agent onboarding</b> in Airlock File Request, enters a name for this Agent and downloads the config file.</li>
+        <li>Upload it below before it expires. The file can only be used once; if it expires or fails, ask for a new one.</li>
+        <li>The Agent only sends outputs to Airlock when <code>EgressSettings:Provider</code> is <code>Airlock</code>.</li>
+    </ul>
+</div>
+<div class="card shadow-sm">
+    <div class="card-body">
+        @if (isAirlockConfigured)
+        {
+            <span class="badge px-2 badge-sm bg-success text-light rounded-pill m-0 ms-3">
+                <i class="fa-solid fa-check-circle me-1"></i> Airlock credentials configured
+            </span>
+        }
+        else
+        {
+            <span class="badge px-2 badge-sm bg-grey text-dark rounded-pill m-0 ms-3">
+                <i class="fa-solid fa-ban me-1"></i> No Airlock credentials configured
+            </span>
+        }
+    </div>
+</div>
+<div class="card shadow-sm">
+    <div class="card-body">
+        @if (TempData["AirlockSuccess"] != null)
+        {
+            <div class="alert alert-info">
+                @TempData["AirlockSuccess"]
+            </div>
+        }
+        @if (TempData["AirlockError"] != null)
+        {
+            <div class="modal-header bg-danger text-white">
+                @TempData["AirlockError"]
+            </div>
+            <br />
+        }
+
+        <form asp-controller="DeploymentAdmin" asp-action="UploadAirlockConfig" method="post" enctype="multipart/form-data">
+            <input type="file" name="file" accept=".json,application/json" />
+            <button type="submit">Upload</button>
+        </form>
+    </div>
+</div>
+
+@if (TempData.Peek("AirlockSuccess") != null || TempData.Peek("AirlockError") != null)
+{
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            bootstrap.Tab.getOrCreateInstance(document.getElementById('airlock-tab')).show();
+        });
+    </script>
+}

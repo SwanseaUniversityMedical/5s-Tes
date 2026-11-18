@@ -167,6 +167,7 @@ builder.Services.AddSingleton(egressSettings);
 var airlockSettings = new AirlockSettings();
 configuration.Bind(nameof(AirlockSettings), airlockSettings);
 builder.Services.AddSingleton(airlockSettings);
+builder.Services.Configure<AirlockSettings>(configuration.GetSection(nameof(AirlockSettings)));
 
 builder.Services.AddScoped<IAirlockClientHelper, AirlockClientHelper>();
 builder.Services.AddScoped<IEgressOutcomeService, EgressOutcomeService>();
