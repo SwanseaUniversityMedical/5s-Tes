@@ -250,6 +250,7 @@ builder.Services.AddAuthentication(options =>
                             context.HttpContext.Connection.RemotePort);
                         Log.Information("HttpContext.Request.Scheme : {Scheme}", context.HttpContext.Request.Scheme);
                         Log.Information("HttpContext.Request.Host : {Host}", context.HttpContext.Request.Host);
+                        Log.Information("Original scheme {Original}, host {OriginalHost}, forwarded for {For}", context.HttpContext.Request.Headers["X-Original-Proto"], context.HttpContext.Request.Headers["X-Original-Host"], context.HttpContext.Request.Headers["X-Original-For"]);
 
                         if (submissionKeyCloakSettings.UseRedirectURL)
                         {
