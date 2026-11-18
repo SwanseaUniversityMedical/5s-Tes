@@ -1,0 +1,73 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: keycloak-realm-setup-{{ .Release.Revision }}
+  namespace: {{ .Values.global.namespace }}
+  labels:
+    {{- include "submission-devstack.labels" . | nindent 4 }}
+spec:
+  backoffLimit: 3
+  activeDeadlineSeconds: 1800
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: kcadm
+          image: "{{ .Values.keycloak.imageRegistry }}/{{ .Values.keycloak.setupImage }}"
+          env:
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: keycloak-admin-secret
+                  key: password
+            - name: TRE_ADMIN_USERNAME
+              value: {{ .Values.keycloak.treAdmin.username | quote }}
+            - name: TRE_ADMIN_PASSWORD
+              value: {{ .Values.keycloak.treAdmin.password | quote }}
+          command:
+            - /bin/bash
+            - -ec
+            - |
+              kc() { /opt/bitnami/keycloak/bin/kcadm.sh "$@" --config /tmp/kcadm.config; }
+              until kc config credentials --server http://keycloak --realm master --user admin --password "$KEYCLOAK_ADMIN_PASSWORD"; do sleep 10; done
+              until kc get realms/Dare-Control >/dev/null; do sleep 10; done
+
+              scope_id=$(kc get client-scopes -r Dare-Control --fields id,name --format csv --noquotes | awk -F, '$2=="dare-control-api-audience"{print $1}')
+              if [ -z "$scope_id" ]; then
+                scope_id=$(kc create client-scopes -r Dare-Control -i -f - <<'JSON'
+              {
+                "name": "dare-control-api-audience",
+                "protocol": "openid-connect",
+                "attributes": { "include.in.token.scope": "false" },
+                "protocolMappers": [
+                  {
+                    "name": "audience-dare-control-api",
+                    "protocol": "openid-connect",
+                    "protocolMapper": "oidc-audience-mapper",
+                    "config": {
+                      "included.client.audience": "Dare-Control-API",
+                      "access.token.claim": "true",
+                      "id.token.claim": "false"
+                    }
+                  }
+                ]
+              }
+              JSON
+                )
+              fi
+              if ! kc get default-default-client-scopes -r Dare-Control --fields id --format csv --noquotes | grep -qx "$scope_id"; then
+                kc update default-default-client-scopes/"$scope_id" -r Dare-Control
+              fi
+              kc add-roles -r Dare-Control --uusername dare-control-realm-user --cclientid realm-management --rolename view-realm
+              kc add-roles -r Dare-Control --uusername dev --cclientid realm-management --rolename view-users --rolename manage-users
+
+              if [ -n "$TRE_ADMIN_USERNAME" ]; then
+                if [ -z "$(kc get users -r Dare-Control -q username="$TRE_ADMIN_USERNAME" -q exact=true --fields id --format csv --noquotes)" ]; then
+                  kc create users -r Dare-Control -s username="$TRE_ADMIN_USERNAME" -s enabled=true -s email="$TRE_ADMIN_USERNAME@localtest.me" -s emailVerified=true -s firstName=TRE -s lastName=Admin
+                fi
+                kc set-password -r Dare-Control --username "$TRE_ADMIN_USERNAME" --new-password "$TRE_ADMIN_PASSWORD"
+                kc add-roles -r Dare-Control --uusername "$TRE_ADMIN_USERNAME" --rolename dare-tre-admin
+              fi
+              echo "Dare-Control realm setup complete (audience scope $scope_id)"
+{{- end }}

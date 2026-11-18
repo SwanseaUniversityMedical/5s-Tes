@@ -1,5 +1,14 @@
 {
   "profiles": {
+    "Kind": {
+      "commandName": "Project",
+      "launchBrowser": true,
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development_Kind"
+      },
+      "dotnetRunMessages": true,
+      "applicationUrl": "https://localhost:7187;http://localhost:5233"
+    },
     "http": {
       "commandName": "Project",
       "launchBrowser": true,

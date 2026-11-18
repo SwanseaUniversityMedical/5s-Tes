@@ -7,7 +7,7 @@ namespace FiveSafesTes.Core.Rabbit
     public static class SetUpRabbitMQ
     {
         public static async Task DoItSubmissionAsync(string hostname, string portNumber, string virtualHost, string username,
-            string password)
+            string password, int managementPort = 15672)
         {
             Log.Information("{Function} Rabbit Conf: host={Host}", "DoItSubmissionAsync", hostname);
             Log.Information("{Function} Rabbit Conf: port={Port}", "DoItSubmissionAsync", portNumber);
@@ -16,7 +16,7 @@ namespace FiveSafesTes.Core.Rabbit
             try
             {
 
-                var initial = new ManagementClient(hostname, username, password);
+                var initial = new ManagementClient(hostname, username, password, managementPort);
 
                 // Create dev vhost as used by so many other things
                 await initial.CreateVhostAsync(virtualHost);
@@ -46,7 +46,7 @@ namespace FiveSafesTes.Core.Rabbit
         }
 
         public static async Task DoItTreAsync(string hostname, string portNumber, string virtualHost, string username,
-            string password)
+            string password, int managementPort = 15672)
         {
             Log.Information("{Function} Rabbit Conf: host={Host}", "DoItTreAsync", hostname);
             Log.Information("{Function} Rabbit Conf: port={Port}", "DoItTreAsync", portNumber);
@@ -55,7 +55,7 @@ namespace FiveSafesTes.Core.Rabbit
             try
             {
 
-                var initial = new ManagementClient(hostname, username, password);
+                var initial = new ManagementClient(hostname, username, password, managementPort);
 
                 // Create dev vhost as used by so many other things
                 await initial.CreateVhostAsync(virtualHost);

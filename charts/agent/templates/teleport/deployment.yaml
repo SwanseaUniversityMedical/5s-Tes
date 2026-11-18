@@ -1,0 +1,160 @@
+{{- if .Values.teleport.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "agent.fullname" . }}-teleport
+  annotations:
+    # Stakater Reloader (platform-provided): restart when the vault-init
+    # CronJob rotates the runtime-Vault app token.
+    secret.reloader.stakater.com/reload: "agent-vault-token"
+  labels:
+    {{- include "agent.labels" . | nindent 4 }}
+    app.kubernetes.io/component: teleport
+spec:
+  # A single Hangfire job host; nothing calls it.
+  replicas: 1
+  selector:
+    matchLabels:
+      {{- include "agent.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: teleport
+  template:
+    metadata:
+      labels:
+        {{- include "agent.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: teleport
+    spec:
+      serviceAccountName: {{ include "agent.serviceAccountName" . }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        {{- if .Values.global.trustClusterCa.enabled }}
+        - name: certs-overlay
+          configMap:
+            name: {{ .Values.global.trustClusterCa.configMapName }}
+            defaultMode: 420
+        {{- end }}
+      containers:
+        - name: teleport
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.teleport.image.repository }}:{{ .Values.teleport.image.tag | default .Values.global.tag }}"
+          imagePullPolicy: {{ .Values.teleport.image.pullPolicy }}
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+            {{- if .Values.global.trustClusterCa.enabled }}
+            - name: certs-overlay
+              mountPath: {{ .Values.global.trustClusterCa.mountPath }}
+              subPath: {{ .Values.global.trustClusterCa.key }}
+            {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.teleport.containerPort }}
+              protocol: TCP
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          env:
+            - name: ASPNETCORE_ENVIRONMENT
+              value: "{{ .Values.global.config.aspnetEnvironment }}"
+            - name: ActiveDirectorySettings__Connection__Domain
+              value: "{{ .Values.teleport.ad.domain }}"
+            - name: ActiveDirectorySettings__Connection__Machine
+              value: "{{ .Values.teleport.ad.machine }}"
+            - name: ActiveDirectorySettings__Connection__UseSsl
+              value: "{{ .Values.teleport.ad.useSsl }}"
+            - name: ActiveDirectorySettings__Connection__BaseOu
+              value: "{{ .Values.teleport.ad.baseOu }}"
+            - name: ActiveDirectorySettings__Connection__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: adUsername
+            - name: ActiveDirectorySettings__Connection__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: adPassword
+            - name: ActiveDirectorySettings__Behaviour__ShortDomain
+              value: "{{ .Values.teleport.ad.shortDomain }}"
+            - name: JobSettings__ProjectJobNamePrefix
+              value: "{{ .Values.teleport.jobs.projectJobNamePrefix }}"
+            - name: JobSettings__ProjectCheckSchedule
+              value: "{{ .Values.teleport.jobs.projectCheckSchedule }}"
+            - name: JobSettings__ProjectDiscoverySchedule
+              value: "{{ .Values.teleport.jobs.projectDiscoverySchedule }}"
+            - name: ConnectionStrings__DefaultConnection
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: connectionString
+            - name: Hangfire__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: hangfireUsername
+            - name: Hangfire__Password
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: hangfirePassword
+            - name: VaultSettings__BaseUrl
+              value: "{{ .Values.global.config.vaultUrl }}"
+            - name: VaultSettings__Token
+              valueFrom:
+                secretKeyRef:
+                  # Static: written by the stack's vault-init CronJob.
+                  name: agent-vault-token
+                  key: vaultToken
+            - name: SubmissionKeyCloakSettings__BaseUrl
+              value: "{{ .Values.submission.oidcAuthority }}"
+            - name: SubmissionKeyCloakSettings__ClientId
+              value: "{{ .Values.teleport.oidc.clientId }}"
+            - name: SubmissionKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: keycloakClientSecret
+            - name: SubmissionKeyCloakSettings__Username
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: keycloakUsername
+            - name: SubmissionKeyCloakSettings__PasswordEnc
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: keycloakPasswordEnc
+            - name: ApiEndpoints__SubmissionApiUrl
+              value: "{{ .Values.submission.apiUrl }}"
+            - name: EncryptionSettings__Key
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.teleport.secretName }}
+                  key: encryptionKey
+            - name: Logging__LogLevel__Default
+              value: "{{ .Values.global.config.logLevel }}"
+            {{- if .Values.global.monitoring.enabled }}
+            - name: PUSHGATEWAY_URL
+              value: "{{ .Values.global.monitoring.pushgatewayUrl }}"
+            - name: PUSHGATEWAY_JOB
+              value: {{ .Release.Namespace }}-teleport-user-management
+            {{- end }}
+          resources:
+            {{- toYaml .Values.teleport.resources | nindent 12 }}
+{{- end }}
