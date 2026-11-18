@@ -1,0 +1,88 @@
+{{- if .Values.keycloak.enabled }}
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: keycloak-postgres
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    # "helm.sh/hook": "post-install"
+spec:
+  instances: {{ .Values.keycloak.postgres.replicas }} 
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.keycloak.postgres.database }}
+      owner: keycloak
+      secret:
+        name: {{ include "submission-stack.fullname" . }}-kc-pg-secret
+
+  storage:
+    size: {{ .Values.keycloak.postgres.size }}
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: {{ .Values.global.storage.defaultClass }}
+
+  monitoring:
+    enablePodMonitor: false
+{{- end }}
+
+---
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Cluster
+metadata:
+  name: {{ .Values.submission.postgres.host }}
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    # "helm.sh/hook": "post-install"
+spec:
+  instances: {{ .Values.submission.postgres.replicas }}
+  imageName: ghcr.io/cloudnative-pg/postgresql:16
+
+  superuserSecret:
+    name: {{ include "submission-stack.fullname" . }}-postgres-secret
+
+  enableSuperuserAccess: true
+
+  bootstrap:
+    initdb:
+      database: {{ .Values.submission.postgres.database }}
+      postInitSQL:
+        - CREATE DATABASE hangfire
+        - CREATE DATABASE "DARE-Egress"
+        - CREATE DATABASE "DARE-Tre"
+        - CREATE DATABASE keycloak
+
+  storage:
+    size: "{{ .Values.global.storage.dbSize }}"
+    pvcTemplate:
+      accessModes:
+        - ReadWriteOnce
+      storageClassName: {{ .Values.global.storage.defaultClass }}
+
+  monitoring:
+    enablePodMonitor: false
+
+---
+
+
+apiVersion: postgresql.cnpg.io/v1
+kind: Pooler
+metadata:
+  name: {{ .Values.submission.postgres.host }}-pg-pooler
+  namespace: {{ .Values.global.namespace }}
+  annotations:
+    # "helm.sh/hook": "post-install"
+spec:
+  cluster:
+    name: {{ .Values.submission.postgres.host }}
+
+  instances: {{ .Values.submission.postgres.replicas }}
+  type: rw
+  pgbouncer:
+    poolMode: session
+    parameters:
+      max_client_conn: "3000"
+      default_pool_size: "3000"
