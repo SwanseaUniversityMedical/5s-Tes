@@ -1,0 +1,92 @@
+{{- if .Values.vault.enabled }}
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  # Family-distinct: the hashicorp/vault chart derives cluster-scoped
+  # resource names from the release name alone, so "vault" in both stacks
+  # would collide.
+  name: submission-vault
+  namespace: {{ .Values.global.namespace }}
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"
+spec:
+  project: {{ .Values.global.argoProject }}
+  destination:
+    namespace: {{ .Values.global.namespace }}
+    server: https://kubernetes.default.svc
+  syncPolicy:
+    automated:
+      selfHeal: true
+      prune: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+      {{- if .Values.vault.injector.enabled }}
+      - RespectIgnoreDifferences=true
+      {{- end }}
+    retry:
+      limit: 5
+      backoff:
+        duration: "30s"
+        factor: 2
+        maxDuration: "10m0s"
+  {{- if .Values.vault.injector.enabled }}
+  # The injector writes its own caBundle into the webhook at runtime.
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      name: submission-vault-agent-injector-cfg
+      jsonPointers:
+        - /webhooks/0/clientConfig/caBundle
+  {{- end }}
+  source:
+    repoURL: "{{ .Values.vault.repoURL }}"
+    chart: "{{ .Values.vault.chart }}"
+    # renovate: datasource=helm depName=vault registryUrl=https://helm.releases.hashicorp.com
+    targetRevision: "{{ .Values.vault.chartVersion }}"
+    helm:
+      valuesObject:
+        server:
+          dev:
+            enabled: false
+          standalone:
+            enabled: true
+          dataStorage:
+            enabled: true
+            storageClass: {{ .Values.global.storageClass }}
+            size: "{{ .Values.vault.dataStorageSize }}"
+          extraContainers:
+            - name: unseal-watch
+              image: "{{ .Values.vault.init.vaultImage }}"
+              command: ["/bin/sh", "/scripts/unseal-watch.sh"]
+              env:
+                - name: VAULT_ADDR
+                  value: "http://127.0.0.1:8200"
+              resources:
+                requests:
+                  cpu: 10m
+                  memory: 16Mi
+                limits:
+                  memory: 32Mi
+              volumeMounts:
+                - name: init-scripts
+                  mountPath: /scripts
+                  readOnly: true
+                - name: vault-keys
+                  mountPath: /existing-keys
+                  readOnly: true
+          volumes:
+            - name: init-scripts
+              configMap:
+                name: submission-vault-init
+                defaultMode: 0555
+            - name: vault-keys
+              secret:
+                secretName: submission-vault-keys
+                optional: true
+
+        injector:
+          enabled: {{ .Values.vault.injector.enabled }}
+{{- end }}
