@@ -12,6 +12,7 @@ using Microsoft.Extensions.Options;
 using FiveSafesTes.Core.Models;
 using Microsoft.EntityFrameworkCore;
 using RabbitMQ.Client;
+using Serilog;
 
 namespace Agent.Api;
 
@@ -101,11 +102,13 @@ public class DoHealthCheckWork(
   {
     string message = "";
     bool isHealthy = true;
+    bool log = agentSettings.HealthCheckLogging;
 
     if (string.IsNullOrEmpty(agentSettings.TESKAPIURL))
     {
       isHealthy = false;
       message = "TES API URL is missing.";
+      if (log) Log.Warning("{Function} TESKAPIURL is not set", nameof(DoAgentHealthCheck));
     }
     else
     {
@@ -122,21 +125,39 @@ public class DoHealthCheckWork(
           };
         }
 
+        if (log)
+          Log.Information("{Function} GET {Url} (Proxy {Proxy}, ProxyAddress {ProxyAddress})",
+            nameof(DoAgentHealthCheck), agentSettings.TESKAPIURL, agentSettings.Proxy, agentSettings.ProxyAddresURL);
+
         using HttpClient client = new(handler);
         HttpResponseMessage response = await client.GetAsync(agentSettings.TESKAPIURL);
+
+        if (log)
+          Log.Information("{Function} {Url} responded {StatusCode} {Reason}",
+            nameof(DoAgentHealthCheck), agentSettings.TESKAPIURL, (int)response.StatusCode, response.ReasonPhrase);
 
         if (!response.IsSuccessStatusCode)
         {
           isHealthy = false;
           message = "Failed to reach TES API.";
+          if (log)
+            Log.Warning("{Function} {Url} body: {Body}",
+              nameof(DoAgentHealthCheck), agentSettings.TESKAPIURL, await response.Content.ReadAsStringAsync());
         }
       }
-      catch (Exception)
+      catch (Exception ex)
       {
         isHealthy = false;
         message = "Failed to reach TES API.";
+        if (log) Log.Error(ex, "{Function} request to {Url} threw", nameof(DoAgentHealthCheck), agentSettings.TESKAPIURL);
       }
     }
+
+    if (log)
+      Log.Information("{Function} result {Status}{Reason}{Action}", nameof(DoAgentHealthCheck),
+        isHealthy ? HealthStatus.Connected : HealthStatus.Failed,
+        string.IsNullOrEmpty(message) ? "" : $": {message}",
+        isHealthy ? "" : " - removing sync/scan Hangfire jobs");
 
     // Log health status for TES engine in the database.
     HealthCheckStatus healthStatus = new()
