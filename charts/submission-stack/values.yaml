@@ -85,6 +85,9 @@ rustfs:
     type: ClusterIP
     loadBalancerIP: ""
   storageSize: "10Gi"
+  # A second disk, of storageSize, for RustFS's own log files. False sends them
+  # to the pod's output instead: one disk fewer, for tight disk quotas.
+  logsDisk: true
   resources:
     requests:
       cpu: "250m"

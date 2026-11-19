@@ -527,6 +527,7 @@ only in-flight workflow instance state, not the system of record.
 |---|---|---|
 | `rustfs.enabled` | Deploy the `rustfs` `Application`. | `true` |
 | `rustfs.ingressHost` | Ingress host. Empty means `rustfs.<global.ingress.host>`; set it when both stacks share one `global.ingress.host`. | `""` |
+| `rustfs.logsDisk` | A second disk, of `rustfs.storageSize`, for RustFS's own log files. `false` sends them to the pod's output instead: one disk fewer, for tight disk quotas. | `true` |
 | `rustfs.repoURL` | Helm repo the RustFS chart is pulled from. | `https://rustfs.github.io/helm/` |
 | `rustfs.chart` | Chart name within that repo. | `rustfs` |
 | `rustfs.chartVersion` | RustFS chart version. | `1.0.0-rc.4` |

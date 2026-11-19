@@ -78,6 +78,12 @@ spec:
           name: {{ .Values.global.storageClass }}
           dataStorageSize: {{ .Values.rustfs.storageSize }}
           logStorageSize: {{ .Values.rustfs.storageSize }}
+        {{- if not .Values.rustfs.logsDisk }}
+        # RustFS logs to the pod's output instead of a second disk.
+        config:
+          rustfs:
+            obs_log_directory: ""
+        {{- end }}
 
         resources:
           requests:
