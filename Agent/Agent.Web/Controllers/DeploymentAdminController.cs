@@ -27,6 +27,7 @@ public class DeploymentAdminController : Controller
         }
 
         response.SyncJobExists = await ControllerHelpers.IsSyncJobCreated(_clientHelper);
+        response.ScanJobExists = await ControllerHelpers.IsScanJobCreated(_clientHelper);
         response.IsUploaded = await ControllerHelpers.IsConfigurationUploaded(_clientHelper);
         response.IsSynced = await ControllerHelpers.IsTRESynced(_clientHelper);
         return View(response);
@@ -47,6 +48,14 @@ public class DeploymentAdminController : Controller
     public async Task<IActionResult> ReviveHangfireJobs()
     {
         await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/ReviveHangfireJobs", httpMethod: HttpMethod.Post);
+
+        return Ok();
+    }
+
+    [HttpPost]
+    public async Task<IActionResult> ReviveScanJob()
+    {
+        await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/ReviveScanJob", httpMethod: HttpMethod.Post);
 
         return Ok();
     }

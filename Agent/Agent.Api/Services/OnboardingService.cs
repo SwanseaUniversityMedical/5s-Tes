@@ -195,8 +195,31 @@ public class OnboardingService(
     /// <returns>Returns true if the sync job is present in Hangfire.</returns>
     public bool IsSyncJobCreated()
     {
-        List<RecurringJobDto> recurringJobs = JobStorage.Current.GetConnection().GetRecurringJobs();
-        return recurringJobs.Any(x => x.Id == jobSettings.SyncJobName);
+        return RecurringJobExists(jobSettings.SyncJobName);
+    }
+
+    public bool IsScanJobCreated()
+    {
+        return RecurringJobExists(jobSettings.ScanJobName);
+    }
+
+    /// <summary>
+    /// Re-adds the submission scan job if the health check removed it. Does nothing if it already exists or scanning is disabled.
+    /// </summary>
+    /// <returns>Returns true if the job was added.</returns>
+    public bool RestartScanJob()
+    {
+        if (jobSettings.scanSchedule == 0 || IsScanJobCreated()) return false;
+
+        RecurringJob.AddOrUpdate<IDoAgentWork>(jobSettings.ScanJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.scanSchedule));
+        Log.Information("{Function} Re-added {JobName}", nameof(RestartScanJob), jobSettings.ScanJobName);
+        return true;
+    }
+
+    private static bool RecurringJobExists(string jobName)
+    {
+        using var connection = JobStorage.Current.GetConnection();
+        return connection.GetRecurringJobs().Any(x => x.Id == jobName);
     }
 
     /// <summary>

@@ -7,4 +7,6 @@ public interface IOnboardingService
     bool IsTRESynced();
     bool IsConfigurationUploaded();
     bool IsSyncJobCreated();
+    bool IsScanJobCreated();
+    bool RestartScanJob();
 }

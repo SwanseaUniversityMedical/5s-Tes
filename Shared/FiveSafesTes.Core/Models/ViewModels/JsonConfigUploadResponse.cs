@@ -8,4 +8,5 @@ public class JsonConfigUploadResponse
     public bool IsSynced { get; set; }
     public bool IsUploaded { get; set; }
     public bool SyncJobExists { get; set; }
+    public bool ScanJobExists { get; set; }
 }
