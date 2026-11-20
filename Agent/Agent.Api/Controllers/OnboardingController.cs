@@ -79,6 +79,13 @@ public class OnboardingController : Controller
         return new() { Result = result };
     }
 
+    [HttpPost("ReviveSyncJob")]
+    public async Task<BoolReturn> ReviveSyncJob()
+    {
+        bool result = _onboardingService.RestartSyncJob();
+        return new() { Result = result };
+    }
+
     [HttpPost("ReviveScanJob")]
     public async Task<BoolReturn> ReviveScanJob()
     {

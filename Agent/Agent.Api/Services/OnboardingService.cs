@@ -203,10 +203,15 @@ public class OnboardingService(
         return RecurringJobExists(jobSettings.ScanJobName);
     }
 
-    /// <summary>
-    /// Re-adds the submission scan job if the health check removed it. Does nothing if it already exists or scanning is disabled.
-    /// </summary>
-    /// <returns>Returns true if the job was added.</returns>
+    public bool RestartSyncJob()
+    {
+        if (jobSettings.syncSchedule == 0 || IsSyncJobCreated()) return false;
+
+        RecurringJob.AddOrUpdate<IDoSyncWork>(jobSettings.SyncJobName, x => x.Execute(), Cron.MinuteInterval(jobSettings.syncSchedule));
+        Log.Information("{Function} Re-added {JobName}", nameof(RestartSyncJob), jobSettings.SyncJobName);
+        return true;
+    }
+
     public bool RestartScanJob()
     {
         if (jobSettings.scanSchedule == 0 || IsScanJobCreated()) return false;

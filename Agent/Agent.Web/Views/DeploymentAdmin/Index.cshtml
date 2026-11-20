@@ -81,8 +81,8 @@
 
 <script>
     document.getElementById("hangfireRevivalBtn")?.addEventListener("click", async function () {
-        const response = await fetch('/DeploymentAdmin/ReviveHangfireJobs', { method: 'POST' });
-         location.reload();
+        await fetch('/DeploymentAdmin/ReviveSyncJob', { method: 'POST' });
+        location.reload();
     });
     document.getElementById("scanRevivalBtn")?.addEventListener("click", async function () {
         await fetch('/DeploymentAdmin/ReviveScanJob', { method: 'POST' });

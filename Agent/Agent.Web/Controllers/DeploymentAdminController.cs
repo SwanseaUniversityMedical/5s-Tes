@@ -45,9 +45,10 @@ public class DeploymentAdminController : Controller
         return RedirectToAction("Index", response);
     }
 
-    public async Task<IActionResult> ReviveHangfireJobs()
+    [HttpPost]
+    public async Task<IActionResult> ReviveSyncJob()
     {
-        await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/ReviveHangfireJobs", httpMethod: HttpMethod.Post);
+        await _clientHelper.CallAPIWithoutModel<BoolReturn>("/api/Onboarding/ReviveSyncJob", httpMethod: HttpMethod.Post);
 
         return Ok();
     }

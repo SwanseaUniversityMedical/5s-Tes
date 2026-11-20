@@ -9,4 +9,5 @@ public interface IOnboardingService
     bool IsSyncJobCreated();
     bool IsScanJobCreated();
     bool RestartScanJob();
+    bool RestartSyncJob();
 }
