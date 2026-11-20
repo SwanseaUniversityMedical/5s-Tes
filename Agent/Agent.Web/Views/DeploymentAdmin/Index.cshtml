@@ -11,22 +11,32 @@
             <h1 class="fw-bold mb-1">Deployment Admin</h1>
             <p class="text-secondary mb-0">Manage submission configuration and monitor platform health.</p>
         </div>
-        @if (Model != null && !Model.SyncJobExists)
-        {
-            <div class="d-flex align-items-center gap-3 rounded-3 px-3 py-2">
+        <div class="d-flex align-items-center gap-3 rounded-3 px-3 py-2">
+            @if (Model != null && !Model.SyncJobExists)
+            {
                 <button id="hangfireRevivalBtn" class="btn btn-primary btn-sm d-flex align-items-center">
                     <span>Enable Sync</span>
                 </button>
-            </div>
-        }
-        else
-        {
-            <div class="d-flex align-items-center gap-3 rounded-3 px-3 py-2">
+            }
+            else
+            {
                 <button disabled class="btn btn-primary btn-sm d-flex align-items-center">
                     <span>Sync Active</span>
                 </button>
-            </div>
-        }
+            }
+            @if (Model != null && !Model.ScanJobExists)
+            {
+                <button id="scanRevivalBtn" class="btn btn-primary btn-sm d-flex align-items-center">
+                    <span>Enable Scan</span>
+                </button>
+            }
+            else
+            {
+                <button disabled class="btn btn-primary btn-sm d-flex align-items-center">
+                    <span>Scan Active</span>
+                </button>
+            }
+        </div>
     </div>
 
     <div class="card border rounded-3 shadow-sm overflow-hidden">
@@ -70,8 +80,12 @@
 </div>
 
 <script>
-    document.getElementById("hangfireRevivalBtn").addEventListener("click", async function () {
-        const response = await fetch('/DeploymentAdmin/ReviveHangfireJobs', { method: 'POST' });
-         location.reload();
+    document.getElementById("hangfireRevivalBtn")?.addEventListener("click", async function () {
+        await fetch('/DeploymentAdmin/ReviveSyncJob', { method: 'POST' });
+        location.reload();
+    });
+    document.getElementById("scanRevivalBtn")?.addEventListener("click", async function () {
+        await fetch('/DeploymentAdmin/ReviveScanJob', { method: 'POST' });
+        location.reload();
     });
 </script>

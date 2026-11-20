@@ -24,5 +24,7 @@
 
 
         public string MandatoryInput { get; set; }
+
+        public bool HealthCheckLogging { get; set; }
     }
 }
