@@ -84,6 +84,20 @@ spec:
           rustfs:
             obs_log_directory: ""
         {{- end }}
+        {{- if and .Values.global.trustClusterCa.enabled .Values.rustfs.trustClusterCa }}
+        # The cluster CA bundle over the image's CA list, as the apps get it, so
+        # RustFS's Keycloak login can verify a privately issued certificate.
+        extraVolumes:
+          - name: certs-overlay
+            configMap:
+              name: {{ .Values.global.trustClusterCa.configMapName }}
+              defaultMode: 420
+        extraVolumeMounts:
+          - name: certs-overlay
+            mountPath: {{ .Values.global.trustClusterCa.mountPath }}
+            subPath: {{ .Values.global.trustClusterCa.key }}
+            readOnly: true
+        {{- end }}
 
         resources:
           requests:

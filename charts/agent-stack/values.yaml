@@ -120,6 +120,9 @@ rustfs:
   # A second disk, of storageSize, for RustFS's own log files. False sends them
   # to the pod's output instead: one disk fewer, for tight disk quotas.
   logsDisk: true
+  # Mount global.trustClusterCa's bundle into RustFS as well, so its "Log in
+  # with Keycloak" can verify a certificate from a private CA.
+  trustClusterCa: false
   resources:
     requests:
       cpu: "250m"
