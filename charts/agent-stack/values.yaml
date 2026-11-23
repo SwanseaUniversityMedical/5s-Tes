@@ -93,6 +93,22 @@ egress:
   # Local-only: same meaning as agent.api.keycloakDemoMode above.
   keycloakDemoMode: "false"
 
+# Director-Airlock as the product that reviews outputs, instead of Egress.
+# This points the Agent api at an Airlock that is installed separately; it
+# doesn't install Airlock. See README.
+airlock:
+  enabled: false
+  # Airlock's file-request API, e.g.
+  # http://file-request-api.<airlock namespace>.svc.cluster.local
+  apiUrl: ""
+  # Full AirlockFileRequest realm URL (bare realm URL, as oidcAuthority above).
+  oidcAuthority: "https://keycloak.example.ac.uk/realms/AirlockFileRequest"
+  # The api's service-account client in that realm; secret in Vault as
+  # kc_airlock_client_secret.
+  clientId: "Airlock-5STES"
+  plane: ""
+  product: "5S-TES"
+
 # Cross-stack link to the Submission product: always external addresses,
 # never in-namespace service names.
 submission:

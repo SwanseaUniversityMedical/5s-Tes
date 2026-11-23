@@ -194,6 +194,28 @@ spec:
             - name: ApiEndpoints__EgressApiUrl
               value: "{{ .Values.api.egress.apiUrl }}"
             {{- end }}
+            {{- if not (has .Values.api.egressProvider (list "DataEgress" "Airlock")) }}
+            {{- fail (printf "api.egressProvider must be \"DataEgress\" or \"Airlock\", not %q" .Values.api.egressProvider) }}
+            {{- end }}
+            - name: EgressSettings__Provider
+              value: "{{ .Values.api.egressProvider }}"
+            {{- if eq .Values.api.egressProvider "Airlock" }}
+            - name: AirlockSettings__ApiUrl
+              value: "{{ .Values.api.airlock.apiUrl }}"
+            - name: AirlockSettings__Plane
+              value: "{{ .Values.api.airlock.plane }}"
+            - name: AirlockSettings__Product
+              value: "{{ .Values.api.airlock.product }}"
+            - name: AirlockKeyCloakSettings__BaseUrl
+              value: "{{ .Values.api.airlock.authority }}"
+            - name: AirlockKeyCloakSettings__ClientId
+              value: "{{ .Values.api.airlock.clientId }}"
+            - name: AirlockKeyCloakSettings__ClientSecret
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.api.secretName }}
+                  key: airlockKeycloakClientSecret
+            {{- end }}
             - name: ApiEndpoints__SubmissionApiUrl
               value: "{{ .Values.submission.apiUrl }}"
             - name: ApiEndpoints__TreApiUrl

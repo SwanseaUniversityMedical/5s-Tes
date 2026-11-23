@@ -1,4 +1,7 @@
 {{- if .Values.agent.enabled }}
+{{- if and .Values.egress.enabled .Values.airlock.enabled }}
+{{- fail "egress.enabled and airlock.enabled are alternatives: the Agent sends outputs to one review product" }}
+{{- end }}
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -99,6 +102,15 @@ spec:
             authority: "{{ .Values.egress.oidcAuthority }}"
             # Static Service name of the egress chart's api.
             apiUrl: "http://egress-api"
+          {{- end }}
+          {{- if .Values.airlock.enabled }}
+          egressProvider: "Airlock"
+          airlock:
+            apiUrl: {{ required "airlock.apiUrl is required with airlock.enabled" .Values.airlock.apiUrl | quote }}
+            authority: {{ .Values.airlock.oidcAuthority | quote }}
+            clientId: {{ .Values.airlock.clientId | quote }}
+            plane: {{ .Values.airlock.plane | quote }}
+            product: {{ .Values.airlock.product | quote }}
           {{- end }}
 
         ui:

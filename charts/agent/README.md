@@ -84,6 +84,7 @@ Set by `api.secretName`.
 | `treKeycloakClientSecret` | Client secret for the `Dare-TRE-UI` Keycloak client. Read into `TreKeyCloakSettings__ClientSecret`. | Yes |
 | `submissionKeycloakClientSecret` | Client secret for the `Dare-Control-API` Keycloak client. Read into `SubmissionKeyCloakSettings__ClientSecret`. | Yes |
 | `egressKeycloakClientSecret` | Client secret for the `Data-Egress-API` Keycloak client. Read into `DataEgressKeyCloakSettings__ClientSecret`. Only used when `api.egress.enabled` is `true`. | Only if `api.egress.enabled` |
+| `airlockKeycloakClientSecret` | Client secret for the `Airlock-5STES` client in Airlock's `AirlockFileRequest` realm. Read into `AirlockKeyCloakSettings__ClientSecret`. | Only if `api.egressProvider` is `Airlock` |
 | `s3AccessKey` | Access key for the TRE RustFS bucket. Read into `MinioTRESettings__AccessKey`. | Yes |
 | `s3SecretKey` | Secret key matching `s3AccessKey`. Read into `MinioTRESettings__SecretKey`. | Yes |
 | `encryptionKey` | Base64 encryption key. Read into `EncryptionSettings__Key`. | Yes |
@@ -239,6 +240,12 @@ deployment.
 | `api.egress.proxyAddresUrl` | Proxy address, used when `api.egress.proxy` is `"true"`. | `""` |
 | `api.egress.bypassProxy` | Comma-separated proxy bypass list. | `""` |
 | `api.egress.apiUrl` | URL of the Data Egress API. Read into `ApiEndpoints__EgressApiUrl`. | `""` |
+| `api.egressProvider` | The product that reviews outputs before they leave the TRE: `DataEgress` or `Airlock`. Read into `EgressSettings__Provider`; any other value fails the render. | `DataEgress` |
+| `api.airlock.apiUrl` | URL of Airlock's file-request API, which the api sends outputs to. Read into `AirlockSettings__ApiUrl`. The `api.airlock.*` settings are only passed with `api.egressProvider: Airlock`. | `""` |
+| `api.airlock.authority` | Full URL of Airlock's `AirlockFileRequest` realm. Read into `AirlockKeyCloakSettings__BaseUrl`. | `""` |
+| `api.airlock.clientId` | The api's service-account client in that realm. Its secret is `airlockKeycloakClientSecret`. Read into `AirlockKeyCloakSettings__ClientId`. | `Airlock-5STES` |
+| `api.airlock.plane` | Read into `AirlockSettings__Plane`, sent with each request. | `""` |
+| `api.airlock.product` | Read into `AirlockSettings__Product`, sent with each request. | `5S-TES` |
 | `api.s3Url` | In-cluster TRE RustFS S3 endpoint. Read into `MinioTRESettings__Url`. | `http://rustfs-svc:9000` |
 | `api.publicUrl` | Public URL of the Agent API, embedded in TRE onboarding JSON. Read into `ApiEndpoints__TreApiUrl`. | `http://agent-api.localtest.me` |
 | `api.vault.timeoutSeconds` | Vault client timeout. | `30` |

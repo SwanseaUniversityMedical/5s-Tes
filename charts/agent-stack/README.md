@@ -83,7 +83,7 @@ for IDE-run apps on top of what the CronJob does.
 ### What must be in Vault
 
 One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/agent`). A key marked
-*(egress)*, *(teleport)* or *(openldap)* is only read when that component is enabled.
+*(egress)*, *(teleport)*, *(openldap)* or *(airlock)* is only read when that component is enabled.
 
 | Key | Fills | Used for |
 |---|---|---|
@@ -93,6 +93,7 @@ One KV secret at `vault.secretPath` (default `kvv2/data/prod/prod/agent`). A key
 | `kc_s3_client_secret` | `agent-rustfs-secret` / `RUSTFS_IDENTITY_OPENID_CLIENT_SECRET` | `Dare-TRE-S3` client secret, for the RustFS console's OpenID login |
 | `kc_control_api_client_secret` | `agent-api-secret` / `submissionKeycloakClientSecret` | `Dare-Control-API` client secret, in the Submission product's realm. See **Keycloak**. |
 | `kc_egress_api_client_secret` | `agent-api-secret` / `egressKeycloakClientSecret`, `egress-api-secret` / `dataEgressKeycloakClientSecret` | `Data-Egress-API` client secret. The api only reads it with `egress.enabled`. |
+| `kc_airlock_client_secret` *(airlock)* | `agent-api-secret` / `airlockKeycloakClientSecret` | `Airlock-5STES` client secret, in Airlock's `AirlockFileRequest` realm. See **Airlock**. |
 | `kc_tre_api_client_secret` *(egress)* | `egress-api-secret` / `treKeycloakClientSecret` | `Dare-TRE-API` client secret |
 | `kc_egress_ui_client_secret` *(egress)* | `egress-ui-secret` / `keycloakClientSecret` | `Data-Egress-UI` client secret |
 | `kc_teleport_client_secret`, `teleport_kc_username`, `teleport_kc_password_enc` *(teleport)* | `teleport-user-management-secret` / `keycloakClientSecret`, `keycloakUsername`, `keycloakPasswordEnc` | `Teleport-User-Management` client secret and the realm user teleport logs in as; the password AES-encrypted with `teleport_encryption_key`. See **Keycloak**. |
@@ -311,6 +312,36 @@ E-mail notifications (`EmailSettings.*` on the egress api — host, from-address
 recipient override) are left at the egress chart's own defaults (`EmailSettings__Enabled:
 "false"`, so nothing sends); not surfaced by this stack.
 
+## Airlock
+
+`airlock.enabled` (default `false`) makes Director-Airlock, not Data-Egress, the product
+the Agent sends outputs to for review (`EgressSettings__Provider: Airlock`). It only
+configures the Agent api; Airlock itself is installed separately, from its own
+`airlock-stack` chart. `egress.enabled` and `airlock.enabled` can't both be on: the render
+fails.
+
+With it on, the api:
+
+- sends each submission's outputs to `<airlock.apiUrl>/api/Requests/SubmitExternalRequest`,
+  signed in as the `airlock.clientId` service account (client credentials) in the
+  `AirlockFileRequest` realm at `airlock.oidcAuthority`. The `AirlockSendRetryJob` Hangfire
+  job retries failed sends (`Agent.Api/Program.cs`);
+- reports whether those credentials get a token in its health check, as "Egress";
+- receives review outcomes at `/api/Submission/AirlockResults`, which accepts `Dare-TRE`
+  tokens holding the realm role `dare-tre-admin` or `airlock-callback`
+  (`Agent.Api/Controllers/SubmissionController.cs`).
+
+Keycloak needs:
+
+- **In `AirlockFileRequest`:** `Airlock-5STES`, a confidential client with service accounts
+  on. Airlock's file-request API must also accept it, as the `FiveSafesTes` external client
+  (`airlock-stack`'s `airlock.fileRequestApi.keycloak.externalClients`).
+- **In `Dare-TRE`:** the realm role `airlock-callback`, and `Airlock-Callback`, a confidential
+  client with only service accounts on, whose service account holds `airlock-callback` and
+  whose default client scopes include `DARE-TRE-API` (the audience the api accepts).
+  DemoStack's `tre-layer.json` has both. Airlock's review worker signs in as this client
+  to call back, at the URL its review DMN lists in `APIsCallOnCompletion`.
+
 ## GA4GH TES backend
 
 `api.tesApiUrl`/`AgentSettings__TESKAPIURL` names the TES (Task Execution Service) backend the
@@ -512,6 +543,17 @@ only in-flight workflow instance state, not the system of record.
 | `egress.imageVersion` | Image tag for the egress `api` and `ui`. | `3.1.0` |
 | `egress.oidcAuthority` | Full `Data-Egress` realm URL. Same Keycloak host as `global.oidc.authority`, different realm. | `https://keycloak.example.ac.uk/realms/Data-Egress` |
 | `egress.keycloakDemoMode` | Local-only. Relaxes the egress api's own outbound password-grant token helpers' discovery-endpoint check to HTTP (covers both its `Data-Egress` and cross-realm `Dare-TRE` calls). See **Egress** above. | `"false"` |
+
+### airlock (optional, instead of egress)
+
+| Name | Description | Default |
+|---|---|---|
+| `airlock.enabled` | Send outputs to Director-Airlock for review instead of Data-Egress: sets the agent's `api.egressProvider: Airlock` and `api.airlock.*`, and adds `airlockKeycloakClientSecret` to `agent-api-secret`. Doesn't install Airlock. Can't be on with `egress.enabled`. See **Airlock** above. | `false` |
+| `airlock.apiUrl` | Airlock's file-request API. Required with `airlock.enabled`. | `""` |
+| `airlock.oidcAuthority` | Full `AirlockFileRequest` realm URL. | `https://keycloak.example.ac.uk/realms/AirlockFileRequest` |
+| `airlock.clientId` | The api's service-account client in that realm. Secret in Vault as `kc_airlock_client_secret`. | `Airlock-5STES` |
+| `airlock.plane` | Sent with each Airlock request (`AirlockSettings__Plane`). | `""` |
+| `airlock.product` | Sent with each Airlock request (`AirlockSettings__Product`). | `5S-TES` |
 
 ### Submission cross-link
 

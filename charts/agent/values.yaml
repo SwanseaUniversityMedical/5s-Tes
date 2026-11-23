@@ -95,7 +95,8 @@ api:
   # rabbitUsername, rabbitPassword, treKeycloakClientSecret,
   # submissionKeycloakClientSecret, egressKeycloakClientSecret,
   # s3AccessKey, s3SecretKey, encryptionKey, hangfireUsername,
-  # hangfirePassword, hasuraAdminSecret. See README Secrets section.
+  # hangfirePassword, hasuraAdminSecret, and airlockKeycloakClientSecret
+  # with egressProvider "Airlock". See README Secrets section.
   secretName: agent-api-secret
   ingress:
     enabled: true
@@ -134,6 +135,21 @@ api:
     proxyAddresUrl: ""
     bypassProxy: ""
     apiUrl: ""
+
+  # Which product reviews outputs before they leave the TRE: "DataEgress" or
+  # "Airlock". Read into EgressSettings__Provider.
+  egressProvider: "DataEgress"
+
+  # Director-Airlock link, read only when egressProvider is "Airlock". The api
+  # sends outputs to Airlock's file-request API as the clientId service
+  # account in Airlock's AirlockFileRequest realm.
+  airlock:
+    apiUrl: ""
+    # Full realm URL, e.g. https://keycloak.example.ac.uk/realms/AirlockFileRequest.
+    authority: ""
+    clientId: "Airlock-5STES"
+    plane: ""
+    product: "5S-TES"
 
   s3Url: "http://rustfs-svc:9000"
 
