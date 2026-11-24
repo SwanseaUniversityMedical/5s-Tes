@@ -37,6 +37,10 @@ ARGOCD_CHART_VERSION="10.4.0"
 CNPG_CHART_VERSION="0.29.0"
 # renovate: datasource=github-releases depName=rabbitmq/cluster-operator
 RABBITMQ_OPERATOR_VERSION="v2.22.5"
+# renovate: datasource=helm depName=kube-prometheus-stack registryUrl=https://prometheus-community.github.io/helm-charts
+PROMETHEUS_STACK_CHART_VERSION="93.1.1"
+# renovate: datasource=helm depName=prometheus-pushgateway registryUrl=https://prometheus-community.github.io/helm-charts
+PUSHGATEWAY_CHART_VERSION="3.11.2"
 
 cd "$(dirname "$0")"
 
@@ -245,6 +249,32 @@ kubectl apply --context "$CONTEXT" \
 kubectl wait --for=condition=Available deployment --all \
   -n rabbitmq-system --timeout=5m --context "$CONTEXT"
 
+echo "Installing kube-prometheus-stack ($PROMETHEUS_STACK_CHART_VERSION)"
+helm upgrade --install kube-prometheus-stack kube-prometheus-stack \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --version "$PROMETHEUS_STACK_CHART_VERSION" \
+  --namespace monitoring --create-namespace \
+  --set grafana.adminPassword=admin \
+  --set grafana.ingress.enabled=true \
+  --set grafana.ingress.hosts[0]=grafana.localtest.me \
+  --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment/kube-prometheus-stack-grafana \
+  -n monitoring --timeout=5m --context "$CONTEXT"
+
+# One Pushgateway shared between submission and agent
+echo "Installing the Prometheus Pushgateway ($PUSHGATEWAY_CHART_VERSION)"
+helm upgrade --install prometheus-pushgateway prometheus-pushgateway \
+  --repo https://prometheus-community.github.io/helm-charts \
+  --version "$PUSHGATEWAY_CHART_VERSION" \
+  --namespace monitoring --create-namespace \
+  --set service.type=NodePort \
+  --set service.nodePort=30091 \
+  --set serviceMonitor.enabled=true \
+  --set serviceMonitor.additionalLabels.release=kube-prometheus-stack \
+  --kube-context "$CONTEXT"
+kubectl wait --for=condition=Available deployment/prometheus-pushgateway \
+  -n monitoring --timeout=5m --context "$CONTEXT"
+
 echo "Installing ArgoCD ($ARGOCD_CHART_VERSION)"
 helm upgrade --install argocd argo-cd \
   --repo https://argoproj.github.io/argo-helm \
@@ -344,6 +374,10 @@ cat <<SUMMARY
    Camunda       http://camunda.agent.localtest.me
 
  ArgoCD          http://argocd.localtest.me (admin/admin)
+
+ Monitoring (shared by both Submission and Agent):
+   Grafana       http://grafana.localtest.me (admin/admin)
+   Pushgateway   http://localhost:30091 (push target for PUSHGATEWAY_URL)
 
  The product apps run from the IDE — see the root README "Running apps from
  VS Code against kind". To run them in-cluster instead, set enabled: true in
