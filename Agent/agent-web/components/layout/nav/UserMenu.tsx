@@ -9,23 +9,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { ChevronDown, User } from "lucide-react";
 import { handleLogin, handleLogout, useSession } from "@/lib/auth-client";
-import { helpdeskUrl } from "@/lib/constants";
 import { getKeycloakIssuerPublic } from "@/lib/helpers";
-
-// User menu items
-const MENU_ITEMS = [
-  {
-    label: "Account",
-    href: `${getKeycloakIssuerPublic()}/account`,
-  },
-  { label: "Helpdesk", href: helpdeskUrl },
-];
+import { useEnvContext } from "next-runtime-env";
 
 // Creates User Menu Dropdown button Component in the Navbar
 
 export default function UserMenu() {
   const { data: session, error: sessionError } = useSession();
+  const {
+    NEXT_PUBLIC_HELPDESK_URL,
+    NEXT_PUBLIC_KEYCLOAK_URL,
+    NEXT_PUBLIC_KEYCLOAK_REALM,
+  } = useEnvContext();
   const username = session?.user?.name;
+  const accountHref = `${getKeycloakIssuerPublic(
+    NEXT_PUBLIC_KEYCLOAK_URL,
+    NEXT_PUBLIC_KEYCLOAK_REALM,
+  )}/account`;
+  const menuItems = [
+    { label: "Account", href: accountHref },
+    { label: "Helpdesk", href: NEXT_PUBLIC_HELPDESK_URL || "#" },
+  ];
 
   return (
     <DropdownMenu>
@@ -45,7 +49,7 @@ export default function UserMenu() {
 
       {/* ---- Dropdown Menu Trigger ---- */}
       <DropdownMenuContent align="end" className="w-40">
-        {MENU_ITEMS.map((item) => (
+        {menuItems.map((item) => (
           <a key={item.href} href={item.href}>
             <DropdownMenuItem>{item.label}</DropdownMenuItem>
           </a>
