@@ -16,14 +16,10 @@ RUN dotnet publish "Credentials.Camunda.csproj" \
     --self-contained=false \
     /p:UseAppHost=false
 
-FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
-USER root
-# MinIO archived mc and pulled it from dl.min.io, so install RustFS's own
-# CLI instead. rc accepts mc-style verbs as compatibility aliases, so the
-# `mc admin ...` call sites in MinioHelper keep working via the symlink.
+FROM --platform=${BUILDPLATFORM} alpine:3.20 AS rc-download
 ARG TARGETARCH
 ARG RC_VERSION=v0.1.35
-RUN apt-get update && apt-get install -y wget curl && \
+RUN apk add --no-cache wget && \
     case "${TARGETARCH}" in \
       amd64) RC_SHA256=f852392837e2b56c4785ea7f4e4a0e3f58a5df19fe317eb80bcc1bfaa41a2893 ;; \
       arm64) RC_SHA256=3d8e125f878f295dedeb40a03a85c311588205601f5076fbc8b341fe40b41b1b ;; \
@@ -32,11 +28,12 @@ RUN apt-get update && apt-get install -y wget curl && \
     wget -O rc.tar.gz "https://github.com/rustfs/cli/releases/download/${RC_VERSION}/rustfs-cli-linux-${TARGETARCH}-${RC_VERSION}.tar.gz" && \
     echo "${RC_SHA256}  rc.tar.gz" | sha256sum -c - && \
     tar -xzf rc.tar.gz rc && \
-    install -m 0755 rc /usr/local/bin/rc && \
-    ln -s /usr/local/bin/rc /usr/local/bin/mc && \
-    rm -f rc rc.tar.gz && \
-    apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    mkdir /out && \
+    install -m 0755 rc /out/rc && \
+    ln -s rc /out/mc
+
+FROM --platform=${TARGETPLATFORM} mcr.microsoft.com/dotnet/aspnet:10.0 AS final
+COPY --from=rc-download /out/ /usr/local/bin/
 
 USER app
 EXPOSE 8080
