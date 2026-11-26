@@ -46,6 +46,7 @@ public class GovernanceImportService : IGovernanceImportService
 
         List<int> treIdsToCreate = fiveSafesTesProjects.SelectMany(x => x.AssignedTres ?? new List<int>()).Distinct().ToList();
         List<Tre> importedTres = new();
+        List<User> importedUsers = new();
 
         foreach (int treId in treIdsToCreate)
         {
@@ -84,6 +85,27 @@ public class GovernanceImportService : IGovernanceImportService
 
             importedTres.Add(tre);
 
+            List<GovernanceUser> treUsers = config.PresentUsers?.Where(x => x.RepresentedTreId == treId).ToList() ?? new();
+
+            foreach (GovernanceUser governanceUser in treUsers)
+            {
+                User? user = importedUsers.FirstOrDefault(x => x.Email.ToLower() == governanceUser.Email.ToLower().Trim())
+                ?? _dbContext.Users.FirstOrDefault(x => x.Email.ToLower() == governanceUser.Email.ToLower().Trim());
+
+                if (user == null)
+                {
+                    user = new User { Email = governanceUser.Email.Trim(), FormData = string.Empty };
+                    _dbContext.Users.Add(user);
+                }
+
+                user.Name = $"{governanceUser.FirstName} {governanceUser.LastName}".Trim();
+
+                if (!importedUsers.Contains(user))
+                {
+                    importedUsers.Add(user);
+                }
+            }
+
             string message = $"TRE '{tre.Name}' {(isNew ? "created" : "updated")}, admin set to {tre.AdminUsername}.";
             Log.Information("{Function} {Message}", "GovernanceImportService", message);
             results.Add(message);
@@ -94,9 +116,9 @@ public class GovernanceImportService : IGovernanceImportService
             }
         }
 
-        if (importedTres.Count > 0 && !string.IsNullOrWhiteSpace(config.Name)) 
+        if (importedTres.Count > 0 && !string.IsNullOrWhiteSpace(config.Name))
         {
-            await UpsertProjectAsync(config, importedTres, results, onProjectSaved);
+            await UpsertProjectAsync(config, importedTres, importedUsers, results, onProjectSaved);
         }
 
         return results;
@@ -156,8 +178,9 @@ public class GovernanceImportService : IGovernanceImportService
     /// </summary>
     /// <param name="config">The imported configuration from Director Governance.</param>
     /// <param name="tres">The list of TREs that have been created from the Director Governance config.</param>
+    /// <param name="users">The list of users represented across those TREs, to be given workgroup access to the project.</param>
     /// <param name="results">A list containing a result message describing the outcome for each TRE processed.</param>
-    private async Task UpsertProjectAsync(DirectorGovernanceConfig config, List<Tre> tres, List<string> results, Func<Project, List<Tre>, bool, Task>? onProjectSaved)
+    private async Task UpsertProjectAsync(DirectorGovernanceConfig config, List<Tre> tres, List<User> users, List<string> results, Func<Project, List<Tre>, bool, Task>? onProjectSaved)
     {
         Project? existing = _dbContext.Projects.FirstOrDefault(x => x.Name.ToLower() == config.Name.Trim().ToLower());
         bool isNew = existing == null;
@@ -180,11 +203,19 @@ public class GovernanceImportService : IGovernanceImportService
 
         if (isNew) _dbContext.Projects.Add(project);
 
-        foreach (Tre tre in tres) 
+        foreach (Tre tre in tres)
         {
             if (!project.Tres.Any(t => t.Id == tre.Id))
             {
                 project.Tres.Add(tre);
+            }
+        }
+
+        foreach (User user in users)
+        {
+            if (!project.Users.Contains(user))
+            {
+                project.Users.Add(user);
             }
         }
 

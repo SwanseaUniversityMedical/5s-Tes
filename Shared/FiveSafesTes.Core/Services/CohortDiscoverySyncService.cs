@@ -209,7 +209,14 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
                 await AddCollectionToWorkgroupAsync(collection.Id, workgroup.Id);
             }
 
-            // TODO: add each of the project's users to the workgroup once Cohort Discovery implements user creation via the API. 
+            foreach (User user in project.Users)
+            {
+                if (!string.IsNullOrWhiteSpace(user.Email))
+                {
+                    // TODO: add each of the project's users to the workgroup once Cohort Discovery implements user creation via the API. 
+                    await TryLinkUserToProjectWorkgroupAsync(user.Email, project.Name);
+                }
+            }
 
             Log.Information("{Function} Synced project '{ProjectName}' to Cohort Discovery workgroup id {WorkgroupId}.", "CohortDiscoverySyncService", project.Name, workgroup.Id);
         }

@@ -26,13 +26,13 @@ public class CohortDiscoveryWorkgroupLinkService : BackgroundService
                 ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 ICohortDiscoverySyncService syncService = scope.ServiceProvider.GetRequiredService<ICohortDiscoverySyncService>();
 
-                foreach (Project project in dbContext.Projects.Include(p => p.Tres))
+                foreach (Project project in dbContext.Projects.Include(p => p.Users))
                 {
-                    foreach (Tre tre in project.Tres)
+                    foreach (User user in project.Users)
                     {
-                        if (!string.IsNullOrWhiteSpace(tre.AdminUsername))
+                        if (!string.IsNullOrWhiteSpace(user.Email))
                         {
-                            await syncService.TryLinkUserToProjectWorkgroupAsync(tre.AdminUsername, project.Name);
+                            await syncService.TryLinkUserToProjectWorkgroupAsync(user.Email, project.Name);
                         }
                     }
                 }
