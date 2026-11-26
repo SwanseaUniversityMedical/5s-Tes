@@ -5,8 +5,6 @@ using FiveSafesTes.Core.Models;
 using FiveSafesTes.Core.Services;
 using Newtonsoft.Json;
 using Serilog;
-using Submission.Api.Repositories.DbContexts;
-using Submission.Api.Services.Contract;
 
 namespace Submission.Api.Services;
 
@@ -56,8 +54,9 @@ public class ConsumeGovernanceConfigService : BackgroundService
 
             using IServiceScope scope = _serviceScopeFactory.CreateScope();
             IGovernanceImportService governanceImportService = scope.ServiceProvider.GetRequiredService<IGovernanceImportService>();
+            ICohortDiscoverySyncService cohortDiscoverySyncService = scope.ServiceProvider.GetRequiredService<ICohortDiscoverySyncService>();
 
-            governanceImportService.ApplyConfigAsync(config).GetAwaiter().GetResult();
+            governanceImportService.ApplyConfigAsync(config, cohortDiscoverySyncService.SyncTre, cohortDiscoverySyncService.SyncProject).GetAwaiter().GetResult();
         }
         catch (Exception ex)
         {

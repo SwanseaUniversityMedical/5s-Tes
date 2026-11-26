@@ -333,5 +333,60 @@ namespace Submission.Api.Services
             var slug = Regex.Replace(treName.ToLower().Trim(), @"[^a-z0-9]+", "-").Trim('-');
             return $"tre-agent-{slug}";
         }
+
+        public async Task<bool> SetTreAdminCustodianAttributeAsync(string adminEmail, string treName)
+        {
+            var adminToken = await GetAdminTokenAsync();
+            var baseUrl = GetKeycloakBaseUrl();
+            var realm = _keycloakSettings.Realm;
+
+            using HttpClient client = new(_keycloakSettings.getProxyHandler);
+            client.DefaultRequestHeaders.Authorization = new("Bearer", adminToken);
+
+            HttpResponseMessage searchResponse = await client.GetAsync($"{baseUrl}/admin/realms/{realm}/users?email={Uri.EscapeDataString(adminEmail)}&exact=true");
+            JArray users = JArray.Parse(await searchResponse.Content.ReadAsStringAsync());
+            JToken? user = users.FirstOrDefault();
+
+            if (user == null)
+            {
+                Log.Error("{Function} No Keycloak user found for {Email}.", "SetTreAdminCustodianAttributeAsync", adminEmail);
+                return false;
+            }
+
+            string userId = user["id"]!.ToString();
+            HttpResponseMessage getResponse = await client.GetAsync($"{baseUrl}/admin/realms/{realm}/users/{userId}");
+            JObject userObj = JObject.Parse(await getResponse.Content.ReadAsStringAsync());
+
+            if (userObj["attributes"] is not JObject attributes)
+            {
+                attributes = new();
+                userObj["attributes"] = attributes;
+            }
+
+            if (attributes["custodian"] is JArray existingValues)
+            {
+                bool alreadyPresent = existingValues.Any(v => string.Equals(v?.ToString(), treName, StringComparison.OrdinalIgnoreCase));
+
+                if (!alreadyPresent)
+                {
+                    existingValues.Add(treName);
+                }
+            }
+            else
+            {
+                attributes["custodian"] = new JArray(treName);
+            }
+
+            StringContent content = new(userObj.ToString(), Encoding.UTF8, "application/json");
+            HttpResponseMessage putResponse = await client.PutAsync($"{baseUrl}/admin/realms/{realm}/users/{userId}", content);
+
+            if (!putResponse.IsSuccessStatusCode)
+            {
+                Log.Error("{Function} Failed to set custodian attribute for {Email}. Status: {Status}", "SetTreAdminCustodianAttributeAsync", adminEmail, putResponse.StatusCode);
+                return false;
+            }
+
+            return true;
+        }
     }
 }

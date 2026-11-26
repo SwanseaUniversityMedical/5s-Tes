@@ -62,6 +62,7 @@ AddServices(builder);
 //Add Dependancies
 AddDependencies(builder, configuration);
 AddVaultServices(builder, configuration);
+AddCohortDiscoveryServices(builder, configuration);
 builder.Services.Configure<ForwardedHeadersOptions>(options =>
 {
     options.ForwardedHeaders =
@@ -104,6 +105,7 @@ builder.Services.AddSingleton(emailSettings);
 
 builder.Services.AddHostedService<ConsumeInternalMessageService>();
 builder.Services.AddHostedService<ConsumeGovernanceConfigService>();
+builder.Services.AddHostedService<CohortDiscoveryWorkgroupLinkService>();
 var TVP = new TokenValidationParameters
 {
     ValidateAudience = true,
@@ -334,6 +336,24 @@ void AddVaultServices(WebApplicationBuilder builder, ConfigurationManager config
         client.DefaultRequestHeaders.Accept.Add(
             new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
   });
+}
+
+void AddCohortDiscoveryServices(WebApplicationBuilder builder, ConfigurationManager configuration)
+{
+    // Configure the cohort discovery tool settings
+    builder.Services.Configure<CohortDiscoverySettings>(
+        configuration.GetSection("CohortDiscovery"));
+
+    // Register HttpClient for Cohort Discovery service
+    builder.Services.AddHttpClient<ICohortDiscoverySyncService, CohortDiscoverySyncService>((sp, client) =>
+    {
+        var options = sp.GetRequiredService<IOptions<CohortDiscoverySettings>>().Value;
+
+        client.BaseAddress = new Uri(options.BaseUrl);
+        client.Timeout = TimeSpan.FromSeconds(options.TimeoutSeconds);
+        client.DefaultRequestHeaders.Accept.Add(
+            new System.Net.Http.Headers.MediaTypeWithQualityHeaderValue("application/json"));
+    });
 }
 
 void AddServices(WebApplicationBuilder builder)

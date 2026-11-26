@@ -6,6 +6,9 @@ namespace FiveSafesTes.Core.Models;
 
 public class DirectorGovernanceConfig
 {
+    public int ConsortiumId { get; set; }
+    public string Name { get; set; }
+    public string Description { get; set; }
     public List<GovernanceTre> ConsortiumTres { get; set; }
     public List<GovernanceProduct> EnabledProducts { get; set; }
     public List<GovernanceUser> PresentUsers { get; set; }
