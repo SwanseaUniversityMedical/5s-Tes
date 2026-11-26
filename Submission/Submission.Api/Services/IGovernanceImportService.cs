@@ -14,14 +14,12 @@ public interface IGovernanceImportService
 public class GovernanceImportService : IGovernanceImportService
 {
     private readonly ApplicationDbContext _dbContext;
-    private readonly IKeycloakAdminService _keycloakAdminService;
-    private readonly IVaultCredentialsService _vaultCredentialsService;
+    private readonly ITreProvisioningService _treProvisioningService;
 
-    public GovernanceImportService(ApplicationDbContext dbContext, IKeycloakAdminService keycloakAdminService, IVaultCredentialsService vaultCredentialsService)
+    public GovernanceImportService(ApplicationDbContext dbContext, ITreProvisioningService treProvisioningService)
     {
         _dbContext = dbContext;
-        _keycloakAdminService = keycloakAdminService;
-        _vaultCredentialsService = vaultCredentialsService;
+        _treProvisioningService = treProvisioningService;
     }
 
     /// <summary>
@@ -69,7 +67,7 @@ public class GovernanceImportService : IGovernanceImportService
             tre.AdminUsername = adminUser.Email;
             tre.About = configTre.OtherInformation;
 
-            await StoreTreWithServiceAccountAsync(tre, isNew);
+            await _treProvisioningService.StoreTreWithServiceAccountAsync(tre, isNew);
 
             string message = $"TRE '{tre.Name}' {(isNew ? "created" : "updated")}, admin set to {tre.AdminUsername}.";
             Log.Information("{Function} {Message}", "GovernanceImportService", message);
@@ -82,54 +80,5 @@ public class GovernanceImportService : IGovernanceImportService
         }
 
         return results;
-    }
-
-    /// <summary>
-    /// Saves a TRE to the database.
-    /// Provisions a Keycloak service account and Vault credential to TREs that do not already have one.
-    /// </summary>
-    /// <param name="tre">The TRE we are adding or updating.</param>
-    /// <param name="isNew">True if the TRE doesn't already exist in the database.</param>
-    private async Task StoreTreWithServiceAccountAsync(Tre tre, bool isNew)
-    {
-        if (isNew)
-        {
-            _dbContext.Tres.Add(tre);
-        }
-        else 
-        {
-            _dbContext.Tres.Update(tre);
-        }
-
-        await _dbContext.SaveChangesAsync();
-
-        if (string.IsNullOrEmpty(tre.KeycloakClientId))
-        {
-            try
-            {
-                (string? clientUuid, string? clientId, string? clientSecret) = await _keycloakAdminService.CreateServiceAccountAsync(tre.Name);
-
-                bool vaultWritten = await _vaultCredentialsService.AddCredentialAsync($"tre/{tre.Name.ToLowerInvariant()}/keycloak", new()
-                        {
-                            { "clientId", clientId },
-                            { "clientSecret", clientSecret },
-                            { "clientUuid", clientUuid }
-                        });
-
-                if (!vaultWritten) 
-                {
-                    Log.Error("{Function} Keycloak client {ClientId} was provisioned but the Vault write failed for TRE {TreName}.", "GovernanceImportService", clientId, tre.Name);
-                }
-                else
-                {
-                    tre.KeycloakClientId = clientId;
-                    await _dbContext.SaveChangesAsync();
-                }
-            }
-            catch (Exception ex)
-            {
-                Log.Error(ex, "{Function} Failed to create service account for TRE {TreName}.","GovernanceImportService", tre.Name);
-            }
-        }
     }
 }
