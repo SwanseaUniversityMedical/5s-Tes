@@ -25,7 +25,11 @@ RUN apk add --no-cache wget && \
       arm64) RC_SHA256=3d8e125f878f295dedeb40a03a85c311588205601f5076fbc8b341fe40b41b1b ;; \
       *) echo "unsupported TARGETARCH: ${TARGETARCH}" >&2; exit 1 ;; \
     esac && \
-    wget -O rc.tar.gz "https://github.com/rustfs/cli/releases/download/${RC_VERSION}/rustfs-cli-linux-${TARGETARCH}-${RC_VERSION}.tar.gz" && \
+    for attempt in 1 2 3 4 5; do \
+      wget -O rc.tar.gz "https://github.com/rustfs/cli/releases/download/${RC_VERSION}/rustfs-cli-linux-${TARGETARCH}-${RC_VERSION}.tar.gz" && break; \
+      [ "${attempt}" = 5 ] && exit 1; \
+      sleep $((attempt * 5)); \
+    done && \
     echo "${RC_SHA256}  rc.tar.gz" | sha256sum -c - && \
     tar -xzf rc.tar.gz rc && \
     mkdir /out && \
