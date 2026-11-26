@@ -1,8 +1,6 @@
 # Cohort Discovery (local Docker setup)
 
-A local, standalone Docker Compose stack for the [Cohort Discovery](https://github.com) tool, wired up to log in via the same Keycloak instance used by 5s-Tes (`Dare-Control` realm). This exists so that TRE admin access — granted automatically by 5s-Tes when a Director Governance config is imported — can be tested end to end without needing a shared or production environment.
-
-This is separate from the `cohort-discovery-k8s` kind cluster setup; that one is a persistent, longer-lived environment, whereas this is a disposable stack for quickly testing SSO/sync changes.
+A local, standalone Docker Compose stack for the Cohort Discovery tool, wired up to allow users to log in via the same Keycloak instance used by the 5s-Tes Submission Layer (`Dare-Control` realm). 
 
 ## Running it
 
