@@ -1,0 +1,182 @@
+using FiveSafesTes.Core.Models;
+using FiveSafesTes.Core.Services;
+using Serilog;
+using Submission.Api.Repositories.DbContexts;
+using Submission.Api.Services.Contract;
+
+namespace Submission.Api.Services;
+
+public interface IGovernanceImportService
+{
+    Task<List<string>> ApplyConfigAsync(DirectorGovernanceConfig config, Func<Tre, bool, Task>? onTreSaved = null, Func<Project, List<Tre>, bool, Task>? onProjectSaved = null);
+}
+
+public class GovernanceImportService : IGovernanceImportService
+{
+    private readonly ApplicationDbContext _dbContext;
+    private readonly ITreProvisioningService _treProvisioningService;
+    private readonly IKeycloakAdminService _keycloakAdminService;
+
+    public GovernanceImportService(ApplicationDbContext dbContext, ITreProvisioningService treProvisioningService, IKeycloakAdminService keycloakAdminService)
+    {
+        _dbContext = dbContext;
+        _treProvisioningService = treProvisioningService;
+        _keycloakAdminService = keycloakAdminService;
+    }
+
+    /// <summary>
+    /// Creates and sets up the TREs defined in a Director Governance JSON config file.
+    /// </summary>
+    /// <param name="config">The Deserialized Governance config.</param>
+    /// <param name="onTreSaved">The function that should be invoked when a TRE is saved.</param>
+    /// <param name="onProjectSaved">The function that should be invoked when a project is saved.</param>
+    /// <returns>A list containing a result message that describes the outcome for each TRE processed.</returns>
+    public async Task<List<string>> ApplyConfigAsync(DirectorGovernanceConfig config, Func<Tre, bool, Task>? onTreSaved = null, Func<Project, List<Tre>, bool, Task>? onProjectSaved = null)
+    {
+        List<string> results = new();
+
+        List<GovernanceProduct> fiveSafesTesProjects = (config.EnabledProducts ?? new())
+            .Where(x => x.ProductMetadata?.Name?.StartsWith("5SAFETES", StringComparison.OrdinalIgnoreCase) == true).ToList();
+
+        if (fiveSafesTesProjects.Count == 0)
+        {
+            results.Add("5S-TES is not an enabled product in this configuration. No TREs created.");
+            return results;
+        }
+
+        List<int> treIdsToCreate = fiveSafesTesProjects.SelectMany(x => x.AssignedTres ?? new List<int>()).Distinct().ToList();
+        List<Tre> importedTres = new();
+        List<User> importedUsers = new();
+
+        foreach (int treId in treIdsToCreate)
+        {
+            GovernanceTre? configTre = config.ConsortiumTres?.FirstOrDefault(x => x.Id == treId);
+            if (configTre == null)
+            {
+                results.Add($"TRE id {treId} is assigned to a 5S-TES product but not found in consortiumTres. Skipped.");
+                continue;
+            }
+
+            GovernanceUser? adminUser = config.PresentUsers?.FirstOrDefault(x => x.RepresentedTreId == treId
+                && string.Equals(x.Role, "admin", StringComparison.OrdinalIgnoreCase));
+
+            if (adminUser == null)
+            {
+                results.Add($"TRE '{configTre.Name}' has no user with role 'admin' for this TRE. Skipped.");
+                continue;
+            }
+
+            Tre? existing = _dbContext.Tres.FirstOrDefault(x => x.Name.ToLower() == configTre.Name.ToLower().Trim());
+            bool isNew = existing == null;
+            Tre tre = existing ?? new Tre { Name = configTre.Name.Trim(), FormData = string.Empty };
+            tre.AdminUsername = adminUser.Email;
+            tre.About = configTre.OtherInformation;
+
+            await _treProvisioningService.StoreTreWithServiceAccountAsync(tre, isNew);
+
+            try
+            {
+                await _keycloakAdminService.SetTreAdminCustodianAttributeAsync(tre.AdminUsername, tre.Name);
+            }
+            catch (Exception ex)
+            {
+                Log.Error(ex, "{Function} Failed to set custodian attribute for TRE admin {AdminUsername}.", "GovernanceImportService", tre.AdminUsername);
+            }
+
+            importedTres.Add(tre);
+
+            List<GovernanceUser> treUsers = config.PresentUsers?.Where(x => x.RepresentedTreId == treId).ToList() ?? new();
+
+            // Create the config-defined users if they don't already exist and add them to the project.
+            foreach (GovernanceUser governanceUser in treUsers)
+            {
+                User? user = importedUsers.FirstOrDefault(x => x.Email.ToLower() == governanceUser.Email.ToLower().Trim())
+                ?? _dbContext.Users.FirstOrDefault(x => x.Email.ToLower() == governanceUser.Email.ToLower().Trim());
+
+                if (user == null)
+                {
+                    user = new User { Email = governanceUser.Email.Trim(), FormData = string.Empty };
+                    _dbContext.Users.Add(user);
+                }
+
+                user.Name = $"{governanceUser.FirstName} {governanceUser.LastName}".Trim();
+
+                if (!importedUsers.Contains(user))
+                {
+                    importedUsers.Add(user);
+                }
+            }
+
+            string message = $"TRE '{tre.Name}' {(isNew ? "created" : "updated")}, admin set to {tre.AdminUsername}.";
+            Log.Information("{Function} {Message}", "GovernanceImportService", message);
+            results.Add(message);
+
+            if (onTreSaved != null)
+            {
+                await onTreSaved(tre, isNew);
+            }
+        }
+
+        if (importedTres.Count > 0 && !string.IsNullOrWhiteSpace(config.Name))
+        {
+            await UpsertProjectAsync(config, importedTres, importedUsers, results, onProjectSaved);
+        }
+
+        return results;
+    }
+
+    /// <summary>
+    /// Creates or updates a project representing a given consortium, linking its TREs respectively.
+    /// </summary>
+    /// <param name="config">The imported configuration from Director Governance.</param>
+    /// <param name="tres">The list of TREs that have been created from the Director Governance config.</param>
+    /// <param name="users">The list of users that have been created from the Director Governance config.</param>
+    /// <param name="results">A list containing a result message describing the outcome for each TRE processed.</param>
+    private async Task UpsertProjectAsync(DirectorGovernanceConfig config, List<Tre> tres, List<User> users, List<string> results, Func<Project, List<Tre>, bool, Task>? onProjectSaved)
+    {
+        Project? existing = _dbContext.Projects.FirstOrDefault(x => x.Name.ToLower() == config.Name.Trim().ToLower());
+        bool isNew = existing == null;
+
+        Project project = existing ?? new()
+        {
+            Name = config.Name.Trim(),
+            Display = config.Name.Trim(),
+            StartDate = DateTime.UtcNow,
+            EndDate = DateTime.UtcNow.AddYears(3), // TODO check how we choose end date
+            SubmissionBucket = "",
+            OutputBucket = "",
+            FormData = string.Empty,
+            Tres = [],
+            Users = [],
+            Submissions = []
+        };
+
+        project.ProjectDescription = config.Description ?? project.ProjectDescription ?? "";
+
+        if (isNew) _dbContext.Projects.Add(project);
+
+        foreach (Tre tre in tres)
+        {
+            if (!project.Tres.Any(t => t.Id == tre.Id))
+            {
+                project.Tres.Add(tre);
+            }
+        }
+
+        foreach (User user in users)
+        {
+            if (!project.Users.Contains(user))
+            {
+                project.Users.Add(user);
+            }
+        }
+
+        await _dbContext.SaveChangesAsync();
+
+        string message = $"Project '{project.Name}' {(isNew ? "created" : "updated")}, linked to {tres.Count} TRE(s).";
+        Log.Information("{Function} {Message}", "GovernanceImportService", message);
+        results.Add(message);
+
+        if (onProjectSaved != null) await onProjectSaved(project, tres, isNew);
+    }
+}

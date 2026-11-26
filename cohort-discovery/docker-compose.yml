@@ -1,0 +1,166 @@
+name: cohort-discovery
+
+services:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: password123
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql-init:/docker-entrypoint-initdb.d
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-ppassword123"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  redis:
+    image: redis:7-alpine
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  api:
+    image: harbor.ukserp.ac.uk/cohort-discovery/api:1.17.0
+    # The 1.17.0 image no longer ships docker/start.sh (removed/refactored upstream).
+    # This reconstructs what that script used to do, based on the version still
+    # checked out locally under cohort-discovery-k8s/cohort-discovery-service-api/docker/start.sh.
+    command:
+      - sh
+      - -c
+      - |
+        php artisan passport:keys --force
+
+        if [ "$$APP_ENV" = "local" ] || [ "$$APP_ENV" = "dev" ]; then
+          if [ "$$REBUILD_DB" = "1" ]; then
+            php artisan migrate:fresh --seed --seeder=DevDatabaseSeeder --force
+          else
+            php artisan migrate --force
+          fi
+        else
+          php artisan migrate --force
+        fi
+
+        php artisan deploy:run
+
+        composer dump-autoload
+        composer dump-autoload -o
+
+        php artisan clear-compiled
+        php artisan optimize:clear
+        php artisan route:clear
+        php artisan view:clear
+        php artisan cache:clear
+        php artisan config:clear
+
+        php artisan optimize
+        php artisan config:cache
+
+        if [ "$${START_HORIZON:-1}" = "1" ]; then
+          echo "Starting Horizon in background..."
+          php artisan horizon &
+        fi
+
+        echo "Starting Octane on port $$PORT..."
+        exec php artisan octane:frankenphp --host=0.0.0.0 --port=$${PORT:-8100}
+    ports:
+      - "8102:8100"
+    environment:
+      PORT: "8100"
+      APP_URL: http://localhost:8102
+      APP_ENV: local
+      APP_DEBUG: "true"
+      APP_OPERATION_MODE: standalone
+      REBUILD_DB: ${REBUILD_DB:-1}
+      START_HORIZON: "1"
+      DB_CONNECTION: mysql
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_DATABASE: cohort_discovery
+      DB_USERNAME: root
+      DB_OMOP_HOST: mysql
+      DB_OMOP_PORT: "3306"
+      DB_OMOP_DATABASE: omop
+      DB_OMOP_USERNAME: root
+      REDIS_CLIENT: predis
+      REDIS_HOST: redis
+      REDIS_PORT: "6379"
+      REDIS_PASSWORD: "null"
+      QUEUE_CONNECTION: redis
+      CACHE_STORE: database
+      AUTH_PASSWORD_LOGIN_ENABLED: "true"
+      COHORT_DISCOVER_NLP_SERVICE_BASE_URI: http://nlp:5001
+      APP_KEY: "base64:DbzpMcIMM3N9iDD2HfDKpQeSEnR/tHQEXXi83nRX6Io="
+      JWT_SECRET: "pzegmkSztCyrgczZZHXPPRfw7W4ti2qeVTvjaGjhdM0="
+      COLLECTION_HOSTS_KEY_SALT_1: "o1yCF4bnK8Nx7ZHGqECXLA=="
+      COLLECTION_HOSTS_KEY_SALT_2: "a8Qp5PumEBHud2viHbCeaA=="
+      DB_PASSWORD: password123
+      DB_OMOP_PASSWORD: password123
+      SSO_ENABLED: ${SSO_ENABLED:-false}
+      SSO_DEFAULT_ENABLED: ${SSO_DEFAULT_ENABLED:-false}
+      SSO_DEFAULT_LABEL: ${SSO_DEFAULT_LABEL:-Single Sign-On}
+      SSO_DEFAULT_ISSUER: ${SSO_DEFAULT_ISSUER:-}
+      SSO_DEFAULT_DISCOVERY_URL: ${SSO_DEFAULT_DISCOVERY_URL:-}
+      SSO_DEFAULT_CLIENT_ID: ${SSO_DEFAULT_CLIENT_ID:-}
+      SSO_DEFAULT_CLIENT_SECRET: ${SSO_DEFAULT_CLIENT_SECRET:-}
+      SSO_DEFAULT_REDIRECT_URI: ${SSO_DEFAULT_REDIRECT_URI:-}
+      SSO_DEFAULT_WORKGROUPS_CLAIM: ${SSO_DEFAULT_WORKGROUPS_CLAIM:-eduperson_entitlement}
+      SSO_DEFAULT_ROLES_CLAIM: ${SSO_DEFAULT_ROLES_CLAIM:-}
+      SSO_DEFAULT_CUSTODIANS_CLAIM: ${SSO_DEFAULT_CUSTODIANS_CLAIM:-}
+      SSO_FRONTEND_CALLBACK_URL: ${SSO_FRONTEND_CALLBACK_URL:-}
+      SSO_FRONTEND_ERROR_URL: ${SSO_FRONTEND_ERROR_URL:-}
+      SSO_FRONTEND_LOGIN_URL: ${SSO_FRONTEND_LOGIN_URL:-}
+    extra_hosts:
+      - "keycloak.localtest.me:host-gateway"
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8100/up"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  nlp:
+    image: harbor.ukserp.ac.uk/cohort-discovery/nlp:1.9.1
+    ports:
+      - "5001:5001"
+    environment:
+      DB_HOST: mysql
+      DB_PORT: "3306"
+      DB_NAME: cohort_discovery
+      DB_USER: root
+      DB_PASS: password123
+      OMOP_DB_NAME: omop
+      APP_ENV: development
+      APP_DEBUG: "true"
+      RESOLVER_BACKEND: sql
+    depends_on:
+      mysql:
+        condition: service_healthy
+
+  web:
+    image: harbor.ukserp.ac.uk/cohort-discovery/ui:1.12.0
+    ports:
+      - "3001:3000"
+    environment:
+      APPLICATION_MODE: standalone
+      API_BASE_URL: http://localhost:8102
+      NEXT_PUBLIC_LOGIN_URL: "http://localhost:3001?redirect_cohort_discovery_upon_signin=http://localhost:3000"
+      NEXT_PUBLIC_TASK_URL: http://localhost:8102/api/v1
+    extra_hosts:
+      - "localhost:host-gateway"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  mysql-data:
