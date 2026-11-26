@@ -87,6 +87,7 @@ public class GovernanceImportService : IGovernanceImportService
 
             List<GovernanceUser> treUsers = config.PresentUsers?.Where(x => x.RepresentedTreId == treId).ToList() ?? new();
 
+            // Create the config-defined users if they don't already exist and add them to the project.
             foreach (GovernanceUser governanceUser in treUsers)
             {
                 User? user = importedUsers.FirstOrDefault(x => x.Email.ToLower() == governanceUser.Email.ToLower().Trim())
@@ -129,7 +130,7 @@ public class GovernanceImportService : IGovernanceImportService
     /// </summary>
     /// <param name="config">The imported configuration from Director Governance.</param>
     /// <param name="tres">The list of TREs that have been created from the Director Governance config.</param>
-    /// <param name="users">The list of users represented across those TREs, to be given workgroup access to the project.</param>
+    /// <param name="users">The list of users that have been created from the Director Governance config.</param>
     /// <param name="results">A list containing a result message describing the outcome for each TRE processed.</param>
     private async Task UpsertProjectAsync(DirectorGovernanceConfig config, List<Tre> tres, List<User> users, List<string> results, Func<Project, List<Tre>, bool, Task>? onProjectSaved)
     {

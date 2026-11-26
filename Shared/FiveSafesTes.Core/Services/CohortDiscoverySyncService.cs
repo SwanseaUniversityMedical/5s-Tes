@@ -182,6 +182,12 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         await _httpClient.PutAsync($"{COLLECTION_ENDPOINT}/{createdCollection!.Data!.Id}/transition_to", transitionContent);
     }
 
+    /// <summary>
+    /// Ensures a project has a matching Workgroup in the Cohort Discovery Tool.
+    /// </summary>
+    /// <param name="project">The project we are syncing with Cohort Discovery.</param>
+    /// <param name="tres">The TREs assigned to this project.</param>
+    /// <param name="isNew">Unused but required by the call in ConsumeDirectorGovernanceService</param>
     public async Task SyncProject(Project project, List<Tre> tres, bool isNew)
     {
         if (!_settings.EnableCohortDiscoveryTool)
@@ -226,6 +232,11 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         }
     }
 
+    /// <summary>
+    /// Finds an existing Workgroup matching a given project name or creates one if none exist.
+    /// </summary>
+    /// <param name="projectName">The name of the project we are creaking a Workgroup for.</param>
+    /// <returns>The matching or newly-created Workgroup.</returns>
     private async Task<WorkgroupDto> FindOrCreateWorkgroup(string projectName)
     {
         HttpResponseMessage workgroupListResponse = await _httpClient.GetAsync(WORKGROUP_ENDPOINT);
@@ -245,6 +256,11 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         return createdWorkgroup!.Data!;
     }
 
+    /// <summary>
+    /// Finds the Collection belonging to the Custodian matching the given TRE name.
+    /// </summary>
+    /// <param name="treName">The TRE name corresponding to our Custodian and Collection.</param>
+    /// <returns>The matching Collection.</returns>
     private async Task<CollectionDto?> FindCollectionByTreName(string treName)
     {
         HttpResponseMessage custodianListResponse = await _httpClient.GetAsync(CUSTODIAN_ENDPOINT);
@@ -263,6 +279,11 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         return collections?.Data?.Data?.FirstOrDefault(x => string.Equals(x.Name, treName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Adds a Collection to a Workgroup, granting the members of that Workgroup access.
+    /// </summary>
+    /// <param name="collectionId">The ID of the Collection we are adding to the Workgroup.</param>
+    /// <param name="workgroupId">The ID of the Workgroup we are adding the Collection to.</param>
     private async Task AddCollectionToWorkgroupAsync(int collectionId, int workgroupId)
     {
         var payload = new { workgroup_id = workgroupId };
@@ -271,7 +292,13 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         response.EnsureSuccessStatusCode();
     }
 
-    public async Task<bool> TryLinkUserToProjectWorkgroupAsync(string adminEmail, string projectName)
+    /// <summary>
+    /// Attempts to link a user to a project's Workgroup by email.
+    /// </summary>
+    /// <param name="email">The email address of the user we want to link.</param>
+    /// <param name="projectName">The name of the project that corresponds with the Workgroup we are adding our user to.</param>
+    /// <returns>True if the user was linked successfully.</returns>
+    public async Task<bool> TryLinkUserToProjectWorkgroupAsync(string email, string projectName)
     {
         if (!_settings.EnableCohortDiscoveryTool) return false;
 
@@ -282,7 +309,7 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
             HttpResponseMessage userListResponse = await _httpClient.GetAsync(USER_ENDPOINT);
             userListResponse.EnsureSuccessStatusCode();
             var users = JsonConvert.DeserializeObject<Envelope<List<UserDto>>>(await userListResponse.Content.ReadAsStringAsync());
-            UserDto? user = users?.Data?.FirstOrDefault(u => string.Equals(u.Email, adminEmail, StringComparison.OrdinalIgnoreCase));
+            UserDto? user = users?.Data?.FirstOrDefault(u => string.Equals(u.Email, email, StringComparison.OrdinalIgnoreCase));
 
             if (user == null)
             {
@@ -295,16 +322,21 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
 
             await AddUserToWorkgroupAsync(user.Id, workgroup.Id);
 
-            Log.Information("{Function} Linked user {Email} to workgroup '{ProjectName}'.", "CohortDiscoverySyncService", adminEmail, projectName);
+            Log.Information("{Function} Linked user {Email} to workgroup '{ProjectName}'.", "CohortDiscoverySyncService", email, projectName);
             return true;
         }
         catch (Exception ex)
         {
-            Log.Error(ex, "{Function} Failed linking {Email} to workgroup '{ProjectName}'.", "CohortDiscoverySyncService", adminEmail, projectName);
+            Log.Error(ex, "{Function} Failed linking {Email} to workgroup '{ProjectName}'.", "CohortDiscoverySyncService", email, projectName);
             return false;
         }
     }
 
+    /// <summary>
+    /// Finds an existing Workgroup matching the given project name.
+    /// </summary>
+    /// <param name="projectName">The project name we are attempting to match against an existing Workgroup.</param>
+    /// <returns>The matching Workgroup.</returns>
     private async Task<WorkgroupDto?> FindWorkgroupByName(string projectName)
     {
         HttpResponseMessage workgroupListResponse = await _httpClient.GetAsync(WORKGROUP_ENDPOINT);
@@ -314,6 +346,11 @@ public class CohortDiscoverySyncService : ICohortDiscoverySyncService
         return workgroups?.Data?.FirstOrDefault(x => string.Equals(x.Name, projectName, StringComparison.OrdinalIgnoreCase));
     }
 
+    /// <summary>
+    /// Adds a Cohort Discovery user to a Workgroup.
+    /// </summary>
+    /// <param name="userId">The ID of the Cohort Discovery user we are adding to the Workgroup.</param>
+    /// <param name="workgroupId">The ID of the Workgroup we are adding the user to.</param>
     private async Task AddUserToWorkgroupAsync(int userId, int workgroupId)
     {
         var payload = new { workgroup_id = workgroupId };

@@ -26,12 +26,14 @@ public class CohortDiscoveryWorkgroupLinkService : BackgroundService
                 ApplicationDbContext dbContext = scope.ServiceProvider.GetRequiredService<ApplicationDbContext>();
                 ICohortDiscoverySyncService syncService = scope.ServiceProvider.GetRequiredService<ICohortDiscoverySyncService>();
 
+                // Try linking every project user to their Cohort Discovery workgroup
                 foreach (Project project in dbContext.Projects.Include(p => p.Users))
                 {
                     foreach (User user in project.Users)
                     {
                         if (!string.IsNullOrWhiteSpace(user.Email))
                         {
+                            // If the user has logged into the cohort discovery tool before, they have an account we can link
                             await syncService.TryLinkUserToProjectWorkgroupAsync(user.Email, project.Name);
                         }
                     }
