@@ -314,6 +314,7 @@ void AddDependencies(WebApplicationBuilder builder, ConfigurationManager configu
     builder.Services.AddScoped<IKeyCloakService, KeyCloakService>();
     builder.Services.AddScoped<IKeycloakAdminService, KeycloakAdminService>();
     builder.Services.AddScoped<IDareEmailService, DareEmailService>();
+    builder.Services.AddScoped<ITreProvisioningService, TreProvisioningService>();
     builder.Services.AddScoped<IGovernanceImportService, GovernanceImportService>();
 
 
